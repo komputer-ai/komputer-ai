@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -47,7 +48,8 @@ func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
 	return &K8sClient{client: c, defaultNamespace: defaultNamespace}, nil
 }
 
-// EnsureNamespace creates the namespace if it doesn't exist.
+// EnsureNamespace creates the namespace if it doesn't exist, and copies
+// the default KomputerAgentTemplate and required secrets into it.
 func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 	namespace := &corev1.Namespace{}
 	err := k.client.Get(ctx, types.NamespacedName{Name: ns}, namespace)
@@ -57,6 +59,8 @@ func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 	if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to check namespace: %w", err)
 	}
+
+	// Create namespace
 	namespace = &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ns,
@@ -68,6 +72,40 @@ func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 	if err := k.client.Create(ctx, namespace); err != nil {
 		return fmt.Errorf("failed to create namespace: %w", err)
 	}
+
+	// Copy default template from defaultNamespace to new namespace
+	srcTemplate := &komputerv1alpha1.KomputerAgentTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: "default", Namespace: k.defaultNamespace}, srcTemplate); err == nil {
+		newTemplate := &komputerv1alpha1.KomputerAgentTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: ns,
+			},
+			Spec: *srcTemplate.Spec.DeepCopy(),
+		}
+		if createErr := k.client.Create(ctx, newTemplate); createErr != nil && !errors.IsAlreadyExists(createErr) {
+			log.Printf("warning: failed to copy default template to namespace %s: %v", ns, createErr)
+		}
+	}
+
+	// Copy secrets referenced by the template (e.g., anthropic-api-key)
+	for _, secretName := range []string{"anthropic-api-key", "redis-secret"} {
+		srcSecret := &corev1.Secret{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: k.defaultNamespace}, srcSecret); err == nil {
+			newSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: ns,
+				},
+				Data: srcSecret.Data,
+				Type: srcSecret.Type,
+			}
+			if createErr := k.client.Create(ctx, newSecret); createErr != nil && !errors.IsAlreadyExists(createErr) {
+				log.Printf("warning: failed to copy secret %s to namespace %s: %v", secretName, ns, createErr)
+			}
+		}
+	}
+
 	return nil
 }
 
