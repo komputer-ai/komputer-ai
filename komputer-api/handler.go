@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -54,6 +55,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		if existing != nil {
 			if existing.Status.PodName == "" {
 				c.JSON(http.StatusConflict, gin.H{"error": "agent exists but has no running pod yet"})
+				return
+			}
+
+			if existing.Status.TaskStatus == komputerv1alpha1.AgentTaskBusy {
+				c.JSON(http.StatusConflict, gin.H{"error": "agent is busy with another task"})
 				return
 			}
 

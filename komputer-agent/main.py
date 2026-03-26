@@ -6,7 +6,7 @@ import uvicorn
 
 from agent import run_agent_sync
 from events import EventPublisher
-from server import configure
+from server import configure, _busy as busy_lock
 
 
 def load_config():
@@ -29,13 +29,14 @@ def main():
     # Configure the FastAPI server
     configure(publisher, model)
 
-    # Run initial task in a background thread
+    # Run initial task in a background thread (acquires busy lock)
     def run_initial_task():
-        try:
-            run_agent_sync(instructions, model, publisher)
-        except Exception as e:
-            print(f"Initial task failed: {e}", flush=True)
-            publisher.publish("error", {"error": str(e)})
+        with busy_lock:
+            try:
+                run_agent_sync(instructions, model, publisher)
+            except Exception as e:
+                print(f"Initial task failed: {e}", flush=True)
+                publisher.publish("error", {"error": str(e)})
 
     if instructions:
         thread = threading.Thread(target=run_initial_task, daemon=True)
