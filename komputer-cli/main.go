@@ -271,16 +271,17 @@ func formatEvent(event AgentEvent) string {
 	case "tool_result":
 		tool, _ := payload["tool"].(string)
 		output, _ := payload["output"].(string)
-		// Only show tool results that contain errors — successful results are
-		// redundant with the manager's text commentary and tool_call events.
 		isError := strings.Contains(output, "Error") || strings.Contains(output, "error") || strings.Contains(output, "failed") || strings.Contains(output, "Stream closed")
-		if !isError {
-			return "" // skip successful tool results
+		if isError {
+			return fmt.Sprintf("%s %s %s\n%s", ts,
+				eventErrorStyle.Render("✗ Tool Error:"),
+				eventErrorStyle.Render(tool),
+				eventErrorStyle.Render("  "+truncate(output, 500)))
 		}
 		return fmt.Sprintf("%s %s %s\n%s", ts,
-			eventErrorStyle.Render("✗ Tool Error:"),
-			eventErrorStyle.Render(tool),
-			eventErrorStyle.Render("  "+truncate(output, 500)))
+			eventResultStyle.Render("✓"),
+			eventResultStyle.Render(tool),
+			dimStyle.Render("  "+truncate(output, 200)))
 
 	case "task_completed":
 		result, _ := payload["result"].(string)
