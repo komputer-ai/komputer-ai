@@ -5,9 +5,9 @@ from pathlib import Path
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
+    ClaudeSDKClient,
     HookMatcher,
     ResultMessage,
-    StreamEvent,
     TextBlock,
     ThinkingBlock,
     ToolUseBlock,
@@ -33,7 +33,6 @@ def _save_session_id(session_id: str):
     SESSION_FILE.write_text(session_id)
 
 
-
 async def run_agent(instructions: str, model: str, publisher):
     """Run a Claude agent with the given instructions using the Claude Agent SDK."""
     session_id = _load_session_id()
@@ -54,16 +53,11 @@ async def run_agent(instructions: str, model: str, publisher):
         )
         return {}
 
-    is_manager = os.environ.get("KOMPUTER_ROLE") == "manager"
-
     options = ClaudeAgentOptions(
         tools=["Bash", "WebSearch"],
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
-        # Enable streaming for real-time events. Disabled for managers
-        # due to incompatibility with MCP servers in current SDK version.
-        include_partial_messages=not is_manager,
         hooks={
             "PostToolUse": [
                 HookMatcher(matcher=None, hooks=[post_tool_hook]),
@@ -81,45 +75,12 @@ async def run_agent(instructions: str, model: str, publisher):
         options.resume = session_id
 
     result = None
-    # Track which content we've already published via StreamEvent
-    # so we don't duplicate when the full AssistantMessage arrives.
-    streamed_turn = False
 
-    async for message in query(prompt=instructions, options=options):
-        if isinstance(message, StreamEvent):
-            # Real-time streaming event from Claude — publish immediately.
-            evt = message.event
-            evt_type = evt.get("type", "")
+    async with ClaudeSDKClient(options=options) as client:
+        await client.query(instructions)
 
-            if evt_type == "content_block_start":
-                block = evt.get("content_block", {})
-                block_type = block.get("type", "")
-                if block_type == "text":
-                    # Text block starting — content comes in deltas
-                    pass
-                elif block_type == "thinking":
-                    pass
-                elif block_type == "tool_use":
-                    publisher.publish("tool_call", {
-                        "id": block.get("id", ""),
-                        "tool": block.get("name", ""),
-                        "input": {},
-                    })
-                    streamed_turn = True
-
-            elif evt_type == "content_block_stop":
-                block = evt.get("content_block", {})
-                block_type = block.get("type", "")
-                if block_type == "text" and block.get("text"):
-                    publisher.publish("text", {"content": block["text"]})
-                    streamed_turn = True
-                elif block_type == "thinking" and block.get("thinking"):
-                    publisher.publish("thinking", {"content": block["thinking"][:500]})
-                    streamed_turn = True
-
-        elif isinstance(message, AssistantMessage):
-            # Full turn message — only publish if we didn't already stream it.
-            if not streamed_turn:
+        async for message in client.receive_response():
+            if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         publisher.publish("text", {"content": block.text})
@@ -131,10 +92,8 @@ async def run_agent(instructions: str, model: str, publisher):
                             "tool": block.name,
                             "input": block.input,
                         })
-            streamed_turn = False
-
-        elif isinstance(message, ResultMessage):
-            result = message
+            elif isinstance(message, ResultMessage):
+                result = message
 
     if result:
         # Persist session ID for future tasks
