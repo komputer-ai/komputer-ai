@@ -40,10 +40,33 @@ spec:
           spec:
             description: KomputerRedisConfigSpec defines the desired state of KomputerRedisConfig.
             properties:
-              foo:
-                description: Foo is an example field of KomputerRedisConfig. Edit
-                  komputerredisconfig_types.go to remove/update
+              address:
+                description: Address is the Redis host:port.
                 type: string
+              db:
+                default: 0
+                description: DB is the Redis database number.
+                type: integer
+              passwordSecret:
+                description: PasswordSecret references a Kubernetes Secret containing
+                  the Redis password.
+                properties:
+                  key:
+                    description: Key within the Secret.
+                    type: string
+                  name:
+                    description: Name of the Secret.
+                    type: string
+                required:
+                - key
+                - name
+                type: object
+              queue:
+                default: komputer-events
+                description: Queue is the Redis queue/stream name for agent events.
+                type: string
+            required:
+            - address
             type: object
           status:
             description: KomputerRedisConfigStatus defines the observed state of KomputerRedisConfig.

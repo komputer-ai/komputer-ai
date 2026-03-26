@@ -1,9 +1,11 @@
 apiVersion: komputer.komputer.ai/v1alpha1
 kind: KomputerRedisConfig
 metadata:
-  labels:
-    app.kubernetes.io/name: komputer-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: komputerredisconfig-sample
+  name: default
 spec:
-  # TODO(user): Add fields here
+  address: "redis:6379"
+  db: 0
+  queue: "komputer-events"
+  passwordSecret:
+    name: "redis-secret"
+    key: "password"

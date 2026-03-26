@@ -20,22 +20,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// SecretKeyRef references a key in a Kubernetes Secret.
+type SecretKeyRef struct {
+	// Name of the Secret.
+	Name string `json:"name"`
+	// Key within the Secret.
+	Key string `json:"key"`
+}
 
 // KomputerRedisConfigSpec defines the desired state of KomputerRedisConfig.
 type KomputerRedisConfigSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of KomputerRedisConfig. Edit komputerredisconfig_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Address is the Redis host:port.
+	Address string `json:"address"`
+	// DB is the Redis database number.
+	// +kubebuilder:default=0
+	DB int `json:"db,omitempty"`
+	// Queue is the Redis queue/stream name for agent events.
+	// +kubebuilder:default="komputer-events"
+	Queue string `json:"queue,omitempty"`
+	// PasswordSecret references a Kubernetes Secret containing the Redis password.
+	// +optional
+	PasswordSecret *SecretKeyRef `json:"passwordSecret,omitempty"`
 }
 
 // KomputerRedisConfigStatus defines the observed state of KomputerRedisConfig.
 type KomputerRedisConfigStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true
