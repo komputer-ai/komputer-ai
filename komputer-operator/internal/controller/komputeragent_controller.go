@@ -147,6 +147,11 @@ func (r *KomputerAgentReconciler) ensurePVC(ctx context.Context, agent *komputer
 		size = "5Gi"
 	}
 
+	storageQty, err := resource.ParseQuantity(size)
+	if err != nil {
+		return fmt.Errorf("invalid storage size %q: %w", size, err)
+	}
+
 	pvc = &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
@@ -159,7 +164,7 @@ func (r *KomputerAgentReconciler) ensurePVC(ctx context.Context, agent *komputer
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse(size),
+					corev1.ResourceStorage: storageQty,
 				},
 			},
 		},
@@ -188,11 +193,28 @@ func (r *KomputerAgentReconciler) ensureConfigMap(ctx context.Context, agent *ko
 		return err
 	}
 
+	// Resolve the Redis password from a Kubernetes Secret if configured.
+	password := ""
+	if redisConfig.Spec.PasswordSecret != nil {
+		secret := &corev1.Secret{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Name:      redisConfig.Spec.PasswordSecret.Name,
+			Namespace: agent.Namespace,
+		}, secret); err != nil {
+			return fmt.Errorf("failed to get redis password secret %q: %w", redisConfig.Spec.PasswordSecret.Name, err)
+		}
+		if val, ok := secret.Data[redisConfig.Spec.PasswordSecret.Key]; ok {
+			password = string(val)
+		} else {
+			return fmt.Errorf("key %q not found in secret %q", redisConfig.Spec.PasswordSecret.Key, redisConfig.Spec.PasswordSecret.Name)
+		}
+	}
+
 	// Build config.json content
 	configData := map[string]interface{}{
 		"redis": map[string]interface{}{
 			"address":  redisConfig.Spec.Address,
-			"password": "",
+			"password": password,
 			"db":       redisConfig.Spec.DB,
 			"queue":    redisConfig.Spec.Queue,
 		},
@@ -253,7 +275,10 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	}
 
 	// Build and create the pod
-	pod = r.buildPod(agent, template, pvcName, configMapName, podName)
+	pod, err = r.buildPod(agent, template, pvcName, configMapName, podName)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := ctrl.SetControllerReference(agent, pod, r.Scheme); err != nil {
 		return nil, err
@@ -267,8 +292,12 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 }
 
 // buildPod deep copies the template PodSpec and injects env/volumes/mounts.
-func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, configMapName, podName string) *corev1.Pod {
+func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, configMapName, podName string) (*corev1.Pod, error) {
 	podSpec := *template.Spec.PodSpec.DeepCopy()
+
+	if len(podSpec.Containers) == 0 {
+		return nil, fmt.Errorf("template %q has no containers defined", template.Name)
+	}
 
 	// Set restart policy
 	podSpec.RestartPolicy = corev1.RestartPolicyNever
@@ -296,29 +325,27 @@ func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent
 	)
 
 	// Inject into first container
-	if len(podSpec.Containers) > 0 {
-		container := &podSpec.Containers[0]
+	container := &podSpec.Containers[0]
 
-		// Add env vars
-		container.Env = append(container.Env,
-			corev1.EnvVar{Name: "KOMPUTER_INSTRUCTIONS", Value: agent.Spec.Instructions},
-			corev1.EnvVar{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
-			corev1.EnvVar{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
-		)
+	// Add env vars
+	container.Env = append(container.Env,
+		corev1.EnvVar{Name: "KOMPUTER_INSTRUCTIONS", Value: agent.Spec.Instructions},
+		corev1.EnvVar{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
+		corev1.EnvVar{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
+	)
 
-		// Add volume mounts
-		container.VolumeMounts = append(container.VolumeMounts,
-			corev1.VolumeMount{
-				Name:      "workspace",
-				MountPath: "/workspace",
-			},
-			corev1.VolumeMount{
-				Name:      "komputer-config",
-				MountPath: "/etc/komputer",
-				ReadOnly:  true,
-			},
-		)
-	}
+	// Add volume mounts
+	container.VolumeMounts = append(container.VolumeMounts,
+		corev1.VolumeMount{
+			Name:      "workspace",
+			MountPath: "/workspace",
+		},
+		corev1.VolumeMount{
+			Name:      "komputer-config",
+			MountPath: "/etc/komputer",
+			ReadOnly:  true,
+		},
+	)
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -331,7 +358,7 @@ func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent
 		Spec: podSpec,
 	}
 
-	return pod
+	return pod, nil
 }
 
 // reconcileStatus maps pod phase to agent phase and updates status.

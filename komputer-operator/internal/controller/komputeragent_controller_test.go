@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -59,8 +60,10 @@ var _ = Describe("KomputerAgent Controller", func() {
 			},
 		}
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerAgentTemplate{})
-		if err != nil {
+		if apierrors.IsNotFound(err) {
 			Expect(k8sClient.Create(ctx, template)).To(Succeed())
+		} else {
+			Expect(err).NotTo(HaveOccurred())
 		}
 
 		// Create KomputerRedisConfig "default"
@@ -76,8 +79,10 @@ var _ = Describe("KomputerAgent Controller", func() {
 			},
 		}
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerRedisConfig{})
-		if err != nil {
+		if apierrors.IsNotFound(err) {
 			Expect(k8sClient.Create(ctx, redisConfig)).To(Succeed())
+		} else {
+			Expect(err).NotTo(HaveOccurred())
 		}
 
 		// Create KomputerAgent "test-agent"
@@ -93,8 +98,10 @@ var _ = Describe("KomputerAgent Controller", func() {
 			},
 		}
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "test-agent", Namespace: "default"}, &komputerv1alpha1.KomputerAgent{})
-		if err != nil {
+		if apierrors.IsNotFound(err) {
 			Expect(k8sClient.Create(ctx, agent)).To(Succeed())
+		} else {
+			Expect(err).NotTo(HaveOccurred())
 		}
 	})
 
