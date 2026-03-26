@@ -47,6 +47,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 	streamPattern := cfg.StreamPrefix + ":*"
 
 	go func() {
+		defer rdb.Close()
 		log.Printf("redis worker started, consuming streams %q at %s", streamPattern, cfg.Address)
 
 		// Track last-read ID per stream. "$" means only new messages.
@@ -55,7 +56,6 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 		for {
 			if ctx.Err() != nil {
 				log.Println("redis worker shutting down")
-				rdb.Close()
 				return
 			}
 
@@ -64,14 +64,12 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 			if err != nil {
 				if ctx.Err() != nil {
 					log.Println("redis worker shutting down")
-					rdb.Close()
 					return
 				}
 				log.Printf("redis worker scan error: %v", err)
 				select {
 				case <-ctx.Done():
 					log.Println("redis worker shutting down")
-					rdb.Close()
 					return
 				case <-time.After(1 * time.Second):
 				}
@@ -83,7 +81,6 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 				select {
 				case <-ctx.Done():
 					log.Println("redis worker shutting down")
-					rdb.Close()
 					return
 				case <-time.After(2 * time.Second):
 				}
@@ -116,14 +113,12 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 				}
 				if ctx.Err() != nil {
 					log.Println("redis worker shutting down")
-					rdb.Close()
 					return
 				}
 				log.Printf("redis worker xread error: %v", err)
 				select {
 				case <-ctx.Done():
 					log.Println("redis worker shutting down")
-					rdb.Close()
 					return
 				case <-time.After(1 * time.Second):
 				}
@@ -196,15 +191,28 @@ func scanStreams(ctx context.Context, rdb *redis.Client, pattern string) ([]stri
 // parseStreamMessage converts a Redis stream message into an AgentEvent.
 // The "payload" field is a JSON string that gets unmarshalled back to a map.
 func parseStreamMessage(msg redis.XMessage) (AgentEvent, error) {
+	agentName, ok := msg.Values["agentName"].(string)
+	if !ok {
+		return AgentEvent{}, fmt.Errorf("missing or invalid agentName field")
+	}
+	typ, ok := msg.Values["type"].(string)
+	if !ok {
+		return AgentEvent{}, fmt.Errorf("missing or invalid type field")
+	}
+	timestamp, ok := msg.Values["timestamp"].(string)
+	if !ok {
+		return AgentEvent{}, fmt.Errorf("missing or invalid timestamp field")
+	}
+
 	event := AgentEvent{
-		AgentName: msg.Values["agentName"].(string),
-		Type:      msg.Values["type"].(string),
-		Timestamp: msg.Values["timestamp"].(string),
+		AgentName: agentName,
+		Type:      typ,
+		Timestamp: timestamp,
 	}
 
 	payloadStr, ok := msg.Values["payload"].(string)
 	if !ok {
-		return event, fmt.Errorf("payload field is not a string")
+		return AgentEvent{}, fmt.Errorf("missing or invalid payload field")
 	}
 
 	var payload map[string]interface{}
@@ -239,9 +247,12 @@ func GetAgentEvents(rdb *redis.Client, ctx context.Context, agentName string, li
 }
 
 // DeleteAgentStream removes an agent's event stream from Redis.
-func DeleteAgentStream(rdb *redis.Client, ctx context.Context, agentName string, streamPrefix string) {
+func DeleteAgentStream(rdb *redis.Client, ctx context.Context, agentName string, streamPrefix string) error {
 	streamKey := fmt.Sprintf("%s:%s", streamPrefix, agentName)
-	rdb.Del(ctx, streamKey)
+	if err := rdb.Del(ctx, streamKey).Err(); err != nil {
+		return fmt.Errorf("delete stream %s: %w", streamKey, err)
+	}
+	return nil
 }
 
 // ListAgentStreams returns agent names that have active event streams.
