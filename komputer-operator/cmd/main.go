@@ -209,20 +209,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerAgent")
 		os.Exit(1)
 	}
-	if err := (&controller.KomputerAgentTemplateReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KomputerAgentTemplate")
-		os.Exit(1)
-	}
-	if err := (&controller.KomputerRedisConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KomputerRedisConfig")
-		os.Exit(1)
-	}
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {

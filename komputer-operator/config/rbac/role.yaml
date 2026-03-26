@@ -30,8 +30,6 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents
-  - komputeragenttemplates
-  - komputerredisconfigs
   verbs:
   - create
   - delete
@@ -44,17 +42,22 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents/finalizers
-  - komputeragenttemplates/finalizers
-  - komputerredisconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - komputer.komputer.ai
   resources:
   - komputeragents/status
-  - komputeragenttemplates/status
-  - komputerredisconfigs/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeragenttemplates
+  - komputerredisconfigs
+  verbs:
+  - get
+  - list
+  - watch
