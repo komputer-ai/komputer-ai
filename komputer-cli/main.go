@@ -1,0 +1,595 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/gorilla/websocket"
+	"github.com/spf13/cobra"
+)
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+var (
+	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7C3AED"))
+	labelStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#6B7280"))
+	valueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#F9FAFB"))
+	successStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#10B981"))
+	errorStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444"))
+	warnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F59E0B"))
+	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	busyStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#3B82F6"))
+	idleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#10B981"))
+
+	// Event type styles
+	eventTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#F9FAFB"))
+	eventThinkStyle    = lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#A78BFA"))
+	eventToolStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F59E0B"))
+	eventResultStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#6EE7B7"))
+	eventErrorStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444"))
+	eventStartStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#3B82F6"))
+	eventCompleteStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#10B981"))
+
+	headerStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#7C3AED")).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderBottom(true).
+			BorderForeground(lipgloss.Color("#4C1D95")).
+			PaddingBottom(1).
+			MarginBottom(1)
+)
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+type Config struct {
+	APIEndpoint string `json:"apiEndpoint"`
+}
+
+func configPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".komputer-ai", "config.json")
+}
+
+func loadConfig() (*Config, error) {
+	data, err := os.ReadFile(configPath())
+	if err != nil {
+		return nil, err
+	}
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func saveConfig(cfg *Config) error {
+	dir := filepath.Dir(configPath())
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	data, _ := json.MarshalIndent(cfg, "", "  ")
+	return os.WriteFile(configPath(), data, 0644)
+}
+
+// resolveEndpoint gets the API endpoint from flag or config.
+func resolveEndpoint(cmd *cobra.Command) string {
+	ep, _ := cmd.Flags().GetString("api")
+	if ep != "" {
+		return strings.TrimRight(ep, "/")
+	}
+	cfg, err := loadConfig()
+	if err != nil || cfg.APIEndpoint == "" {
+		fmt.Println(errorStyle.Render("No API endpoint configured."))
+		fmt.Println(dimStyle.Render("Run: komputer login <endpoint>  or use --api flag"))
+		os.Exit(1)
+	}
+	return strings.TrimRight(cfg.APIEndpoint, "/")
+}
+
+// ─── API Types ───────────────────────────────────────────────────────────────
+
+type AgentResponse struct {
+	Name            string `json:"name"`
+	Namespace       string `json:"namespace"`
+	Model           string `json:"model"`
+	Status          string `json:"status"`
+	TaskStatus      string `json:"taskStatus"`
+	LastTaskMessage string `json:"lastTaskMessage"`
+	CreatedAt       string `json:"createdAt"`
+}
+
+type AgentListResponse struct {
+	Agents []AgentResponse `json:"agents"`
+}
+
+type AgentEvent struct {
+	AgentName string                 `json:"agentName"`
+	Type      string                 `json:"type"`
+	Timestamp string                 `json:"timestamp"`
+	Payload   map[string]interface{} `json:"payload"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+func printAgent(a AgentResponse) {
+	fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", a.Name)))
+
+	taskBadge := dimStyle.Render("—")
+	switch a.TaskStatus {
+	case "Busy":
+		taskBadge = busyStyle.Render("● Busy")
+	case "Idle":
+		taskBadge = idleStyle.Render("○ Idle")
+	case "Error":
+		taskBadge = errorStyle.Render("✗ Error")
+	}
+
+	phaseBadge := dimStyle.Render(a.Status)
+	switch a.Status {
+	case "Running":
+		phaseBadge = successStyle.Render("Running")
+	case "Pending":
+		phaseBadge = warnStyle.Render("Pending")
+	case "Failed":
+		phaseBadge = errorStyle.Render("Failed")
+	}
+
+	row := func(label, value string) {
+		fmt.Printf("  %s %s\n", labelStyle.Render(fmt.Sprintf("%-16s", label)), valueStyle.Render(value))
+	}
+
+	row("Phase:", phaseBadge)
+	row("Task:", taskBadge)
+	row("Model:", a.Model)
+	row("Namespace:", a.Namespace)
+	row("Created:", a.CreatedAt)
+	if a.LastTaskMessage != "" {
+		row("Last Message:", a.LastTaskMessage)
+	}
+	fmt.Println()
+}
+
+func apiRequest(method, url string, body interface{}) ([]byte, int, error) {
+	var reqBody io.Reader
+	if body != nil {
+		data, _ := json.Marshal(body)
+		reqBody = bytes.NewReader(data)
+	}
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	return data, resp.StatusCode, nil
+}
+
+func formatEvent(event AgentEvent) string {
+	ts := dimStyle.Render(event.Timestamp)
+	payload := event.Payload
+
+	switch event.Type {
+	case "task_started":
+		instr, _ := payload["instructions"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, eventStartStyle.Render("▶ Task Started"), eventTextStyle.Render("  "+instr))
+
+	case "text":
+		content, _ := payload["content"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, labelStyle.Render("💬 Text"), eventTextStyle.Render("  "+content))
+
+	case "thinking":
+		content, _ := payload["content"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, dimStyle.Render("🧠 Thinking"), eventThinkStyle.Render("  "+content))
+
+	case "tool_call":
+		tool, _ := payload["tool"].(string)
+		input, _ := payload["input"]
+		inputStr, _ := json.Marshal(input)
+		return fmt.Sprintf("%s %s %s\n%s", ts, eventToolStyle.Render("🔧 Tool Call:"), eventToolStyle.Render(tool), dimStyle.Render("  "+truncate(string(inputStr), 200)))
+
+	case "tool_result":
+		tool, _ := payload["tool"].(string)
+		output, _ := payload["output"].(string)
+		return fmt.Sprintf("%s %s %s\n%s", ts, eventResultStyle.Render("✓ Tool Result:"), eventResultStyle.Render(tool), dimStyle.Render("  "+truncate(output, 300)))
+
+	case "task_completed":
+		result, _ := payload["result"].(string)
+		cost, _ := payload["cost_usd"].(float64)
+		duration, _ := payload["duration_ms"].(float64)
+		turns, _ := payload["turns"].(float64)
+
+		lines := fmt.Sprintf("%s %s\n", ts, eventCompleteStyle.Render("✔ Task Completed"))
+		if result != "" {
+			lines += eventTextStyle.Render("  "+result) + "\n"
+		}
+		lines += dimStyle.Render(fmt.Sprintf("  Cost: $%.4f  Duration: %.1fs  Turns: %.0f", cost, duration/1000, turns))
+		return lines
+
+	case "error":
+		errMsg, _ := payload["error"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, eventErrorStyle.Render("✗ Error"), eventErrorStyle.Render("  "+errMsg))
+
+	default:
+		raw, _ := json.Marshal(event)
+		return fmt.Sprintf("%s %s %s", ts, dimStyle.Render("["+event.Type+"]"), dimStyle.Render(truncate(string(raw), 200)))
+	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) > max {
+		return s[:max] + "..."
+	}
+	return s
+}
+
+// ─── Commands ────────────────────────────────────────────────────────────────
+
+func main() {
+	root := &cobra.Command{
+		Use:   "komputer",
+		Short: titleStyle.Render("komputer-cli") + " — CLI for the komputer.ai platform",
+	}
+
+	root.PersistentFlags().String("api", "", "API endpoint URL (overrides login config)")
+
+	// ── login ────────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "login <endpoint>",
+		Short: "Save API endpoint to ~/.komputer-ai/config.json",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			endpoint := strings.TrimRight(args[0], "/")
+			if err := saveConfig(&Config{APIEndpoint: endpoint}); err != nil {
+				fmt.Println(errorStyle.Render("Failed to save config: " + err.Error()))
+				os.Exit(1)
+			}
+			fmt.Println(successStyle.Render("✔ Logged in"))
+			fmt.Printf("  %s %s\n", labelStyle.Render("Endpoint:"), valueStyle.Render(endpoint))
+			fmt.Printf("  %s %s\n", labelStyle.Render("Config:"), dimStyle.Render(configPath()))
+		},
+	})
+
+	// ── list ─────────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List all agents",
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("GET", ep+"/api/v1/agents", nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var resp AgentListResponse
+			json.Unmarshal(data, &resp)
+
+			if len(resp.Agents) == 0 {
+				fmt.Println(dimStyle.Render("No agents found."))
+				return
+			}
+
+			fmt.Println(titleStyle.Render(fmt.Sprintf("  %d agent(s)  ", len(resp.Agents))))
+			fmt.Println()
+
+			// Table header
+			fmt.Printf("  %s  %s  %s  %s  %s\n",
+				labelStyle.Render(fmt.Sprintf("%-20s", "NAME")),
+				labelStyle.Render(fmt.Sprintf("%-10s", "PHASE")),
+				labelStyle.Render(fmt.Sprintf("%-8s", "TASK")),
+				labelStyle.Render(fmt.Sprintf("%-28s", "MODEL")),
+				labelStyle.Render(fmt.Sprintf("%-20s", "CREATED")),
+			)
+			fmt.Println(dimStyle.Render("  " + strings.Repeat("─", 95)))
+
+			for _, a := range resp.Agents {
+				phase := a.Status
+				switch phase {
+				case "Running":
+					phase = successStyle.Render(fmt.Sprintf("%-10s", phase))
+				case "Pending":
+					phase = warnStyle.Render(fmt.Sprintf("%-10s", phase))
+				case "Failed":
+					phase = errorStyle.Render(fmt.Sprintf("%-10s", phase))
+				default:
+					phase = dimStyle.Render(fmt.Sprintf("%-10s", phase))
+				}
+
+				task := a.TaskStatus
+				switch task {
+				case "Busy":
+					task = busyStyle.Render(fmt.Sprintf("%-8s", "● Busy"))
+				case "Idle":
+					task = idleStyle.Render(fmt.Sprintf("%-8s", "○ Idle"))
+				case "Error":
+					task = errorStyle.Render(fmt.Sprintf("%-8s", "✗ Error"))
+				default:
+					task = dimStyle.Render(fmt.Sprintf("%-8s", "—"))
+				}
+
+				fmt.Printf("  %s  %s  %s  %s  %s\n",
+					valueStyle.Render(fmt.Sprintf("%-20s", a.Name)),
+					phase,
+					task,
+					dimStyle.Render(fmt.Sprintf("%-28s", a.Model)),
+					dimStyle.Render(fmt.Sprintf("%-20s", a.CreatedAt)),
+				)
+			}
+			fmt.Println()
+		},
+	})
+
+	// ── create ───────────────────────────────────────────────────────────
+	createCmd := &cobra.Command{
+		Use:   "create <name> <instructions>",
+		Short: "Create a new agent or send a task to an existing one",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			model, _ := cmd.Flags().GetString("model")
+			templateRef, _ := cmd.Flags().GetString("template")
+
+			body := map[string]string{
+				"name":         args[0],
+				"instructions": args[1],
+			}
+			if model != "" {
+				body["model"] = model
+			}
+			if templateRef != "" {
+				body["templateRef"] = templateRef
+			}
+
+			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+
+			if status == 409 {
+				var errResp ErrorResponse
+				json.Unmarshal(data, &errResp)
+				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
+				os.Exit(1)
+			}
+
+			if status != 200 && status != 201 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+
+			if status == 201 {
+				fmt.Println(successStyle.Render("✔ Agent created"))
+			} else {
+				fmt.Println(successStyle.Render("✔ Task sent to existing agent"))
+			}
+			printAgent(agent)
+		},
+	}
+	createCmd.Flags().String("model", "", "Claude model to use")
+	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
+	root.AddCommand(createCmd)
+
+	// ── get ──────────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "get <name>",
+		Short: "Get details of a specific agent",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("GET", ep+"/api/v1/agents", nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var resp AgentListResponse
+			json.Unmarshal(data, &resp)
+
+			for _, a := range resp.Agents {
+				if a.Name == args[0] {
+					printAgent(a)
+					return
+				}
+			}
+			fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+			os.Exit(1)
+		},
+	})
+
+	// ── watch ────────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "watch <name>",
+		Short: "Stream live events from an agent via WebSocket",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			agentName := args[0]
+
+			// Convert http(s) to ws(s)
+			wsURL := strings.Replace(ep, "https://", "wss://", 1)
+			wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
+			wsURL = fmt.Sprintf("%s/api/v1/agents/%s/ws", wsURL, url.PathEscape(agentName))
+
+			fmt.Println(titleStyle.Render(fmt.Sprintf("  Watching %s  ", agentName)))
+			fmt.Println(dimStyle.Render(fmt.Sprintf("  Connected to %s", wsURL)))
+			fmt.Println(dimStyle.Render("  Press Ctrl+C to stop"))
+			fmt.Println()
+
+			conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("WebSocket connect failed: " + err.Error()))
+				os.Exit(1)
+			}
+			defer conn.Close()
+
+			// Handle Ctrl+C
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			go func() {
+				<-sigCh
+				fmt.Println()
+				fmt.Println(dimStyle.Render("Disconnected."))
+				conn.Close()
+				os.Exit(0)
+			}()
+
+			for {
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+						fmt.Println(dimStyle.Render("Connection closed."))
+					} else {
+						fmt.Println(errorStyle.Render("WebSocket error: " + err.Error()))
+					}
+					return
+				}
+
+				var event AgentEvent
+				if err := json.Unmarshal(msg, &event); err != nil {
+					fmt.Println(dimStyle.Render(string(msg)))
+					continue
+				}
+
+				fmt.Println(formatEvent(event))
+				fmt.Println()
+			}
+		},
+	})
+
+	// ── run (create + watch) ─────────────────────────────────────────────
+	runCmd := &cobra.Command{
+		Use:   "run <name> <instructions>",
+		Short: "Create an agent and stream its output live",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			agentName := args[0]
+			instructions := args[1]
+			model, _ := cmd.Flags().GetString("model")
+
+			// Create agent
+			body := map[string]string{
+				"name":         agentName,
+				"instructions": instructions,
+			}
+			if model != "" {
+				body["model"] = model
+			}
+
+			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 409 {
+				var errResp ErrorResponse
+				json.Unmarshal(data, &errResp)
+				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
+				os.Exit(1)
+			}
+			if status != 200 && status != 201 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+
+			if status == 201 {
+				fmt.Println(successStyle.Render("✔ Agent created"))
+			} else {
+				fmt.Println(successStyle.Render("✔ Task sent"))
+			}
+			fmt.Println(dimStyle.Render(fmt.Sprintf("  Streaming events for %s...", agentName)))
+			fmt.Println()
+
+			// Connect WebSocket
+			wsURL := strings.Replace(ep, "https://", "wss://", 1)
+			wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
+			wsURL = fmt.Sprintf("%s/api/v1/agents/%s/ws", wsURL, url.PathEscape(agentName))
+
+			// Retry connection (pod may not be ready yet)
+			var conn *websocket.Conn
+			for i := 0; i < 10; i++ {
+				conn, _, err = websocket.DefaultDialer.Dial(wsURL, nil)
+				if err == nil {
+					break
+				}
+				time.Sleep(1 * time.Second)
+			}
+			if conn == nil {
+				fmt.Println(errorStyle.Render("Could not connect to WebSocket: " + err.Error()))
+				os.Exit(1)
+			}
+			defer conn.Close()
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			go func() {
+				<-sigCh
+				fmt.Println()
+				fmt.Println(dimStyle.Render("Disconnected."))
+				conn.Close()
+				os.Exit(0)
+			}()
+
+			for {
+				_, msg, err := conn.ReadMessage()
+				if err != nil {
+					return
+				}
+
+				var event AgentEvent
+				if err := json.Unmarshal(msg, &event); err != nil {
+					continue
+				}
+
+				fmt.Println(formatEvent(event))
+				fmt.Println()
+
+				// Exit after task completion
+				if event.Type == "task_completed" || event.Type == "error" {
+					return
+				}
+			}
+		},
+	}
+	runCmd.Flags().String("model", "", "Claude model to use")
+	root.AddCommand(runCmd)
+
+	root.Execute()
+}
