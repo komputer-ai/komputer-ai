@@ -3,7 +3,7 @@ kind: KomputerRedisConfig
 metadata:
   name: default
 spec:
-  address: "redis:6379"
+  address: "redis.default:6379"
   db: 0
   queue: "komputer-events"
   passwordSecret:

@@ -350,7 +350,7 @@ func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent
 	if agent.Spec.Role == "manager" {
 		envVars = append(envVars,
 			corev1.EnvVar{Name: "KOMPUTER_ROLE", Value: agent.Spec.Role},
-			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: fmt.Sprintf("http://komputer-api.%s.svc.cluster.local:8080", agent.Namespace)},
+			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: "http://komputer-api.default.svc.cluster.local:8080"},
 		)
 	}
 	container.Env = append(container.Env, envVars...)
