@@ -223,17 +223,28 @@ func (r *KomputerAgentReconciler) ensureConfigMap(ctx context.Context, agent *ko
 	return r.Create(ctx, cm)
 }
 
-// ensurePod creates a Pod if it does not exist, or deletes it if it is in a terminal state.
+// ensurePod creates a Pod if it does not exist, or deletes it if it is in a terminal state
+// and the agent status has already been persisted as terminal (two-phase deletion).
 func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, configMapName, podName string) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
 	if err == nil {
-		// 7. If pod is Failed/Succeeded, delete it (next reconcile recreates)
+		// If pod is Failed/Succeeded, use a two-phase approach:
+		// Phase 1 (first reconcile): agent status is not yet terminal → return the pod so
+		//   reconcileStatus can persist the terminal status.
+		// Phase 2 (second reconcile): agent status is already terminal → delete the pod so
+		//   the next reconcile recreates it.
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
-			if err := r.Delete(ctx, pod); err != nil {
-				return nil, err
+			agentPhase := agent.Status.Phase
+			if agentPhase == komputerv1alpha1.AgentPhaseFailed || agentPhase == komputerv1alpha1.AgentPhaseSucceeded {
+				// Status already persisted — delete the pod so it gets recreated.
+				if err := r.Delete(ctx, pod); err != nil {
+					return nil, err
+				}
+				return nil, nil
 			}
-			return nil, nil
+			// Status not yet persisted — return the pod so reconcileStatus can update it.
+			return pod, nil
 		}
 		return pod, nil
 	}
@@ -378,6 +389,7 @@ func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&komputerv1alpha1.KomputerAgent{}).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
+		Owns(&corev1.ConfigMap{}).
 		Named("komputeragent").
 		Complete(r)
 }
