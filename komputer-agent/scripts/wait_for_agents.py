@@ -2,11 +2,11 @@
 """Block until all specified agents complete, reading directly from Redis streams.
 
 Usage:
-    python /app/wait_for_agents.py agent1 agent2 agent3
+    python /app/scripts/wait_for_agents.py agent1 agent2 agent3
 
 Reads Redis config from /etc/komputer/config.json.
 Blocks until every agent has a terminal event (task_completed, error, task_cancelled).
-Prints a JSON summary to stdout and exits.
+Prints progress to stderr and final JSON summary to stdout.
 """
 
 import json
@@ -48,7 +48,7 @@ def main():
 
     terminal_types = {"task_completed", "error", "task_cancelled"}
 
-    # Build tracking state: stream key -> agent name, last read ID.
+    # Build tracking state.
     pending = {}
     for name in names:
         stream_key = f"{stream_prefix}:{name}"
@@ -57,14 +57,16 @@ def main():
     results = {}
     timeout = 600  # 10 minute hard timeout
     deadline = time.time() + timeout
+    total = len(names)
+
+    print(f"Waiting for {total} agent(s): {', '.join(names)}", file=sys.stderr, flush=True)
 
     while pending and time.time() < deadline:
-        # Build XREAD args for all pending streams.
         streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
 
         try:
             resp = r.xread(streams, block=5000, count=100)
-        except redis_lib.RedisError as e:
+        except redis_lib.RedisError:
             time.sleep(1)
             continue
 
@@ -74,7 +76,6 @@ def main():
         for stream_key_bytes, entries in resp:
             stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
 
-            # Find which agent this stream belongs to.
             matched_name = None
             for name, info in pending.items():
                 if info["stream_key"] == stream_key:
@@ -91,9 +92,10 @@ def main():
                 if etype in terminal_types:
                     results[matched_name] = {"status": etype}
                     del pending[matched_name]
+                    done = total - len(pending)
+                    print(f"[{done}/{total}] {matched_name} -> {etype}", file=sys.stderr, flush=True)
                     break
 
-    # Any still pending after timeout.
     for name in pending:
         results[name] = {"status": "timeout"}
 
@@ -102,7 +104,7 @@ def main():
         "completed": len(results),
         "results": results,
     }
-    print(json.dumps(summary))
+    print(json.dumps(summary), flush=True)
 
 
 if __name__ == "__main__":
