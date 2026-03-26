@@ -39,7 +39,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/agents", listAgents(k8s))
 		v1.GET("/agents/:name", getAgent(k8s))
 		v1.GET("/agents/:name/events", getAgentEvents(worker))
-		v1.DELETE("/agents/:name", deleteAgent(k8s))
+		v1.DELETE("/agents/:name", deleteAgent(k8s, worker))
 		v1.POST("/agents/:name/cancel", cancelAgentTask(k8s))
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
 	}
@@ -120,7 +120,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
-func deleteAgent(k8s *K8sClient) gin.HandlerFunc {
+func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		if err := k8s.DeleteAgent(c.Request.Context(), name); err != nil {
@@ -130,6 +130,10 @@ func deleteAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete agent: " + err.Error()})
 			return
+		}
+		// Clean up the agent's Redis event stream
+		if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, name, worker.StreamPrefix); err != nil {
+			log.Printf("warning: failed to delete event stream for %s: %v", name, err)
 		}
 		log.Printf("deleted agent %s", name)
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
