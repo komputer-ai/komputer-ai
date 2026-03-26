@@ -17,68 +17,185 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"encoding/json"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
 
 var _ = Describe("KomputerAgent Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+	const (
+		timeout  = 30 * time.Second
+		interval = 250 * time.Millisecond
+	)
 
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		komputeragent := &komputerv1alpha1.KomputerAgent{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind KomputerAgent")
-			err := k8sClient.Get(ctx, typeNamespacedName, komputeragent)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &komputerv1alpha1.KomputerAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+	BeforeEach(func() {
+		// Create KomputerAgentTemplate "default"
+		template := &komputerv1alpha1.KomputerAgentTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "default",
+			},
+			Spec: komputerv1alpha1.KomputerAgentTemplateSpec{
+				PodSpec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "agent",
+							Image: "komputer-ai/agent:latest",
+						},
 					},
-					// TODO(user): Specify other spec details if needed.
+				},
+				Storage: komputerv1alpha1.StorageSpec{
+					Size: "1Gi",
+				},
+			},
+		}
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerAgentTemplate{})
+		if err != nil {
+			Expect(k8sClient.Create(ctx, template)).To(Succeed())
+		}
+
+		// Create KomputerRedisConfig "default"
+		redisConfig := &komputerv1alpha1.KomputerRedisConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "default",
+			},
+			Spec: komputerv1alpha1.KomputerRedisConfigSpec{
+				Address: "redis:6379",
+				DB:      0,
+				Queue:   "komputer-events",
+			},
+		}
+		err = k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerRedisConfig{})
+		if err != nil {
+			Expect(k8sClient.Create(ctx, redisConfig)).To(Succeed())
+		}
+
+		// Create KomputerAgent "test-agent"
+		agent := &komputerv1alpha1.KomputerAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-agent",
+				Namespace: "default",
+			},
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				TemplateRef:  "default",
+				Instructions: "Do a test task",
+				Model:        "claude-sonnet-4-20250514",
+			},
+		}
+		err = k8sClient.Get(ctx, types.NamespacedName{Name: "test-agent", Namespace: "default"}, &komputerv1alpha1.KomputerAgent{})
+		if err != nil {
+			Expect(k8sClient.Create(ctx, agent)).To(Succeed())
+		}
+	})
+
+	Context("When reconciling a KomputerAgent", func() {
+		It("should create a PVC for the agent", func() {
+			pvc := &corev1.PersistentVolumeClaim{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pvc",
+					Namespace: "default",
+				}, pvc)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(pvc.Spec.Resources.Requests[corev1.ResourceStorage]).To(Equal(resource.MustParse("1Gi")))
+		})
+
+		It("should recreate the pod", func() {
+			// Wait for pod to exist
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pod",
+					Namespace: "default",
+				}, pod)
+			}, timeout, interval).Should(Succeed())
+
+			originalUID := pod.UID
+
+			// Delete the pod
+			Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+
+			// Eventually a new pod should be created with a different UID
+			Eventually(func() bool {
+				newPod := &corev1.Pod{}
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pod",
+					Namespace: "default",
+				}, newPod)
+				if err != nil {
+					return false
 				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
+				return newPod.UID != originalUID
+			}, timeout, interval).Should(BeTrue())
 		})
 
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &komputerv1alpha1.KomputerAgent{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+		It("should have correct env vars injected", func() {
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pod",
+					Namespace: "default",
+				}, pod)
+			}, timeout, interval).Should(Succeed())
 
-			By("Cleanup the specific resource instance KomputerAgent")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &KomputerAgentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+			container := pod.Spec.Containers[0]
+			envMap := make(map[string]string)
+			for _, env := range container.Env {
+				envMap[env.Name] = env.Value
 			}
+			Expect(envMap["KOMPUTER_INSTRUCTIONS"]).To(Equal("Do a test task"))
+			Expect(envMap["KOMPUTER_MODEL"]).To(Equal("claude-sonnet-4-20250514"))
+			Expect(envMap["KOMPUTER_AGENT_NAME"]).To(Equal("test-agent"))
+		})
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
+		It("should have workspace volume mount", func() {
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pod",
+					Namespace: "default",
+				}, pod)
+			}, timeout, interval).Should(Succeed())
+
+			container := pod.Spec.Containers[0]
+			mountPaths := make(map[string]bool)
+			for _, mount := range container.VolumeMounts {
+				mountPaths[mount.MountPath] = true
+			}
+			Expect(mountPaths["/workspace"]).To(BeTrue())
+			Expect(mountPaths["/etc/komputer"]).To(BeTrue())
+		})
+
+		It("should create a ConfigMap with config.json", func() {
+			cm := &corev1.ConfigMap{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-agent-pod-config",
+					Namespace: "default",
+				}, cm)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(cm.Data).To(HaveKey("config.json"))
+
+			var config map[string]interface{}
+			err := json.Unmarshal([]byte(cm.Data["config.json"]), &config)
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			redis, ok := config["redis"].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(redis["address"]).To(Equal("redis:6379"))
+			Expect(redis["queue"]).To(Equal("komputer-events"))
 		})
 	})
 })
