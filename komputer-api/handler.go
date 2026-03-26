@@ -99,6 +99,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		if role == "" {
 			role = "worker"
 		}
+		if role != "worker" && role != "manager" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be 'worker' or 'manager'"})
+			return
+		}
 		if role == "manager" {
 			instructions = managerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
 		}
@@ -208,6 +212,9 @@ func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 			if err != nil || parsed < 1 {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
 				return
+			}
+			if parsed > 200 {
+				parsed = 200
 			}
 			limit = parsed
 		}

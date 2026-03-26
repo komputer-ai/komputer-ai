@@ -63,6 +63,9 @@ spec:
                 default: worker
                 description: Role is "manager" or "worker". Managers get orchestration
                   tools.
+                enum:
+                - worker
+                - manager
                 type: string
               templateRef:
                 default: default

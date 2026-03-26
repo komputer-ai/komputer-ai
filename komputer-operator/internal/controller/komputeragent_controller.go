@@ -330,14 +330,19 @@ func (r *KomputerAgentReconciler) buildPod(agent *komputerv1alpha1.KomputerAgent
 	container := &podSpec.Containers[0]
 
 	// Add env vars
-	container.Env = append(container.Env,
-		corev1.EnvVar{Name: "KOMPUTER_INSTRUCTIONS", Value: agent.Spec.Instructions},
-		corev1.EnvVar{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
-		corev1.EnvVar{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
-		corev1.EnvVar{Name: "KOMPUTER_ROLE", Value: agent.Spec.Role},
-		corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: fmt.Sprintf("http://komputer-api.%s.svc.cluster.local:8080", agent.Namespace)},
-		corev1.EnvVar{Name: "CLAUDE_CONFIG_DIR", Value: "/workspace/.claude"},
-	)
+	envVars := []corev1.EnvVar{
+		{Name: "KOMPUTER_INSTRUCTIONS", Value: agent.Spec.Instructions},
+		{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
+		{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
+		{Name: "CLAUDE_CONFIG_DIR", Value: "/workspace/.claude"},
+	}
+	if agent.Spec.Role == "manager" {
+		envVars = append(envVars,
+			corev1.EnvVar{Name: "KOMPUTER_ROLE", Value: agent.Spec.Role},
+			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: fmt.Sprintf("http://komputer-api.%s.svc.cluster.local:8080", agent.Namespace)},
+		)
+	}
+	container.Env = append(container.Env, envVars...)
 
 	// Add volume mounts
 	container.VolumeMounts = append(container.VolumeMounts,

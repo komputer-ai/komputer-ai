@@ -51,6 +51,7 @@ type KomputerAgentSpec struct {
 	Model string `json:"model,omitempty"`
 	// Role is "manager" or "worker". Managers get orchestration tools.
 	// +kubebuilder:default="worker"
+	// +kubebuilder:validation:Enum=worker;manager
 	// +optional
 	Role string `json:"role,omitempty"`
 }

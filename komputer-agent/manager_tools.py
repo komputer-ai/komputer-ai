@@ -1,4 +1,5 @@
 import os
+import re
 
 import httpx
 from claude_agent_sdk import tool, create_sdk_mcp_server
@@ -8,8 +9,11 @@ AGENT_NAME = os.environ.get("KOMPUTER_AGENT_NAME", "unknown")
 
 
 def _sub_name(name: str) -> str:
-    """Prefix sub-agent name with manager name."""
-    return f"{AGENT_NAME}-sub-{name}"
+    """Prefix sub-agent name with manager name, sanitized for K8s."""
+    sanitized = re.sub(r'[^a-z0-9-]', '', name.lower())[:50]
+    if not sanitized:
+        raise ValueError(f"Invalid sub-agent name: {name}")
+    return f"{AGENT_NAME}-sub-{sanitized}"
 
 
 def _ok(text: str) -> dict:
