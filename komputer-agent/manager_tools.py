@@ -50,76 +50,43 @@ def _field(fields: dict, key: str) -> str:
     return val.decode() if isinstance(val, bytes) else str(val)
 
 
-def _blocking_wait(names: list[str], timeout_seconds: int) -> dict:
-    """Synchronous blocking wait on Redis streams. Runs in a thread pool."""
-    deadline = time.time() + timeout_seconds
+def _poll_once(pending: dict, results: dict, terminal_types: set):
+    """Non-blocking: check each pending stream for new entries via XREAD with block=0."""
+    if not pending:
+        return
 
-    pending = {}
-    for name in names:
-        full_name = _sub_name(name)
-        stream_key = f"{_stream_prefix}:{full_name}"
-        pending[full_name] = {"stream_key": stream_key, "display_name": name, "last_id": "0-0"}
+    streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
 
-    results = {}
-    terminal_types = {"task_completed", "error", "task_cancelled"}
+    try:
+        # block=0 means non-blocking — returns immediately.
+        resp = _redis_client.xread(streams, block=0, count=100)
+    except redis.RedisError:
+        return
 
-    # First pass: check existing stream entries for already-completed agents.
-    for full_name, info in list(pending.items()):
-        try:
-            entries = _redis_client.xrange(info["stream_key"], "-", "+")
-            for entry_id, fields in entries:
-                info["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
-                if _field(fields, "type") in terminal_types:
-                    results[info["display_name"]] = {
-                        "status": _field(fields, "type"),
-                        "payload": json.loads(_field(fields, "payload") or "{}"),
-                    }
-                    del pending[full_name]
-                    break
-        except redis.RedisError as e:
-            results[info["display_name"]] = {"status": "error", "payload": {"error": f"Redis error: {e}"}}
-            del pending[full_name]
+    if not resp:
+        return
 
-    # Blocking loop: XREAD on remaining streams until all finish or timeout.
-    while pending and time.time() < deadline:
-        remaining_ms = int((deadline - time.time()) * 1000)
-        if remaining_ms <= 0:
-            break
-
-        block_ms = min(remaining_ms, 5000)
-        streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
-
-        try:
-            resp = _redis_client.xread(streams, block=block_ms, count=100)
-        except redis.RedisError:
-            time.sleep(0.5)
+    for stream_key_bytes, entries in resp:
+        stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
+        matched = next((fn for fn, info in pending.items() if info["stream_key"] == stream_key), None)
+        if not matched:
             continue
 
-        if not resp:
-            continue
+        for entry_id, fields in entries:
+            pending[matched]["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
+            etype = _field(fields, "type")
+            if etype in terminal_types:
+                results[pending[matched]["display_name"]] = {
+                    "status": etype,
+                    "payload": json.loads(_field(fields, "payload") or "{}"),
+                }
+                del pending[matched]
+                break
 
-        for stream_key_bytes, entries in resp:
-            stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
-            matched = next((fn for fn, info in pending.items() if info["stream_key"] == stream_key), None)
-            if not matched:
-                continue
 
-            for entry_id, fields in entries:
-                pending[matched]["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
-                etype = _field(fields, "type")
-                if etype in terminal_types:
-                    results[pending[matched]["display_name"]] = {
-                        "status": etype,
-                        "payload": json.loads(_field(fields, "payload") or "{}"),
-                    }
-                    del pending[matched]
-                    break
-
-    # Any still pending after timeout.
-    for full_name, info in pending.items():
-        results[info["display_name"]] = {"status": "timeout", "payload": {"error": f"Agent did not complete within {timeout_seconds}s"}}
-
-    # Fetch the last few events for each agent (for context).
+def _fetch_recent_events(names: list[str]) -> dict:
+    """Fetch the last few events for each agent."""
+    recent_map = {}
     for name in names:
         full_name = _sub_name(name)
         stream_key = f"{_stream_prefix}:{full_name}"
@@ -131,12 +98,10 @@ def _blocking_wait(names: list[str], timeout_seconds: int) -> dict:
                     "type": _field(fields, "type"),
                     "payload": json.loads(_field(fields, "payload") or "{}"),
                 })
-            if name in results:
-                results[name]["recent_events"] = recent_events
+            recent_map[name] = recent_events
         except redis.RedisError:
             pass
-
-    return results
+    return recent_map
 
 
 @tool(
@@ -189,10 +154,54 @@ async def wait_for_completion(args):
 
     names = args["names"]
     timeout_seconds = args.get("timeout_seconds", 300)
+    deadline = time.time() + timeout_seconds
 
-    # Run the blocking Redis wait in a thread so we don't block the event loop.
-    # This keeps the MCP server responsive for other operations.
-    results = await asyncio.to_thread(_blocking_wait, names, timeout_seconds)
+    # Build stream keys and track which agents are still pending.
+    pending = {}
+    for name in names:
+        full_name = _sub_name(name)
+        stream_key = f"{_stream_prefix}:{full_name}"
+        pending[full_name] = {"stream_key": stream_key, "display_name": name, "last_id": "0-0"}
+
+    results = {}
+    terminal_types = {"task_completed", "error", "task_cancelled"}
+
+    # First pass: check existing stream entries for already-completed agents.
+    for full_name, info in list(pending.items()):
+        try:
+            entries = _redis_client.xrange(info["stream_key"], "-", "+")
+            for entry_id, fields in entries:
+                info["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
+                if _field(fields, "type") in terminal_types:
+                    results[info["display_name"]] = {
+                        "status": _field(fields, "type"),
+                        "payload": json.loads(_field(fields, "payload") or "{}"),
+                    }
+                    del pending[full_name]
+                    break
+        except redis.RedisError as e:
+            results[info["display_name"]] = {"status": "error", "payload": {"error": f"Redis error: {e}"}}
+            del pending[full_name]
+
+    # Async polling loop: non-blocking XREAD + asyncio.sleep.
+    # We use short sleeps (2s) so the MCP server's event loop stays responsive
+    # and the stdio transport doesn't time out.
+    while pending and time.time() < deadline:
+        _poll_once(pending, results, terminal_types)
+        if not pending:
+            break
+        await asyncio.sleep(2)
+
+    # Any still pending after timeout.
+    for full_name, info in pending.items():
+        results[info["display_name"]] = {"status": "timeout", "payload": {"error": f"Agent did not complete within {timeout_seconds}s"}}
+
+    # Fetch the last few events for each agent (for context).
+    recent_map = _fetch_recent_events(names)
+    for name, events in recent_map.items():
+        if name in results:
+            results[name]["recent_events"] = events
+
     return _ok(json.dumps(results, indent=2))
 
 
