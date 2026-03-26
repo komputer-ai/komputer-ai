@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -138,7 +139,9 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, podIP, instructions,
 	}
 	bodyJSON, _ := json.Marshal(bodyMap)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyJSON)))
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return err
 	}
