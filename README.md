@@ -1,6 +1,26 @@
-# komputer.ai
+<p align="center">
+  <img src="logo.png" alt="komputer.ai logo" width="400" />
+</p>
 
-A platform for running distributed Claude AI agents on Kubernetes. Create persistent, autonomous agents that execute tasks using Claude's capabilities — bash commands, web search, and more — each in their own isolated workspace.
+<h1 align="center">komputer.ai</h1>
+
+<p align="center">
+  <strong>Distributed Claude AI agents on Kubernetes</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/kontroloop-ai/komputer-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white" alt="Go 1.22+" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white" alt="Python 3.12+" /></a>
+  <a href="https://kubernetes.io/"><img src="https://img.shields.io/badge/Kubernetes-operator-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes" /></a>
+  <a href="https://www.anthropic.com/"><img src="https://img.shields.io/badge/Powered%20by-Claude-D4A574?logo=anthropic&logoColor=white" alt="Powered by Claude" /></a>
+</p>
+
+<p align="center">
+  Create persistent, autonomous agents that execute tasks using Claude's capabilities — bash commands, web search, and more — each in their own isolated workspace.
+</p>
+
+---
 
 ## Architecture
 
