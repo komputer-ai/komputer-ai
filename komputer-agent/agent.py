@@ -64,6 +64,11 @@ async def run_agent(instructions: str, model: str, publisher):
         },
     )
 
+    # Conditionally register manager orchestration tools
+    if os.environ.get("KOMPUTER_ROLE") == "manager":
+        from manager_tools import create_manager_server
+        options.mcp_servers = {"komputer": create_manager_server()}
+
     # Resume previous session if one exists
     if session_id:
         options.resume = session_id

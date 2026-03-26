@@ -1,4 +1,5 @@
 claude-agent-sdk
+httpx
 redis
 fastapi
 uvicorn
