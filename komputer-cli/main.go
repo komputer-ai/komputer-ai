@@ -271,15 +271,16 @@ func formatEvent(event AgentEvent) string {
 	case "tool_result":
 		tool, _ := payload["tool"].(string)
 		output, _ := payload["output"].(string)
-		outputDisplay := dimStyle.Render("  " + truncate(output, 300))
-		icon := eventResultStyle.Render("✓ Tool Result:")
-		toolName := eventResultStyle.Render(tool)
-		if strings.Contains(output, "Error") || strings.Contains(output, "error") || strings.Contains(output, "failed") || strings.Contains(output, "Stream closed") {
-			icon = eventErrorStyle.Render("✗ Tool Error:")
-			toolName = eventErrorStyle.Render(tool)
-			outputDisplay = eventErrorStyle.Render("  " + truncate(output, 500))
+		// Only show tool results that contain errors — successful results are
+		// redundant with the manager's text commentary and tool_call events.
+		isError := strings.Contains(output, "Error") || strings.Contains(output, "error") || strings.Contains(output, "failed") || strings.Contains(output, "Stream closed")
+		if !isError {
+			return "" // skip successful tool results
 		}
-		return fmt.Sprintf("%s %s %s\n%s", ts, icon, toolName, outputDisplay)
+		return fmt.Sprintf("%s %s %s\n%s", ts,
+			eventErrorStyle.Render("✗ Tool Error:"),
+			eventErrorStyle.Render(tool),
+			eventErrorStyle.Render("  "+truncate(output, 500)))
 
 	case "task_completed":
 		result, _ := payload["result"].(string)
@@ -530,8 +531,10 @@ func main() {
 				fmt.Println(labelStyle.Render(fmt.Sprintf("  Recent Events (%d)", len(eventsResp.Events))))
 				fmt.Println(dimStyle.Render("  " + strings.Repeat("─", 60)))
 				for _, e := range eventsResp.Events {
-					fmt.Println(formatEvent(e))
-					fmt.Println()
+					if formatted := formatEvent(e); formatted != "" {
+						fmt.Println(formatted)
+						fmt.Println()
+					}
 				}
 			}
 		},
@@ -660,8 +663,10 @@ func main() {
 					continue
 				}
 
-				fmt.Println(formatEvent(event))
-				fmt.Println()
+				if formatted := formatEvent(event); formatted != "" {
+					fmt.Println(formatted)
+					fmt.Println()
+				}
 			}
 		},
 	})
@@ -810,8 +815,10 @@ func main() {
 					continue
 				}
 
-				fmt.Println(formatEvent(event))
-				fmt.Println()
+				if formatted := formatEvent(event); formatted != "" {
+					fmt.Println(formatted)
+					fmt.Println()
+				}
 
 				// Exit after task completion or cancellation
 				if event.Type == "task_completed" || event.Type == "error" || event.Type == "task_cancelled" {
