@@ -51,36 +51,31 @@ def _field(fields: dict, key: str) -> str:
 
 
 def _poll_once(pending: dict, results: dict, terminal_types: set):
-    """Non-blocking: check each pending stream for new entries via XREAD with block=0."""
+    """Non-blocking: check each pending stream for terminal events."""
     if not pending:
         return
 
-    streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
-
-    try:
-        # block=0 means non-blocking — returns immediately.
-        resp = _redis_client.xread(streams, block=0, count=100)
-    except redis.RedisError:
-        return
-
-    if not resp:
-        return
-
-    for stream_key_bytes, entries in resp:
-        stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
-        matched = next((fn for fn, info in pending.items() if info["stream_key"] == stream_key), None)
-        if not matched:
+    # Check each stream individually using XRANGE (works even if stream is new).
+    # XREAD with block=0 can behave unexpectedly with non-existent streams.
+    for full_name, info in list(pending.items()):
+        try:
+            # Read entries starting from our last checkpoint.
+            # Use the last_id directly — XRANGE is inclusive, but we track
+            # the last processed ID so we might re-read it. We skip dupes below.
+            min_id = info["last_id"] if info["last_id"] != "0-0" else "-"
+            entries = _redis_client.xrange(info["stream_key"], min_id, "+", count=100)
+        except redis.RedisError:
             continue
 
         for entry_id, fields in entries:
-            pending[matched]["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
+            info["last_id"] = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
             etype = _field(fields, "type")
             if etype in terminal_types:
-                results[pending[matched]["display_name"]] = {
+                results[info["display_name"]] = {
                     "status": etype,
                     "payload": json.loads(_field(fields, "payload") or "{}"),
                 }
-                del pending[matched]
+                del pending[full_name]
                 break
 
 
