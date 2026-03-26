@@ -12,9 +12,29 @@ def _sub_name(name: str) -> str:
     return f"{AGENT_NAME}-sub-{name}"
 
 
+def _ok(text: str) -> dict:
+    return {"content": [{"type": "text", "text": text}]}
+
+
+def _err(text: str) -> dict:
+    return {"content": [{"type": "text", "text": text}], "isError": True}
+
+
+async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
+    """Make an HTTP request to the komputer API and return a tool response."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.request(method, f"{API_URL}{path}", **kwargs)
+            if resp.status_code >= 400:
+                return _err(f"API error {resp.status_code}: {resp.text}")
+            return _ok(resp.text)
+    except httpx.HTTPError as exc:
+        return _err(f"Request failed: {exc}")
+
+
 @tool(
     name="create_agent",
-    description="Create a sub-agent to handle a specific task. The agent will start working immediately.",
+    description="Create a sub-agent to handle a specific task. The agent will start working immediately. Sub-agents are always workers (no orchestration tools).",
     input_schema={
         "type": "object",
         "properties": {
@@ -34,10 +54,7 @@ async def create_agent(args):
     }
     if args.get("model"):
         payload["model"] = args["model"]
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(f"{API_URL}/api/v1/agents", json=payload)
-        return {"content": [{"type": "text", "text": resp.text}]}
+    return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
 
 
 @tool(
@@ -53,9 +70,7 @@ async def create_agent(args):
 )
 async def get_agent_status(args):
     full_name = _sub_name(args["name"])
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(f"{API_URL}/api/v1/agents/{full_name}")
-        return {"content": [{"type": "text", "text": resp.text}]}
+    return await _request("GET", f"/api/v1/agents/{full_name}")
 
 
 @tool(
@@ -73,9 +88,7 @@ async def get_agent_status(args):
 async def get_agent_events(args):
     full_name = _sub_name(args["name"])
     limit = args.get("limit", 50)
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(f"{API_URL}/api/v1/agents/{full_name}/events", params={"limit": limit})
-        return {"content": [{"type": "text", "text": resp.text}]}
+    return await _request("GET", f"/api/v1/agents/{full_name}/events", params={"limit": limit})
 
 
 @tool(
@@ -91,9 +104,7 @@ async def get_agent_events(args):
 )
 async def delete_agent(args):
     full_name = _sub_name(args["name"])
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.delete(f"{API_URL}/api/v1/agents/{full_name}")
-        return {"content": [{"type": "text", "text": resp.text}]}
+    return await _request("DELETE", f"/api/v1/agents/{full_name}")
 
 
 def create_manager_server():
