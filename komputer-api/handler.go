@@ -97,7 +97,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		instructions := req.Instructions
 		role := req.Role
 		if role == "" {
-			role = "worker"
+			role = "manager"
 		}
 		if role != "worker" && role != "manager" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be 'worker' or 'manager'"})

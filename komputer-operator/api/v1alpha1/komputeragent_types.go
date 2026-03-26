@@ -50,7 +50,9 @@ type KomputerAgentSpec struct {
 	// +kubebuilder:default="claude-sonnet-4-20250514"
 	Model string `json:"model,omitempty"`
 	// Role is "manager" or "worker". Managers get orchestration tools.
-	// +kubebuilder:default="worker"
+	// Role is "manager" or "worker". Defaults to "manager" for top-level agents.
+	// Sub-agents created by managers are explicitly set to "worker".
+	// +kubebuilder:default="manager"
 	// +kubebuilder:validation:Enum=worker;manager
 	// +optional
 	Role string `json:"role,omitempty"`

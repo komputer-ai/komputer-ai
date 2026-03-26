@@ -215,9 +215,9 @@ func (r *KomputerAgentReconciler) ensureConfigMap(ctx context.Context, agent *ko
 	// Build config.json content
 	configData := map[string]interface{}{
 		"redis": map[string]interface{}{
-			"address":  redisConfig.Spec.Address,
-			"password": password,
-			"db":       redisConfig.Spec.DB,
+			"address":       redisConfig.Spec.Address,
+			"password":      password,
+			"db":            redisConfig.Spec.DB,
 			"stream_prefix": redisConfig.Spec.Queue,
 		},
 	}

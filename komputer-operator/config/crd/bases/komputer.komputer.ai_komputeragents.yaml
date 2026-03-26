@@ -60,9 +60,11 @@ spec:
                 description: Model is the Claude model to use.
                 type: string
               role:
-                default: worker
-                description: Role is "manager" or "worker". Managers get orchestration
-                  tools.
+                default: manager
+                description: |-
+                  Role is "manager" or "worker". Managers get orchestration tools.
+                  Role is "manager" or "worker". Defaults to "manager" for top-level agents.
+                  Sub-agents created by managers are explicitly set to "worker".
                 enum:
                 - worker
                 - manager
