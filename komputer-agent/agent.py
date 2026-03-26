@@ -54,12 +54,16 @@ async def run_agent(instructions: str, model: str, publisher):
         )
         return {}
 
+    is_manager = os.environ.get("KOMPUTER_ROLE") == "manager"
+
     options = ClaudeAgentOptions(
         tools=["Bash", "WebSearch"],
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
-        include_partial_messages=True,
+        # Enable streaming for real-time events. Disabled for managers
+        # due to incompatibility with MCP servers in current SDK version.
+        include_partial_messages=not is_manager,
         hooks={
             "PostToolUse": [
                 HookMatcher(matcher=None, hooks=[post_tool_hook]),
