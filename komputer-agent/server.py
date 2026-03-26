@@ -20,7 +20,7 @@ class TaskRequest(BaseModel):
 
 @app.post("/task")
 async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
-    from agent import run_agent
+    from agent import run_agent_sync
 
-    background_tasks.add_task(run_agent, req.instructions, _model, _publisher)
+    background_tasks.add_task(run_agent_sync, req.instructions, _model, _publisher)
     return {"status": "accepted", "instructions": req.instructions[:100]}

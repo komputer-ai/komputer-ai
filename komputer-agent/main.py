@@ -4,7 +4,7 @@ import threading
 
 import uvicorn
 
-from agent import run_agent
+from agent import run_agent_sync
 from events import EventPublisher
 from server import configure
 
@@ -32,7 +32,7 @@ def main():
     # Run initial task in a background thread
     if instructions:
         thread = threading.Thread(
-            target=run_agent, args=(instructions, model, publisher), daemon=True
+            target=run_agent_sync, args=(instructions, model, publisher), daemon=True
         )
         thread.start()
 
