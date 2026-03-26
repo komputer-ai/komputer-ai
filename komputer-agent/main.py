@@ -1,12 +1,13 @@
+import asyncio
 import json
 import os
 import threading
 
 import uvicorn
 
-from agent import run_agent_sync
+from agent import run_agent
 from events import EventPublisher
-from server import configure, _busy as busy_lock
+from server import configure, _busy
 
 
 def load_config():
@@ -26,14 +27,15 @@ def main():
     publisher = EventPublisher(redis_config, agent_name)
     print(f"komputer-agent {agent_name} starting with model {model}")
 
-    # Configure the FastAPI server
     configure(publisher, model)
 
     # Run initial task in a background thread (acquires busy lock)
     def run_initial_task():
-        with busy_lock:
+        with _busy:
             try:
-                run_agent_sync(instructions, model, publisher)
+                asyncio.run(run_agent(instructions, model, publisher))
+            except asyncio.CancelledError:
+                publisher.publish("task_cancelled", {"reason": "Cancelled"})
             except Exception as e:
                 print(f"Initial task failed: {e}", flush=True)
                 publisher.publish("error", {"error": str(e)})
@@ -42,7 +44,6 @@ def main():
         thread = threading.Thread(target=run_initial_task, daemon=True)
         thread.start()
 
-    # Start FastAPI server (blocks)
     uvicorn.run("server:app", host="0.0.0.0", port=8000)
 
 

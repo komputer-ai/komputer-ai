@@ -103,6 +103,8 @@ func mapEventToTaskStatus(event AgentEvent) (taskStatus string, lastMessage stri
 		return "Busy", truncate(fmt.Sprintf("Got result from %s", tool), 256)
 	case "task_completed":
 		return "Idle", "Task completed"
+	case "task_cancelled":
+		return "Idle", "Task cancelled"
 	case "error":
 		errMsg, _ := event.Payload["error"].(string)
 		return "Error", truncate(fmt.Sprintf("Error: %s", errMsg), 256)

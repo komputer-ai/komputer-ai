@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -98,11 +100,45 @@ func (k *K8sClient) GetAgentPodIP(ctx context.Context, podName string) (string, 
 	return pod.Status.PodIP, nil
 }
 
-func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, podIP, instructions string) error {
-	url := fmt.Sprintf("http://%s:8000/task", podIP)
-	body := fmt.Sprintf(`{"instructions":%q}`, instructions)
+// DeleteAgent deletes a KomputerAgent CR. The operator will clean up the pod, PVC, and ConfigMap.
+func (k *K8sClient) DeleteAgent(ctx context.Context, name string) error {
+	agent := &komputerv1alpha1.KomputerAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: k.namespace,
+		},
+	}
+	return k.client.Delete(ctx, agent)
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
+// CancelAgentTask sends a cancel request to the agent's FastAPI endpoint.
+func (k *K8sClient) CancelAgentTask(ctx context.Context, podIP string) error {
+	url := fmt.Sprintf("http://%s:8000/cancel", podIP)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to cancel task: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cancel returned status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, podIP, instructions, model string) error {
+	url := fmt.Sprintf("http://%s:8000/task", podIP)
+	bodyMap := map[string]string{"instructions": instructions}
+	if model != "" {
+		bodyMap["model"] = model
+	}
+	bodyJSON, _ := json.Marshal(bodyMap)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return err
 	}

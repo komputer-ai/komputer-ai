@@ -226,6 +226,10 @@ func formatEvent(event AgentEvent) string {
 		lines += dimStyle.Render(fmt.Sprintf("  Cost: $%.4f  Duration: %.1fs  Turns: %.0f", cost, duration/1000, turns))
 		return lines
 
+	case "task_cancelled":
+		reason, _ := payload["reason"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, warnStyle.Render("⚠ Task Cancelled"), dimStyle.Render("  "+reason))
+
 	case "error":
 		errMsg, _ := payload["error"].(string)
 		return fmt.Sprintf("%s %s\n%s", ts, eventErrorStyle.Render("✗ Error"), eventErrorStyle.Render("  "+errMsg))
@@ -430,6 +434,61 @@ func main() {
 		},
 	})
 
+	// ── delete ───────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:     "delete <name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete an agent and all its resources",
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/agents/%s", ep, url.PathEscape(args[0])), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Agent %q deleted", args[0])))
+		},
+	})
+
+	// ── cancel ───────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "cancel <name>",
+		Short: "Cancel the running task on an agent",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/cancel", ep, url.PathEscape(args[0])), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status == 409 {
+				var errResp ErrorResponse
+				json.Unmarshal(data, &errResp)
+				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Cancelling task on %q", args[0])))
+		},
+	})
+
 	// ── watch ────────────────────────────────────────────────────────────
 	root.AddCommand(&cobra.Command{
 		Use:   "watch <name>",
@@ -581,8 +640,8 @@ func main() {
 				fmt.Println(formatEvent(event))
 				fmt.Println()
 
-				// Exit after task completion
-				if event.Type == "task_completed" || event.Type == "error" {
+				// Exit after task completion or cancellation
+				if event.Type == "task_completed" || event.Type == "error" || event.Type == "task_cancelled" {
 					return
 				}
 			}

@@ -35,6 +35,8 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub) {
 	{
 		v1.POST("/agents", createOrTriggerAgent(k8s))
 		v1.GET("/agents", listAgents(k8s))
+		v1.DELETE("/agents/:name", deleteAgent(k8s))
+		v1.POST("/agents/:name/cancel", cancelAgentTask(k8s))
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
 	}
 }
@@ -70,7 +72,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 
-			if err := k8s.ForwardTaskToAgent(c.Request.Context(), podIP, req.Instructions); err != nil {
+			if err := k8s.ForwardTaskToAgent(c.Request.Context(), podIP, req.Instructions, req.Model); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
 			}
@@ -102,6 +104,57 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Status:    "Pending",
 			CreatedAt: agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
+	}
+}
+
+func deleteAgent(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		if err := k8s.DeleteAgent(c.Request.Context(), name); err != nil {
+			if errors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete agent: " + err.Error()})
+			return
+		}
+		log.Printf("deleted agent %s", name)
+		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
+	}
+}
+
+func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+
+		agent, err := k8s.GetAgent(c.Request.Context(), name)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if agent.Status.PodName == "" {
+			c.JSON(http.StatusConflict, gin.H{"error": "agent has no running pod"})
+			return
+		}
+
+		podIP, err := k8s.GetAgentPodIP(c.Request.Context(), agent.Status.PodName)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get pod IP: " + err.Error()})
+			return
+		}
+
+		if err := k8s.CancelAgentTask(c.Request.Context(), podIP); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel: " + err.Error()})
+			return
+		}
+
+		log.Printf("cancelled task on agent %s", name)
+		c.JSON(http.StatusOK, gin.H{"status": "cancelling", "name": name})
 	}
 }
 
