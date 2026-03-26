@@ -1,9 +1,18 @@
 apiVersion: komputer.komputer.ai/v1alpha1
 kind: KomputerAgentTemplate
 metadata:
-  labels:
-    app.kubernetes.io/name: komputer-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: komputeragenttemplate-sample
+  name: default
 spec:
-  # TODO(user): Add fields here
+  podSpec:
+    containers:
+      - name: agent
+        image: komputer-agent:latest
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+  storage:
+    size: "5Gi"

@@ -17,25 +17,31 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// StorageSpec defines PVC settings for agent workspaces.
+type StorageSpec struct {
+	// Size is the PVC storage size (e.g. "5Gi").
+	// +kubebuilder:default="5Gi"
+	Size string `json:"size,omitempty"`
+	// StorageClassName is the optional storage class name.
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
+}
 
 // KomputerAgentTemplateSpec defines the desired state of KomputerAgentTemplate.
 type KomputerAgentTemplateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of KomputerAgentTemplate. Edit komputeragenttemplate_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// PodSpec is a full corev1.PodSpec passthrough for the agent pod.
+	PodSpec corev1.PodSpec `json:"podSpec"`
+	// Storage defines the PVC settings for agent workspaces.
+	// +optional
+	Storage StorageSpec `json:"storage,omitempty"`
 }
 
 // KomputerAgentTemplateStatus defines the observed state of KomputerAgentTemplate.
 type KomputerAgentTemplateStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true
