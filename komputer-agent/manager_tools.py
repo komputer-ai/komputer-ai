@@ -15,11 +15,15 @@ _stream_prefix: str = "komputer-events"
 
 
 def _sub_name(name: str) -> str:
-    """Prefix sub-agent name with manager name, sanitized for K8s."""
+    """Prefix sub-agent name with manager name, sanitized for K8s.
+    If the name already starts with the manager prefix, return it as-is."""
+    prefix = f"{AGENT_NAME}-sub-"
+    if name.startswith(prefix):
+        return name
     sanitized = re.sub(r'[^a-z0-9-]', '', name.lower())[:50]
     if not sanitized:
         raise ValueError(f"Invalid sub-agent name: {name}")
-    return f"{AGENT_NAME}-sub-{sanitized}"
+    return f"{prefix}{sanitized}"
 
 
 def _ok(text: str) -> dict:
