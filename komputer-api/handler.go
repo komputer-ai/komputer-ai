@@ -15,7 +15,8 @@ type CreateAgentRequest struct {
 	Instructions string `json:"instructions" binding:"required"`
 	Model        string `json:"model"`
 	TemplateRef  string `json:"templateRef"`
-	Role         string `json:"role"` // "manager" or "" (default worker)
+	Role         string `json:"role"`      // "manager" or "" (default manager)
+	Namespace    string `json:"namespace"` // optional, defaults to server default
 }
 
 type AgentResponse struct {
@@ -30,6 +31,14 @@ type AgentResponse struct {
 
 type AgentListResponse struct {
 	Agents []AgentResponse `json:"agents"`
+}
+
+// resolveNamespace returns the namespace from the query param, request body, or default.
+func resolveNamespace(c *gin.Context, k8s *K8sClient) string {
+	if ns := c.Query("namespace"); ns != "" {
+		return ns
+	}
+	return k8s.defaultNamespace
 }
 
 func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
@@ -53,7 +62,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		existing, err := k8s.GetAgent(c.Request.Context(), req.Name)
+		ns := req.Namespace
+		if ns == "" {
+			ns = resolveNamespace(c, k8s)
+		}
+
+		existing, err := k8s.GetAgent(c.Request.Context(), ns, req.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent: " + err.Error()})
 			return
@@ -70,18 +84,18 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 
-			podIP, err := k8s.GetAgentPodIP(c.Request.Context(), existing.Status.PodName)
+			podIP, err := k8s.GetAgentPodIP(c.Request.Context(), ns, existing.Status.PodName)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get agent pod IP: " + err.Error()})
 				return
 			}
 
-			if err := k8s.ForwardTaskToAgent(c.Request.Context(), existing.Status.PodName, podIP, req.Instructions, req.Model); err != nil {
+			if err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, req.Instructions, req.Model); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
 			}
 
-			log.Printf("forwarded task to existing agent %s", req.Name)
+			log.Printf("forwarded task to existing agent %s/%s", ns, req.Name)
 			c.JSON(http.StatusOK, AgentResponse{
 				Name:            existing.Name,
 				Namespace:       existing.Namespace,
@@ -107,13 +121,13 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			instructions = managerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), req.Name, instructions, req.Model, req.TemplateRef, role)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, req.Model, req.TemplateRef, role)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
 		}
 
-		log.Printf("created new agent %s", req.Name)
+		log.Printf("created new agent %s/%s", ns, req.Name)
 		c.JSON(http.StatusCreated, AgentResponse{
 			Name:      agent.Name,
 			Namespace: agent.Namespace,
@@ -127,7 +141,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
-		if err := k8s.DeleteAgent(c.Request.Context(), name); err != nil {
+		ns := resolveNamespace(c, k8s)
+		if err := k8s.DeleteAgent(c.Request.Context(), ns, name); err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 				return
@@ -139,7 +154,7 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 		if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, name, worker.StreamPrefix); err != nil {
 			log.Printf("warning: failed to delete event stream for %s: %v", name, err)
 		}
-		log.Printf("deleted agent %s", name)
+		log.Printf("deleted agent %s/%s", ns, name)
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
 }
@@ -147,8 +162,9 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
 
-		agent, err := k8s.GetAgent(c.Request.Context(), name)
+		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
@@ -163,18 +179,18 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		podIP, err := k8s.GetAgentPodIP(c.Request.Context(), agent.Status.PodName)
+		podIP, err := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get pod IP: " + err.Error()})
 			return
 		}
 
-		if err := k8s.CancelAgentTask(c.Request.Context(), agent.Status.PodName, podIP); err != nil {
+		if err := k8s.CancelAgentTask(c.Request.Context(), ns, agent.Status.PodName, podIP); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel: " + err.Error()})
 			return
 		}
 
-		log.Printf("cancelled task on agent %s", name)
+		log.Printf("cancelled task on agent %s/%s", ns, name)
 		c.JSON(http.StatusOK, gin.H{"status": "cancelling", "name": name})
 	}
 }
@@ -182,7 +198,8 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 func getAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
-		agent, err := k8s.GetAgent(c.Request.Context(), name)
+		ns := resolveNamespace(c, k8s)
+		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
@@ -229,7 +246,8 @@ func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 
 func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		agents, err := k8s.ListAgents(c.Request.Context())
+		ns := resolveNamespace(c, k8s)
+		agents, err := k8s.ListAgents(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
 			return

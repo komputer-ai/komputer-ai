@@ -309,6 +309,24 @@ func formatEvent(event AgentEvent) string {
 	}
 }
 
+// nsQuery returns "?namespace=X" or "" based on the --namespace flag.
+func nsQuery(cmd *cobra.Command) string {
+	ns, _ := cmd.Flags().GetString("namespace")
+	if ns != "" {
+		return "?namespace=" + url.QueryEscape(ns)
+	}
+	return ""
+}
+
+// nsQueryAmp returns "&namespace=X" or "" for appending to existing query params.
+func nsQueryAmp(cmd *cobra.Command) string {
+	ns, _ := cmd.Flags().GetString("namespace")
+	if ns != "" {
+		return "&namespace=" + url.QueryEscape(ns)
+	}
+	return ""
+}
+
 func truncate(s string, max int) string {
 	if len(s) > max {
 		return s[:max] + "..."
@@ -325,6 +343,7 @@ func main() {
 	}
 
 	root.PersistentFlags().String("api", "", "API endpoint URL (overrides login config)")
+	root.PersistentFlags().StringP("namespace", "n", "", "Kubernetes namespace (default: server default)")
 
 	// ── login ────────────────────────────────────────────────────────────
 	root.AddCommand(&cobra.Command{
@@ -350,7 +369,7 @@ func main() {
 		Short:   "List all agents",
 		Run: func(cmd *cobra.Command, args []string) {
 			ep := resolveEndpoint(cmd)
-			data, status, err := apiRequest("GET", ep+"/api/v1/agents", nil)
+			data, status, err := apiRequest("GET", ep+"/api/v1/agents"+nsQuery(cmd), nil)
 			if err != nil {
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
@@ -443,6 +462,8 @@ func main() {
 			model, _ := cmd.Flags().GetString("model")
 			templateRef, _ := cmd.Flags().GetString("template")
 
+			ns, _ := cmd.Flags().GetString("namespace")
+
 			body := map[string]string{
 				"name":         args[0],
 				"instructions": args[1],
@@ -452,6 +473,9 @@ func main() {
 			}
 			if templateRef != "" {
 				body["templateRef"] = templateRef
+			}
+			if ns != "" {
+				body["namespace"] = ns
 			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
@@ -498,7 +522,7 @@ func main() {
 			limit, _ := cmd.Flags().GetInt("events")
 
 			// Fetch agent details
-			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s", ep, url.PathEscape(agentName)), nil)
+			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(agentName), nsQuery(cmd)), nil)
 			if err != nil {
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
@@ -517,7 +541,7 @@ func main() {
 			printAgent(agent)
 
 			// Fetch recent events
-			eventsData, eventsStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s/events?limit=%d", ep, url.PathEscape(agentName), limit), nil)
+			eventsData, eventsStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s/events?limit=%d%s", ep, url.PathEscape(agentName), limit, nsQueryAmp(cmd)), nil)
 			if err != nil || eventsStatus != 200 {
 				return // silently skip events if unavailable
 			}
@@ -552,7 +576,7 @@ func main() {
 			ep := resolveEndpoint(cmd)
 			hasError := false
 			for _, name := range args {
-				data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/agents/%s", ep, url.PathEscape(name)), nil)
+				data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(name), nsQuery(cmd)), nil)
 				if err != nil {
 					fmt.Println(errorStyle.Render(fmt.Sprintf("Failed to delete %q: %s", name, err.Error())))
 					hasError = true
@@ -583,7 +607,7 @@ func main() {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			ep := resolveEndpoint(cmd)
-			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/cancel", ep, url.PathEscape(args[0])), nil)
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/cancel%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
@@ -616,7 +640,7 @@ func main() {
 			agentName := args[0]
 
 			// Verify agent exists before connecting WebSocket
-			_, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s", ep, url.PathEscape(agentName)), nil)
+			_, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(agentName), nsQuery(cmd)), nil)
 			if err != nil {
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
@@ -694,12 +718,17 @@ func main() {
 			model, _ := cmd.Flags().GetString("model")
 
 			// Create agent
+			ns, _ := cmd.Flags().GetString("namespace")
+
 			body := map[string]string{
 				"name":         agentName,
 				"instructions": instructions,
 			}
 			if model != "" {
 				body["model"] = model
+			}
+			if ns != "" {
+				body["namespace"] = ns
 			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)

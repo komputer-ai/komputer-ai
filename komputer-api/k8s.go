@@ -24,11 +24,11 @@ import (
 )
 
 type K8sClient struct {
-	client    client.Client
-	namespace string
+	client           client.Client
+	defaultNamespace string
 }
 
-func NewK8sClient(namespace string) (*K8sClient, error) {
+func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(komputerv1alpha1.AddToScheme(scheme))
@@ -43,10 +43,10 @@ func NewK8sClient(namespace string) (*K8sClient, error) {
 		return nil, fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
-	return &K8sClient{client: c, namespace: namespace}, nil
+	return &K8sClient{client: c, defaultNamespace: defaultNamespace}, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, name, instructions, model, templateRef, role string) (*komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -57,7 +57,7 @@ func (k *K8sClient) CreateAgent(ctx context.Context, name, instructions, model, 
 	agent := &komputerv1alpha1.KomputerAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: k.namespace,
+			Namespace: ns,
 			Labels: map[string]string{
 				"komputer.ai/agent-name": name,
 			},
@@ -76,26 +76,26 @@ func (k *K8sClient) CreateAgent(ctx context.Context, name, instructions, model, 
 	return agent, nil
 }
 
-func (k *K8sClient) GetAgent(ctx context.Context, name string) (*komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) GetAgent(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerAgent, error) {
 	agent := &komputerv1alpha1.KomputerAgent{}
-	err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: k.namespace}, agent)
+	err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, agent)
 	if err != nil {
 		return nil, err
 	}
 	return agent, nil
 }
 
-func (k *K8sClient) ListAgents(ctx context.Context) ([]komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) ListAgents(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerAgent, error) {
 	list := &komputerv1alpha1.KomputerAgentList{}
-	if err := k.client.List(ctx, list, client.InNamespace(k.namespace)); err != nil {
+	if err := k.client.List(ctx, list, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
 }
 
-func (k *K8sClient) GetAgentPodIP(ctx context.Context, podName string) (string, error) {
+func (k *K8sClient) GetAgentPodIP(ctx context.Context, ns, podName string) (string, error) {
 	pod := &corev1.Pod{}
-	err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: k.namespace}, pod)
+	err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, pod)
 	if err != nil {
 		return "", err
 	}
@@ -106,28 +106,28 @@ func (k *K8sClient) GetAgentPodIP(ctx context.Context, podName string) (string, 
 }
 
 // DeleteAgent deletes a KomputerAgent CR. The operator will clean up the pod, PVC, and ConfigMap.
-func (k *K8sClient) DeleteAgent(ctx context.Context, name string) error {
+func (k *K8sClient) DeleteAgent(ctx context.Context, ns, name string) error {
 	agent := &komputerv1alpha1.KomputerAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: k.namespace,
+			Namespace: ns,
 		},
 	}
 	return k.client.Delete(ctx, agent)
 }
 
 // CancelAgentTask sends a cancel request to the agent's FastAPI endpoint.
-func (k *K8sClient) CancelAgentTask(ctx context.Context, podName, podIP string) error {
+func (k *K8sClient) CancelAgentTask(ctx context.Context, ns, podName, podIP string) error {
 	err := k.postToAgent(ctx, podIP, "/cancel", "")
 	if err != nil {
 		// Fallback: kubectl exec curl inside the pod
-		return k.execInPod(ctx, podName, "curl", "-s", "-X", "POST", "http://localhost:8000/cancel")
+		return k.execInPod(ctx, ns, podName, "curl", "-s", "-X", "POST", "http://localhost:8000/cancel")
 	}
 	return nil
 }
 
 // ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
-func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, podName, podIP, instructions, model string) error {
+func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, instructions, model string) error {
 	bodyMap := map[string]string{"instructions": instructions}
 	if model != "" {
 		bodyMap["model"] = model
@@ -137,7 +137,7 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, podName, podIP, inst
 	err := k.postToAgent(ctx, podIP, "/task", string(bodyJSON))
 	if err != nil {
 		// Fallback: kubectl exec curl inside the pod
-		return k.execInPod(ctx, podName, "curl", "-s", "-X", "POST",
+		return k.execInPod(ctx, ns, podName, "curl", "-s", "-X", "POST",
 			"-H", "Content-Type: application/json",
 			"-d", string(bodyJSON),
 			"http://localhost:8000/task")
@@ -179,9 +179,9 @@ func (k *K8sClient) postToAgent(ctx context.Context, podIP, path, body string) e
 }
 
 // execInPod runs a command inside a pod using the Kubernetes API (equivalent to kubectl exec).
-func (k *K8sClient) execInPod(ctx context.Context, podName string, command ...string) error {
+func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command ...string) error {
 	pod := &corev1.Pod{}
-	if err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: k.namespace}, pod); err != nil {
+	if err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, pod); err != nil {
 		return fmt.Errorf("failed to get pod %s: %w", podName, err)
 	}
 
@@ -198,7 +198,7 @@ func (k *K8sClient) execInPod(ctx context.Context, podName string, command ...st
 	execReq := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
-		Namespace(k.namespace).
+		Namespace(ns).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: pod.Spec.Containers[0].Name,
@@ -224,9 +224,9 @@ func (k *K8sClient) execInPod(ctx context.Context, podName string, command ...st
 }
 
 // PatchAgentTaskStatus patches only the task-related status fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, agentName, taskStatus, lastMessage, sessionID string) error {
+func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
-	key := types.NamespacedName{Name: agentName, Namespace: k.namespace}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
 		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
 	}
