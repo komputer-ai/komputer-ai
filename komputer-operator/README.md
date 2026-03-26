@@ -1,135 +1,155 @@
 # komputer-operator
-// TODO(user): Add simple overview of use/purpose
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Kubernetes operator built with [operator-sdk](https://sdk.operatorframework.io/) that manages the lifecycle of Claude AI agents. It watches `KomputerAgent` custom resources and creates the necessary pods, persistent volumes, and configuration for each agent.
 
-## Getting Started
+## CRDs
+
+### KomputerRedisConfig
+
+Cluster-scoped singleton holding Redis connection details. The operator auto-discovers this resource — no explicit reference needed.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerRedisConfig
+metadata:
+  name: default
+spec:
+  address: "redis:6379"
+  db: 0
+  queue: "komputer-events"
+  passwordSecret:
+    name: "redis-secret"
+    key: "password"
+```
+
+### KomputerAgentTemplate
+
+Reusable pod configuration with full `corev1.PodSpec` passthrough. Supports any pod-level settings — tolerations, node selectors, resource limits, env vars, etc.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgentTemplate
+metadata:
+  name: default
+spec:
+  podSpec:
+    containers:
+      - name: agent
+        image: komputer-agent:latest
+        env:
+          - name: ANTHROPIC_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: anthropic-api-key
+                key: api-key
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+  storage:
+    size: "5Gi"
+```
+
+### KomputerAgent
+
+An agent instance. The operator creates a pod and PVC when this resource is created.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgent
+metadata:
+  name: my-agent
+spec:
+  templateRef: "default"          # optional, defaults to "default"
+  instructions: "Research AI news"
+  model: "claude-sonnet-4-20250514"  # optional, has default
+```
+
+**Status fields:**
+
+```
+kubectl get komputeragents
+NAME       PHASE     TASK     MODEL                      AGE
+my-agent   Running   ● Busy   claude-sonnet-4-20250514   5m
+```
+
+- `phase` — Pod lifecycle: Pending, Running, Succeeded, Failed
+- `taskStatus` — Agent activity: Idle, Busy, Error (managed by the API worker)
+- `podName`, `pvcName` — Names of created resources
+- `startTime`, `completionTime` — Timestamps
+- `lastTaskMessage` — Latest event summary
+
+## Reconciliation Logic
+
+When a `KomputerAgent` CR is created:
+
+1. Resolves the `templateRef` to get the pod spec
+2. Auto-discovers the singleton `KomputerRedisConfig`
+3. Creates a PVC (`{name}-pvc`) for the agent's persistent workspace
+4. Creates a ConfigMap (`{name}-pod-config`) with Redis config at `/etc/komputer/config.json`
+5. Creates a Pod from the template, injecting:
+   - `KOMPUTER_INSTRUCTIONS`, `KOMPUTER_MODEL`, `KOMPUTER_AGENT_NAME` env vars
+   - Workspace PVC at `/workspace`
+   - Config at `/etc/komputer`
+6. Keeps the pod alive — recreates on termination
+7. Updates CR status based on pod state
+
+## Development
 
 ### Prerequisites
-- go version v1.24.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+- Go 1.22+
+- operator-sdk v1.42+
+- A Kubernetes cluster
 
-```sh
-make docker-build docker-push IMG=<some-registry>/komputer-operator:tag
+### Build and test
+
+```bash
+make generate    # Regenerate deepcopy code
+make manifests   # Regenerate CRD manifests
+make test        # Run integration tests with envtest
+go build ./...   # Build
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+### Install CRDs
 
-**Install the CRDs into the cluster:**
-
-```sh
-make install
+```bash
+make install     # Uses server-side apply (required for large PodSpec CRD)
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### Run locally
 
-```sh
-make deploy IMG=<some-registry>/komputer-operator:tag
+```bash
+make run         # Runs against current kubeconfig cluster
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+### Deploy to cluster
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
+```bash
+make docker-build IMG=<registry>/komputer-operator:latest
+make docker-push IMG=<registry>/komputer-operator:latest
+make deploy IMG=<registry>/komputer-operator:latest
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+## Project Structure
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
 ```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
+komputer-operator/
+├── api/v1alpha1/                    # CRD type definitions
+│   ├── komputeragent_types.go
+│   ├── komputeragenttemplate_types.go
+│   └── komputerredisconfig_types.go
+├── internal/controller/
+│   ├── komputeragent_controller.go      # Reconciliation logic
+│   └── komputeragent_controller_test.go # Integration tests
+├── cmd/main.go                      # Manager entrypoint
+├── config/
+│   ├── crd/bases/                   # Generated CRD manifests
+│   ├── rbac/                        # RBAC rules
+│   └── samples/                     # Example CRs
+├── Makefile
+└── Dockerfile
 ```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/komputer-operator:tag
-```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/komputer-operator/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-operator-sdk edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2026.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
