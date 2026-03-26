@@ -47,7 +47,7 @@ type KomputerAgentSpec struct {
 	// Instructions is the prompt/task for the Claude agent.
 	Instructions string `json:"instructions"`
 	// Model is the Claude model to use.
-	// +kubebuilder:default="claude-sonnet-4-6-20250514"
+	// +kubebuilder:default="claude-sonnet-4-6"
 	Model string `json:"model,omitempty"`
 	// Role is "manager" or "worker". Managers get orchestration tools.
 	// Role is "manager" or "worker". Defaults to "manager" for top-level agents.

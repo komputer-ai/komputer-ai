@@ -48,7 +48,7 @@ func NewK8sClient(namespace string) (*K8sClient, error) {
 
 func (k *K8sClient) CreateAgent(ctx context.Context, name, instructions, model, templateRef, role string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
-		model = "claude-sonnet-4-6-20250514"
+		model = "claude-sonnet-4-6"
 	}
 	if templateRef == "" {
 		templateRef = "default"

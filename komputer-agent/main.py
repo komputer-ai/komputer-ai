@@ -18,7 +18,7 @@ def load_config():
 
 def main():
     instructions = os.getenv("KOMPUTER_INSTRUCTIONS", "")
-    model = os.getenv("KOMPUTER_MODEL", "claude-sonnet-4-6-20250514")
+    model = os.getenv("KOMPUTER_MODEL", "claude-sonnet-4-6")
     agent_name = os.getenv("KOMPUTER_AGENT_NAME", "unknown")
 
     config = load_config()

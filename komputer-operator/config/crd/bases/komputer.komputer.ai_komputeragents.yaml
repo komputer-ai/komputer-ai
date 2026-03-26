@@ -56,7 +56,7 @@ spec:
                 description: Instructions is the prompt/task for the Claude agent.
                 type: string
               model:
-                default: claude-sonnet-4-6-20250514
+                default: claude-sonnet-4-6
                 description: Model is the Claude model to use.
                 type: string
               role:

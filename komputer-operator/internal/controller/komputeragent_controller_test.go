@@ -93,7 +93,7 @@ var _ = Describe("KomputerAgent Controller", func() {
 			Spec: komputerv1alpha1.KomputerAgentSpec{
 				TemplateRef:  "default",
 				Instructions: "Do a test task",
-				Model:        "claude-sonnet-4-6-20250514",
+				Model:        "claude-sonnet-4-6",
 			},
 		}
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "test-agent", Namespace: "default"}, &komputerv1alpha1.KomputerAgent{})
@@ -161,7 +161,7 @@ var _ = Describe("KomputerAgent Controller", func() {
 				envMap[env.Name] = env.Value
 			}
 			Expect(envMap["KOMPUTER_INSTRUCTIONS"]).To(Equal("Do a test task"))
-			Expect(envMap["KOMPUTER_MODEL"]).To(Equal("claude-sonnet-4-6-20250514"))
+			Expect(envMap["KOMPUTER_MODEL"]).To(Equal("claude-sonnet-4-6"))
 			Expect(envMap["KOMPUTER_AGENT_NAME"]).To(Equal("test-agent"))
 		})
 
