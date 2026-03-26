@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from pathlib import Path
 
@@ -30,6 +31,16 @@ def _load_session_id() -> str | None:
 def _save_session_id(session_id: str):
     """Save the session ID to the workspace for future tasks."""
     SESSION_FILE.write_text(session_id)
+
+
+def _load_redis_config() -> dict | None:
+    """Load Redis config from the agent's config file."""
+    config_path = os.getenv("KOMPUTER_CONFIG_PATH", "/etc/komputer/config.json")
+    try:
+        with open(config_path) as f:
+            return json.load(f).get("redis")
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
 
 
 async def run_agent(instructions: str, model: str, publisher):
@@ -67,7 +78,9 @@ async def run_agent(instructions: str, model: str, publisher):
     # Conditionally register manager orchestration tools
     if os.environ.get("KOMPUTER_ROLE") == "manager":
         from manager_tools import create_manager_server
-        options.mcp_servers = {"komputer": create_manager_server()}
+        # Pass Redis config so wait_for_completion can subscribe to streams directly.
+        redis_config = _load_redis_config()
+        options.mcp_servers = {"komputer": create_manager_server(redis_config)}
 
     # Resume previous session if one exists
     if session_id:
