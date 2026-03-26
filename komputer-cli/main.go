@@ -263,10 +263,9 @@ func formatEvent(event AgentEvent) string {
 		return fmt.Sprintf("%s %s\n%s", ts, dimStyle.Render("🧠 Thinking"), eventThinkStyle.Render("  "+content))
 
 	case "tool_call":
-		tool, _ := payload["tool"].(string)
-		input, _ := payload["input"]
-		inputStr, _ := json.Marshal(input)
-		return fmt.Sprintf("%s %s %s\n%s", ts, eventToolStyle.Render("🔧 Tool Call:"), eventToolStyle.Render(tool), dimStyle.Render("  "+truncate(string(inputStr), 200)))
+		// tool_call events arrive batched at turn end, after tool_result events
+		// already showed the tool execution in real-time. Skip to avoid duplicates.
+		return ""
 
 	case "tool_result":
 		tool, _ := payload["tool"].(string)

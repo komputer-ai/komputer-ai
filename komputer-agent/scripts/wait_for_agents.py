@@ -90,7 +90,15 @@ def main():
                 etype = field(fields, "type")
 
                 if etype in terminal_types:
-                    results[matched_name] = {"status": etype}
+                    payload_str = field(fields, "payload")
+                    try:
+                        payload = json.loads(payload_str) if payload_str else {}
+                    except json.JSONDecodeError:
+                        payload = {}
+                    results[matched_name] = {
+                        "status": etype,
+                        "result": payload.get("result", ""),
+                    }
                     del pending[matched_name]
                     done = total - len(pending)
                     print(f"[{done}/{total}] {matched_name} -> {etype}", file=sys.stderr, flush=True)
