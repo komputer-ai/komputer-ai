@@ -59,10 +59,10 @@ Each component is fully self-contained with no shared code, making it easy to ex
 ### 1. Create the Anthropic API key secret
 
 ```bash
-kubectl create namespace komputer
+kubectl create namespace komputer-ai
 kubectl create secret generic anthropic-api-key \
   --from-literal=api-key=sk-ant-... \
-  -n komputer
+  -n komputer-ai
 ```
 
 ### 2. Install with Helm
@@ -70,7 +70,7 @@ kubectl create secret generic anthropic-api-key \
 ```bash
 helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
-  --namespace komputer
+  --namespace komputer-ai
 ```
 
 This deploys the operator, API, Redis, CRDs, and a default agent template — everything you need.
@@ -93,7 +93,7 @@ chmod +x komputer && sudo mv komputer /usr/local/bin/
 
 ```bash
 # Port-forward the API (or use an Ingress)
-kubectl port-forward svc/komputer-api 8080:8080 -n komputer &
+kubectl port-forward svc/komputer-api 8080:8080 -n komputer-ai &
 
 komputer login http://localhost:8080
 komputer run my-agent "Write a haiku about Kubernetes"
@@ -109,7 +109,7 @@ helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --set redis.enabled=false \
   --set externalRedis.address=redis.prod:6379 \
-  --namespace komputer
+  --namespace komputer-ai
 
 # See all options
 helm show values oci://ghcr.io/kontroloop-ai/charts/komputer-ai
