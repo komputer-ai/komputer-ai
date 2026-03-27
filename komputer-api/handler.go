@@ -134,6 +134,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 		if role == "manager" {
 			instructions = managerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
+		} else {
+			instructions = workerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
 		}
 
 		if err := k8s.EnsureNamespace(c.Request.Context(), ns); err != nil {

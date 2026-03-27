@@ -17,9 +17,9 @@
 </p>
 
 <p align="center">
-  An API-first platform for running persistent Claude AI agents on Kubernetes.<br/>
-  Designed to be driven by external systems — CI/CD pipelines, Slack bots, dashboards, cron jobs, or any HTTP client.<br/>
-  Create agents, send tasks, and stream real-time results via REST + WebSocket.
+  A Kubernetes-native platform for running persistent Claude AI agents.<br/>
+  Built on CRDs, operators, and the Kubernetes API — agents are first-class cluster resources.<br/>
+  Designed to be driven by external systems. Create agents, send tasks, and stream real-time results via REST + WebSocket.
 </p>
 
 ---
