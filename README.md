@@ -80,12 +80,14 @@ kubectl expose pod redis --port=6379 --name=redis
 kubectl create secret generic redis-secret \
   --from-literal=password=""
 
-# Anthropic API key
+# Anthropic API key (required — agents cannot run without it)
 kubectl create secret generic anthropic-api-key \
   --from-literal=api-key=sk-ant-...
 ```
 
 ### 4. Apply base resources
+
+The default cluster template references the `anthropic-api-key` secret created above. Every template **must** include `ANTHROPIC_API_KEY` — without it, agents will fail to start.
 
 ```bash
 kubectl apply -f komputer-operator/config/samples/komputer_v1alpha1_komputerconfig.yaml

@@ -28,6 +28,8 @@ There are two kinds of templates:
 
 When an agent is created, it references a template by name (defaulting to `"default"`). The operator resolves the template — checking the agent's namespace first, then falling back to cluster scope — and uses it to build the pod.
 
+**Important:** The template must include the `ANTHROPIC_API_KEY` environment variable (typically via a Kubernetes Secret reference). Without it, agents cannot communicate with the Claude API and will fail to start. This is the one mandatory piece of configuration in every template.
+
 ## Config
 
 **KomputerConfig** is a cluster-scoped singleton that holds platform-wide settings:
