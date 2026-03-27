@@ -35,6 +35,7 @@ def _save_session_id(session_id: str):
 
 async def run_agent(instructions: str, model: str, publisher):
     """Run a Claude agent with the given instructions using the Claude Agent SDK."""
+    import state
     session_id = _load_session_id()
 
     publisher.publish("task_started", {
@@ -77,6 +78,9 @@ async def run_agent(instructions: str, model: str, publisher):
     result = None
 
     async with ClaudeSDKClient(options=options) as client:
+        # Register the client so signal handlers can interrupt it.
+        state.set_active_client(client)
+
         await client.query(instructions)
 
         async for message in client.receive_response():
