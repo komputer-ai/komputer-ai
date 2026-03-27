@@ -114,6 +114,21 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// 5b. Set owner references on agent secrets so they're garbage-collected on deletion
+	for _, secretName := range agent.Spec.Secrets {
+		secret := &corev1.Secret{}
+		if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, secret); err != nil {
+			continue // secret may not exist yet
+		}
+		if len(secret.OwnerReferences) == 0 {
+			if err := ctrl.SetControllerReference(agent, secret, r.Scheme); err == nil {
+				if err := r.Update(ctx, secret); err != nil {
+					log.Error(err, "Failed to set owner reference on secret", "secret", secretName)
+				}
+			}
+		}
+	}
+
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
 	pod, err := r.ensurePod(ctx, agent, template, pvcName, configMapName, podName, komputerConfig.Spec.APIURL)
