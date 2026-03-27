@@ -221,6 +221,7 @@ jobs:
     if: needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
