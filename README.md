@@ -24,47 +24,6 @@
 
 ---
 
-## Architecture
-
-```
-                    ┌─────────────────┐
-                    │  komputer-cli   │
-                    │  (--namespace)  │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  komputer-api   │
-                    │  (Go / Gin)     │
-                    │                 │
-                    │  REST + WS API  │───── Creates KomputerAgent CRs
-                    │  Redis worker   │◄──── Consumes agent events
-                    └─────────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-    ┌─────────▼──────┐  ┌───▼────┐  ┌──────▼──────────┐
-    │ AgentTemplate  │  │ Redis  │  │ KomputerAgent   │
-    │ ClusterTemplate│  │        │  │ (manager/worker)│
-    └─────────┬──────┘  └───▲────┘  └──────┬──────────┘
-              │              │              │
-       ┌──────▼──────────────┼──────────────┘
-       │ komputer-operator   │
-       │ (Go / operator-sdk) │
-       │                     │
-       │ Reconciles CRs →    │
-       │ creates Pods + PVCs │
-       └──────────┬──────────┘
-                  │
-       ┌──────────▼──────────┐
-       │ Agent Pod           │
-       │ (Python / Claude)   │
-       │                     │
-       │ Bash + Web Search   │──── Events → Redis
-       │ PVC at /workspace   │
-       │ FastAPI on :8000    │
-       └─────────────────────┘
-```
-
 ## Components
 
 | Component | Language | Description |
@@ -78,68 +37,15 @@ Each component is fully self-contained with no shared code, making it easy to ex
 
 ## Documentation
 
-1. [Getting Started](#quick-start) — Prerequisites, installation, and first agent
-2. [Integration Guide](docs/integration-guide.md) — How to connect external systems via HTTP API and WebSocket events
-3. Komputer Components
-   1. [komputer-api](komputer-api/README.md) — REST & WebSocket API reference, Redis event worker, configuration
+1. [Concepts](docs/concepts.md) — Agents, templates, config, secrets, namespaces — how the system fits together
+2. [Getting Started](#quick-start) — Prerequisites, installation, and first agent
+3. [Integration Guide](docs/integration-guide.md) — How to connect external systems via HTTP API and WebSocket events
+4. [Architecture](#architecture) — System diagram and component interactions
+5. Komputer Components
+   1. [komputer-api](komputer-api/README.md) — REST & WebSocket API reference, Swagger UI, configuration
    2. [komputer-operator](komputer-operator/README.md) — CRD definitions, reconciliation logic, operator development guide
    3. [komputer-agent](komputer-agent/README.md) — Agent runtime, Claude SDK integration, manager tools, event format
    4. [komputer-cli](komputer-cli/README.md) — CLI commands, flags, usage examples
-
-## Custom Resources
-
-**KomputerConfig** (cluster-scoped, singleton) — Platform configuration with Redis and API settings:
-```yaml
-apiVersion: komputer.komputer.ai/v1alpha1
-kind: KomputerConfig
-metadata:
-  name: default
-spec:
-  redis:
-    address: "redis.default:6379"
-    db: 0
-    streamPrefix: "komputer-events"
-    passwordSecret:
-      name: redis-secret
-      key: password
-  apiURL: "http://komputer-api.default.svc.cluster.local:8080"
-```
-
-**KomputerAgentClusterTemplate** (cluster-scoped) — Reusable pod configuration shared across all namespaces:
-```yaml
-apiVersion: komputer.komputer.ai/v1alpha1
-kind: KomputerAgentClusterTemplate
-metadata:
-  name: default
-spec:
-  podSpec:
-    containers:
-      - name: agent
-        image: komputer-agent:latest
-        resources:
-          limits:
-            cpu: "2"
-            memory: "2Gi"
-  storage:
-    size: "5Gi"
-```
-
-**KomputerAgentTemplate** (namespaced) — Namespace-scoped pod configuration. Takes precedence over a cluster template with the same name.
-
-**KomputerAgent** — An agent instance with Claude configuration:
-```yaml
-apiVersion: komputer.komputer.ai/v1alpha1
-kind: KomputerAgent
-metadata:
-  name: my-agent
-spec:
-  instructions: "Research quantum computing and write a summary"
-  model: "claude-sonnet-4-6"
-  templateRef: "default"
-  role: "manager"    # or "worker" — managers get orchestration tools
-  secrets:           # optional list of K8s Secret names
-    - my-agent-secrets
-```
 
 ## Quick Start
 
@@ -220,6 +126,63 @@ go build -o komputer .
 ./komputer run my-agent "Write a haiku about Kubernetes"
 ```
 
+## Custom Resources
+
+For a conceptual overview of these resources, see [Concepts](docs/concepts.md).
+
+**KomputerConfig** (cluster-scoped, singleton) — Platform configuration with Redis and API settings:
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerConfig
+metadata:
+  name: default
+spec:
+  redis:
+    address: "redis.default:6379"
+    db: 0
+    streamPrefix: "komputer-events"
+    passwordSecret:
+      name: redis-secret
+      key: password
+  apiURL: "http://komputer-api.default.svc.cluster.local:8080"
+```
+
+**KomputerAgentClusterTemplate** (cluster-scoped) — Reusable pod configuration shared across all namespaces:
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgentClusterTemplate
+metadata:
+  name: default
+spec:
+  podSpec:
+    containers:
+      - name: agent
+        image: komputer-agent:latest
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+  storage:
+    size: "5Gi"
+```
+
+**KomputerAgentTemplate** (namespaced) — Namespace-scoped pod configuration. Takes precedence over a cluster template with the same name.
+
+**KomputerAgent** — An agent instance with Claude configuration:
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgent
+metadata:
+  name: my-agent
+spec:
+  instructions: "Research quantum computing and write a summary"
+  model: "claude-sonnet-4-6"
+  templateRef: "default"
+  role: "manager"    # or "worker" — managers get orchestration tools
+  secrets:           # optional list of K8s Secret names
+    - my-agent-secrets
+```
+
 ## CLI Usage
 
 ```bash
@@ -281,6 +244,47 @@ Events published by agents and streamed via WebSocket:
 | `task_completed` | Task finished | `{result, cost_usd, duration_ms, turns}` |
 | `task_cancelled` | Task was cancelled | `{reason}` |
 | `error` | Error occurred | `{error}` |
+
+## Architecture
+
+```
+                    ┌─────────────────┐
+                    │  komputer-cli   │
+                    │  (--namespace)  │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │  komputer-api   │
+                    │  (Go / Gin)     │
+                    │                 │
+                    │  REST + WS API  │───── Creates KomputerAgent CRs
+                    │  Redis worker   │◄──── Consumes agent events
+                    └─────────────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+    ┌─────────▼──────┐  ┌───▼────┐  ┌──────▼──────────┐
+    │ AgentTemplate  │  │ Redis  │  │ KomputerAgent   │
+    │ ClusterTemplate│  │        │  │ (manager/worker)│
+    └─────────┬──────┘  └───▲────┘  └──────┬──────────┘
+              │              │              │
+       ┌──────▼──────────────┼──────────────┘
+       │ komputer-operator   │
+       │ (Go / operator-sdk) │
+       │                     │
+       │ Reconciles CRs →    │
+       │ creates Pods + PVCs │
+       └──────────┬──────────┘
+                  │
+       ┌──────────▼──────────┐
+       │ Agent Pod           │
+       │ (Python / Claude)   │
+       │                     │
+       │ Bash + Web Search   │──── Events → Redis
+       │ PVC at /workspace   │
+       │ FastAPI on :8000    │
+       └─────────────────────┘
+```
 
 ## Project Structure
 
