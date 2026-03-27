@@ -25,5 +25,9 @@ class EventPublisher:
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "payload": json.dumps(payload),
         }
+        # Log every event as JSON for pod log visibility (kubectl logs).
+        log_entry = {**event, "payload": payload}
+        print(json.dumps(log_entry), flush=True)
+
         stream_key = f"{self.stream_prefix}:{self.agent_name}"
         self.client.xadd(stream_key, event, maxlen=200, approximate=True)
