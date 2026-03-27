@@ -277,9 +277,19 @@ func formatEvent(event AgentEvent) string {
 				eventErrorStyle.Render(tool),
 				eventErrorStyle.Render("  "+truncate(output, 500)))
 		}
-		return fmt.Sprintf("%s %s %s\n%s", ts,
+		// For Bash tools, show the command that was run.
+		cmdLine := ""
+		if tool == "Bash" {
+			if inputMap, ok := payload["input"].(map[string]interface{}); ok {
+				if cmd, ok := inputMap["command"].(string); ok {
+					cmdLine = dimStyle.Render("  $ " + truncate(cmd, 150) + "\n")
+				}
+			}
+		}
+		return fmt.Sprintf("%s %s %s\n%s%s", ts,
 			eventResultStyle.Render("✓"),
 			eventResultStyle.Render(tool),
+			cmdLine,
 			dimStyle.Render("  "+truncate(output, 200)))
 
 	case "task_completed":
