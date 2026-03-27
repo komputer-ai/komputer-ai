@@ -477,6 +477,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		if pod == nil {
 			// If agent is sleeping, preserve the sleeping state
 			if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+				s.PodName = ""
 				return
 			}
 			s.Phase = komputerv1alpha1.AgentPhasePending
