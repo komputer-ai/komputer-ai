@@ -55,6 +55,20 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 	}
 }
 
+// createOrTriggerAgent creates a new agent or sends a task to an existing one.
+// @Summary Create agent or send task
+// @Description Creates a new agent or sends a task to an existing idle agent (upsert by name).
+// @Description If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
+// @Tags agents
+// @Accept json
+// @Produce json
+// @Param request body CreateAgentRequest true "Agent creation request"
+// @Success 201 {object} AgentResponse "Agent created"
+// @Success 200 {object} AgentResponse "Task forwarded to existing agent"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 409 {object} map[string]string "Agent is busy or has no running pod"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents [post]
 func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateAgentRequest
@@ -154,6 +168,17 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteAgent deletes an agent and cleans up all its resources.
+// @Summary Delete agent
+// @Description Deletes the agent CR, pod, PVC, secrets, and Redis event stream.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Agent deleted"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name} [delete]
 func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -175,6 +200,18 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	}
 }
 
+// cancelAgentTask cancels the running task on an agent.
+// @Summary Cancel agent task
+// @Description Gracefully cancels the currently running task. The agent pod stays alive for future tasks.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Task cancelling"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent has no running pod"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/cancel [post]
 func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -211,6 +248,17 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getAgent returns details for a single agent.
+// @Summary Get agent details
+// @Description Returns the current status and metadata for a single agent.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentResponse "Agent details"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name} [get]
 func getAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -236,6 +284,18 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getAgentEvents returns the event history for an agent from Redis.
+// @Summary Get agent events
+// @Description Returns recent events from the agent's Redis stream in chronological order.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param limit query int false "Max events to return (1-200)" default(50)
+// @Success 200 {object} map[string]interface{} "Agent events"
+// @Failure 400 {object} map[string]string "Invalid limit parameter"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/events [get]
 func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -260,6 +320,15 @@ func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 	}
 }
 
+// listAgents returns all agents in a namespace.
+// @Summary List agents
+// @Description Returns all agents with their current status in the specified namespace.
+// @Tags agents
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentListResponse "List of agents"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents [get]
 func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := resolveNamespace(c, k8s)

@@ -10,7 +10,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "github.com/komputer-ai/komputer-api/docs"
 )
+
+// @title komputer.ai API
+// @version 1.0
+// @description API-first platform for running persistent Claude AI agents on Kubernetes.
+// @description Designed to be driven by external systems — create agents, send tasks, and stream real-time results via REST + WebSocket.
+
+// @host localhost:8080
+// @BasePath /api/v1
 
 func main() {
 	log.Println("komputer-api starting...")
@@ -53,6 +65,7 @@ func main() {
 	log.Println("redis worker started")
 
 	r := gin.Default()
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	SetupRoutes(r, k8s, hub, rw)
 
 	srv := &http.Server{

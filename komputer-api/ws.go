@@ -63,6 +63,11 @@ var upgrader = websocket.Upgrader{
 }
 
 // HandleAgentWS handles GET /api/v1/agents/:name/ws
+// @Summary Stream agent events (WebSocket)
+// @Description Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+// @Tags agents
+// @Param name path string true "Agent name"
+// @Router /agents/{name}/ws [get]
 func HandleAgentWS(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		agentName := c.Param("name")

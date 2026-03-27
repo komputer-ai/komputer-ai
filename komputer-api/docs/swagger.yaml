@@ -1,0 +1,302 @@
+basePath: /api/v1
+definitions:
+  main.AgentListResponse:
+    properties:
+      agents:
+        items:
+          $ref: '#/definitions/main.AgentResponse'
+        type: array
+    type: object
+  main.AgentResponse:
+    properties:
+      createdAt:
+        type: string
+      lastTaskMessage:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      namespace:
+        type: string
+      status:
+        type: string
+      taskStatus:
+        type: string
+    type: object
+  main.CreateAgentRequest:
+    properties:
+      instructions:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      namespace:
+        description: optional, defaults to server default
+        type: string
+      role:
+        description: '"manager" or "" (default manager)'
+        type: string
+      secrets:
+        additionalProperties:
+          type: string
+        description: 'optional key-value secrets (e.g. {"GITHUB": "ghp_xxx"})'
+        type: object
+      templateRef:
+        type: string
+    required:
+    - instructions
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: |-
+    API-first platform for running persistent Claude AI agents on Kubernetes.
+    Designed to be driven by external systems — create agents, send tasks, and stream real-time results via REST + WebSocket.
+  title: komputer.ai API
+  version: "1.0"
+paths:
+  /agents:
+    get:
+      description: Returns all agents with their current status in the specified namespace.
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of agents
+          schema:
+            $ref: '#/definitions/main.AgentListResponse'
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List agents
+      tags:
+      - agents
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new agent or sends a task to an existing idle agent (upsert by name).
+        If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
+      parameters:
+      - description: Agent creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.CreateAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task forwarded to existing agent
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "201":
+          description: Agent created
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent is busy or has no running pod
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create agent or send task
+      tags:
+      - agents
+  /agents/{name}:
+    delete:
+      description: Deletes the agent CR, pod, PVC, secrets, and Redis event stream.
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent deleted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete agent
+      tags:
+      - agents
+    get:
+      description: Returns the current status and metadata for a single agent.
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent details
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get agent details
+      tags:
+      - agents
+  /agents/{name}/cancel:
+    post:
+      description: Gracefully cancels the currently running task. The agent pod stays
+        alive for future tasks.
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task cancelling
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent has no running pod
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cancel agent task
+      tags:
+      - agents
+  /agents/{name}/events:
+    get:
+      description: Returns recent events from the agent's Redis stream in chronological
+        order.
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      - default: 50
+        description: Max events to return (1-200)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent events
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid limit parameter
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get agent events
+      tags:
+      - agents
+  /agents/{name}/ws:
+    get:
+      description: Upgrades to a WebSocket connection to stream real-time agent events.
+        Events include task_started, thinking, tool_call, tool_result, text, task_completed,
+        task_cancelled, and error.
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses: {}
+      summary: Stream agent events (WebSocket)
+      tags:
+      - agents
+swagger: "2.0"
