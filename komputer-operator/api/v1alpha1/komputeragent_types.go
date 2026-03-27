@@ -28,6 +28,20 @@ const (
 	AgentPhaseRunning   KomputerAgentPhase = "Running"
 	AgentPhaseSucceeded KomputerAgentPhase = "Succeeded"
 	AgentPhaseFailed    KomputerAgentPhase = "Failed"
+	AgentPhaseSleeping  KomputerAgentPhase = "Sleeping"
+)
+
+// AgentLifecycle controls what happens after task completion.
+type AgentLifecycle string
+
+const (
+	// AgentLifecycleDefault keeps the pod running after task completion.
+	AgentLifecycleDefault AgentLifecycle = ""
+	// AgentLifecycleSleep deletes the pod after task completion but keeps the PVC.
+	// The agent wakes up when a new task is sent.
+	AgentLifecycleSleep AgentLifecycle = "Sleep"
+	// AgentLifecycleAutoDelete deletes the entire agent after task completion.
+	AgentLifecycleAutoDelete AgentLifecycle = "AutoDelete"
 )
 
 // AgentTaskStatus represents whether the agent is actively working on a task.
@@ -60,6 +74,12 @@ type KomputerAgentSpec struct {
 	// Each key in each secret is injected as an env var into the agent pod.
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
+	// Lifecycle controls what happens after task completion.
+	// Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
+	// "AutoDelete" deletes the entire agent after task completion.
+	// +kubebuilder:validation:Enum="";Sleep;AutoDelete
+	// +optional
+	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`
 }
 
 // KomputerAgentStatus defines the observed state of KomputerAgent.

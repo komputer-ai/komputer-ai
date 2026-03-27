@@ -55,6 +55,16 @@ spec:
               instructions:
                 description: Instructions is the prompt/task for the Claude agent.
                 type: string
+              lifecycle:
+                description: |-
+                  Lifecycle controls what happens after task completion.
+                  Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
+                  "AutoDelete" deletes the entire agent after task completion.
+                enum:
+                - ""
+                - Sleep
+                - AutoDelete
+                type: string
               model:
                 default: claude-sonnet-4-6
                 description: Model is the Claude model to use.
