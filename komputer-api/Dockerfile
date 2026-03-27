@@ -1,6 +1,4 @@
-FROM golang:1.24 AS builder
-
-ENV GOTOOLCHAIN=auto
+FROM golang:1.26 AS builder
 WORKDIR /app
 
 COPY komputer-operator/ /komputer-operator/
