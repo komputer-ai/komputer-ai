@@ -16,8 +16,38 @@ permissions:
   packages: write
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      operator: ${{ steps.filter.outputs.operator }}
+      api: ${{ steps.filter.outputs.api }}
+      agent: ${{ steps.filter.outputs.agent }}
+      cli: ${{ steps.filter.outputs.cli }}
+      helm: ${{ steps.filter.outputs.helm }}
+      is_tag: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            operator:
+              - 'komputer-operator/**'
+            api:
+              - 'komputer-api/**'
+              - 'komputer-operator/api/**'
+            agent:
+              - 'komputer-agent/**'
+            cli:
+              - 'komputer-cli/**'
+            helm:
+              - 'helm/**'
+
   operator:
     name: Build Operator
+    needs: changes
+    if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +89,8 @@ jobs:
 
   api:
     name: Build API
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -100,6 +132,8 @@ jobs:
 
   agent:
     name: Build Agent
+    needs: changes
+    if: needs.changes.outputs.agent == 'true' || needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,6 +175,8 @@ jobs:
 
   cli:
     name: Build CLI
+    needs: changes
+    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -178,8 +214,8 @@ jobs:
 
   helm:
     name: Publish Helm Chart
-    needs: [operator, api, agent]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: changes
+    if: needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -214,8 +250,8 @@ jobs:
 
   release:
     name: Create Release
-    needs: [operator, api, agent, cli, helm]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [changes, cli, helm]
+    if: needs.changes.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
