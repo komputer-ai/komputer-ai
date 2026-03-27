@@ -1,0 +1,130 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: komputeragents.komputer.komputer.ai
+spec:
+  group: komputer.komputer.ai
+  names:
+    kind: KomputerAgent
+    listKind: KomputerAgentList
+    plural: komputeragents
+    singular: komputeragent
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.taskStatus
+      name: Task
+      type: string
+    - jsonPath: .spec.model
+      name: Model
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: KomputerAgent is the Schema for the komputeragents API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KomputerAgentSpec defines the desired state of KomputerAgent.
+            properties:
+              instructions:
+                description: Instructions is the prompt/task for the Claude agent.
+                type: string
+              model:
+                default: claude-sonnet-4-6
+                description: Model is the Claude model to use.
+                type: string
+              role:
+                default: manager
+                description: |-
+                  Role is "manager" or "worker". Managers get orchestration tools.
+                  Role is "manager" or "worker". Defaults to "manager" for top-level agents.
+                  Sub-agents created by managers are explicitly set to "worker".
+                enum:
+                - worker
+                - manager
+                type: string
+              secrets:
+                description: |-
+                  Secrets is a list of K8s Secret names containing agent-specific secrets.
+                  Each key in each secret is injected as an env var into the agent pod.
+                items:
+                  type: string
+                type: array
+              templateRef:
+                default: default
+                description: TemplateRef is the name of the KomputerAgentTemplate
+                  to use.
+                type: string
+            required:
+            - instructions
+            type: object
+          status:
+            description: KomputerAgentStatus defines the observed state of KomputerAgent.
+            properties:
+              completionTime:
+                description: CompletionTime is when the agent finished.
+                format: date-time
+                type: string
+              lastTaskMessage:
+                description: |-
+                  LastTaskMessage is the most recent event summary from the agent.
+                  Managed by the API worker based on Redis events, not by the operator.
+                type: string
+              message:
+                description: Message is a human-readable status message.
+                type: string
+              phase:
+                description: Phase is the current lifecycle phase.
+                type: string
+              podName:
+                description: PodName is the name of the agent pod.
+                type: string
+              pvcName:
+                description: PvcName is the name of the agent PVC.
+                type: string
+              sessionId:
+                description: |-
+                  SessionID is the Claude session ID for conversation continuity.
+                  Set by the API worker when a task completes, read by the agent on startup.
+                type: string
+              startTime:
+                description: StartTime is when the agent was started.
+                format: date-time
+                type: string
+              taskStatus:
+                description: |-
+                  TaskStatus indicates whether the agent is actively working on a task.
+                  Managed by the API worker based on Redis events, not by the operator.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

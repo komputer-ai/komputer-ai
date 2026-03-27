@@ -1,0 +1,17 @@
+apiVersion: komputer.komputer.ai/v1
+kind: KomputerConfig
+metadata:
+  name: default
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+spec:
+  redis:
+    address: {{ include "komputer.redisAddress" . }}
+    db: {{ .Values.config.redis.db }}
+    streamPrefix: {{ .Values.config.redis.streamPrefix }}
+    {{- if and (not .Values.redis.enabled) .Values.externalRedis.passwordSecretName }}
+    passwordSecret:
+      name: {{ .Values.externalRedis.passwordSecretName }}
+      key: {{ .Values.externalRedis.passwordSecretKey }}
+    {{- end }}
+  apiURL: {{ include "komputer.apiURL" . }}

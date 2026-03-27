@@ -1,0 +1,22 @@
+apiVersion: komputer.komputer.ai/v1
+kind: KomputerAgentClusterTemplate
+metadata:
+  name: default
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+spec:
+  podSpec:
+    containers:
+    - name: agent
+      image: {{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}
+      imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+      env:
+      - name: ANTHROPIC_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.anthropicApiKeySecret.name }}
+            key: {{ .Values.anthropicApiKeySecret.key }}
+      resources:
+        {{- toYaml .Values.clusterTemplate.resources | nindent 8 }}
+  storage:
+    size: {{ .Values.clusterTemplate.storageSize }}

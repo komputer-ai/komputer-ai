@@ -1,0 +1,88 @@
+# komputer.ai Helm chart values
+
+operator:
+  image:
+    repository: ghcr.io/kontroloop-ai/komputer-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+api:
+  image:
+    repository: ghcr.io/kontroloop-ai/komputer-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+agent:
+  image:
+    repository: ghcr.io/kontroloop-ai/komputer-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+  # -- Default Claude model for new agents
+  defaultModel: claude-sonnet-4-6
+
+# -- Bitnami Redis subchart. Set enabled=false to use an external Redis.
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    resources:
+      limits:
+        cpu: 250m
+        memory: 128Mi
+
+# -- External Redis settings (only used when redis.enabled=false)
+externalRedis:
+  address: ""
+  passwordSecretName: ""
+  passwordSecretKey: password
+
+# -- Anthropic API key secret reference (must exist in the release namespace)
+anthropicApiKeySecret:
+  name: anthropic-api-key
+  key: api-key
+
+# -- KomputerConfig settings
+config:
+  # -- Override the API URL (auto-generated from release name if empty)
+  apiURL: ""
+  redis:
+    # -- Redis stream prefix for agent events
+    streamPrefix: komputer-events
+    db: 0
+    # -- Redis password secret reference (only used when redis.enabled=false)
+    passwordSecret:
+      name: ""
+      key: password
+
+# -- Default KomputerAgentClusterTemplate settings
+clusterTemplate:
+  # -- PVC storage size for agent workspaces
+  storageSize: 5Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
