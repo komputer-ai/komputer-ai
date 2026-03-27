@@ -176,9 +176,45 @@ jobs:
           name: komputer-${{ matrix.goos }}-${{ matrix.goarch }}
           path: komputer-${{ matrix.goos }}-${{ matrix.goarch }}
 
+  helm:
+    name: Publish Helm Chart
+    needs: [operator, api, agent]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Update chart version from tag
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/^version:.*/version: ${VERSION}/" helm/komputer/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/komputer/Chart.yaml
+
+      - name: Update image tags to release version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/tag: latest/tag: v${VERSION}/" helm/komputer/values.yaml
+
+      - name: Build dependencies
+        run: helm dependency build helm/komputer
+
+      - name: Package chart
+        run: helm package helm/komputer
+
+      - name: Push to GHCR
+        run: helm push komputer-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+
   release:
     name: Create Release
-    needs: [operator, api, agent, cli]
+    needs: [operator, api, agent, cli, helm]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

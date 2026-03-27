@@ -51,82 +51,98 @@ Each component is fully self-contained with no shared code, making it easy to ex
 
 ### Prerequisites
 
-- Kubernetes cluster (Docker Desktop, kind, minikube, or cloud)
+- Kubernetes cluster (Docker Desktop, kind, minikube, EKS, GKE, etc.)
 - `kubectl` configured
-- `operator-sdk` installed
-- Go 1.22+
-- Docker
-- Redis deployed in the cluster
+- `helm` 3.x installed
 - An [Anthropic API key](https://console.anthropic.com/)
 
-### 1. Install CRDs
+### 1. Create the Anthropic API key secret
 
 ```bash
-cd komputer-operator
-make install
-```
-
-### 2. Deploy Redis
-
-```bash
-kubectl run redis --image=redis:7-alpine --port=6379
-kubectl expose pod redis --port=6379 --name=redis
-```
-
-### 3. Create secrets
-
-```bash
-# Redis password (empty for no auth)
-kubectl create secret generic redis-secret \
-  --from-literal=password=""
-
-# Anthropic API key (required — agents cannot run without it)
+kubectl create namespace komputer
 kubectl create secret generic anthropic-api-key \
-  --from-literal=api-key=sk-ant-...
+  --from-literal=api-key=sk-ant-... \
+  -n komputer
 ```
 
-### 4. Apply base resources
-
-The default cluster template references the `anthropic-api-key` secret created above. Every template **must** include `ANTHROPIC_API_KEY` — without it, agents will fail to start.
+### 2. Install with Helm
 
 ```bash
+helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer \
+  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --namespace komputer
+```
+
+This deploys the operator, API, Redis, CRDs, and a default agent template — everything you need.
+
+### 3. Install the CLI
+
+Download from [GitHub Releases](https://github.com/kontroloop-ai/komputer-ai/releases):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-darwin-arm64 -o komputer
+chmod +x komputer && sudo mv komputer /usr/local/bin/
+
+# Linux (amd64)
+curl -L https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 -o komputer
+chmod +x komputer && sudo mv komputer /usr/local/bin/
+```
+
+### 4. Connect and run your first agent
+
+```bash
+# Port-forward the API (or use an Ingress)
+kubectl port-forward svc/komputer-api 8080:8080 -n komputer &
+
+komputer login http://localhost:8080
+komputer run my-agent "Write a haiku about Kubernetes"
+```
+
+### Custom installation
+
+For external Redis, custom resource limits, or other configuration:
+
+```bash
+# Use external Redis
+helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer \
+  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set redis.enabled=false \
+  --set externalRedis.address=redis.prod:6379 \
+  --namespace komputer
+
+# See all options
+helm show values oci://ghcr.io/kontroloop-ai/charts/komputer
+```
+
+<details>
+<summary><b>Development setup (building from source)</b></summary>
+
+```bash
+# Build agent image
+docker build -t komputer-agent:latest komputer-agent/
+
+# Install CRDs
+cd komputer-operator && make install
+
+# Apply config and template
 kubectl apply -f komputer-operator/config/samples/komputer_v1alpha1_komputerconfig.yaml
 kubectl apply -f komputer-operator/config/samples/komputer_v1alpha1_komputeragentclustertemplate.yaml
-```
 
-### 5. Build and load the agent image
+# Run operator (terminal 1)
+cd komputer-operator && make run
 
-```bash
-docker build -t komputer-agent:latest komputer-agent/
-# For kind:
-kind load docker-image komputer-agent:latest --name <cluster-name>
-```
+# Run API (terminal 2)
+kubectl port-forward svc/redis 6379:6379 &
+cd komputer-api && REDIS_ADDRESS=localhost:6379 go run .
 
-### 6. Run the operator
-
-```bash
-cd komputer-operator
-make run
-```
-
-### 7. Run the API
-
-```bash
-# In another terminal — port-forward Redis first
-kubectl port-forward svc/redis 16379:6379 &
-cd komputer-api
-REDIS_ADDRESS=localhost:16379 go run .
-```
-
-### 8. Use the CLI
-
-```bash
-cd komputer-cli
-go build -o komputer .
-
+# Build and use CLI (terminal 3)
+cd komputer-cli && go build -o komputer .
 ./komputer login http://localhost:8080
-./komputer run my-agent "Write a haiku about Kubernetes"
+./komputer run my-agent "Hello world"
 ```
+
+</details>
 
 ## Custom Resources
 
