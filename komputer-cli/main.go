@@ -726,6 +726,11 @@ func main() {
 					fmt.Println(formatted)
 					fmt.Println()
 				}
+
+				// Exit on terminal events
+				if event.Type == "task_completed" || event.Type == "task_cancelled" || event.Type == "error" {
+					return
+				}
 			}
 		},
 	})
