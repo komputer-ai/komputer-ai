@@ -403,13 +403,13 @@ func main() {
 			}
 			nameW += 2  // padding
 			modelW += 2 // padding
-			totalW := nameW + 12 + 10 + modelW + 22
+			totalW := nameW + 12 + 16 + modelW + 22
 
 			// Table header
 			fmt.Printf("  %s  %s  %s  %s  %s\n",
 				labelStyle.Render(fmt.Sprintf("%-*s", nameW, "NAME")),
 				labelStyle.Render(fmt.Sprintf("%-10s", "PHASE")),
-				labelStyle.Render(fmt.Sprintf("%-8s", "TASK")),
+				labelStyle.Render(fmt.Sprintf("%-14s", "TASK")),
 				labelStyle.Render(fmt.Sprintf("%-*s", modelW, "MODEL")),
 				labelStyle.Render(fmt.Sprintf("%-20s", "CREATED")),
 			)
@@ -431,13 +431,13 @@ func main() {
 				task := a.TaskStatus
 				switch task {
 				case "InProgress":
-					task = busyStyle.Render(fmt.Sprintf("%-8s", "● In Progress"))
+					task = busyStyle.Render(fmt.Sprintf("%-14s", "● In Progress"))
 				case "Complete":
-					task = idleStyle.Render(fmt.Sprintf("%-8s", "✔ Complete"))
+					task = idleStyle.Render(fmt.Sprintf("%-14s", "✔ Complete"))
 				case "Error":
-					task = errorStyle.Render(fmt.Sprintf("%-8s", "✗ Error"))
+					task = errorStyle.Render(fmt.Sprintf("%-14s", "✗ Error"))
 				default:
-					task = dimStyle.Render(fmt.Sprintf("%-8s", "—"))
+					task = dimStyle.Render(fmt.Sprintf("%-14s", "—"))
 				}
 
 				fmt.Printf("  %s  %s  %s  %s  %s\n",
