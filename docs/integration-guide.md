@@ -23,23 +23,37 @@ Two integration surfaces:
 - **HTTP REST** — create agents, send tasks, check status, get results, delete agents
 - **WebSocket** — stream real-time events as agents work (thinking, tool calls, text output, completion)
 
+## Important: komputer.ai is an Internal Backend
+
+komputer.ai is designed to be **wrapped by your system**, not exposed directly to end users. Think of it as an internal service — like a database or message queue — that your application talks to behind the scenes. This has several important implications:
+
+### Your system owns authentication
+
+komputer.ai does not implement authentication or authorization. It is an internal service that should live inside your cluster network, accessible only to your backend systems. Your wrapper application is responsible for authenticating users and deciding who can create agents or access results. Use Kubernetes NetworkPolicies, service mesh, or VPN to ensure komputer-api is not publicly reachable.
+
+### Your system owns message persistence
+
+Agent events (thinking, tool calls, text output, task completion) are streamed in real-time via WebSocket and buffered temporarily in Redis. **komputer.ai does not provide long-term storage of agent messages.** Claude maintains its own internal conversation history for session continuity, but that is not accessible to external systems.
+
+If you need to store agent activity — for audit logs, user-facing chat history, billing, or analytics — **your system must collect events from the WebSocket (or the `/events` endpoint) and persist them in your own database.** This is by design: komputer.ai stays simple and stateless, while your wrapper handles the storage strategy that fits your use case.
+
+### Your system owns the user experience
+
+komputer.ai has no UI. Your wrapper application provides the interface — whether that's a web dashboard, a Slack bot, a CLI, or an API for other services. komputer.ai provides the raw agent infrastructure; you shape it into a product.
+
 ## Base URL
 
-The komputer-api listens on port `8080` by default. When running locally:
-
-```
-http://localhost:8080
-```
-
-When deployed in-cluster, use the Kubernetes service:
+The komputer-api listens on port `8080` by default. When deployed in-cluster, use the Kubernetes service:
 
 ```
 http://komputer-api.<namespace>.svc.cluster.local:8080
 ```
 
-## Authentication
+For local development:
 
-There is currently no authentication on the API. Secure access at the network level (e.g., Kubernetes NetworkPolicies, ingress auth, VPN).
+```
+http://localhost:8080
+```
 
 ## Namespace Selection
 
