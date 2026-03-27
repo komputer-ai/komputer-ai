@@ -207,6 +207,8 @@ func printAgent(a AgentResponse) {
 		phaseBadge = warnStyle.Render("Pending")
 	case "Failed":
 		phaseBadge = errorStyle.Render("Failed")
+	case "Sleeping":
+		phaseBadge = dimStyle.Render("💤 Sleeping")
 	}
 
 	row := func(label, value string) {
@@ -436,6 +438,8 @@ func main() {
 					phase = warnStyle.Render(fmt.Sprintf("%-10s", phase))
 				case "Failed":
 					phase = errorStyle.Render(fmt.Sprintf("%-10s", phase))
+				case "Sleeping":
+					phase = dimStyle.Render(fmt.Sprintf("%-10s", "💤 Sleep"))
 				default:
 					phase = dimStyle.Render(fmt.Sprintf("%-10s", phase))
 				}
@@ -500,6 +504,9 @@ func main() {
 				}
 				body["secrets"] = secrets
 			}
+			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
+				body["lifecycle"] = lc
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -533,6 +540,7 @@ func main() {
 	createCmd.Flags().String("model", "", "Claude model to use")
 	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	createCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
+	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	root.AddCommand(createCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────
@@ -770,6 +778,9 @@ func main() {
 				}
 				body["secrets"] = secrets
 			}
+			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
+				body["lifecycle"] = lc
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -909,6 +920,7 @@ func main() {
 	}
 	runCmd.Flags().String("model", "", "Claude model to use")
 	runCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
+	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	root.AddCommand(runCmd)
 
 	root.Execute()
