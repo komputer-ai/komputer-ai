@@ -75,24 +75,17 @@ Runtime package installs by agents persist to the workspace PVC:
 - `npm install -g` goes to `/workspace/.npm-global`
 - Both are on `PATH` automatically
 
+## Using a completely different base image
+
+If you need a different Linux distribution (e.g., Ubuntu, Alpine, RHEL), you can use the [agent Dockerfile](../komputer-agent/Dockerfile) as a reference and rebuild from scratch. This is unsupported and at your own risk — you're responsible for ensuring all dependencies are present and the agent runtime works correctly.
+
 ## Important constraints
 
-When building a custom image, keep these requirements in mind:
+When building a custom image (whether extending the base or rebuilding from scratch), keep these requirements in mind:
 
 - **Non-root user** — The Claude CLI requires a non-root user with `--dangerously-skip-permissions`. The base image creates a `komputer` user for this. If you change the user, make sure it's non-root with sudo access.
 - **Claude Code CLI** — Must be installed globally via npm (`@anthropic-ai/claude-code`). Without it, the agent cannot run.
 - **Entrypoint** — Must be `python /app/main.py`. The agent runtime (FastAPI server, event publisher, Claude SDK integration) lives in `/app/`. Do not override the entrypoint unless you know what you're doing.
 - **Workspace at `/workspace`** — The operator mounts the persistent volume here. Agents work in this directory.
-
-## Using a completely different base image
-
-If you need a different Linux distribution (e.g., Ubuntu, Alpine, RHEL), you can use the [agent Dockerfile](../komputer-agent/Dockerfile) as a reference and rebuild from scratch. This is unsupported and at your own risk — you're responsible for ensuring all dependencies are present and the agent runtime works correctly.
-
-The key things your custom Dockerfile must provide:
-
-1. Python 3.12+ with the packages from `requirements.txt`
-2. Node.js 22+ with `@anthropic-ai/claude-code` installed globally
-3. A non-root user with passwordless sudo
-4. The agent code copied to `/app/`
-5. Entrypoint set to `python /app/main.py`
-6. `/workspace` directory owned by the non-root user
+- **Python packages** — `requirements.txt` must be installed (FastAPI, Claude Agent SDK, Redis client, etc.)
+- **Node.js 22+** — Required for the Claude Code CLI
