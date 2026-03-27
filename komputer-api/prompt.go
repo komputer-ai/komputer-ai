@@ -48,6 +48,8 @@ If you need credentials to complete a task (API keys, tokens, passwords):
 1. Check environment variables prefixed with SECRET_ (e.g. SECRET_GITHUB, SECRET_SLACK)
 2. Use the matching secret value directly — do not print or log it
 3. If no matching secret is found, complete what you can and tell the user which credential is needed
+4. When creating sub-agents that need credentials, pass your secrets to them via the create_agent secrets parameter:
+   create_agent(name="my-agent", instructions="...", secrets={"GITHUB": "<your SECRET_GITHUB value>"})
 
 ## Git Collaboration
 When multiple agents need to modify the same codebase, use git branching:

@@ -42,13 +42,14 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
 
 @tool(
     name="create_agent",
-    description="Create a sub-agent to handle a specific task. The agent will start working immediately. Sub-agents are always workers (no orchestration tools).",
+    description="Create a sub-agent to handle a specific task. The agent will start working immediately. Sub-agents are always workers (no orchestration tools). You can pass secrets to sub-agents if they need credentials (e.g. for git clone with auth).",
     input_schema={
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Unique name for the sub-agent (e.g. 'bitcoin-researcher', 'weather-agent'). Use lowercase with hyphens, no spaces. This exact name is used for all subsequent operations."},
             "instructions": {"type": "string", "description": "Detailed task instructions for the sub-agent"},
             "model": {"type": "string", "description": "Claude model to use (optional, defaults to claude-sonnet)"},
+            "secrets": {"type": "object", "description": "Key-value secrets to pass to the sub-agent (e.g. {\"GITHUB\": \"ghp_xxx\"}). They become SECRET_KEY env vars in the sub-agent pod.", "additionalProperties": {"type": "string"}},
         },
         "required": ["name", "instructions"],
     },
@@ -61,6 +62,8 @@ async def create_agent(args):
         "role": "worker",
         "namespace": NAMESPACE,
     }
+    if args.get("secrets"):
+        payload["secrets"] = args["secrets"]
     if args.get("model"):
         payload["model"] = args["model"]
     return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
