@@ -303,6 +303,11 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 		return nil, err
 	}
 
+	// Don't create a pod for a sleeping agent — wait for wake-up via API
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		return nil, nil
+	}
+
 	// Build and create the pod
 	pod, err = r.buildPod(ctx, agent, template, pvcName, configMapName, podName, apiURL)
 	if err != nil {
@@ -438,12 +443,42 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 }
 
 // reconcileStatus maps pod phase to agent phase and updates status.
+// Also handles lifecycle transitions (Sleep → delete pod, AutoDelete → delete CR).
 func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string) error {
+	log := logf.FromContext(ctx)
+
+	// Sleep mode: delete pod when task is complete, keep PVC
+	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleSleep &&
+		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
+		pod != nil {
+		log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
+		if err := r.Delete(ctx, pod); err != nil {
+			return err
+		}
+		return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+			s.Phase = komputerv1alpha1.AgentPhaseSleeping
+			s.PodName = ""
+			s.PvcName = pvcName
+			s.Message = "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."
+		})
+	}
+
+	// AutoDelete mode: delete the entire agent CR when task is complete
+	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleAutoDelete &&
+		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
+		log.Info("AutoDelete mode: deleting agent after task completion", "agent", agent.Name)
+		return r.Delete(ctx, agent)
+	}
+
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.PodName = podName
 		s.PvcName = pvcName
 
 		if pod == nil {
+			// If agent is sleeping, preserve the sleeping state
+			if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+				return
+			}
 			s.Phase = komputerv1alpha1.AgentPhasePending
 			s.Message = "Pod is being created"
 			return
