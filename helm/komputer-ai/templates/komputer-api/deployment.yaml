@@ -19,6 +19,7 @@ spec:
         {{- include "komputer.labels" . | nindent 8 }}
         app.kubernetes.io/component: api
     spec:
+      serviceAccountName: {{ .Release.Name }}-api
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

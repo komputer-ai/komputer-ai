@@ -1,0 +1,66 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeragents
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+  - patch
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeragents/status
+  verbs:
+  - get
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-api
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}

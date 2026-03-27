@@ -44,6 +44,21 @@ agent:
     pullPolicy: IfNotPresent
   # -- Default Claude model for new agents
   defaultModel: claude-sonnet-4-6
+  # -- Service account for agent pods (e.g. for kubectl access inside agents)
+  serviceAccount:
+    # -- Set to true to create a ServiceAccount, Role, and RoleBinding for agent pods
+    create: false
+    # -- RBAC rules granted to the agent service account.
+    # Only used when serviceAccount.create is true.
+    rules: []
+    # Example — give agents read-only access to pods and deployments:
+    # rules:
+    #   - apiGroups: [""]
+    #     resources: ["pods", "pods/log"]
+    #     verbs: ["get", "list", "watch"]
+    #   - apiGroups: ["apps"]
+    #     resources: ["deployments"]
+    #     verbs: ["get", "list", "watch"]
 
 # -- Redis HA subchart (dandydeveloper/redis-ha). Uses official redis image.
 # Set enabled=false to use an external Redis.

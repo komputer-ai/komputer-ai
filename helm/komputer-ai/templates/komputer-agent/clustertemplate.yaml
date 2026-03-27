@@ -6,6 +6,9 @@ metadata:
     {{- include "komputer.labels" . | nindent 4 }}
 spec:
   podSpec:
+    {{- if .Values.agent.serviceAccount.create }}
+    serviceAccountName: {{ .Release.Name }}-agent
+    {{- end }}
     {{- with .Values.imagePullSecrets }}
     imagePullSecrets:
       {{- toYaml . | nindent 6 }}
