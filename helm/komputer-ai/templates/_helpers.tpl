@@ -27,7 +27,7 @@ Redis address
 {{- if (index .Values "redis-ha" "haproxy" "enabled") -}}
 {{ .Release.Name }}-redis-ha-haproxy.{{ .Release.Namespace }}.svc.cluster.local:6379
 {{- else -}}
-{{ .Release.Name }}-redis-ha.{{ .Release.Namespace }}.svc.cluster.local:6379
+{{ .Release.Name }}-redis-ha-announce-0.{{ .Release.Namespace }}.svc.cluster.local:6379
 {{- end -}}
 {{- else -}}
 {{ .Values.externalRedis.address }}
