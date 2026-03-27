@@ -111,7 +111,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		if existing != nil {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
-				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, instructions, req.Model); err != nil {
+				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, instructions, req.Model, req.Lifecycle); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
 				}

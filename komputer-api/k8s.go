@@ -95,19 +95,19 @@ func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 	return nil
 }
 
-// WakeAgent wakes a sleeping agent by patching its instructions and clearing the lifecycle field.
-// This causes the operator to see the agent is no longer sleeping and create a new pod.
-func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, model string) error {
+// WakeAgent wakes a sleeping agent by patching its instructions and setting the lifecycle.
+// If lifecycle is empty, the agent stays running after task (default). If "Sleep", it sleeps again.
+func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, model, lifecycle string) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: name, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
 		return err
 	}
 
-	// Patch spec: update instructions, clear lifecycle
+	// Patch spec: update instructions and lifecycle
 	original := agent.DeepCopy()
 	agent.Spec.Instructions = instructions
-	agent.Spec.Lifecycle = ""
+	agent.Spec.Lifecycle = komputerv1alpha1.AgentLifecycle(lifecycle)
 	if model != "" {
 		agent.Spec.Model = model
 	}
