@@ -95,6 +95,37 @@ func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 	return nil
 }
 
+// WakeAgent wakes a sleeping agent by patching its instructions and clearing the lifecycle field.
+// This causes the operator to see the agent is no longer sleeping and create a new pod.
+func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, model string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return err
+	}
+
+	// Patch spec: update instructions, clear lifecycle
+	original := agent.DeepCopy()
+	agent.Spec.Instructions = instructions
+	agent.Spec.Lifecycle = ""
+	if model != "" {
+		agent.Spec.Model = model
+	}
+	if err := k.client.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch spec: %w", err)
+	}
+
+	// Patch status: clear sleeping phase and task status so operator creates a pod
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return err
+	}
+	original2 := agent.DeepCopy()
+	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
+	agent.Status.TaskStatus = ""
+	agent.Status.LastTaskMessage = ""
+	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
+}
+
 // CreateAgentSecrets creates a K8s Secret with agent-specific secrets.
 // Keys are prefixed with SECRET_ (e.g. "GITHUB" becomes "SECRET_GITHUB").
 // Returns the secret name.
@@ -134,7 +165,7 @@ func (k *K8sClient) CreateAgentSecrets(ctx context.Context, ns, agentName string
 	return secretName, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string) (*komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, lifecycle string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -154,8 +185,9 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, mod
 			TemplateRef:  templateRef,
 			Instructions: instructions,
 			Model:        model,
-			Role:         role,
-			Secrets:  secretNames,
+			Role:      role,
+			Secrets:   secretNames,
+			Lifecycle: komputerv1alpha1.AgentLifecycle(lifecycle),
 		},
 	}
 

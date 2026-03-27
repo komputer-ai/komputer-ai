@@ -18,7 +18,8 @@ type CreateAgentRequest struct {
 	TemplateRef  string            `json:"templateRef"`
 	Role         string            `json:"role"`      // "manager" or "" (default manager)
 	Namespace    string            `json:"namespace"` // optional, defaults to server default
-	Secrets      map[string]string `json:"secrets"`   // optional key-value secrets (e.g. {"GITHUB": "ghp_xxx"})
+	Secrets      map[string]string `json:"secrets"`   // optional key-value secrets
+	Lifecycle    string            `json:"lifecycle"` // "", "Sleep", or "AutoDelete"
 }
 
 type AgentResponse struct {
@@ -28,6 +29,7 @@ type AgentResponse struct {
 	Status          string `json:"status"`
 	TaskStatus      string `json:"taskStatus,omitempty"`
 	LastTaskMessage string `json:"lastTaskMessage,omitempty"`
+	Lifecycle       string `json:"lifecycle,omitempty"`
 	CreatedAt       string `json:"createdAt"`
 }
 
@@ -83,6 +85,23 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		// Build full instructions with system prompt early — needed for both new agents and wake-up.
+		role := req.Role
+		if role == "" {
+			role = "manager"
+		}
+		if role != "worker" && role != "manager" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be 'worker' or 'manager'"})
+			return
+		}
+		agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s\n\n## Your Task\n", req.Name)
+		instructions := req.Instructions
+		if role == "manager" {
+			instructions = managerSystemPrompt + agentHeader + req.Instructions
+		} else {
+			instructions = workerSystemPrompt + agentHeader + req.Instructions
+		}
+
 		existing, err := k8s.GetAgent(c.Request.Context(), ns, req.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent: " + err.Error()})
@@ -90,6 +109,23 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		if existing != nil {
+			// Wake-up flow for sleeping agents
+			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, instructions, req.Model); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
+					return
+				}
+				log.Printf("waking sleeping agent %s/%s", ns, req.Name)
+				c.JSON(http.StatusAccepted, AgentResponse{
+					Name:      existing.Name,
+					Namespace: existing.Namespace,
+					Model:     existing.Spec.Model,
+					Status:    "Pending",
+					CreatedAt: existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+				})
+				return
+			}
+
 			if existing.Status.PodName == "" {
 				c.JSON(http.StatusConflict, gin.H{"error": "agent exists but has no running pod yet"})
 				return
@@ -119,25 +155,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Status:          string(existing.Status.Phase),
 				TaskStatus:      string(existing.Status.TaskStatus),
 				LastTaskMessage: existing.Status.LastTaskMessage,
+				Lifecycle:       string(existing.Spec.Lifecycle),
 				CreatedAt:       existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			})
 			return
-		}
-
-		instructions := req.Instructions
-		role := req.Role
-		if role == "" {
-			role = "manager"
-		}
-		if role != "worker" && role != "manager" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be 'worker' or 'manager'"})
-			return
-		}
-		agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s\n\n## Your Task\n", req.Name)
-		if role == "manager" {
-			instructions = managerSystemPrompt + agentHeader + req.Instructions
-		} else {
-			instructions = workerSystemPrompt + agentHeader + req.Instructions
 		}
 
 		if err := k8s.EnsureNamespace(c.Request.Context(), ns); err != nil {
@@ -155,7 +176,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			secretNames = []string{secretName}
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, req.Model, req.TemplateRef, role, secretNames)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, req.Model, req.TemplateRef, role, secretNames, req.Lifecycle)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
