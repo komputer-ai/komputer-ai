@@ -244,7 +244,7 @@ jobs:
       - name: Update image tags to release version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
-          sed -i "s/tag: latest/tag: v${VERSION}/" helm/komputer-ai/values.yaml
+          sed -i "s/tag: latest/tag: ${VERSION}/" helm/komputer-ai/values.yaml
 
       - name: Build dependencies
         run: |
