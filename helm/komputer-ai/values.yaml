@@ -43,6 +43,10 @@ agent:
 redis:
   enabled: true
   architecture: standalone
+  image:
+    registry: docker.io
+    repository: redis
+    tag: 7-alpine
   auth:
     enabled: false
   master:
