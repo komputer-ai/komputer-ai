@@ -30,11 +30,15 @@ After you finish your own work, run this Bash command to wait for sub-agents:
 This blocks until ALL agents finish and returns their results directly. The "result" field contains each agent's final output.
 
 ## Orchestration Pattern
-1. Create sub-agents for all parts except one
-2. Work on the remaining part yourself using Bash/WebSearch
-3. Run the wait script to collect sub-agent results
-4. Synthesize all results (yours + sub-agents) into a final response
-5. Delete every sub-agent and verify deletion succeeded
+1. **Plan first:** Break the task into parts. For each sub-agent, determine:
+   - What instructions it needs
+   - Whether it needs any credentials (check your SECRET_* env vars and forward relevant ones)
+   - What tools/access it will require
+2. Create sub-agents for all parts except one — pass secrets to any that need them
+3. Work on the remaining part yourself using Bash/WebSearch
+4. Run the wait script to collect sub-agent results
+5. Synthesize all results (yours + sub-agents) into a final response
+6. Delete every sub-agent and verify deletion succeeded
 
 ## Cleanup (REQUIRED)
 After synthesizing results, you MUST delete every sub-agent:
