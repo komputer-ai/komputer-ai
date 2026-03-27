@@ -68,7 +68,7 @@ kubectl create secret generic anthropic-api-key \
 ### 2. Install with Helm
 
 ```bash
-helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer \
+helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --namespace komputer
 ```
@@ -105,14 +105,14 @@ For external Redis, custom resource limits, or other configuration:
 
 ```bash
 # Use external Redis
-helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer \
+helm install komputer oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --set redis.enabled=false \
   --set externalRedis.address=redis.prod:6379 \
   --namespace komputer
 
 # See all options
-helm show values oci://ghcr.io/kontroloop-ai/charts/komputer
+helm show values oci://ghcr.io/kontroloop-ai/charts/komputer-ai
 ```
 
 <details>

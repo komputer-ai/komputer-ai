@@ -235,13 +235,13 @@ jobs:
   #     - name: Update chart version from tag
   #       run: |
   #         VERSION=${GITHUB_REF#refs/tags/v}
-  #         sed -i "s/^version:.*/version: ${VERSION}/" helm/komputer/Chart.yaml
-  #         sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/komputer/Chart.yaml
+  #         sed -i "s/^version:.*/version: ${VERSION}/" helm/komputer-ai/Chart.yaml
+  #         sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/komputer-ai/Chart.yaml
   #
   #     - name: Update image tags to release version
   #       run: |
   #         VERSION=${GITHUB_REF#refs/tags/v}
-  #         sed -i "s/tag: latest/tag: v${VERSION}/" helm/komputer/values.yaml
+  #         sed -i "s/tag: latest/tag: v${VERSION}/" helm/komputer-ai/values.yaml
   #
   #     - name: Build dependencies
   #       run: helm dependency build helm/komputer
