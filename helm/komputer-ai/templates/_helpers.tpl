@@ -23,24 +23,22 @@ http://{{ .Release.Name }}-api.{{ .Release.Namespace }}.svc.cluster.local:{{ .Va
 Redis address
 */}}
 {{/*
-Redis fullname — delegates to the redis-ha subchart helper.
-*/}}
-{{- define "komputer.redis.fullname" -}}
-{{- $redisHa := (index .Values "redis-ha") -}}
-{{- $redisHaContext := dict "Chart" (dict "Name" "redis-ha") "Release" .Release "Values" $redisHa -}}
-{{- if $redisHa.haproxy.enabled -}}
-{{- printf "%s-haproxy" (include "redis-ha.fullname" $redisHaContext) | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- include "redis-ha.fullname" $redisHaContext -}}
-{{- end -}}
-{{- end }}
-
-{{/*
 Redis address — full service endpoint for KomputerConfig and API.
+- redis.enabled=true: simple single-node Redis deployed by this chart
+- redis-ha.enabled=true: HA Redis via dandydeveloper/redis-ha subchart
+- both false: external Redis from externalRedis.address
 */}}
 {{- define "komputer.redisAddress" -}}
+{{- $redisHa := (index .Values "redis-ha") -}}
 {{- if .Values.redis.enabled -}}
-{{ include "komputer.redis.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:6379
+{{ .Release.Name }}-redis.{{ .Release.Namespace }}.svc.cluster.local:6379
+{{- else if $redisHa.enabled -}}
+{{- $redisHaContext := dict "Chart" (dict "Name" "redis-ha") "Release" .Release "Values" $redisHa -}}
+{{- if $redisHa.haproxy.enabled -}}
+{{ printf "%s-haproxy" (include "redis-ha.fullname" $redisHaContext) }}.{{ .Release.Namespace }}.svc.cluster.local:6379
+{{- else -}}
+{{ include "redis-ha.fullname" $redisHaContext }}.{{ .Release.Namespace }}.svc.cluster.local:6379
+{{- end -}}
 {{- else -}}
 {{ .Values.externalRedis.address }}
 {{- end -}}

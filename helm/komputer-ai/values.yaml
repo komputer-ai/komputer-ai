@@ -78,14 +78,22 @@ agent:
     #     resources: ["deployments"]
     #     verbs: ["get", "list", "watch"]
 
-# -- Redis HA subchart (dandydeveloper/redis-ha). Uses official redis image.
-# Set enabled=false to use an external Redis.
+# -- Built-in single-node Redis. Set enabled=false to use an external Redis.
+# For HA Redis, disable this and set redis-ha.enabled=true (dandydeveloper/redis-ha subchart).
 redis:
   enabled: true
+  image: redis:7-alpine
+  resources:
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# -- Redis HA subchart (dandydeveloper/redis-ha). Disabled by default.
+# Enable for production HA deployments. Disable redis.enabled when using this.
 redis-ha:
-  replicas: 1
+  enabled: false
   haproxy:
-    enabled: false
+    enabled: true
   image:
     repository: redis
     tag: 7-alpine
