@@ -87,6 +87,7 @@ jobs:
           # platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
   api:
     name: Build API
@@ -131,6 +132,7 @@ jobs:
           # platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
   agent:
     name: Build Agent
@@ -175,6 +177,7 @@ jobs:
           # platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
   cli:
     name: Build CLI
