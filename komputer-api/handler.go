@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -132,10 +133,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be 'worker' or 'manager'"})
 			return
 		}
+		agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s\n\n## Your Task\n", req.Name)
 		if role == "manager" {
-			instructions = managerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
+			instructions = managerSystemPrompt + agentHeader + req.Instructions
 		} else {
-			instructions = workerSystemPrompt + "\n---\n\n## Your Task\n" + req.Instructions
+			instructions = workerSystemPrompt + agentHeader + req.Instructions
 		}
 
 		if err := k8s.EnsureNamespace(c.Request.Context(), ns); err != nil {
