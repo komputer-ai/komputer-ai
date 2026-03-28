@@ -41,5 +41,17 @@ spec:
         - containerPort: 8080
           name: http
           protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
         resources:
           {{- toYaml .Values.api.resources | nindent 10 }}

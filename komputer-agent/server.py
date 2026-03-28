@@ -31,6 +31,24 @@ async def get_status():
     return {"busy": state.busy.locked()}
 
 
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz():
+    # Check Redis connectivity via the publisher if available.
+    if _publisher and hasattr(_publisher, "ping"):
+        if not _publisher.ping():
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not ready", "error": "redis unreachable"},
+            )
+    return {"status": "ready"}
+
+
 @app.post("/task")
 async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
     if state.busy.locked():

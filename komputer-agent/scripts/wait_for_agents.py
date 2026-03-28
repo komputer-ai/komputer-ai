@@ -10,16 +10,35 @@ Prints progress to stderr and final JSON summary to stdout.
 """
 
 import json
+import os
 import sys
 import time
 
 
 def load_redis_config():
+    """Load Redis config from file, then override with env vars if set."""
+    config = {}
+    config_path = os.environ.get("KOMPUTER_CONFIG_PATH", "/etc/komputer/config.json")
     try:
-        with open("/etc/komputer/config.json") as f:
-            return json.load(f).get("redis", {})
+        with open(config_path) as f:
+            config = json.load(f).get("redis", {})
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        pass
+
+    if os.environ.get("KOMPUTER_REDIS_ADDRESS"):
+        config["address"] = os.environ["KOMPUTER_REDIS_ADDRESS"]
+    if os.environ.get("KOMPUTER_REDIS_PASSWORD"):
+        config["password"] = os.environ["KOMPUTER_REDIS_PASSWORD"]
+    if os.environ.get("KOMPUTER_REDIS_DB"):
+        config["db"] = int(os.environ["KOMPUTER_REDIS_DB"])
+    if os.environ.get("KOMPUTER_REDIS_STREAM_PREFIX"):
+        config["stream_prefix"] = os.environ["KOMPUTER_REDIS_STREAM_PREFIX"]
+
+    config.setdefault("address", "redis:6379")
+    config.setdefault("password", "")
+    config.setdefault("db", 0)
+    config.setdefault("stream_prefix", "komputer-events")
+    return config
 
 
 def field(fields: dict, key: str) -> str:

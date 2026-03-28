@@ -2,6 +2,8 @@ import json
 import os
 import time
 import redis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
 
 
 class EventPublisher:
@@ -10,12 +12,28 @@ class EventPublisher:
         self.namespace = os.getenv("KOMPUTER_NAMESPACE", "default")
         self.stream_prefix = redis_config.get("stream_prefix", "komputer-events")
         password = redis_config.get("password") or None
-        self.client = redis.Redis(
+
+        # Connection pool with health checks and retry on connection errors.
+        retry = Retry(ExponentialBackoff(cap=5, base=0.1), retries=3)
+        self.pool = redis.ConnectionPool(
             host=redis_config["address"].split(":")[0],
             port=int(redis_config["address"].split(":")[1]),
             password=password,
             db=redis_config.get("db", 0),
+            health_check_interval=30,
+            socket_connect_timeout=5,
+            socket_timeout=10,
+            retry=retry,
+            retry_on_error=[redis.ConnectionError, redis.TimeoutError],
         )
+        self.client = redis.Redis(connection_pool=self.pool)
+
+    def ping(self) -> bool:
+        """Check if Redis is reachable."""
+        try:
+            return self.client.ping()
+        except redis.RedisError:
+            return False
 
     def publish(self, event_type: str, payload: dict):
         stream_key = f"{self.stream_prefix}:{self.agent_name}"

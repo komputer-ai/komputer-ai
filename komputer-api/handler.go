@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,13 @@ type AgentListResponse struct {
 	Agents []AgentResponse `json:"agents"`
 }
 
+// isValidK8sName checks if a string is a valid Kubernetes DNS subdomain name.
+var k8sNameRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+
+func isValidK8sName(name string) bool {
+	return len(name) > 0 && len(name) <= 63 && k8sNameRegex.MatchString(name)
+}
+
 // resolveNamespace returns the namespace from the query param, request body, or default.
 func resolveNamespace(c *gin.Context, k8s *K8sClient) string {
 	if ns := c.Query("namespace"); ns != "" {
@@ -46,6 +54,19 @@ func resolveNamespace(c *gin.Context, k8s *K8sClient) string {
 }
 
 func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
+	// Health check endpoints (outside /api/v1 for k8s probes).
+	r.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+	r.GET("/readyz", func(c *gin.Context) {
+		// Check Redis connectivity.
+		if err := worker.Rdb.Ping(c.Request.Context()).Err(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": "redis: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+
 	v1 := r.Group("/api/v1")
 	{
 		v1.POST("/agents", createOrTriggerAgent(k8s))
@@ -77,6 +98,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		var req CreateAgentRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Validate agent name: must be a valid K8s DNS subdomain name.
+		if !isValidK8sName(req.Name) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agent name: must be lowercase, alphanumeric, hyphens only, max 63 chars (e.g. 'my-agent-1')"})
 			return
 		}
 

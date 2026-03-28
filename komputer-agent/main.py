@@ -11,10 +11,34 @@ from events import EventPublisher
 import state
 
 
-def load_config():
+def load_redis_config():
+    """Load Redis config from file, then override with env vars if set."""
+    # Base config from file (if it exists).
+    config = {}
     config_path = os.getenv("KOMPUTER_CONFIG_PATH", "/etc/komputer/config.json")
-    with open(config_path) as f:
-        return json.load(f)
+    try:
+        with open(config_path) as f:
+            config = json.load(f).get("redis", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+    # Env vars override file values.
+    if os.getenv("KOMPUTER_REDIS_ADDRESS"):
+        config["address"] = os.getenv("KOMPUTER_REDIS_ADDRESS")
+    if os.getenv("KOMPUTER_REDIS_PASSWORD"):
+        config["password"] = os.getenv("KOMPUTER_REDIS_PASSWORD")
+    if os.getenv("KOMPUTER_REDIS_DB"):
+        config["db"] = int(os.getenv("KOMPUTER_REDIS_DB"))
+    if os.getenv("KOMPUTER_REDIS_STREAM_PREFIX"):
+        config["stream_prefix"] = os.getenv("KOMPUTER_REDIS_STREAM_PREFIX")
+
+    # Defaults for anything still missing.
+    config.setdefault("address", "redis:6379")
+    config.setdefault("password", "")
+    config.setdefault("db", 0)
+    config.setdefault("stream_prefix", "komputer-events")
+
+    return config
 
 
 def _handle_signal(signum, frame):
@@ -44,8 +68,7 @@ def main():
     model = os.getenv("KOMPUTER_MODEL", "claude-sonnet-4-6")
     agent_name = os.getenv("KOMPUTER_AGENT_NAME", "unknown")
 
-    config = load_config()
-    redis_config = config.get("redis", {})
+    redis_config = load_redis_config()
 
     publisher = EventPublisher(redis_config, agent_name)
     print(f"komputer-agent {agent_name} starting with model {model}")

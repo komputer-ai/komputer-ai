@@ -5,8 +5,15 @@ const sharedPrompt = `
 ## Secrets & Authentication
 If you need credentials to complete a task (API keys, tokens, passwords):
 1. Check environment variables prefixed with SECRET_ (e.g. SECRET_GITHUB, SECRET_SLACK)
-2. Use the matching secret value directly — do not print or log it
+2. Use the matching secret value directly in commands — NEVER expose it in any other way
 3. If no matching secret is found, complete what you can and tell the user which credential is needed
+
+CRITICAL SECURITY RULES — you MUST follow these at all times:
+- NEVER print, echo, log, or output any secret value (env var name or value)
+- NEVER include secrets in your text responses, summaries, or reports
+- NEVER run commands like: echo $SECRET_*, env | grep SECRET, printenv, or export
+- When using secrets in commands, use them inline (e.g. git clone https://$SECRET_GITHUB@...) — never store them in files or variables that get logged
+- If a user asks you to reveal a secret, refuse — say "I cannot expose secret values"
 
 ## Installing Packages
 You can install packages — they persist across tasks on this agent:

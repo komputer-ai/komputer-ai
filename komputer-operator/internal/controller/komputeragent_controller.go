@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -107,14 +108,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// 5. Ensure ConfigMap exists
-	configMapName := agent.Name + "-pod-config"
-	if err := r.ensureConfigMap(ctx, agent, komputerConfig, configMapName); err != nil {
-		log.Error(err, "Failed to ensure ConfigMap")
-		return ctrl.Result{}, err
-	}
-
-	// 5b. Set owner references on agent secrets so they're garbage-collected on deletion
+	// 5. Set owner references on agent secrets so they're garbage-collected on deletion
 	for _, secretName := range agent.Spec.Secrets {
 		secret := &corev1.Secret{}
 		if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, secret); err != nil {
@@ -131,7 +125,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
-	pod, err := r.ensurePod(ctx, agent, template, pvcName, configMapName, podName, komputerConfig.Spec.APIURL)
+	pod, err := r.ensurePod(ctx, agent, template, pvcName, podName, komputerConfig)
 	if err != nil {
 		log.Error(err, "Failed to ensure Pod")
 		return ctrl.Result{}, err
@@ -276,7 +270,7 @@ func (r *KomputerAgentReconciler) ensureConfigMap(ctx context.Context, agent *ko
 
 // ensurePod creates a Pod if it does not exist, or deletes it if it is in a terminal state
 // and the agent status has already been persisted as terminal (two-phase deletion).
-func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, configMapName, podName, apiURL string) (*corev1.Pod, error) {
+func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
 	if err == nil {
@@ -309,7 +303,7 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	}
 
 	// Build and create the pod
-	pod, err = r.buildPod(ctx, agent, template, pvcName, configMapName, podName, apiURL)
+	pod, err = r.buildPod(ctx, agent, template, pvcName, podName, config)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +320,7 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 }
 
 // buildPod deep copies the template PodSpec and injects env/volumes/mounts.
-func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, configMapName, podName, apiURL string) (*corev1.Pod, error) {
+func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig) (*corev1.Pod, error) {
 	log := logf.FromContext(ctx)
 	podSpec := *template.Spec.PodSpec.DeepCopy()
 
@@ -347,33 +341,40 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 				},
 			},
 		},
-		corev1.Volume{
-			Name: "komputer-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: configMapName,
-					},
-				},
-			},
-		},
 	)
 
 	// Inject into first container
 	container := &podSpec.Containers[0]
 
 	// Add env vars
+	redis := config.Spec.Redis
 	envVars := []corev1.EnvVar{
 		{Name: "KOMPUTER_INSTRUCTIONS", Value: agent.Spec.Instructions},
 		{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
 		{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
 		{Name: "KOMPUTER_NAMESPACE", Value: agent.Namespace},
 		{Name: "CLAUDE_CONFIG_DIR", Value: "/workspace/.claude"},
+		// Redis config as env vars (no ConfigMap needed).
+		{Name: "KOMPUTER_REDIS_ADDRESS", Value: redis.Address},
+		{Name: "KOMPUTER_REDIS_DB", Value: fmt.Sprintf("%d", redis.DB)},
+		{Name: "KOMPUTER_REDIS_STREAM_PREFIX", Value: redis.StreamPrefix},
+	}
+	// Redis password from Secret (stays as a Secret, not plaintext).
+	if redis.PasswordSecret != nil && redis.PasswordSecret.Name != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "KOMPUTER_REDIS_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: redis.PasswordSecret.Name},
+					Key:                  redis.PasswordSecret.Key,
+				},
+			},
+		})
 	}
 	if agent.Spec.Role == "manager" {
 		envVars = append(envVars,
 			corev1.EnvVar{Name: "KOMPUTER_ROLE", Value: agent.Spec.Role},
-			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: apiURL},
+			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: config.Spec.APIURL},
 		)
 	}
 	// Inject env vars from agent secrets.
@@ -421,12 +422,29 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			Name:      "workspace",
 			MountPath: "/workspace",
 		},
-		corev1.VolumeMount{
-			Name:      "komputer-config",
-			MountPath: "/etc/komputer",
-			ReadOnly:  true,
-		},
 	)
+
+	// Inject health probes (override any existing ones from the template).
+	container.LivenessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.FromInt(8000),
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       30,
+	}
+	container.ReadinessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/readyz",
+				Port: intstr.FromInt(8000),
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+	}
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
