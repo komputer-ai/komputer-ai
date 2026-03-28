@@ -106,8 +106,8 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 				keys = append(keys, s)
 				id, ok := lastIDs[s]
 				if !ok {
-					// First time seeing this stream — only read new messages.
-					id = "$"
+					// First time seeing this stream — read all existing messages.
+					id = "0-0"
 				}
 				ids = append(ids, id)
 			}
