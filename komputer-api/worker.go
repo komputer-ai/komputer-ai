@@ -161,6 +161,12 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 
 					hub.Broadcast(event.AgentName, raw)
 
+					// Append to persistent history list for GET /events.
+					historyKey := fmt.Sprintf("komputer-history:%s", event.AgentName)
+					if err := rdb.RPush(ctx, historyKey, raw).Err(); err != nil {
+						log.Printf("failed to append to history for %s: %v", event.AgentName, err)
+					}
+
 					taskStatus, lastMessage := mapEventToTaskStatus(event)
 					if taskStatus == "" {
 						continue

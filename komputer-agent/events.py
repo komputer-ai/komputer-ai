@@ -19,7 +19,6 @@ class EventPublisher:
 
     def publish(self, event_type: str, payload: dict):
         stream_key = f"{self.stream_prefix}:{self.agent_name}"
-        history_key = f"komputer-history:{self.agent_name}"
 
         # Clear the stream at the start of each task so the worker and
         # CLI only see events from the current task.
@@ -41,8 +40,5 @@ class EventPublisher:
         log_entry = {**event, "payload": payload}
         print(json.dumps(log_entry), flush=True)
 
-        # Publish to real-time stream (worker + CLI WebSocket).
+        # Publish to real-time stream. The API worker appends to history as it consumes.
         self.client.xadd(stream_key, event, maxlen=200, approximate=True)
-
-        # Append to persistent history (survives task restarts, read by GET /events).
-        self.client.rpush(history_key, json.dumps({**event, "payload": payload}))
