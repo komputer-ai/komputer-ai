@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,6 +28,8 @@ import (
 
 type K8sClient struct {
 	client           client.Client
+	clientset        *kubernetes.Clientset
+	restConfig       *rest.Config
 	defaultNamespace string
 }
 
@@ -45,7 +48,12 @@ func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
 		return nil, fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
-	return &K8sClient{client: c, defaultNamespace: defaultNamespace}, nil
+	cs, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create clientset: %w", err)
+	}
+
+	return &K8sClient{client: c, clientset: cs, restConfig: config, defaultNamespace: defaultNamespace}, nil
 }
 
 // EnsureNamespace creates the namespace if it doesn't exist, and copies
@@ -306,17 +314,7 @@ func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command .
 		return fmt.Errorf("failed to get pod %s: %w", podName, err)
 	}
 
-	config, err := ctrl.GetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get kubeconfig: %w", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("failed to create clientset: %w", err)
-	}
-
-	execReq := clientset.CoreV1().RESTClient().Post().
+	execReq := k.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
 		Namespace(ns).
@@ -328,7 +326,7 @@ func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command .
 			Stderr:    true,
 		}, clientgoscheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", execReq.URL())
+	exec, err := remotecommand.NewSPDYExecutor(k.restConfig, "POST", execReq.URL())
 	if err != nil {
 		return fmt.Errorf("failed to create executor: %w", err)
 	}

@@ -12,6 +12,8 @@ operator:
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
+  # -- Enable leader election for the operator. Required when replicas > 1 (HA mode).
+  leaderElect: true
   resources:
     limits:
       cpu: 500m

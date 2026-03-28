@@ -2,6 +2,14 @@
 
 This document explains the core entities in komputer.ai, how they relate to each other, and the role each one plays in the system.
 
+## Kubernetes as the Database
+
+komputer.ai is stateless — it has no external database. All system state is stored as Kubernetes Custom Resources (CRs) in etcd, the cluster's built-in key-value store. Agents, templates, and config are all CRs. Agent status, task progress, session IDs, and pod references are all persisted as CR status fields.
+
+This means the Kubernetes API server is the source of truth. The operator watches CRs and reconciles them into pods and volumes. The API server reads and patches CRs to reflect task status. If the operator or API restarts, they simply re-read the CRs and resume — there's nothing else to recover.
+
+Redis is used only as a transient event bus for real-time streaming, not as persistent storage.
+
 ## Agents
 
 An **agent** is the central entity in komputer.ai. It represents a persistent Claude AI instance running inside a Kubernetes pod with its own isolated workspace.

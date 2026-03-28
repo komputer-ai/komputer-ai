@@ -113,6 +113,9 @@ def main():
         if thread.is_alive():
             print("Task did not finish in time, exiting.", flush=True)
 
+    # Flush any remaining queued events to Redis before exiting.
+    publisher.shutdown()
+
 
 if __name__ == "__main__":
     main()

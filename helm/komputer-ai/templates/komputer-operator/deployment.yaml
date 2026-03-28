@@ -35,7 +35,10 @@ spec:
         command:
         - /manager
         args:
+        {{- /* Leader election is required when running replicas > 1 for HA */}}
+        {{- if .Values.operator.leaderElect }}
         - --leader-elect
+        {{- end }}
         - --health-probe-bind-address=:8081
         securityContext:
           allowPrivilegeEscalation: false

@@ -1,5 +1,7 @@
 import json
 import os
+import queue
+import threading
 import time
 import redis
 from redis.backoff import ExponentialBackoff
@@ -28,6 +30,26 @@ class EventPublisher:
         )
         self.client = redis.Redis(connection_pool=self.pool)
 
+        # Background publisher: queue + drain thread.
+        self._queue: queue.Queue = queue.Queue()
+        self._stopped = threading.Event()
+        self._worker = threading.Thread(target=self._drain_loop, name="event-publisher", daemon=True)
+        self._worker.start()
+
+    def _drain_loop(self):
+        """Read events from the queue and publish to Redis.
+        The connection pool handles retries and reconnection."""
+        while not self._stopped.is_set():
+            try:
+                stream_key, event = self._queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                self.client.xadd(stream_key, event, maxlen=200, approximate=True)
+            except redis.RedisError as e:
+                print(json.dumps({"level": "error", "msg": "failed to publish event", "error": str(e)}), flush=True)
+            self._queue.task_done()
+
     def ping(self) -> bool:
         """Check if Redis is reachable."""
         try:
@@ -38,8 +60,7 @@ class EventPublisher:
     def publish(self, event_type: str, payload: dict):
         stream_key = f"{self.stream_prefix}:{self.agent_name}"
 
-        # Clear the stream at the start of each task so the worker and
-        # CLI only see events from the current task.
+        # Clear the stream synchronously before enqueueing task_started.
         if event_type == "task_started":
             try:
                 self.client.delete(stream_key)
@@ -54,9 +75,19 @@ class EventPublisher:
             "payload": json.dumps(payload),
         }
 
-        # Log every event as JSON for pod log visibility (kubectl logs).
+        # Log immediately for kubectl logs visibility.
         log_entry = {**event, "payload": payload}
         print(json.dumps(log_entry), flush=True)
 
-        # Publish to real-time stream. The API worker appends to history as it consumes.
-        self.client.xadd(stream_key, event, maxlen=200, approximate=True)
+        # Enqueue for background publisher — returns immediately.
+        self._queue.put((stream_key, event))
+
+    def flush(self):
+        """Block until every queued event has been sent."""
+        self._queue.join()
+
+    def shutdown(self):
+        """Flush remaining events and stop the background thread."""
+        self.flush()
+        self._stopped.set()
+        self._worker.join(timeout=5)
