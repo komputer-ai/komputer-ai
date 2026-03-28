@@ -52,7 +52,7 @@ def main():
     pending = {}
     for name in names:
         stream_key = f"{stream_prefix}:{name}"
-        pending[name] = {"stream_key": stream_key, "last_id": "0-0"}
+        pending[name] = {"stream_key": stream_key, "last_id": "0-0", "last_text": ""}
 
     results = {}
     timeout = 600  # 10 minute hard timeout
@@ -89,15 +89,19 @@ def main():
                 pending[matched_name]["last_id"] = entry_id_str
                 etype = field(fields, "type")
 
-                if etype in terminal_types:
+                # Track the last text event as the agent's output.
+                if etype == "text":
                     payload_str = field(fields, "payload")
                     try:
                         payload = json.loads(payload_str) if payload_str else {}
                     except json.JSONDecodeError:
                         payload = {}
+                    pending[matched_name]["last_text"] = payload.get("content", "")
+
+                if etype in terminal_types:
                     results[matched_name] = {
                         "status": etype,
-                        "result": payload.get("result", ""),
+                        "result": pending[matched_name].get("last_text", ""),
                     }
                     del pending[matched_name]
                     done = total - len(pending)

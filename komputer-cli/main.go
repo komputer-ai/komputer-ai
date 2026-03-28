@@ -297,17 +297,13 @@ func formatEvent(event AgentEvent) string {
 			dimStyle.Render("  "+truncate(output, 200)))
 
 	case "task_completed":
-		result, _ := payload["result"].(string)
 		cost, _ := payload["cost_usd"].(float64)
 		duration, _ := payload["duration_ms"].(float64)
 		turns, _ := payload["turns"].(float64)
 
-		lines := fmt.Sprintf("%s %s\n", ts, eventCompleteStyle.Render("✔ Task Completed"))
-		if result != "" {
-			lines += "  " + result + "\n"
-		}
-		lines += dimStyle.Render(fmt.Sprintf("  Cost: $%.4f  Duration: %.1fs  Turns: %.0f", cost, duration/1000, turns))
-		return lines
+		return fmt.Sprintf("%s %s\n%s", ts,
+			eventCompleteStyle.Render("✔ Task Completed"),
+			dimStyle.Render(fmt.Sprintf("  Cost: $%.4f  Duration: %.1fs  Turns: %.0f", cost, duration/1000, turns)))
 
 	case "task_cancelled":
 		reason, _ := payload["reason"].(string)
@@ -835,24 +831,6 @@ func main() {
 				os.Exit(1)
 			}
 			defer conn.Close()
-
-			// Catch-up: fetch any events published before WebSocket connected.
-			catchupURL := fmt.Sprintf("%s/api/v1/agents/%s/events?limit=50%s", ep, url.PathEscape(agentName), nsQueryAmp(cmd))
-			if catchupData, catchupStatus, catchupErr := apiRequest("GET", catchupURL, nil); catchupErr == nil && catchupStatus == 200 {
-				var catchupResp struct {
-					Events []AgentEvent `json:"events"`
-				}
-				json.Unmarshal(catchupData, &catchupResp)
-				for _, e := range catchupResp.Events {
-					if formatted := formatEvent(e); formatted != "" {
-						fmt.Println(formatted)
-						fmt.Println()
-					}
-					if e.Type == "task_completed" || e.Type == "error" || e.Type == "task_cancelled" {
-						return
-					}
-				}
-			}
 
 			interrupted := make(chan struct{})
 			sigCh := make(chan os.Signal, 1)

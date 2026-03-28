@@ -38,8 +38,14 @@ async def run_agent(instructions: str, model: str, publisher):
     import state
     session_id = _load_session_id()
 
+    # Extract just the user's task for the event (strip system prompt).
+    user_task = instructions
+    task_marker = "## Your Task\n"
+    if task_marker in instructions:
+        user_task = instructions.split(task_marker, 1)[1]
+
     publisher.publish("task_started", {
-        "instructions": instructions,
+        "instructions": user_task,
         "resuming_session": session_id is not None,
     })
 
@@ -106,7 +112,6 @@ async def run_agent(instructions: str, model: str, publisher):
         # Persist session ID for future tasks
         _save_session_id(result.session_id)
         publisher.publish("task_completed", {
-            "result": result.result or "",
             "cost_usd": result.total_cost_usd,
             "duration_ms": result.duration_ms,
             "turns": result.num_turns,
