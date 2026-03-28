@@ -18,6 +18,16 @@ class EventPublisher:
         )
 
     def publish(self, event_type: str, payload: dict):
+        stream_key = f"{self.stream_prefix}:{self.agent_name}"
+
+        # Clear the stream at the start of each task so previous events
+        # don't confuse the worker or CLI catch-up on wake-up.
+        if event_type == "task_started":
+            try:
+                self.client.delete(stream_key)
+            except redis.RedisError:
+                pass
+
         event = {
             "agentName": self.agent_name,
             "namespace": self.namespace,
@@ -29,5 +39,4 @@ class EventPublisher:
         log_entry = {**event, "payload": payload}
         print(json.dumps(log_entry), flush=True)
 
-        stream_key = f"{self.stream_prefix}:{self.agent_name}"
         self.client.xadd(stream_key, event, maxlen=200, approximate=True)
