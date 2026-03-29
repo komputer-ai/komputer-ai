@@ -17,12 +17,17 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/robfig/cron/v3"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -192,25 +197,81 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
 
-		// Agent is sleeping or idle: patch instructions and wake it
-		original := agent.DeepCopy()
-		agent.Spec.Instructions = schedule.Spec.Instructions
-		if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
-			log.Error(err, "Failed to patch agent instructions", "agent", agentName)
-			return ctrl.Result{}, err
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			// Sleeping agent: patch instructions and wake it (creates new pod)
+			original := agent.DeepCopy()
+			agent.Spec.Instructions = schedule.Spec.Instructions
+			if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				log.Error(err, "Failed to patch agent instructions", "agent", agentName)
+				return ctrl.Result{}, err
+			}
+			if err := r.Get(ctx, types.NamespacedName{Name: agentName, Namespace: schedule.Namespace}, agent); err != nil {
+				return ctrl.Result{}, err
+			}
+			agent.Status.Phase = komputerv1alpha1.AgentPhasePending
+			agent.Status.TaskStatus = ""
+			agent.Status.LastTaskMessage = ""
+			if err := r.Status().Update(ctx, agent); err != nil {
+				log.Error(err, "Failed to wake sleeping agent", "agent", agentName)
+				return ctrl.Result{}, err
+			}
+			log.Info("Woke sleeping agent for scheduled run", "agent", agentName)
+		} else if agent.Status.PodName != "" {
+			// Running + idle agent: forward task to the pod.
+			// Try direct HTTP to pod IP first (works in-cluster), fall back to API (works locally).
+			bodyJSON, _ := json.Marshal(map[string]string{
+				"instructions": schedule.Spec.Instructions,
+			})
+			forwarded := false
+
+			// Try direct pod IP
+			pod := &corev1.Pod{}
+			if err := r.Get(ctx, types.NamespacedName{Name: agent.Status.PodName, Namespace: agent.Namespace}, pod); err == nil && pod.Status.PodIP != "" {
+				podURL := fmt.Sprintf("http://%s:8000/task", pod.Status.PodIP)
+				httpClient := &http.Client{Timeout: 5 * time.Second}
+				resp, err := httpClient.Post(podURL, "application/json", bytes.NewReader(bodyJSON))
+				if err == nil {
+					resp.Body.Close()
+					if resp.StatusCode == http.StatusConflict {
+						log.Info("Agent pod is busy, skipping scheduled run", "agent", agentName)
+						return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+					}
+					forwarded = true
+					log.Info("Forwarded scheduled task to pod directly", "agent", agentName)
+				}
+			}
+
+			// Fallback: forward via komputer-api
+			if !forwarded {
+				apiURL, err := r.getAPIURL(ctx)
+				if err != nil {
+					log.Error(err, "Failed to get API URL for task forwarding")
+					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+				}
+				apiBody, _ := json.Marshal(map[string]interface{}{
+					"name":         agentName,
+					"instructions": schedule.Spec.Instructions,
+					"namespace":    schedule.Namespace,
+				})
+				taskURL := fmt.Sprintf("%s/api/v1/agents", apiURL)
+				httpClient := &http.Client{Timeout: 30 * time.Second}
+				resp, err := httpClient.Post(taskURL, "application/json", bytes.NewReader(apiBody))
+				if err != nil {
+					log.Error(err, "Failed to forward task via API", "agent", agentName)
+					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+				}
+				resp.Body.Close()
+				if resp.StatusCode == http.StatusConflict {
+					log.Info("Agent is busy, skipping scheduled run", "agent", agentName)
+					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+				}
+				log.Info("Forwarded scheduled task to agent via API fallback", "agent", agentName)
+			}
+		} else {
+			// No pod, not sleeping — agent in weird state, retry
+			log.Info("Agent has no pod and is not sleeping, retrying", "agent", agentName, "phase", agent.Status.Phase)
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}
-		// Re-fetch after spec patch before patching status
-		if err := r.Get(ctx, types.NamespacedName{Name: agentName, Namespace: schedule.Namespace}, agent); err != nil {
-			return ctrl.Result{}, err
-		}
-		agent.Status.Phase = komputerv1alpha1.AgentPhasePending
-		agent.Status.TaskStatus = ""
-		agent.Status.LastTaskMessage = ""
-		if err := r.Status().Update(ctx, agent); err != nil {
-			log.Error(err, "Failed to wake agent", "agent", agentName)
-			return ctrl.Result{}, err
-		}
-		log.Info("Woke agent for scheduled run", "agent", agentName)
 	}
 
 	// 8. Update status: lastRunTime, runCount++, lastRunStatus="InProgress"
@@ -353,6 +414,26 @@ func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, s
 
 	delay := nextTime.Time.Sub(now)
 	return ctrl.Result{RequeueAfter: delay}, nil
+}
+
+// getAPIURL returns the API URL. Checks KOMPUTER_API_URL env var first (for local dev),
+// then falls back to KomputerConfig (for in-cluster).
+func (r *KomputerScheduleReconciler) getAPIURL(ctx context.Context) (string, error) {
+	if envURL := os.Getenv("KOMPUTER_API_URL"); envURL != "" {
+		return envURL, nil
+	}
+	configList := &komputerv1alpha1.KomputerConfigList{}
+	if err := r.List(ctx, configList); err != nil {
+		return "", err
+	}
+	if len(configList.Items) == 0 {
+		return "", fmt.Errorf("no KomputerConfig found")
+	}
+	url := configList.Items[0].Spec.APIURL
+	if url == "" {
+		return "", fmt.Errorf("KomputerConfig has no apiURL")
+	}
+	return url, nil
 }
 
 // computeNextRunTime parses a cron expression in the given timezone and returns the next fire time in UTC.

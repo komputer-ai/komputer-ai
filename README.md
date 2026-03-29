@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="komputer.ai logo" width="600" />
+  <img src="docs/assets/logo.png" alt="komputer.ai logo" width="600" />
 </p>
 
 <h1 align="center">komputer.ai</h1>

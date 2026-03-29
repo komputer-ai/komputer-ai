@@ -81,13 +81,53 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
     return {"status": "accepted", "instructions": req.instructions[:100], "model": task_model}
 
 
+def _interrupt_agent():
+    """Interrupt the Claude SDK client and cancel the asyncio task."""
+    # First: tell the Claude SDK subprocess to stop gracefully
+    if state.active_client and state.active_loop and not state.active_loop.is_closed():
+        async def _do_interrupt():
+            try:
+                await state.active_client.interrupt()
+            except Exception:
+                pass
+        state.active_loop.call_soon_threadsafe(
+            lambda: asyncio.ensure_future(_do_interrupt())
+        )
+    # Then: cancel the Python task to unblock the event loop
+    if _current_task and _current_loop and not _current_task.done():
+        _current_loop.call_soon_threadsafe(_current_task.cancel)
+
+
 @app.post("/cancel")
 async def cancel_task():
     if not state.busy.locked():
         raise HTTPException(status_code=409, detail="No task is currently running")
 
-    if _current_task and _current_loop and not _current_task.done():
-        _current_loop.call_soon_threadsafe(_current_task.cancel)
-        return {"status": "cancelling"}
+    _interrupt_agent()
+    return {"status": "cancelling"}
 
-    raise HTTPException(status_code=409, detail="No cancellable task found")
+
+@app.post("/shutdown")
+async def shutdown():
+    """PreStop hook: wait for the running task to finish, cancel if it takes too long."""
+    if not state.busy.locked():
+        return {"status": "idle"}
+
+    import time
+
+    # Phase 1: Give the agent up to 20s to finish naturally
+    for _ in range(40):
+        if not state.busy.locked():
+            return {"status": "completed"}
+        time.sleep(0.5)
+
+    # Phase 2: Task didn't finish — interrupt via SDK then cancel
+    _interrupt_agent()
+
+    # Phase 3: Wait up to 5s for cancellation to flush events
+    for _ in range(10):
+        if not state.busy.locked():
+            return {"status": "cancelled"}
+        time.sleep(0.5)
+
+    return {"status": "timeout"}
