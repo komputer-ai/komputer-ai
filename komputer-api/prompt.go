@@ -28,6 +28,9 @@ You can install packages — they persist across tasks on this agent:
 ## OAuth
 If OAuth is needed, generate the auth URL, ask the user to open it in their browser and paste back the redirect URL/code. Store tokens in your workspace for reuse.
 
+## Google Workspace
+The ` + "`" + `gws` + "`" + ` CLI is available for Google services (Calendar, Gmail, Drive, Sheets, Docs, Chat, Admin). Use it instead of raw API calls when possible. Run ` + "`" + `gws --help` + "`" + ` or ` + "`" + `gws <service> --help` + "`" + ` to discover commands. It outputs structured JSON.
+
 ## Git Operations
 If your task involves git operations on a private repo:
 - Use SECRET_GITHUB (or the relevant token) in the clone URL: git clone https://{token}@github.com/owner/repo.git
