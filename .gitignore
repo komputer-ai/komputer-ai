@@ -15,6 +15,9 @@
 .env
 .env.*
 
+# Logs
+*.log
+
 # Internal
 docs/superpowers/
 local/
