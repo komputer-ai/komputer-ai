@@ -45,8 +45,9 @@ Each component is fully self-contained with no shared code, making it easy to ex
 2. [Installation](#installation) — Deploy to any Kubernetes cluster in minutes
 3. [Integration Guide](docs/integration-guide.md) — How to connect external systems via HTTP API and WebSocket events
 4. [Custom Agent Images](docs/custom-agent-image.md) — Build custom agent images with your own packages and tools
-5. [Architecture](#architecture) — System diagram and component interactions
-6. Komputer Components
+5. [Local Development](docs/local-development.md) — Build and run from source on a local cluster
+6. [Architecture](#architecture) — System diagram and component interactions
+7. Komputer Components
    1. [komputer-api](komputer-api/README.md) — REST & WebSocket API reference, Swagger UI, configuration
    2. [komputer-operator](komputer-operator/README.md) — CRD definitions, reconciliation logic, operator development guide
    3. [komputer-agent](komputer-agent/README.md) — Agent runtime, Claude SDK integration, manager tools, event format
@@ -120,46 +121,7 @@ helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
 helm show values oci://ghcr.io/kontroloop-ai/charts/komputer-ai
 ```
 
-<details>
-<summary><b>Local development setup (building from source)</b></summary>
-
-Requires: Go 1.22+, Docker, a local Kubernetes cluster (Docker Desktop, kind, minikube), and an Anthropic API key.
-
-```bash
-# 1. Install CRDs
-cd komputer-operator && make install
-
-# 2. Apply local infrastructure (Redis, API service, secrets)
-kubectl apply -f komputer-operator/config/samples/local-setup.yaml
-
-# 3. Create the Anthropic API key secret
-kubectl create secret generic anthropic-api-key \
-  --from-literal=api-key=sk-ant-...
-
-# 4. Apply platform config and default agent template
-kubectl apply -f komputer-operator/config/samples/komputer_v1alpha1_komputerconfig.yaml
-kubectl apply -f komputer-operator/config/samples/komputer_v1alpha1_komputeragentclustertemplate.yaml
-
-# 5. Build the agent image
-docker build -t komputer-agent:latest komputer-agent/
-# For kind: kind load docker-image komputer-agent:latest --name <cluster-name>
-
-# 6. Port-forward Redis (terminal 1)
-kubectl port-forward svc/redis 6379:6379
-
-# 7. Run the API (terminal 2)
-cd komputer-api && REDIS_ADDRESS=localhost:6379 go run .
-
-# 8. Run the operator (terminal 3)
-cd komputer-operator && make run
-
-# 9. Build and use the CLI (terminal 4)
-cd komputer-cli && go build -o komputer .
-./komputer login http://localhost:8080
-./komputer run my-agent "Hello world"
-```
-
-</details>
+For building from source, see the [Local Development](docs/local-development.md) guide.
 
 ## Custom Resources
 
