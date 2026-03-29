@@ -22,6 +22,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods/exec
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
@@ -50,6 +56,58 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeroffices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeroffices/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeroffices/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules/status
   verbs:
   - get
   - patch
