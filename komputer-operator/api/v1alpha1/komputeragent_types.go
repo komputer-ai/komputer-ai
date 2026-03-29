@@ -80,6 +80,10 @@ type KomputerAgentSpec struct {
 	// +kubebuilder:validation:Enum="";Sleep;AutoDelete
 	// +optional
 	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`
+	// OfficeManager is the name of the manager agent that created this sub-agent.
+	// When set, the operator creates/joins a KomputerOffice for the group.
+	// +optional
+	OfficeManager string `json:"officeManager,omitempty"`
 }
 
 // KomputerAgentStatus defines the observed state of KomputerAgent.

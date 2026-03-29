@@ -73,6 +73,11 @@ async def create_agent(args):
     if args.get("templateRef"):
         payload["templateRef"] = args["templateRef"]
 
+    # Identify this agent as the office manager so the operator can create/join an Office.
+    manager_name = os.environ.get("KOMPUTER_AGENT_NAME", "")
+    if manager_name:
+        payload["officeManager"] = manager_name
+
     # Auto-forward all SECRET_* env vars from the manager to the sub-agent.
     inherited_secrets = {}
     for key, value in os.environ.items():

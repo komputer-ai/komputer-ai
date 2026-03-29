@@ -40,6 +40,7 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents
+  - komputeroffices
   verbs:
   - create
   - delete
@@ -52,12 +53,14 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents/finalizers
+  - komputeroffices/finalizers
   verbs:
   - update
 - apiGroups:
   - komputer.komputer.ai
   resources:
   - komputeragents/status
+  - komputeroffices/status
   verbs:
   - get
   - patch

@@ -72,6 +72,11 @@ spec:
                 default: claude-sonnet-4-6
                 description: Model is the Claude model to use.
                 type: string
+              officeManager:
+                description: |-
+                  OfficeManager is the name of the manager agent that created this sub-agent.
+                  When set, the operator creates/joins a KomputerOffice for the group.
+                type: string
               role:
                 default: manager
                 description: |-

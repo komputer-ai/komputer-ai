@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
@@ -64,6 +65,25 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+
+	// Handle office-cleanup finalizer for managers being deleted.
+	// Note: We delete the Office first (which has its own finalizer to clean up members),
+	// then remove this finalizer. The Office finalizer handles member cleanup independently.
+	if !agent.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(agent, "komputer.ai/office-cleanup") {
+		officeName := agent.Name + "-office"
+		office := &komputerv1alpha1.KomputerOffice{}
+		if err := r.Get(ctx, types.NamespacedName{Name: officeName, Namespace: agent.Namespace}, office); err == nil {
+			if err := r.Delete(ctx, office); err != nil && !errors.IsNotFound(err) {
+				log.Error(err, "Failed to delete office for manager", "office", officeName)
+				return ctrl.Result{}, err
+			}
+		}
+		controllerutil.RemoveFinalizer(agent, "komputer.ai/office-cleanup")
+		if err := r.Update(ctx, agent); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// 2. Resolve the template
@@ -135,6 +155,74 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
+	}
+
+	// 9. Create KomputerOffice if this agent has an officeManager
+	if agent.Spec.OfficeManager != "" {
+		officeName := agent.Spec.OfficeManager + "-office"
+		office := &komputerv1alpha1.KomputerOffice{}
+		err := r.Get(ctx, types.NamespacedName{Name: officeName, Namespace: agent.Namespace}, office)
+		if errors.IsNotFound(err) {
+			// Create the office
+			now := metav1.Now()
+			office = &komputerv1alpha1.KomputerOffice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       officeName,
+					Namespace:  agent.Namespace,
+					Finalizers: []string{"komputer.ai/office-members"},
+				},
+				Spec: komputerv1alpha1.KomputerOfficeSpec{
+					Manager: agent.Spec.OfficeManager,
+				},
+				Status: komputerv1alpha1.KomputerOfficeStatus{
+					CreatedAt: &now,
+				},
+			}
+			if createErr := r.Create(ctx, office); createErr != nil && !errors.IsAlreadyExists(createErr) {
+				log.Error(createErr, "Failed to create KomputerOffice", "office", officeName)
+			}
+		}
+
+		// Ensure the office label is on this agent
+		if agent.Labels == nil {
+			agent.Labels = map[string]string{}
+		}
+		if agent.Labels["komputer.ai/office"] != officeName {
+			original := agent.DeepCopy()
+			agent.Labels["komputer.ai/office"] = officeName
+			if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				log.Error(err, "Failed to add office label to agent", "agent", agent.Name)
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
+	// 10. Add office-cleanup finalizer and office label to manager agents that have an office
+	if agent.Spec.Role == "manager" {
+		officeName := agent.Name + "-office"
+		office := &komputerv1alpha1.KomputerOffice{}
+		if err := r.Get(ctx, types.NamespacedName{Name: officeName, Namespace: agent.Namespace}, office); err == nil {
+			needsUpdate := false
+			// Ensure the manager also has the office label (issue: manager was missing it)
+			if agent.Labels == nil {
+				agent.Labels = map[string]string{}
+			}
+			if agent.Labels["komputer.ai/office"] != officeName {
+				agent.Labels["komputer.ai/office"] = officeName
+				needsUpdate = true
+			}
+			// Ensure finalizer
+			if !controllerutil.ContainsFinalizer(agent, "komputer.ai/office-cleanup") {
+				controllerutil.AddFinalizer(agent, "komputer.ai/office-cleanup")
+				needsUpdate = true
+			}
+			if needsUpdate {
+				if err := r.Update(ctx, agent); err != nil {
+					log.Error(err, "Failed to update manager with office label/finalizer")
+					return ctrl.Result{}, err
+				}
+			}
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -274,21 +362,11 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
 	if err == nil {
-		// If pod is Failed/Succeeded, use a two-phase approach:
-		// Phase 1 (first reconcile): agent status is not yet terminal → return the pod so
-		//   reconcileStatus can persist the terminal status.
-		// Phase 2 (second reconcile): agent status is already terminal → delete the pod so
-		//   the next reconcile recreates it.
+		// If pod is in a terminal state (Failed/Succeeded), return it so
+		// reconcileStatus can persist the terminal phase. Don't delete or
+		// recreate — a failed pod stays failed until a new task is sent
+		// via the API (which creates a new agent or wakes a sleeping one).
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
-			agentPhase := agent.Status.Phase
-			if agentPhase == komputerv1alpha1.AgentPhaseFailed || agentPhase == komputerv1alpha1.AgentPhaseSucceeded {
-				// Status already persisted — delete the pod so it gets recreated.
-				if err := r.Delete(ctx, pod); err != nil {
-					return nil, err
-				}
-				return nil, nil
-			}
-			// Status not yet persisted — return the pod so reconcileStatus can update it.
 			return pod, nil
 		}
 		return pod, nil

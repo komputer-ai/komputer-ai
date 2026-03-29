@@ -173,7 +173,7 @@ func (k *K8sClient) CreateAgentSecrets(ctx context.Context, ns, agentName string
 	return secretName, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, lifecycle string) (*komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -190,13 +190,18 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, mod
 			},
 		},
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			TemplateRef:  templateRef,
-			Instructions: instructions,
-			Model:        model,
-			Role:      role,
-			Secrets:   secretNames,
-			Lifecycle: komputerv1alpha1.AgentLifecycle(lifecycle),
+			TemplateRef:   templateRef,
+			Instructions:  instructions,
+			Model:         model,
+			Role:          role,
+			Secrets:       secretNames,
+			Lifecycle:     komputerv1alpha1.AgentLifecycle(lifecycle),
+			OfficeManager: officeManager,
 		},
+	}
+
+	if officeManager != "" {
+		agent.Labels["komputer.ai/office"] = officeManager + "-office"
 	}
 
 	if err := k.client.Create(ctx, agent); err != nil {
@@ -340,6 +345,33 @@ func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command .
 	}
 
 	return nil
+}
+
+func (k *K8sClient) GetOffice(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerOffice, error) {
+	office := &komputerv1alpha1.KomputerOffice{}
+	err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, office)
+	if err != nil {
+		return nil, err
+	}
+	return office, nil
+}
+
+func (k *K8sClient) ListOffices(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerOffice, error) {
+	list := &komputerv1alpha1.KomputerOfficeList{}
+	if err := k.client.List(ctx, list, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (k *K8sClient) DeleteOffice(ctx context.Context, ns, name string) error {
+	office := &komputerv1alpha1.KomputerOffice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+	}
+	return k.client.Delete(ctx, office)
 }
 
 // PatchAgentTaskStatus patches only the task-related status fields on a KomputerAgent CR.

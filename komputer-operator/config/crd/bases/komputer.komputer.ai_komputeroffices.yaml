@@ -1,0 +1,120 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: komputeroffices.komputer.komputer.ai
+spec:
+  group: komputer.komputer.ai
+  names:
+    kind: KomputerOffice
+    listKind: KomputerOfficeList
+    plural: komputeroffices
+    singular: komputeroffice
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .spec.manager
+      name: Manager
+      type: string
+    - jsonPath: .status.totalAgents
+      name: Agents
+      type: integer
+    - jsonPath: .status.activeAgents
+      name: Active
+      type: integer
+    - jsonPath: .status.totalCostUSD
+      name: Cost
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              manager:
+                description: Manager is the name of the manager agent that leads this
+                  office.
+                type: string
+            required:
+            - manager
+            type: object
+          status:
+            properties:
+              activeAgents:
+                type: integer
+              completedAgents:
+                type: integer
+              createdAt:
+                format: date-time
+                type: string
+              manager:
+                description: OfficeMemberStatus tracks the status of a single agent
+                  in the office.
+                properties:
+                  lastTaskCostUSD:
+                    type: string
+                  name:
+                    type: string
+                  role:
+                    type: string
+                  taskStatus:
+                    type: string
+                required:
+                - name
+                - role
+                type: object
+              members:
+                items:
+                  description: OfficeMemberStatus tracks the status of a single agent
+                    in the office.
+                  properties:
+                    lastTaskCostUSD:
+                      type: string
+                    name:
+                      type: string
+                    role:
+                      type: string
+                    taskStatus:
+                      type: string
+                  required:
+                  - name
+                  - role
+                  type: object
+                type: array
+              phase:
+                type: string
+              totalAgents:
+                type: integer
+              totalCostUSD:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
