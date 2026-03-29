@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -958,6 +959,338 @@ func main() {
 	runCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	root.AddCommand(runCmd)
+
+	// ── chat (interactive) ──────────────────────────────────────────────
+	chatCmd := &cobra.Command{
+		Use:   "chat <name>",
+		Short: "Start an interactive chat session with an agent",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			agentName := args[0]
+
+			// 1. Check if agent exists — don't fail on 404, we'll create on first message
+			agentExists := false
+			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(agentName), nsQuery(cmd)), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 200 {
+				var agent AgentResponse
+				json.Unmarshal(data, &agent)
+				if agent.TaskStatus == "InProgress" {
+					fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q is busy with a task. Wait for it to complete or cancel it.", agentName)))
+					os.Exit(1)
+				}
+				agentExists = true
+			} else if status != 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			// 2. Print header
+			fmt.Println(titleStyle.Render(fmt.Sprintf("  Chat with %s  ", agentName)))
+			fmt.Println(dimStyle.Render("  Type a message and press Enter. Ctrl+C to interrupt or exit."))
+			fmt.Println()
+
+			// 3. Signal handling: Ctrl+C during response cancels the turn,
+			//    Ctrl+C at the prompt exits the chat.
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			streaming := false
+			var streamingMu sync.Mutex
+			cancelTurn := make(chan struct{}, 1)
+
+			go func() {
+				for range sigCh {
+					streamingMu.Lock()
+					isStreaming := streaming
+					streamingMu.Unlock()
+					if isStreaming {
+						// Cancel the running task
+						cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel%s", ep, url.PathEscape(agentName), nsQuery(cmd))
+						apiRequest("POST", cancelURL, nil)
+						select {
+						case cancelTurn <- struct{}{}:
+						default:
+						}
+					} else {
+						// At the prompt — exit chat
+						fmt.Println()
+						fmt.Println(dimStyle.Render(fmt.Sprintf("  Chat ended. Agent %s is still running.", agentName)))
+						os.Exit(0)
+					}
+				}
+			}()
+
+			// 4. WebSocket connection — established on first message send, persists across turns
+			var conn *websocket.Conn
+			defer func() {
+				if conn != nil {
+					conn.Close()
+				}
+			}()
+
+			connectWS := func() error {
+				if conn != nil {
+					return nil // already connected
+				}
+				wsURL := strings.Replace(ep, "https://", "wss://", 1)
+				wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
+				wsURL = fmt.Sprintf("%s/api/v1/agents/%s/ws", wsURL, url.PathEscape(agentName))
+
+				// Retry with spinner (pod may not be ready yet for new agents)
+				spinner := NewSpinner("Waiting for agent to start...")
+				var wsErr error
+				for i := 0; i < 30; i++ {
+					conn, _, wsErr = websocket.DefaultDialer.Dial(wsURL, nil)
+					if wsErr == nil {
+						break
+					}
+					spinner.SetMessage(fmt.Sprintf("Waiting for agent to start... (%ds)", i+1))
+					time.Sleep(1 * time.Second)
+				}
+				spinner.Stop()
+				if conn == nil {
+					return fmt.Errorf("could not connect: %v", wsErr)
+				}
+				return nil
+			}
+
+			// If agent already exists, connect WebSocket immediately
+			if agentExists {
+				if err := connectWS(); err != nil {
+					fmt.Println(errorStyle.Render("WebSocket connect failed: " + err.Error()))
+					os.Exit(1)
+				}
+			}
+
+			// 5. Input loop
+			scanner := bufio.NewScanner(os.Stdin)
+			chatPromptStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#3B82F6")).Inline(true)
+			agentLabelStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#10B981")).Inline(true)
+			chatDimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Inline(true)
+			chatWarnStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F59E0B")).Inline(true)
+			chatErrStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444")).Inline(true)
+			toolNameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Inline(true)        // light gray
+			toolDetailStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true).Inline(true) // dim italic
+			toolIconStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#A78BFA")).Inline(true)               // purple
+
+			for {
+				// Prompt for input
+				fmt.Print(chatPromptStyle.Render("> "))
+
+				if !scanner.Scan() {
+					// EOF or Ctrl+D
+					fmt.Println()
+					fmt.Println(dimStyle.Render(fmt.Sprintf("  Chat ended. Agent %s is still running.", agentName)))
+					return
+				}
+
+				input := strings.TrimSpace(scanner.Text())
+				if input == "" {
+					continue
+				}
+
+				// Show thinking spinner immediately
+				fmt.Println()
+				thinkSpinner := NewSpinner("Thinking...")
+				thinkingActive := true
+
+				// Send task to agent (creates agent if it doesn't exist).
+				// No lifecycle set — agent stays running between turns.
+				ns, _ := cmd.Flags().GetString("namespace")
+				model, _ := cmd.Flags().GetString("model")
+				body := map[string]interface{}{
+					"name":         agentName,
+					"instructions": input,
+				}
+				if ns != "" {
+					body["namespace"] = ns
+				}
+				if model != "" {
+					body["model"] = model
+				}
+				if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
+					body["lifecycle"] = lc
+				}
+
+				data, status, err = apiRequest("POST", ep+"/api/v1/agents", body)
+				if err != nil {
+					thinkSpinner.Stop()
+					fmt.Println(errorStyle.Render("  Failed to send message: " + err.Error()))
+					continue
+				}
+				if status == 409 {
+					thinkSpinner.Stop()
+					var errResp ErrorResponse
+					json.Unmarshal(data, &errResp)
+					fmt.Println(warnStyle.Render("  ⚠ " + errResp.Error))
+					continue
+				}
+				if status != 200 && status != 201 && status != 202 {
+					thinkSpinner.Stop()
+					fmt.Println(errorStyle.Render(fmt.Sprintf("  API error (%d): %s", status, string(data))))
+					continue
+				}
+
+				// Agent was just created or woken — connect WebSocket with retry
+				if status == 201 || status == 202 {
+					thinkSpinner.Stop()
+					if status == 201 {
+						fmt.Println(dimStyle.Render("  Creating agent..."))
+					} else {
+						fmt.Println(dimStyle.Render("  Waking agent..."))
+					}
+					if err := connectWS(); err != nil {
+						fmt.Println(errorStyle.Render("  " + err.Error()))
+						return
+					}
+					thinkSpinner = NewSpinner("Thinking...")
+					thinkingActive = true
+				}
+
+				// Stream response — read events until task_completed/error/cancelled
+				firstText := true
+				turnDone := false
+
+				streamingMu.Lock()
+				streaming = true
+				streamingMu.Unlock()
+
+				// Drain any pending cancel from previous turns
+				select {
+				case <-cancelTurn:
+				default:
+				}
+
+				stopThinking := func() {
+					if thinkingActive {
+						thinkSpinner.Stop()
+						thinkingActive = false
+						fmt.Println()
+					}
+				}
+
+				for !turnDone {
+					// Check if Ctrl+C was pressed to cancel this turn
+					select {
+					case <-cancelTurn:
+						stopThinking()
+						fmt.Println(chatWarnStyle.Render("  ⚠ Cancelling..."))
+						// Drain remaining events until terminal event
+						for {
+							_, msg, readErr := conn.ReadMessage()
+							if readErr != nil {
+								break
+							}
+							var ev AgentEvent
+							if json.Unmarshal(msg, &ev) == nil {
+								if ev.Type == "task_completed" || ev.Type == "task_cancelled" || ev.Type == "error" {
+									break
+								}
+							}
+						}
+						fmt.Println()
+						turnDone = true
+						continue
+					default:
+					}
+
+					_, msg, err := conn.ReadMessage()
+					if err != nil {
+						stopThinking()
+						if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+							fmt.Println(errorStyle.Render("  Connection lost: " + err.Error()))
+						}
+						return
+					}
+
+					var event AgentEvent
+					if err := json.Unmarshal(msg, &event); err != nil {
+						continue
+					}
+
+					// Stop thinking spinner on first visible event
+					if event.Type == "text" || event.Type == "tool_result" || event.Type == "task_completed" || event.Type == "task_cancelled" || event.Type == "error" {
+						stopThinking()
+					}
+
+					switch event.Type {
+					case "text":
+						content, _ := event.Payload["content"].(string)
+						if firstText {
+							fmt.Println()
+							fmt.Println(agentLabelStyle.Render(agentName + ":"))
+							fmt.Println(content)
+							firstText = false
+						} else {
+							fmt.Println(content)
+						}
+
+					case "tool_result":
+						tool, _ := event.Payload["tool"].(string)
+						detail := ""
+						if tool == "Bash" {
+							if inputMap, ok := event.Payload["input"].(map[string]interface{}); ok {
+								if cmdStr, ok := inputMap["command"].(string); ok {
+									// Collapse whitespace and newlines into a single line
+									collapsed := strings.Join(strings.Fields(cmdStr), " ")
+									detail = "$ " + truncate(collapsed, 200)
+								}
+							}
+						} else if tool == "WebSearch" {
+							if inputMap, ok := event.Payload["input"].(map[string]interface{}); ok {
+								if q, ok := inputMap["query"].(string); ok {
+									detail = q
+								}
+							}
+						}
+						if detail != "" {
+							fmt.Printf("  %s %s %s\n", toolIconStyle.Render("⚙"), toolNameStyle.Render(tool), toolDetailStyle.Render(detail))
+						} else {
+							fmt.Printf("  %s %s\n", toolIconStyle.Render("⚙"), toolNameStyle.Render(tool))
+						}
+						// Show working spinner while waiting for next event
+						thinkSpinner = NewSpinner("Working...")
+						thinkingActive = true
+
+					case "task_completed":
+						cost, _ := event.Payload["cost_usd"].(float64)
+						duration, _ := event.Payload["duration_ms"].(float64)
+						fmt.Println()
+						fmt.Println(chatDimStyle.Render(fmt.Sprintf("✔ Cost: $%.4f  Duration: %.1fs", cost, duration/1000)))
+						fmt.Println()
+						turnDone = true
+
+					case "task_cancelled":
+						reason, _ := event.Payload["reason"].(string)
+						fmt.Println()
+						fmt.Println(chatWarnStyle.Render("  ⚠ Task cancelled: " + reason))
+						fmt.Println()
+						turnDone = true
+
+					case "error":
+						errMsg, _ := event.Payload["error"].(string)
+						fmt.Println()
+						fmt.Println(chatErrStyle.Render("  ✗ " + errMsg))
+						fmt.Println()
+						turnDone = true
+
+						// Skip: task_started, thinking, tool_call
+					}
+				}
+
+				streamingMu.Lock()
+				streaming = false
+				streamingMu.Unlock()
+			}
+		},
+	}
+	chatCmd.Flags().String("model", "", "Claude model to use")
+	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep or AutoDelete (default: empty, pod stays running)")
+	root.AddCommand(chatCmd)
 
 	// ── office (parent) ─────────────────────────────────────────────────
 	officeCmd := &cobra.Command{
