@@ -524,6 +524,16 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 		PeriodSeconds:       10,
 	}
 
+	// Graceful shutdown: cancel running task and wait for cleanup before pod termination.
+	container.Lifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/shutdown",
+				Port: intstr.FromInt(8000),
+			},
+		},
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,

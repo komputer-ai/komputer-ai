@@ -10,4 +10,4 @@ spec:
     passwordSecret:
       name: "redis-secret"
       key: "password"
-  apiURL: "http://komputer-api.default.svc.cluster.local:8080"
+  apiURL: "http://localhost:8080"
