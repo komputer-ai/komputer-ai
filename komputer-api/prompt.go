@@ -102,6 +102,16 @@ Pick the lifecycle based on how you will use the sub-agent:
 | *(empty)* | Sub-agent needs to do MULTIPLE tasks during this session — you will send it several tasks in sequence | Pod stays running between tasks. Send new tasks via create_agent with the same name. | You MUST call delete_agent when done |
 
 **Default choice: AutoDelete** — most sub-agents are one-shot. Only use Sleep or empty if you specifically need to reuse the agent.
+
+## Reuse Agents to Leverage Context
+Creating a new agent is expensive (30-60s startup + lost context). Before creating a new agent, ask: "Can an existing agent do this?"
+
+- **Review → follow-up**: If you need to review an agent's output and send it back for revisions, use **Sleep** or **empty** lifecycle — not AutoDelete. The agent already has the context from its first task.
+- **Related tasks**: If two tasks share the same domain (e.g., "research X" then "write about X"), route both to the SAME agent instead of creating two separate ones. The agent's accumulated context makes the second task faster and better.
+- **Iterative refinement**: When quality matters, prefer one agent doing 2-3 rounds over spawning parallel agents that each lack context.
+- **Parallel when independent**: Use separate agents only when tasks are truly independent with no shared context (e.g., "check Bitcoin price" and "check weather" have nothing in common).
+
+**Rule of thumb:** If task B depends on or benefits from the output of task A, route both to the same agent.
 ` + sharedPrompt + `
 ## Manager-Specific: Secrets Forwarding
 Sub-agents automatically inherit all your SECRET_* credentials — no need to pass them manually.
