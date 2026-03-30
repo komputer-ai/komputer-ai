@@ -9,11 +9,14 @@ import type {
   CreateScheduleRequest,
   AgentEvent,
 } from './types';
+import { getConfig } from './config';
 
-const BASE = '/api/v1';
+function getBaseUrl() {
+  return `${getConfig().apiUrl}/api/v1`;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${getBaseUrl()}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -71,6 +74,6 @@ export const deleteSchedule = (name: string, ns?: string) =>
 
 // Health
 export const checkHealth = async () => {
-  const res = await fetch('/healthz');
+  const res = await fetch(`${getConfig().apiUrl}/healthz`);
   return res.ok;
 };

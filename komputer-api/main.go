@@ -65,6 +65,19 @@ func main() {
 	log.Println("redis worker started")
 
 	r := gin.Default()
+
+	// CORS middleware — allow all origins (UI may run on a different host/port)
+	r.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	SetupRoutes(r, k8s, hub, rw)
 

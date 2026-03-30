@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { AgentEvent } from "@/lib/types";
+import { getConfig } from "@/lib/config";
 
 export function useWebSocket(agentName: string | null) {
   const [events, setEvents] = useState<AgentEvent[]>([]);
@@ -12,8 +13,10 @@ export function useWebSocket(agentName: string | null) {
   const connect = useCallback(() => {
     if (!agentName) return;
 
-    // Connect directly to the API WebSocket endpoint (dev mode)
-    const wsUrl = `ws://localhost:8080/api/v1/agents/${agentName}/ws`;
+    const apiUrl = getConfig().apiUrl;
+    const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
+    const wsHost = apiUrl.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProtocol}://${wsHost}/api/v1/agents/${agentName}/ws`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

@@ -25,6 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}>
+      <head>
+        <script src="/config.js" />
+      </head>
       <body className="h-full flex font-[family-name:var(--font-sans)]">
         <AppShell>{children}</AppShell>
       </body>

@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Trash2, Calendar, CheckCircle, DollarSign, Activity } from "lucide-react";
@@ -40,12 +40,9 @@ function StatCard({
   );
 }
 
-export default function ScheduleDetailPage({
-  params,
-}: {
-  params: Promise<{ name: string }>;
-}) {
-  const { name } = use(params);
+export default function ScheduleDetailPage() {
+  const params = useParams<{ name: string }>();
+  const name = params.name;
   const router = useRouter();
 
   const [schedule, setSchedule] = useState<ScheduleResponse | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Trash2 } from "lucide-react";
@@ -18,12 +18,9 @@ import { getOffice, getOfficeEvents, deleteOffice, listAgents } from "@/lib/api"
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import type { OfficeResponse, AgentEvent } from "@/lib/types";
 
-export default function OfficeDetailPage({
-  params,
-}: {
-  params: Promise<{ name: string }>;
-}) {
-  const { name } = use(params);
+export default function OfficeDetailPage() {
+  const params = useParams<{ name: string }>();
+  const name = params.name;
   const router = useRouter();
 
   const [office, setOffice] = useState<OfficeResponse | null>(null);
