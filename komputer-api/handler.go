@@ -26,14 +26,17 @@ type CreateAgentRequest struct {
 }
 
 type AgentResponse struct {
-	Name            string `json:"name"`
-	Namespace       string `json:"namespace"`
-	Model           string `json:"model"`
-	Status          string `json:"status"`
-	TaskStatus      string `json:"taskStatus,omitempty"`
-	LastTaskMessage string `json:"lastTaskMessage,omitempty"`
-	Lifecycle       string `json:"lifecycle,omitempty"`
-	CreatedAt       string `json:"createdAt"`
+	Name            string   `json:"name"`
+	Namespace       string   `json:"namespace"`
+	Model           string   `json:"model"`
+	Status          string   `json:"status"`
+	TaskStatus      string   `json:"taskStatus,omitempty"`
+	LastTaskMessage string   `json:"lastTaskMessage,omitempty"`
+	Lifecycle       string   `json:"lifecycle,omitempty"`
+	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
+	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
+	Secrets         []string `json:"secrets,omitempty"` // Key names from K8s Secrets (not values)
+	CreatedAt       string   `json:"createdAt"`
 }
 
 type AgentListResponse struct {
@@ -121,6 +124,19 @@ func resolveNamespace(c *gin.Context, k8s *K8sClient) string {
 		return ns
 	}
 	return k8s.defaultNamespace
+}
+
+// collectSecretKeys gathers all key names from the agent's referenced K8s Secrets.
+func collectSecretKeys(ctx gin.Context, k8s *K8sClient, ns string, secretNames []string) []string {
+	var keys []string
+	for _, name := range secretNames {
+		k, err := k8s.GetSecretKeys(ctx.Request.Context(), ns, name)
+		if err != nil {
+			continue // secret may have been deleted
+		}
+		keys = append(keys, k...)
+	}
+	return keys
 }
 
 func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
@@ -228,12 +244,15 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				}
 				log.Printf("waking sleeping agent %s/%s", ns, req.Name)
 				c.JSON(http.StatusAccepted, AgentResponse{
-					Name:      existing.Name,
-					Namespace: existing.Namespace,
-					Model:     existing.Spec.Model,
-					Status:    "Pending",
-					Lifecycle: string(existing.Spec.Lifecycle),
-					CreatedAt: existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+					Name:            existing.Name,
+					Namespace:       existing.Namespace,
+					Model:           existing.Spec.Model,
+					Status:          "Pending",
+					Lifecycle:       string(existing.Spec.Lifecycle),
+					LastTaskCostUSD: existing.Status.LastTaskCostUSD,
+					TotalCostUSD:    existing.Status.TotalCostUSD,
+					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
+					CreatedAt:       existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 				})
 				return
 			}
@@ -268,6 +287,9 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				TaskStatus:      string(existing.Status.TaskStatus),
 				LastTaskMessage: existing.Status.LastTaskMessage,
 				Lifecycle:       string(existing.Spec.Lifecycle),
+				LastTaskCostUSD: existing.Status.LastTaskCostUSD,
+				TotalCostUSD:    existing.Status.TotalCostUSD,
+				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 				CreatedAt:       existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			})
 			return
@@ -301,6 +323,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Model:     agent.Spec.Model,
 			Status:    "Pending",
 			Lifecycle: string(agent.Spec.Lifecycle),
+			Secrets:   collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
 			CreatedAt: agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -418,6 +441,9 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			TaskStatus:      string(agent.Status.TaskStatus),
 			LastTaskMessage: agent.Status.LastTaskMessage,
 			Lifecycle:       string(agent.Spec.Lifecycle),
+			LastTaskCostUSD: agent.Status.LastTaskCostUSD,
+			TotalCostUSD:    agent.Status.TotalCostUSD,
+			Secrets:         agent.Spec.Secrets,
 			CreatedAt:       agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -470,7 +496,7 @@ func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 // @Router /agents [get]
 func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		agents, err := k8s.ListAgents(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
@@ -487,6 +513,9 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				TaskStatus:      string(a.Status.TaskStatus),
 				LastTaskMessage: a.Status.LastTaskMessage,
 				Lifecycle:       string(a.Spec.Lifecycle),
+				LastTaskCostUSD: a.Status.LastTaskCostUSD,
+				TotalCostUSD:    a.Status.TotalCostUSD,
+				Secrets:         collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
 				CreatedAt:       a.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			})
 		}
@@ -534,7 +563,7 @@ func officeToResponse(o komputerv1alpha1.KomputerOffice, includeMembers bool) Of
 
 func listOffices(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		offices, err := k8s.ListOffices(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list offices: " + err.Error()})
@@ -675,7 +704,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 
 func listSchedules(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		schedules, err := k8s.ListSchedules(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list schedules: " + err.Error()})

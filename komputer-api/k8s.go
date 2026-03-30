@@ -173,6 +173,19 @@ func (k *K8sClient) CreateAgentSecrets(ctx context.Context, ns, agentName string
 	return secretName, nil
 }
 
+// GetSecretKeys returns the key names from a K8s Secret (not the values).
+func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([]string, error) {
+	secret := &corev1.Secret{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: ns}, secret); err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(secret.Data))
+	for key := range secret.Data {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
 func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
@@ -221,7 +234,11 @@ func (k *K8sClient) GetAgent(ctx context.Context, ns, name string) (*komputerv1a
 
 func (k *K8sClient) ListAgents(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerAgent, error) {
 	list := &komputerv1alpha1.KomputerAgentList{}
-	if err := k.client.List(ctx, list, client.InNamespace(ns)); err != nil {
+	var opts []client.ListOption
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -361,7 +378,11 @@ func (k *K8sClient) GetOffice(ctx context.Context, ns, name string) (*komputerv1
 
 func (k *K8sClient) ListOffices(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerOffice, error) {
 	list := &komputerv1alpha1.KomputerOfficeList{}
-	if err := k.client.List(ctx, list, client.InNamespace(ns)); err != nil {
+	var opts []client.ListOption
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -435,7 +456,11 @@ func (k *K8sClient) GetSchedule(ctx context.Context, ns, name string) (*komputer
 
 func (k *K8sClient) ListSchedules(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerSchedule, error) {
 	list := &komputerv1alpha1.KomputerScheduleList{}
-	if err := k.client.List(ctx, list, client.InNamespace(ns)); err != nil {
+	var opts []client.ListOption
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil

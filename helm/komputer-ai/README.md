@@ -27,7 +27,21 @@ helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
   --namespace komputer-ai
 ```
 
-### 3. Verify
+### 3. Access the UI
+
+Port-forward both the UI and API:
+
+```bash
+# Terminal 1 — API
+kubectl port-forward svc/komputer-ai-api 8080:8080 -n komputer-ai
+
+# Terminal 2 — UI
+kubectl port-forward svc/komputer-ai-ui 3000:3000 -n komputer-ai
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. The UI connects to the API at `http://localhost:8080` by default.
+
+### 4. Verify
 
 ```bash
 kubectl get pods -n komputer-ai
@@ -41,6 +55,11 @@ The chart templates are organized by component:
 templates/
 ├── _helpers.tpl                    # Shared template helpers
 ├── validate.yaml                   # Input validation
+├── komputer-ui/                    # Web dashboard
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── configmap.yaml
+│   └── ingress.yaml
 ├── komputer-api/                   # REST + WebSocket API
 │   ├── deployment.yaml
 │   ├── service.yaml
@@ -68,6 +87,14 @@ templates/
 | `operator.replicas` | Operator replica count | `1` |
 | `operator.image.repository` | Operator image | `ghcr.io/kontroloop-ai/komputer-operator` |
 | `operator.image.tag` | Operator image tag | `latest` |
+| `ui.enabled` | Deploy the web dashboard | `true` |
+| `ui.image.repository` | UI image | `ghcr.io/kontroloop-ai/komputer-ui` |
+| `ui.image.tag` | UI image tag | `latest` |
+| `ui.replicas` | UI replica count | `1` |
+| `ui.apiUrl` | API URL the browser connects to (not in-cluster) | `http://localhost:8080` |
+| `ui.service.type` | UI service type | `ClusterIP` |
+| `ui.service.port` | UI service port | `3000` |
+| `ui.ingress.enabled` | Create an Ingress for the UI | `false` |
 | `api.replicas` | API replica count | `1` |
 | `api.image.repository` | API image | `ghcr.io/kontroloop-ai/komputer-api` |
 | `api.image.tag` | API image tag | `latest` |
@@ -105,7 +132,7 @@ helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
 
 ### Ingress
 
-Expose the API externally instead of using `kubectl port-forward`:
+Expose the API and UI externally instead of using `kubectl port-forward`:
 
 ```yaml
 # values-ingress.yaml
@@ -119,12 +146,30 @@ api:
       nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
+      - host: api.komputer.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: komputer-api-tls
+        hosts:
+          - api.komputer.example.com
+
+ui:
+  # Point the UI to the API's external URL (this runs in the browser)
+  apiUrl: "https://api.komputer.example.com"
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
       - host: komputer.example.com
         paths:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: komputer-tls
+      - secretName: komputer-ui-tls
         hosts:
           - komputer.example.com
 ```
@@ -137,6 +182,8 @@ helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
 ```
 
 > **Note:** The API uses WebSockets for live event streaming. Make sure your ingress controller is configured with appropriate timeouts (shown above for nginx).
+>
+> **Important:** When using ingress, set `ui.apiUrl` to the API's external URL. This value is injected into the browser — it must be reachable from the user's machine, not from within the cluster.
 
 ### Private Container Registry
 

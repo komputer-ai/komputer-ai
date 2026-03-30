@@ -1,0 +1,15 @@
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ui-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+data:
+  config.js: |
+    window.__KOMPUTER_CONFIG__ = {
+      apiUrl: "{{ .Values.ui.apiUrl | default "http://localhost:8080" }}",
+    };
+{{- end }}

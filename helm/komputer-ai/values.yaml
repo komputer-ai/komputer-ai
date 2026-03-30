@@ -57,6 +57,38 @@ api:
     #   hosts:
     #     - komputer.example.com
 
+ui:
+  enabled: true
+  image:
+    repository: ghcr.io/kontroloop-ai/komputer-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # -- API URL the UI connects to (runs in the browser, not in-cluster).
+  # Default: http://localhost:8080 (for port-forward access).
+  # Set to the API ingress URL for production (e.g. https://api.komputer.example.com).
+  apiUrl: ""
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: komputer-ui.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
 agent:
   image:
     repository: ghcr.io/kontroloop-ai/komputer-agent

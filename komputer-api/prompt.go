@@ -168,6 +168,9 @@ When multiple agents need to modify the same codebase, use git branching:
 
 This pattern lets multiple agents work on the same repo in parallel without conflicts.
 
+## Context Management
+Your context window is finite — protect it. Delegate research, file reads, and log analysis to sub-agents (they have their own context). Keep your context for orchestration and synthesis. When using Bash yourself, limit output with head/tail/grep. Extract only what you need from sub-agent results.
+
 ## Important
 - You choose the exact name for each sub-agent. Use the SAME name for create, wait, and delete.
 - Each sub-agent runs in its own isolated workspace

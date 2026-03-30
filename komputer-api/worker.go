@@ -106,8 +106,14 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 				keys = append(keys, s)
 				id, ok := lastIDs[s]
 				if !ok {
-					// First time seeing this stream — read all existing messages.
-					id = "0-0"
+					// Check Redis for a saved cursor from a previous run.
+					cursorKey := fmt.Sprintf("komputer-worker-last-read:%s", s)
+					saved, err := rdb.Get(ctx, cursorKey).Result()
+					if err == nil && saved != "" {
+						id = saved
+					} else {
+						id = "$" // No cursor — only read new messages
+					}
 				}
 				ids = append(ids, id)
 			}
@@ -182,6 +188,12 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 					if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD); err != nil {
 						log.Printf("failed to patch task status for %s: %v", event.AgentName, err)
 					}
+				}
+
+				// Save cursor so we resume from here on restart
+				cursorKey := fmt.Sprintf("komputer-worker-last-read:%s", stream.Stream)
+				if err := rdb.Set(ctx, cursorKey, lastIDs[stream.Stream], 0).Err(); err != nil {
+					log.Printf("failed to save cursor for %s: %v", stream.Stream, err)
 				}
 			}
 		}
