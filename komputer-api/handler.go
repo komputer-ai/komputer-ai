@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
@@ -35,8 +36,21 @@ type AgentResponse struct {
 	Lifecycle       string   `json:"lifecycle,omitempty"`
 	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
 	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
-	Secrets         []string `json:"secrets,omitempty"` // Key names from K8s Secrets (not values)
+	Secrets         []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
+	Instructions    string   `json:"instructions,omitempty"` // User task extracted from spec.instructions
 	CreatedAt       string   `json:"createdAt"`
+}
+
+// extractUserTask extracts the user's task from the full instructions string.
+// The system prompt prefix ends at "## Your Task\n" — everything after that marker is the user task.
+// If no marker is found, the full instructions are returned.
+func extractUserTask(instructions string) string {
+	const marker = "## Your Task\n"
+	idx := strings.Index(instructions, marker)
+	if idx == -1 {
+		return instructions
+	}
+	return strings.TrimSpace(instructions[idx+len(marker):])
 }
 
 type AgentListResponse struct {
@@ -252,6 +266,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 					TotalCostUSD:    existing.Status.TotalCostUSD,
 					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
+					Instructions:    extractUserTask(existing.Spec.Instructions),
 					CreatedAt:       existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 				})
 				return
@@ -297,6 +312,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 				TotalCostUSD:    existing.Status.TotalCostUSD,
 				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
+				Instructions:    extractUserTask(existing.Spec.Instructions),
 				CreatedAt:       existing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			})
 			return
@@ -325,13 +341,14 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		log.Printf("created new agent %s/%s", ns, req.Name)
 		c.JSON(http.StatusCreated, AgentResponse{
-			Name:      agent.Name,
-			Namespace: agent.Namespace,
-			Model:     agent.Spec.Model,
-			Status:    "Pending",
-			Lifecycle: string(agent.Spec.Lifecycle),
-			Secrets:   collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
-			CreatedAt: agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+			Name:         agent.Name,
+			Namespace:    agent.Namespace,
+			Model:        agent.Spec.Model,
+			Status:       "Pending",
+			Lifecycle:    string(agent.Spec.Lifecycle),
+			Secrets:      collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Instructions: extractUserTask(agent.Spec.Instructions),
+			CreatedAt:    agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 }
@@ -451,6 +468,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			LastTaskCostUSD: agent.Status.LastTaskCostUSD,
 			TotalCostUSD:    agent.Status.TotalCostUSD,
 			Secrets:         agent.Spec.Secrets,
+			Instructions:    extractUserTask(agent.Spec.Instructions),
 			CreatedAt:       agent.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -523,6 +541,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				LastTaskCostUSD: a.Status.LastTaskCostUSD,
 				TotalCostUSD:    a.Status.TotalCostUSD,
 				Secrets:         collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
+				Instructions:    extractUserTask(a.Spec.Instructions),
 				CreatedAt:       a.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			})
 		}

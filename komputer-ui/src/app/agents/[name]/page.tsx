@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Ban, Trash2, Zap, KeyRound } from "lucide-react";
+import { Ban, Trash2, Zap, KeyRound, ChevronRight, FileText } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/kit/tabs";
@@ -332,6 +333,11 @@ export default function AgentDetailPage() {
               </div>
             </motion.div>
 
+            {/* Instructions */}
+            {agent.instructions && (
+              <InstructionsCard instructions={agent.instructions} />
+            )}
+
             {/* Last message */}
             {agent.lastTaskMessage && (
               <motion.div
@@ -367,6 +373,38 @@ function StatCard({ label, value, color, highlight }: {
         {value}
       </p>
     </div>
+  );
+}
+
+function InstructionsCard({ instructions }: { instructions: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.div
+      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut", delay: 0.15 }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-5 py-4 text-left cursor-pointer"
+      >
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 text-[var(--color-text-secondary)] transition-transform duration-200",
+            open && "rotate-90"
+          )}
+        />
+        <FileText className="size-3.5 text-[var(--color-text-muted)]" />
+        <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Instructions</h3>
+      </button>
+      {open && (
+        <div className="px-5 pb-4">
+          <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-wrap">{instructions}</p>
+        </div>
+      )}
+    </motion.div>
   );
 }
 

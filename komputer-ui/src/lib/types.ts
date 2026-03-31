@@ -9,6 +9,7 @@ export interface AgentResponse {
   lastTaskCostUSD?: string;
   totalCostUSD?: string;
   secrets?: string[];
+  instructions?: string;
   createdAt: string;
 }
 
