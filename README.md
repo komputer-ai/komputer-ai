@@ -2,7 +2,7 @@
   <img src="docs/assets/logo.png" alt="komputer.ai logo" width="600" />
 </p>
 
-<h1 align="center">komputer.ai</h1>
+<h1 align="center">Komputer.AI</h1>
 
 <p align="center">
   <strong>Distributed Claude AI agents on Kubernetes</strong>
