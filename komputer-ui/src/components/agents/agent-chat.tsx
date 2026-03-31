@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   ChevronRight,
   ArrowUp,
+  ArrowDown,
   Terminal,
   FileText,
   Globe,
@@ -511,14 +512,23 @@ export function AgentChat({
     prevMessagesLenRef.current = curLen;
   }, [messages.length]);
 
-  // Auto-scroll on new messages (only when user is near the bottom)
+  // Auto-scroll: snap to bottom on initial load, then smooth-scroll only when near bottom
+  const initialScrollDone = useRef(false);
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container || messages.length === 0) return;
     const prevCount = prevMsgCountRef.current;
     prevMsgCountRef.current = messages.length;
-    if (prevCount === 0 || messages.length <= prevCount) return;
+
+    if (!initialScrollDone.current) {
+      // First render with messages — snap to bottom instantly (no smooth)
+      bottomRef.current?.scrollIntoView();
+      initialScrollDone.current = true;
+      return;
+    }
+
+    if (messages.length <= prevCount) return;
     // Only auto-scroll if user is near the bottom
     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distFromBottom < 150) {
@@ -527,7 +537,9 @@ export function AgentChat({
   }, [messages.length]);
 
   // IntersectionObserver to trigger loading older events when sentinel is visible
+  // Only attach after the initial scroll to bottom is done, to avoid immediately loading all pages.
   useEffect(() => {
+    if (!initialScrollDone.current) return;
     const sentinel = sentinelRef.current;
     const container = scrollContainerRef.current;
     if (!sentinel || !container || !onLoadOlder) return;
@@ -572,10 +584,28 @@ export function AgentChat({
 
   const showThinking = isWorking;
 
+  // Track if user is scrolled away from the bottom
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    function onScroll() {
+      const dist = container!.scrollHeight - container!.scrollTop - container!.clientHeight;
+      setShowScrollDown(dist > 300);
+    }
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   return (
     <div className="flex h-full flex-col">
       {/* Messages area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 pt-4 pb-4">
+      <div className="relative flex-1 overflow-hidden">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto px-4 pt-4 pb-4">
         {messages.length === 0 && !showThinking ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-secondary)]">
             {agentStatus === "Sleeping"
@@ -692,6 +722,22 @@ export function AgentChat({
             <div ref={bottomRef} />
           </div>
         )}
+      </div>
+        {/* Scroll to bottom button */}
+        <AnimatePresence>
+          {showScrollDown && (
+            <motion.button
+              initial={{ opacity: 0, y: 10, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              onClick={scrollToBottom}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex size-9 items-center justify-center rounded-full bg-[var(--color-brand-blue)] text-white shadow-[0_4px_16px_rgba(63,133,217,0.4)] hover:bg-[var(--color-brand-blue-light)] hover:shadow-[0_4px_20px_rgba(63,133,217,0.5)] transition-all cursor-pointer"
+            >
+              <ArrowDown className="size-4" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Input area */}
