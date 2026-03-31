@@ -49,6 +49,35 @@ rules:
   verbs:
   - get
   - patch
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeroffices
+  verbs:
+  - get
+  - list
+  - delete
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputeroffices/status
+  verbs:
+  - get
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules/status
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

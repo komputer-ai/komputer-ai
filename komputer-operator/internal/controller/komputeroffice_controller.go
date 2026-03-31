@@ -249,6 +249,9 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// 8. Update status (preserve CreatedAt from initial creation)
+	// Use Patch instead of Update to avoid optimistic concurrency conflicts
+	// when the API worker modifies the same object between our Get and Update.
+	original := office.DeepCopy()
 	office.Status.Phase = phase
 	office.Status.Members = members
 	office.Status.TotalAgents = totalAgents
@@ -260,7 +263,7 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		office.Status.CreatedAt = &now
 	}
 
-	if err := r.Status().Update(ctx, office); err != nil {
+	if err := r.Status().Patch(ctx, office, client.MergeFrom(original)); err != nil {
 		log.Error(err, "Failed to update office status")
 		return ctrl.Result{}, err
 	}

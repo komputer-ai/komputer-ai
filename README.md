@@ -99,9 +99,14 @@ chmod +x komputer && sudo mv komputer /usr/local/bin/
 ### 4. Connect and run your first agent
 
 ```bash
-# Port-forward the API (or use an Ingress)
+# Port-forward the API and UI (or use an Ingress)
 kubectl port-forward svc/komputer-ai-api 8080:8080 -n komputer-ai &
+kubectl port-forward svc/komputer-ai-ui 3000:3000 -n komputer-ai &
 
+# Open the dashboard
+open http://localhost:3000
+
+# Or use the CLI
 komputer login http://localhost:8080
 komputer run my-agent "Write a haiku about Kubernetes"
 ```

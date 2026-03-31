@@ -629,11 +629,13 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 }
 
 // updateStatus uses variadic extras pattern for status updates.
+// Uses Patch instead of Update to avoid optimistic concurrency conflicts.
 func (r *KomputerAgentReconciler) updateStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, extras ...func(*komputerv1alpha1.KomputerAgentStatus)) error {
+	original := agent.DeepCopy()
 	for _, fn := range extras {
 		fn(&agent.Status)
 	}
-	return r.Status().Update(ctx, agent)
+	return r.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
 
 // SetupWithManager sets up the controller with the Manager.

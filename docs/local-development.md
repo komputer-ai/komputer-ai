@@ -80,9 +80,21 @@ cd komputer-operator
 make run
 ```
 
-### 9. Build and use the CLI
+### 9. Run the UI (optional)
 
 In a fourth terminal:
+
+```bash
+cd komputer-ui
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:3000`. Connects to the API on `http://localhost:8080` by default.
+
+### 10. Build and use the CLI
+
+In a fifth terminal:
 
 ```bash
 cd komputer-cli

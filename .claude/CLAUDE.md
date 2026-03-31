@@ -47,3 +47,13 @@ When adding a new field to `KomputerAgentSpec` or `KomputerAgentStatus`, it must
 | 7 | **CLI** | `komputer-cli/main.go` — add flag + include in request/display |
 
 Do not merge a new field unless all layers are updated. A missing layer means clients can't see or set the field.
+
+## 6. Helm RBAC Must Match K8s API Usage
+
+When adding a new Kubernetes API call in `komputer-api` or `komputer-operator` (e.g. creating a new resource type, reading a new API group), update the matching RBAC template in Helm:
+
+- `komputer-api` → `helm/komputer-ai/templates/komputer-api/rbac.yaml`
+- `komputer-operator` → `helm/komputer-ai/templates/komputer-operator/rbac.yaml`
+- `komputer-agent` → `helm/komputer-ai/templates/komputer-agent/rbac.yaml`
+
+Add the resource, API group, and verbs needed. Without this, the component will get `403 Forbidden` at runtime.
