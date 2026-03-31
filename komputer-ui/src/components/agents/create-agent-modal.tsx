@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -21,9 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
+import { Plus, Trash2 } from "lucide-react";
 import { createAgent } from "@/lib/api";
 import type { CreateAgentRequest } from "@/lib/types";
 import type { AgentTemplate } from "@/lib/create-agent-modal-context";
+
+type SecretEntry = { key: string; value: string };
 
 type CreateAgentModalProps = {
   open: boolean;
@@ -54,6 +57,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
   const [model, setModel] = useState("claude-sonnet-4-6");
   const [lifecycle, setLifecycle] = useState("default");
   const [role, setRole] = useState<"manager" | "worker" | undefined>(undefined);
+  const [secrets, setSecrets] = useState<SecretEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +68,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setModel("claude-sonnet-4-6");
     setLifecycle("default");
     setRole(undefined);
+    setSecrets([]);
     setError(null);
   }
 
@@ -74,6 +79,13 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
       setModel(initialValues.model);
       setLifecycle(initialValues.lifecycle);
       setRole(initialValues.role);
+      if (initialValues.secrets) {
+        setSecrets(
+          Object.entries(initialValues.secrets).map(([key, value]) => ({ key, value }))
+        );
+      } else {
+        setSecrets([]);
+      }
       setError(null);
     }
   }, [open, initialValues]);
@@ -98,6 +110,13 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setError(null);
 
     try {
+      const secretsMap: Record<string, string> = {};
+      for (const s of secrets) {
+        const k = s.key.trim();
+        const v = s.value.trim();
+        if (k && v) secretsMap[k] = v;
+      }
+
       const req: CreateAgentRequest = {
         name: name.trim(),
         instructions: instructions.trim(),
@@ -105,6 +124,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         namespace: namespace.trim() || undefined,
         lifecycle: lifecycle === "default" ? "" : (lifecycle as "" | "Sleep" | "AutoDelete"),
         role: role || undefined,
+        secrets: Object.keys(secretsMap).length > 0 ? secretsMap : undefined,
       };
       await createAgent(req);
       const agentName = name.trim();
@@ -123,6 +143,23 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
       setSubmitting(false);
     }
   }
+
+  const addSecret = useCallback(() => {
+    setSecrets((prev) => [...prev, { key: "", value: "" }]);
+  }, []);
+
+  const removeSecret = useCallback((index: number) => {
+    setSecrets((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateSecret = useCallback(
+    (index: number, field: "key" | "value", val: string) => {
+      setSecrets((prev) =>
+        prev.map((s, i) => (i === index ? { ...s, [field]: val } : s))
+      );
+    },
+    []
+  );
 
   return (
     <Dialog
@@ -205,6 +242,50 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Secrets</Label>
+              <div className="flex flex-col gap-2">
+                {secrets.map((secret, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      placeholder="KEY"
+                      value={secret.key}
+                      onChange={(e) => updateSecret(index, "key", e.target.value)}
+                      autoComplete="off"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="password"
+                      placeholder="value"
+                      value={secret.value}
+                      onChange={(e) => updateSecret(index, "value", e.target.value)}
+                      autoComplete="off"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeSecret(index)}
+                      className="shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={addSecret}
+                  className="w-fit"
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Secret
+                </Button>
+              </div>
             </div>
 
             {error && (

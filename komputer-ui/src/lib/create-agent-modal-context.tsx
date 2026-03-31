@@ -8,6 +8,7 @@ export interface AgentTemplate {
   model: string;
   lifecycle: string;
   role?: "manager" | "worker";
+  secrets?: Record<string, string>;
 }
 
 export interface CreateAgentModalContextValue {
