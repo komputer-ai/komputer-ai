@@ -412,6 +412,13 @@ export function AgentChat({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [lifecycleOpen]);
   const [pendingText, setPendingText] = useState<string | null>(initialPending ?? null);
+  const [pendingTimestamp, setPendingTimestamp] = useState<string>(new Date().toISOString());
+  // Persisted user messages that the server doesn't echo back (no task_started event)
+  const [localUserMessages, setLocalUserMessages] = useState<ChatMessage[]>(
+    initialPending
+      ? [{ kind: "user" as const, text: initialPending, timestamp: new Date().toISOString() }]
+      : []
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const eventCountAtSend = useRef(events.length);
@@ -432,26 +439,38 @@ export function AgentChat({
   const hasPending = pendingText != null;
   useEffect(() => {
     if (!hasPending) return;
-    // Only clear once new events have arrived since the send
-    if (events.length > eventCountAtSend.current && eventBasedWorking) {
+    if (events.length > eventCountAtSend.current) {
       setPendingText(null);
     }
-    // Also clear if task completed after our send
-    if (events.length > eventCountAtSend.current && !eventBasedWorking) {
-      setPendingText(null);
-    }
-  }, [hasPending, events.length, eventBasedWorking]);
+  }, [hasPending, events.length]);
 
   // Show thinking: pending send OR actively working
   const isWorking = hasPending || eventBasedWorking;
 
-  // Build messages: append optimistic user message if pending and not yet in server messages
+  // Build messages: merge server messages with local user messages that server didn't echo
   const messages: ChatMessage[] = (() => {
-    if (!pendingText) return serverMessages;
-    return [
-      ...serverMessages,
-      { kind: "user" as const, text: pendingText, timestamp: new Date().toISOString() },
-    ];
+    // Start with local user messages that aren't already in server messages
+    const serverUserTexts = new Set(
+      serverMessages.filter((m) => m.kind === "user").map((m) => m.text.trim())
+    );
+    const missingUserMessages = localUserMessages.filter(
+      (m) => m.kind === "user" && !serverUserTexts.has(m.text.trim())
+    );
+
+    // Merge and sort by timestamp
+    const all = [...serverMessages, ...missingUserMessages];
+
+    // Add pending optimistic message if not yet echoed
+    if (pendingText) {
+      const alreadyPresent = all.some(
+        (m) => m.kind === "user" && m.text.trim() === pendingText.trim()
+      );
+      if (!alreadyPresent) {
+        all.push({ kind: "user" as const, text: pendingText, timestamp: pendingTimestamp });
+      }
+    }
+
+    return all.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   })();
 
   // Auto-scroll on new messages
@@ -463,9 +482,15 @@ export function AgentChat({
     const text = input.trim();
     if (!text || isWorking) return;
 
+    const ts = new Date().toISOString();
     setInput("");
     eventCountAtSend.current = events.length;
+    setPendingTimestamp(ts);
     setPendingText(text);
+    setLocalUserMessages((prev) => [
+      ...prev,
+      { kind: "user" as const, text, timestamp: ts },
+    ]);
     try {
       await createAgent({ name: agentName, instructions: text, namespace: agentNamespace, lifecycle });
     } catch {

@@ -60,13 +60,6 @@ class EventPublisher:
     def publish(self, event_type: str, payload: dict):
         stream_key = f"{self.stream_prefix}:{self.agent_name}"
 
-        # Clear the stream synchronously before enqueueing task_started.
-        if event_type == "task_started":
-            try:
-                self.client.delete(stream_key)
-            except redis.RedisError:
-                pass
-
         event = {
             "agentName": self.agent_name,
             "namespace": self.namespace,
@@ -79,7 +72,19 @@ class EventPublisher:
         log_entry = {**event, "payload": payload}
         print(json.dumps(log_entry), flush=True)
 
-        # Enqueue for background publisher — returns immediately.
+        # For task_started: trim old messages and publish atomically.
+        # Uses XTRIM (not DELETE) to preserve the stream key and its consumer groups.
+        if event_type == "task_started":
+            try:
+                pipe = self.client.pipeline(transaction=True)
+                pipe.xtrim(stream_key, maxlen=0)
+                pipe.xadd(stream_key, event, maxlen=200, approximate=True)
+                pipe.execute()
+            except redis.RedisError as e:
+                print(json.dumps({"level": "error", "msg": "failed to publish task_started", "error": str(e)}), flush=True)
+            return
+
+        # All other events: enqueue for background publisher — returns immediately.
         self._queue.put((stream_key, event))
 
     def flush(self):

@@ -26,6 +26,7 @@ type RedisWorkerConfig struct {
 	Password     string
 	DB           int
 	StreamPrefix string // e.g. "komputer-events"
+	ConsumerName string
 }
 
 // RedisWorker manages the Redis client and stream consumption loop.
@@ -47,30 +48,151 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 
 	streamPattern := cfg.StreamPrefix + ":*"
 
+	// --- Event history handler (consumer group) ---
+	// Exactly one worker processes each event: history RPUSH, K8s status patch, ACK.
 	go func() {
-		defer rdb.Close()
-		log.Printf("redis worker started, consuming streams %q at %s", streamPattern, cfg.Address)
+		log.Printf("event-history-handler started (consumer=%s), consuming streams %q at %s", cfg.ConsumerName, streamPattern, cfg.Address)
 
-		// Track last-read ID per stream. "$" means only new messages.
+		// One-time cleanup: remove old cursor tracking keys from pre-consumer-group era.
+		if oldCursors, err := scanKeys(ctx, rdb, "komputer-worker-last-read:*"); err == nil && len(oldCursors) > 0 {
+			rdb.Del(ctx, oldCursors...)
+			log.Printf("cleaned up %d old cursor keys", len(oldCursors))
+		}
+
+		for {
+			if ctx.Err() != nil {
+				log.Println("event-history-handler shutting down")
+				return
+			}
+
+			streams, err := scanStreams(ctx, rdb, streamPattern)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				log.Printf("event-history-handler scan error: %v", err)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(1 * time.Second):
+				}
+				continue
+			}
+
+			if len(streams) == 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(2 * time.Second):
+				}
+				continue
+			}
+
+			for _, s := range streams {
+				if err := ensureConsumerGroup(ctx, rdb, s); err != nil {
+					log.Printf("failed to ensure consumer group for %s: %v", s, err)
+					continue
+				}
+				claimPendingMessages(ctx, rdb, s, cfg.ConsumerName, k8s)
+			}
+
+			keys := make([]string, 0, len(streams))
+			ids := make([]string, 0, len(streams))
+			for _, s := range streams {
+				keys = append(keys, s)
+				ids = append(ids, ">")
+			}
+
+			results, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+				Group:    consumerGroup,
+				Consumer: cfg.ConsumerName,
+				Streams:  append(keys, ids...),
+				Block:    5 * time.Second,
+				Count:    100,
+			}).Result()
+			if err != nil {
+				if err == redis.Nil {
+					continue
+				}
+				if ctx.Err() != nil {
+					return
+				}
+				log.Printf("event-history-handler xreadgroup error: %v", err)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(1 * time.Second):
+				}
+				continue
+			}
+
+			for _, stream := range results {
+				for _, msg := range stream.Messages {
+					event, err := parseStreamMessage(msg)
+					if err != nil {
+						log.Printf("failed to parse stream message: %v", err)
+						rdb.XAck(ctx, stream.Stream, consumerGroup, msg.ID)
+						continue
+					}
+
+					if event.AgentName == "" {
+						rdb.XAck(ctx, stream.Stream, consumerGroup, msg.ID)
+						continue
+					}
+
+					raw, err := json.Marshal(event)
+					if err != nil {
+						log.Printf("failed to marshal event: %v", err)
+						rdb.XAck(ctx, stream.Stream, consumerGroup, msg.ID)
+						continue
+					}
+					log.Printf("history event: %s", raw)
+
+					historyKey := fmt.Sprintf("komputer-history:%s", event.AgentName)
+					if err := rdb.RPush(ctx, historyKey, raw).Err(); err != nil {
+						log.Printf("failed to append to history for %s: %v", event.AgentName, err)
+					}
+
+					taskStatus, lastMessage := mapEventToTaskStatus(event)
+					if taskStatus != "" {
+						sessionID := ""
+						costUSD := 0.0
+						if event.Type == "task_completed" {
+							sessionID, _ = event.Payload["session_id"].(string)
+							costUSD, _ = event.Payload["cost_usd"].(float64)
+						}
+
+						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD); err != nil {
+							log.Printf("failed to patch task status for %s: %v", event.AgentName, err)
+						}
+					}
+
+					rdb.XAck(ctx, stream.Stream, consumerGroup, msg.ID)
+				}
+			}
+		}
+	}()
+
+	// --- Event broadcast handler (plain XREAD, no consumer group) ---
+	// Every API instance reads every event and pushes to its local WebSocket clients.
+	go func() {
+		log.Printf("event-broadcast-handler started, tailing streams %q", streamPattern)
+
 		lastIDs := make(map[string]string)
 
 		for {
 			if ctx.Err() != nil {
-				log.Println("redis worker shutting down")
+				log.Println("event-broadcast-handler shutting down")
 				return
 			}
 
-			// Discover active agent streams via SCAN.
 			streams, err := scanStreams(ctx, rdb, streamPattern)
 			if err != nil {
 				if ctx.Err() != nil {
-					log.Println("redis worker shutting down")
 					return
 				}
-				log.Printf("redis worker scan error: %v", err)
 				select {
 				case <-ctx.Done():
-					log.Println("redis worker shutting down")
 					return
 				case <-time.After(1 * time.Second):
 				}
@@ -78,65 +200,50 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 			}
 
 			// Prune lastIDs for streams that no longer exist.
-			activeStreams := make(map[string]struct{}, len(streams))
+			active := make(map[string]struct{}, len(streams))
 			for _, s := range streams {
-				activeStreams[s] = struct{}{}
+				active[s] = struct{}{}
 			}
 			for k := range lastIDs {
-				if _, ok := activeStreams[k]; !ok {
+				if _, ok := active[k]; !ok {
 					delete(lastIDs, k)
 				}
 			}
 
 			if len(streams) == 0 {
-				// No streams yet — wait and retry.
 				select {
 				case <-ctx.Done():
-					log.Println("redis worker shutting down")
 					return
 				case <-time.After(2 * time.Second):
 				}
 				continue
 			}
 
-			// Build XREAD args: keys then IDs.
 			keys := make([]string, 0, len(streams))
 			ids := make([]string, 0, len(streams))
 			for _, s := range streams {
 				keys = append(keys, s)
 				id, ok := lastIDs[s]
 				if !ok {
-					// Check Redis for a saved cursor from a previous run.
-					cursorKey := fmt.Sprintf("komputer-worker-last-read:%s", s)
-					saved, err := rdb.Get(ctx, cursorKey).Result()
-					if err == nil && saved != "" {
-						id = saved
-					} else {
-						id = "$" // No cursor — only read new messages
-					}
+					id = "$" // Only new messages — history is handled by the history worker.
 				}
 				ids = append(ids, id)
 			}
 
-			xreadArgs := &redis.XReadArgs{
+			results, err := rdb.XRead(ctx, &redis.XReadArgs{
 				Streams: append(keys, ids...),
 				Block:   5 * time.Second,
 				Count:   100,
-			}
-
-			results, err := rdb.XRead(ctx, xreadArgs).Result()
+			}).Result()
 			if err != nil {
 				if err == redis.Nil {
 					continue
 				}
 				if ctx.Err() != nil {
-					log.Println("redis worker shutting down")
 					return
 				}
-				log.Printf("redis worker xread error: %v", err)
 				select {
 				case <-ctx.Done():
-					log.Println("redis worker shutting down")
 					return
 				case <-time.After(1 * time.Second):
 				}
@@ -149,57 +256,117 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 
 					event, err := parseStreamMessage(msg)
 					if err != nil {
-						log.Printf("failed to parse stream message: %v", err)
 						continue
 					}
-
 					if event.AgentName == "" {
 						continue
 					}
 
-					// Re-serialize to JSON for WebSocket broadcast (payload as object, not string).
 					raw, err := json.Marshal(event)
 					if err != nil {
-						log.Printf("failed to marshal event for broadcast: %v", err)
 						continue
 					}
-					log.Printf("agent event: %s", raw)
 
 					hub.Broadcast(event.AgentName, raw)
-
-					// Append to persistent history list for GET /events.
-					historyKey := fmt.Sprintf("komputer-history:%s", event.AgentName)
-					if err := rdb.RPush(ctx, historyKey, raw).Err(); err != nil {
-						log.Printf("failed to append to history for %s: %v", event.AgentName, err)
-					}
-
-					taskStatus, lastMessage := mapEventToTaskStatus(event)
-					if taskStatus == "" {
-						continue
-					}
-
-					sessionID := ""
-					costUSD := 0.0
-					if event.Type == "task_completed" {
-						sessionID, _ = event.Payload["session_id"].(string)
-						costUSD, _ = event.Payload["cost_usd"].(float64)
-					}
-
-					if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD); err != nil {
-						log.Printf("failed to patch task status for %s: %v", event.AgentName, err)
-					}
-				}
-
-				// Save cursor so we resume from here on restart
-				cursorKey := fmt.Sprintf("komputer-worker-last-read:%s", stream.Stream)
-				if err := rdb.Set(ctx, cursorKey, lastIDs[stream.Stream], 0).Err(); err != nil {
-					log.Printf("failed to save cursor for %s: %v", stream.Stream, err)
 				}
 			}
 		}
 	}()
 
 	return w
+}
+
+const consumerGroup = "komputer-workers"
+
+// ensureConsumerGroup creates the consumer group if it doesn't exist.
+// Uses "0" as the start ID so the group reads from the beginning of the stream.
+func ensureConsumerGroup(ctx context.Context, rdb *redis.Client, stream string) error {
+	err := rdb.XGroupCreateMkStream(ctx, stream, consumerGroup, "0").Err()
+	if err != nil {
+		// "BUSYGROUP" means the group already exists — not an error.
+		if strings.Contains(err.Error(), "BUSYGROUP") {
+			return nil
+		}
+		return fmt.Errorf("xgroup create %s: %w", stream, err)
+	}
+	return nil
+}
+
+// claimPendingMessages reads this consumer's pending messages (delivered but not ACKed)
+// and processes+ACKs them for crash recovery.
+func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string, consumerName string, k8s *K8sClient) {
+	for {
+		results, err := rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    consumerGroup,
+			Consumer: consumerName,
+			Streams:  []string{stream, "0"},
+			Count:    100,
+		}).Result()
+		if err != nil {
+			if err != redis.Nil {
+				log.Printf("failed to read pending messages for %s: %v", stream, err)
+			}
+			return
+		}
+
+		for _, s := range results {
+			if len(s.Messages) == 0 {
+				return
+			}
+			for _, msg := range s.Messages {
+				event, err := parseStreamMessage(msg)
+				if err != nil {
+					rdb.XAck(ctx, stream, consumerGroup, msg.ID)
+					continue
+				}
+				if event.AgentName == "" {
+					rdb.XAck(ctx, stream, consumerGroup, msg.ID)
+					continue
+				}
+
+				raw, err := json.Marshal(event)
+				if err != nil {
+					rdb.XAck(ctx, stream, consumerGroup, msg.ID)
+					continue
+				}
+				log.Printf("recovered pending event: %s", raw)
+
+				historyKey := fmt.Sprintf("komputer-history:%s", event.AgentName)
+				rdb.RPush(ctx, historyKey, raw)
+
+				taskStatus, lastMessage := mapEventToTaskStatus(event)
+				if taskStatus != "" {
+					sessionID := ""
+					costUSD := 0.0
+					if event.Type == "task_completed" {
+						sessionID, _ = event.Payload["session_id"].(string)
+						costUSD, _ = event.Payload["cost_usd"].(float64)
+					}
+					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD)
+				}
+
+				rdb.XAck(ctx, stream, consumerGroup, msg.ID)
+			}
+		}
+	}
+}
+
+// scanKeys uses SCAN to discover keys matching a pattern.
+func scanKeys(ctx context.Context, rdb *redis.Client, pattern string) ([]string, error) {
+	var keys []string
+	var cursor uint64
+	for {
+		batch, next, err := rdb.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		keys = append(keys, batch...)
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return keys, nil
 }
 
 // scanStreams uses SCAN to discover all per-agent event streams.

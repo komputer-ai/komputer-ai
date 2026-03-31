@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/kit/card";
 import { listAgents, listOffices, listSchedules } from "@/lib/api";
 import { formatCost, formatRelativeTime } from "@/lib/utils";
 import type { AgentResponse, OfficeResponse, ScheduleResponse } from "@/lib/types";
+import { SuggestedTasks } from "@/components/dashboard/suggested-tasks";
 
 // --- Animated number ---
 
@@ -250,6 +251,9 @@ export default function DashboardPage() {
           />
         </div>
 
+        {/* Suggested Tasks (above when empty) */}
+        {!loading && agents.length === 0 && <SuggestedTasks />}
+
         {/* Recent Agents */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -288,7 +292,11 @@ export default function DashboardPage() {
                     transition={{ duration: 0.2, delay: 0.25 + i * 0.03 }}
                   >
                     <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block group">
-                      <div className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]">
+                      <div
+                        className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)]"
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 0 12px rgba(255,255,255,0.06), 0 0 24px rgba(255,255,255,0.03)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+                      >
                         <span className="absolute top-2.5 right-2.5 block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                         <div className="h-full flex flex-col p-3">
                           <span className="text-[13px] font-semibold text-[var(--color-text)] truncate pr-4">{agent.name}</span>
@@ -323,36 +331,36 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.3 }}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
           >
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
               Running Tasks
             </h3>
             {showLoading ? (
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-12 rounded-md bg-[var(--color-bg)] animate-pulse" />
+              <div className="space-y-1.5">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-10 rounded-md bg-[var(--color-bg)] animate-pulse" />
                 ))}
               </div>
             ) : runningTasks.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+              <p className="text-xs text-[var(--color-text-muted)] py-2 text-center">
                 No tasks running right now
               </p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-1.5 max-h-36 overflow-y-auto">
                 {runningTasks.map((agent) => (
                   <Link
                     key={agent.name}
                     href={`/agents/${agent.name}?namespace=${agent.namespace}`}
-                    className="flex items-start gap-3 rounded-md bg-[var(--color-bg)] p-3 transition-colors hover:bg-[var(--color-bg-subtle)] group"
+                    className="flex items-start gap-2.5 rounded-md bg-[var(--color-bg)] p-2 transition-colors hover:bg-[var(--color-bg-subtle)] group"
                   >
                     <span className="mt-1 size-2 shrink-0 rounded-full bg-[#34D399] animate-pulse" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text)] truncate group-hover:text-[var(--color-brand-blue-light)]">
+                      <p className="text-xs font-medium text-[var(--color-text)] truncate group-hover:text-[var(--color-brand-blue-light)]">
                         {agent.name}
                       </p>
                       {agent.lastTaskMessage && (
-                        <p className="text-xs text-[var(--color-text-secondary)] truncate mt-0.5">
+                        <p className="text-[11px] text-[var(--color-text-secondary)] truncate mt-0.5">
                           {agent.lastTaskMessage}
                         </p>
                       )}
@@ -371,23 +379,23 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.35 }}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+            className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
           >
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
               Top Cost Agents
             </h3>
             {showLoading ? (
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-10 rounded-md bg-[var(--color-bg)] animate-pulse" />
+              <div className="space-y-1.5">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-9 rounded-md bg-[var(--color-bg)] animate-pulse" />
                 ))}
               </div>
             ) : topCostAgents.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+              <p className="text-xs text-[var(--color-text-muted)] py-2 text-center">
                 No cost data yet
               </p>
             ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-36 overflow-y-auto">
                 {topCostAgents.map((agent, i) => {
                   const cost = parseFloat(agent.totalCostUSD ?? "0");
                   const maxCost = parseFloat(topCostAgents[0].totalCostUSD ?? "1");
@@ -397,21 +405,21 @@ export default function DashboardPage() {
                     <Link
                       key={agent.name}
                       href={`/agents/${agent.name}?namespace=${agent.namespace}`}
-                      className="flex items-center gap-3 rounded-md bg-[var(--color-bg)] p-2.5 transition-colors hover:bg-[var(--color-bg-subtle)] group"
+                      className="flex items-center gap-2.5 rounded-md bg-[var(--color-bg)] p-2 transition-colors hover:bg-[var(--color-bg-subtle)] group"
                     >
-                      <span className="text-xs font-mono text-[var(--color-text-muted)] w-4 text-right shrink-0">
+                      <span className="text-[11px] font-mono text-[var(--color-text-muted)] w-4 text-right shrink-0">
                         {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-[var(--color-text)] truncate group-hover:text-[var(--color-brand-blue-light)]">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-medium text-[var(--color-text)] truncate group-hover:text-[var(--color-brand-blue-light)]">
                             {agent.name}
                           </span>
-                          <span className="text-xs font-mono text-[var(--color-text)] shrink-0 ml-2">
+                          <span className="text-[11px] font-mono text-[var(--color-text)] shrink-0 ml-2">
                             {formatCost(agent.totalCostUSD)}
                           </span>
                         </div>
-                        <div className="h-1 rounded-full bg-[var(--color-border)] overflow-hidden">
+                        <div className="h-0.5 rounded-full bg-[var(--color-border)] overflow-hidden">
                           <motion.div
                             className="h-full rounded-full bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-violet)]"
                             initial={{ width: 0 }}
@@ -427,6 +435,9 @@ export default function DashboardPage() {
             )}
           </motion.div>
         </div>
+
+        {/* Suggested Tasks (bottom when agents exist) */}
+        {!loading && agents.length > 0 && <SuggestedTasks />}
       </motion.div>
     </div>
   );

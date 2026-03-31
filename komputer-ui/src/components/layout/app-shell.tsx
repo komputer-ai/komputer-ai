@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { HeaderAction } from "@/components/shared/header-action";
 import { CreateAgentModal } from "@/components/agents/create-agent-modal";
 import { CreateScheduleModal } from "@/components/schedules/create-schedule-modal";
+import {
+  CreateAgentModalContext,
+  type AgentTemplate,
+} from "@/lib/create-agent-modal-context";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -32,12 +36,23 @@ function getPageTitle(pathname: string): string {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [createScheduleOpen, setCreateScheduleOpen] = useState(false);
+  const [agentInitialValues, setAgentInitialValues] = useState<AgentTemplate | null>(null);
   const pathname = usePathname();
   const title = getPageTitle(pathname);
   const isSchedulesPage = pathname === "/schedules" || pathname.startsWith("/schedules/");
 
+  const openWithTemplate = useCallback((template: AgentTemplate) => {
+    setAgentInitialValues(template);
+    setCreateAgentOpen(true);
+  }, []);
+
+  const handleAgentOpenChange = (open: boolean) => {
+    setCreateAgentOpen(open);
+    if (!open) setAgentInitialValues(null);
+  };
+
   return (
-    <>
+    <CreateAgentModalContext.Provider value={{ openWithTemplate }}>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-12 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] shrink-0">
@@ -48,14 +63,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {isSchedulesPage ? (
               <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
             ) : (
-              <HeaderAction label="New Agent" onClick={() => setCreateAgentOpen(true)} />
+              <HeaderAction label="New Agent" onClick={() => { setAgentInitialValues(null); setCreateAgentOpen(true); }} />
             )}
           </div>
         </header>
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
-      <CreateAgentModal open={createAgentOpen} onOpenChange={setCreateAgentOpen} />
+      <CreateAgentModal open={createAgentOpen} onOpenChange={handleAgentOpenChange} initialValues={agentInitialValues} />
       <CreateScheduleModal open={createScheduleOpen} onOpenChange={setCreateScheduleOpen} />
-    </>
+    </CreateAgentModalContext.Provider>
   );
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -56,11 +57,20 @@ func main() {
 
 	hub := NewHub()
 
+	hostname := os.Getenv("CONSUMER_NAME")
+	if hostname == "" {
+		hostname, _ = os.Hostname()
+	}
+	if hostname == "" {
+		hostname = fmt.Sprintf("worker-%d", os.Getpid())
+	}
+
 	rw := StartRedisWorker(ctx, RedisWorkerConfig{
 		Address:      redisAddr,
 		Password:     redisPassword,
 		DB:           0,
 		StreamPrefix: redisStreamPrefix,
+		ConsumerName: hostname,
 	}, k8s, hub)
 	log.Println("redis worker started")
 

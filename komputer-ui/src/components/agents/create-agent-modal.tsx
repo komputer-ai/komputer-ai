@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -23,11 +23,13 @@ import {
 } from "@/components/kit/select";
 import { createAgent } from "@/lib/api";
 import type { CreateAgentRequest } from "@/lib/types";
+import type { AgentTemplate } from "@/lib/create-agent-modal-context";
 
 type CreateAgentModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => void;
+  initialValues?: AgentTemplate | null;
 };
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -44,13 +46,14 @@ const LIFECYCLES = [
   { value: "AutoDelete", label: "Auto Delete (one-shot)" },
 ];
 
-export function CreateAgentModal({ open, onOpenChange, onCreated }: CreateAgentModalProps) {
+export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues }: CreateAgentModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [namespace, setNamespace] = useState("default");
   const [instructions, setInstructions] = useState("");
   const [model, setModel] = useState("claude-sonnet-4-6");
   const [lifecycle, setLifecycle] = useState("default");
+  const [role, setRole] = useState<"manager" | "worker" | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,8 +63,20 @@ export function CreateAgentModal({ open, onOpenChange, onCreated }: CreateAgentM
     setInstructions("");
     setModel("claude-sonnet-4-6");
     setLifecycle("default");
+    setRole(undefined);
     setError(null);
   }
+
+  useEffect(() => {
+    if (open && initialValues) {
+      setName(initialValues.name);
+      setInstructions(initialValues.instructions);
+      setModel(initialValues.model);
+      setLifecycle(initialValues.lifecycle);
+      setRole(initialValues.role);
+      setError(null);
+    }
+  }, [open, initialValues]);
 
   function validate(): string | null {
     if (!name.trim()) return "Name is required.";
@@ -89,6 +104,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated }: CreateAgentM
         model,
         namespace: namespace.trim() || undefined,
         lifecycle: lifecycle === "default" ? "" : (lifecycle as "" | "Sleep" | "AutoDelete"),
+        role: role || undefined,
       };
       await createAgent(req);
       const agentName = name.trim();
@@ -116,7 +132,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated }: CreateAgentM
         if (!nextOpen) resetForm();
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create Agent</DialogTitle>
@@ -155,7 +171,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated }: CreateAgentM
                 placeholder="Describe what this agent should do..."
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                className="min-h-28"
+                style={{ minHeight: 200 }}
               />
             </div>
 

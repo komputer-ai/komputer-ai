@@ -11,6 +11,9 @@ import type {
 } from './types';
 import { getConfig } from './config';
 
+// Set to true to mock API responses with empty data (for UI development)
+const MOCK_EMPTY = false;
+
 function getBaseUrl() {
   return `${getConfig().apiUrl}/api/v1`;
 }
@@ -29,7 +32,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // Agents
 export const listAgents = (ns?: string) =>
-  request<AgentListResponse>(`/agents${ns ? `?namespace=${ns}` : ''}`);
+  MOCK_EMPTY
+    ? Promise.resolve({ agents: [] } as AgentListResponse)
+    : request<AgentListResponse>(`/agents${ns ? `?namespace=${ns}` : ''}`);
 
 export const getAgent = (name: string, ns?: string) =>
   request<AgentResponse>(`/agents/${name}${ns ? `?namespace=${ns}` : ''}`);
@@ -48,7 +53,9 @@ export const getAgentEvents = (name: string, limit = 50, ns?: string) =>
 
 // Offices
 export const listOffices = (ns?: string) =>
-  request<OfficeListResponse>(`/offices${ns ? `?namespace=${ns}` : ''}`);
+  MOCK_EMPTY
+    ? Promise.resolve({ offices: [] } as OfficeListResponse)
+    : request<OfficeListResponse>(`/offices${ns ? `?namespace=${ns}` : ''}`);
 
 export const getOffice = (name: string, ns?: string) =>
   request<OfficeResponse>(`/offices/${name}${ns ? `?namespace=${ns}` : ''}`);
@@ -61,7 +68,9 @@ export const getOfficeEvents = (name: string, limit = 50, ns?: string) =>
 
 // Schedules
 export const listSchedules = (ns?: string) =>
-  request<ScheduleListResponse>(`/schedules${ns ? `?namespace=${ns}` : ''}`);
+  MOCK_EMPTY
+    ? Promise.resolve({ schedules: [] } as ScheduleListResponse)
+    : request<ScheduleListResponse>(`/schedules${ns ? `?namespace=${ns}` : ''}`);
 
 export const getSchedule = (name: string, ns?: string) =>
   request<ScheduleResponse>(`/schedules/${name}${ns ? `?namespace=${ns}` : ''}`);
@@ -74,6 +83,7 @@ export const deleteSchedule = (name: string, ns?: string) =>
 
 // Health
 export const checkHealth = async () => {
+  if (MOCK_EMPTY) return true;
   const res = await fetch(`${getConfig().apiUrl}/healthz`);
   return res.ok;
 };

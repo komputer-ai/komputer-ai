@@ -57,7 +57,7 @@ export default function AgentDetailPage() {
         seen.add(key);
         return true;
       })
-      .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }, [historyEvents, wsEvents]);
 
   // Fetch agent info with polling
@@ -262,7 +262,7 @@ export default function AgentDetailPage() {
             agentStatus={agent.status}
             events={events}
             taskStatus={agent.taskStatus}
-            initialPending={initialPending}
+            initialPending={agent.taskStatus === "InProgress" ? initialPending : undefined}
           />
         </TabsContent>
 

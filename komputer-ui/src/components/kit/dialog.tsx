@@ -47,7 +47,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
           />
           {/* Panel */}
           <motion.div
-            className="relative z-10 w-full max-w-md mx-4"
+            className="relative z-10 w-full max-w-2xl mx-4"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -73,7 +73,7 @@ export function DialogContent({
         "rounded-[var(--radius-xl)] bg-[var(--color-surface)]",
         "border border-[var(--color-border)]",
         "shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_var(--color-border-light)]",
-        "p-5 text-[var(--color-text)]",
+        "p-6 text-[var(--color-text)]",
         className,
       )}
       {...props}
