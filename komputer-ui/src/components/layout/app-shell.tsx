@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { HeaderAction } from "@/components/shared/header-action";
@@ -40,6 +40,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
   const isSchedulesPage = pathname === "/schedules" || pathname.startsWith("/schedules/");
+
+  useEffect(() => {
+    document.title = title ? `${title} · Komputer.AI` : "Komputer.AI";
+  }, [title]);
 
   const openWithTemplate = useCallback((template: AgentTemplate) => {
     setAgentInitialValues(template);
