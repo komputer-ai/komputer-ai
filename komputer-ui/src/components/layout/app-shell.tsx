@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { HeaderAction } from "@/components/shared/header-action";
 import { CreateAgentModal } from "@/components/agents/create-agent-modal";
@@ -41,6 +43,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const title = getPageTitle(pathname);
   const isSchedulesPage = pathname === "/schedules" || pathname.startsWith("/schedules/");
 
+  const backLink = useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+    const parentPath = `/${segments[0]}`;
+    const parentTitle = pageTitles[parentPath];
+    if (!parentTitle) return null;
+    return { href: parentPath, label: parentTitle };
+  }, [pathname]);
+
   useEffect(() => {
     document.title = title ? `${title} · Komputer.AI` : "Komputer.AI";
   }, [title]);
@@ -60,9 +71,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-12 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] shrink-0">
-          <h1 className="text-[15px] font-semibold text-[var(--color-text)]">
-            {title}
-          </h1>
+          <div className="flex items-center gap-2">
+            {backLink && (
+              <>
+                <Link
+                  href={backLink.href}
+                  className="flex items-center gap-0.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  {backLink.label}
+                </Link>
+                <span className="text-[var(--color-text-muted)] text-xs">/</span>
+              </>
+            )}
+            <h1 className="text-[15px] font-semibold text-[var(--color-text)]">
+              {title}
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             {isSchedulesPage ? (
               <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
