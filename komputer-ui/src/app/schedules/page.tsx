@@ -8,11 +8,13 @@ import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
 import { useSchedules } from "@/hooks/use-schedules";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import { deleteSchedule } from "@/lib/api";
 
 export default function SchedulesPage() {
   const { schedules, loading, error, refresh } = useSchedules();
   const showLoading = useDelayedLoading(loading);
+  usePageRefresh(refresh);
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
 

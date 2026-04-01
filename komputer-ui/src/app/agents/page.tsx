@@ -10,6 +10,7 @@ import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
 import { useAgents } from "@/hooks/use-agents";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import { deleteAgent } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 export default function AgentsPage() {
   const { agents, loading, error, refresh } = useAgents();
   const showLoading = useDelayedLoading(loading);
+  usePageRefresh(refresh);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");

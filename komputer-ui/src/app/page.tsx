@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import {
   Bot,
   DollarSign,
@@ -137,6 +138,8 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  usePageRefresh(fetchData);
 
   // --- Computed stats ---
 

@@ -22,17 +22,17 @@ const phaseConfig: Record<string, { color: string; label: string }> = {
 export function OfficeCards({ offices, onDelete }: OfficeCardsProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
-      <AnimatePresence initial={false}>
+      <AnimatePresence>
         {offices.map((office, i) => {
           const phase = phaseConfig[office.phase] ?? { color: "#8899A6", label: office.phase };
 
           return (
             <motion.div
               key={office.name}
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ duration: 0.2, delay: i * 0.03 }}
+              transition={{ duration: 0.25, delay: i * 0.04 }}
             >
               <Link href={`/offices/${office.name}`} className="block group">
                 <div className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]">

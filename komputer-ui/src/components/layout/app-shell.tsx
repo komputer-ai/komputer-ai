@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, createContext, useContext, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, RefreshCw } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { HeaderAction } from "@/components/shared/header-action";
 import { CreateAgentModal } from "@/components/agents/create-agent-modal";
@@ -12,6 +12,23 @@ import {
   CreateAgentModalContext,
   type AgentTemplate,
 } from "@/lib/create-agent-modal-context";
+
+// --- Refresh context ---
+type RefreshContextValue = {
+  register: (fn: () => void) => void;
+  unregister: () => void;
+};
+const RefreshContext = createContext<RefreshContextValue | null>(null);
+
+export function usePageRefresh(refreshFn: () => void) {
+  const ctx = useContext(RefreshContext);
+  const fnRef = useRef(refreshFn);
+  fnRef.current = refreshFn;
+  useEffect(() => {
+    ctx?.register(() => fnRef.current());
+    return () => ctx?.unregister();
+  }, [ctx]);
+}
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -56,6 +73,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     document.title = title ? `${title} · Komputer.AI` : "Komputer.AI";
   }, [title]);
 
+  const [refreshFn, setRefreshFn] = useState<(() => void) | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshCtx = useMemo<RefreshContextValue>(() => ({
+    register: (fn) => setRefreshFn(() => fn),
+    unregister: () => setRefreshFn(null),
+  }), []);
+
+  const handleRefresh = useCallback(() => {
+    if (!refreshFn) return;
+    setRefreshing(true);
+    refreshFn();
+    setTimeout(() => setRefreshing(false), 600);
+  }, [refreshFn]);
+
   const openWithTemplate = useCallback((template: AgentTemplate) => {
     setAgentInitialValues(template);
     setCreateAgentOpen(true);
@@ -89,6 +120,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {refreshFn && (
+              <button
+                onClick={handleRefresh}
+                className="flex size-7 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-brand-blue-light)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                title="Refresh"
+              >
+                <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+            )}
             {isSchedulesPage ? (
               <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
             ) : (
@@ -96,7 +136,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-clip">
+          <RefreshContext.Provider value={refreshCtx}>
+            {children}
+          </RefreshContext.Provider>
+        </main>
       </div>
       <CreateAgentModal open={createAgentOpen} onOpenChange={handleAgentOpenChange} initialValues={agentInitialValues} />
       <CreateScheduleModal open={createScheduleOpen} onOpenChange={setCreateScheduleOpen} />

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { useAgents } from "@/hooks/use-agents";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import { formatCost } from "@/lib/utils";
 import type { AgentResponse } from "@/lib/types";
 
@@ -24,8 +25,9 @@ function parseCost(cost?: string): number {
 }
 
 export default function CostsPage() {
-  const { agents, loading, error } = useAgents();
+  const { agents, loading, error, refresh } = useAgents();
   const showLoading = useDelayedLoading(loading);
+  usePageRefresh(refresh);
   const [sortField, setSortField] = useState<SortField>("totalCostUSD");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -231,12 +233,12 @@ export default function CostsPage() {
             )}
 
             {/* Note banner */}
-            <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            {/* <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
               <Info className="mt-0.5 size-4 shrink-0 text-[var(--color-text-secondary)]" />
               <p className="text-xs text-[var(--color-text-secondary)]">
                 Cost history over time is not yet available. Showing current snapshot.
               </p>
-            </div>
+            </div> */}
           </>
         )}
       </motion.div>

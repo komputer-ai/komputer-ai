@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
 
 import { listAgents, listOffices, getOffice, listSchedules } from "@/lib/api";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import type {
   AgentResponse,
   OfficeResponse,
@@ -467,6 +468,8 @@ export function TopologyGraph() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  usePageRefresh(fetchData);
 
   // Derive unique namespaces and office names for filter options
   const namespaces = useMemo(() => {

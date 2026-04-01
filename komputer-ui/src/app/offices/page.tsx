@@ -8,11 +8,13 @@ import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
 import { useOffices } from "@/hooks/use-offices";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { usePageRefresh } from "@/components/layout/app-shell";
 import { deleteOffice } from "@/lib/api";
 
 export default function OfficesPage() {
   const { offices, loading, error, refresh } = useOffices();
   const showLoading = useDelayedLoading(loading);
+  usePageRefresh(refresh);
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
 
