@@ -246,17 +246,18 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		// System prompt and user instructions are sent separately to the agent.
 		// The agent passes system_prompt to the Claude SDK's system_prompt field
 		// (not as part of conversation history — replaced on each task, never accumulates).
-		// Resolve memory content for injection into system prompt.
-		memorySection, _ := k8s.ResolveMemoryContent(c.Request.Context(), ns, req.Memories)
-
-		agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s\n\n## Your Task\n", req.Name)
-		var systemPrompt string
-		if role == "manager" {
-			systemPrompt = managerSystemPrompt + memorySection + agentHeader
-		} else {
-			systemPrompt = workerSystemPrompt + memorySection + agentHeader
-		}
 		instructions := req.Instructions
+
+		// Build system prompt — memory resolution happens after we know if agent exists
+		// (existing agents use CR memories, new agents use request memories)
+		buildSystemPrompt := func(memories []string) string {
+			memorySection, _ := k8s.ResolveMemoryContent(c.Request.Context(), ns, memories)
+			agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s\n\n## Your Task\n", req.Name)
+			if role == "manager" {
+				return managerSystemPrompt + memorySection + agentHeader
+			}
+			return workerSystemPrompt + memorySection + agentHeader
+		}
 
 		existing, err := k8s.GetAgent(c.Request.Context(), ns, req.Name)
 		if err != nil && !errors.IsNotFound(err) {
@@ -267,7 +268,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		if existing != nil {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
-				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, systemPrompt+"\n\n"+instructions, req.Model, req.Lifecycle); err != nil {
+				// Use CR memories (may have been updated via PATCH since creation)
+			wakeMemories := existing.Spec.Memories
+			if len(req.Memories) > 0 {
+				wakeMemories = req.Memories
+			}
+			if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(wakeMemories)+"\n\n"+instructions, req.Model, req.Lifecycle); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
 				}
@@ -304,7 +310,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 
-			if err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, systemPrompt); err != nil {
+			// Use CR memories for existing agents (may have been updated via PATCH)
+			forwardMemories := existing.Spec.Memories
+			if len(req.Memories) > 0 {
+				forwardMemories = req.Memories
+			}
+			if err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, buildSystemPrompt(forwardMemories)); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
 			}
@@ -350,7 +361,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			secretNames = []string{secretName}
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, systemPrompt+"\n\n"+instructions, req.Model, req.TemplateRef, role, secretNames, req.Memories, req.Lifecycle, req.OfficeManager)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, secretNames, req.Memories, req.Lifecycle, req.OfficeManager)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
