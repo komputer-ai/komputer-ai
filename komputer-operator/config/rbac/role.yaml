@@ -32,6 +32,7 @@ rules:
   - komputeragentclustertemplates
   - komputeragenttemplates
   - komputerconfigs
+  - komputermemories
   verbs:
   - get
   - list
@@ -62,6 +63,7 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputeragents/status
+  - komputermemories/status
   - komputeroffices/status
   - komputerschedules/status
   verbs:
