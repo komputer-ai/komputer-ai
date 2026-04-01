@@ -3,8 +3,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
-import { Plus } from "lucide-react";
-import { Button } from "@/components/kit/button";
 import { SkillCards } from "@/components/skills/skill-cards";
 import { CreateSkillModal } from "@/components/skills/create-skill-modal";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -51,22 +49,14 @@ export default function SkillsPage() {
         transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
         className="flex-1 overflow-y-auto p-6"
       >
-        <div className="flex items-center justify-between mb-4">
-          <ListFilterBar
-            search={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search skills..."
-            namespace={namespace}
-            onNamespaceChange={setNamespace}
-            namespaces={namespaces}
-          />
-          <div className="flex items-center gap-2 shrink-0 ml-4">
-            <Button size="sm" onClick={() => setCreateOpen(true)} className="flex items-center gap-1.5">
-              <Plus className="size-3 shrink-0" />
-              <span>Create</span>
-            </Button>
-          </div>
-        </div>
+        <ListFilterBar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search skills..."
+          namespace={namespace}
+          onNamespaceChange={setNamespace}
+          namespaces={namespaces}
+        />
 
         {showLoading ? (
           <SkeletonTable />

@@ -27,6 +27,7 @@ type CreateSkillModalProps = {
 export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [namespace, setNamespace] = useState("default");
   const [content, setContent] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +35,7 @@ export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillM
 
   function resetForm() {
     setName("");
+    setNamespace("default");
     setContent("");
     setDescription("");
     setError(null);
@@ -63,6 +65,7 @@ export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillM
         name: name.trim(),
         description: description.trim(),
         content: content.trim(),
+        namespace: namespace.trim() || undefined,
       });
       const skillName = name.trim();
       resetForm();
@@ -101,6 +104,17 @@ export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillM
                 placeholder="python-expert"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="skill-namespace">Namespace</Label>
+              <Input
+                id="skill-namespace"
+                placeholder="default"
+                value={namespace}
+                onChange={(e) => setNamespace(e.target.value)}
                 autoComplete="off"
               />
             </div>

@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, createContext, useContext, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, createContext, useContext } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, RefreshCw } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, ChevronLeft, FolderOpen, RefreshCw, Upload } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { HeaderAction } from "@/components/shared/header-action";
 import { CreateAgentModal } from "@/components/agents/create-agent-modal";
 import { CreateScheduleModal } from "@/components/schedules/create-schedule-modal";
+import { CreateMemoryModal } from "@/components/memories/create-memory-modal";
+import { CreateSkillModal } from "@/components/skills/create-skill-modal";
+import { createMemory, createSkill } from "@/lib/api";
 import {
   CreateAgentModalContext,
   type AgentTemplate,
@@ -50,17 +54,44 @@ function getPageTitle(pathname: string): string {
     if (segments[0] === "agents") return name;
     if (segments[0] === "offices") return name;
     if (segments[0] === "schedules") return name;
+    if (segments[0] === "memories") return name;
+    if (segments[0] === "skills") return name;
   }
   return "";
+}
+
+type DirectoryInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  webkitdirectory?: string;
+};
+
+function isSupportedUpload(file: File) {
+  return file.name.endsWith(".md") || file.name.endsWith(".txt");
+}
+
+function getUploadName(file: File) {
+  const sourcePath =
+    "webkitRelativePath" in file && file.webkitRelativePath
+      ? file.webkitRelativePath
+      : file.name;
+  return sourcePath
+    .replace(/\.(md|txt)$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [createScheduleOpen, setCreateScheduleOpen] = useState(false);
+  const [createMemoryOpen, setCreateMemoryOpen] = useState(false);
+  const [createSkillOpen, setCreateSkillOpen] = useState(false);
   const [agentInitialValues, setAgentInitialValues] = useState<AgentTemplate | null>(null);
   const pathname = usePathname();
   const title = getPageTitle(pathname);
+
   const isSchedulesPage = pathname === "/schedules" || pathname.startsWith("/schedules/");
+  const isMemoriesPage = pathname === "/memories" || pathname.startsWith("/memories/");
+  const isSkillsPage = pathname === "/skills" || pathname.startsWith("/skills/");
 
   const backLink = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
@@ -99,6 +130,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!open) setAgentInitialValues(null);
   };
 
+  // --- Upload support for memories/skills ---
+  const [uploading, setUploading] = useState(false);
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!uploadMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (!uploadMenuRef.current?.contains(e.target as Node)) setUploadMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [uploadMenuOpen]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadMenuOpen(false);
+    setUploading(true);
+    const createFn = isSkillsPage ? createSkill : createMemory;
+    try {
+      for (const file of Array.from(files)) {
+        if (!isSupportedUpload(file)) continue;
+        const content = await file.text();
+        const name = getUploadName(file);
+        if (!name) continue;
+        const description =
+          "webkitRelativePath" in file && file.webkitRelativePath
+            ? file.webkitRelativePath
+            : file.name;
+        await createFn({ name, content, description } as any);
+      }
+      refreshFn?.();
+    } catch {}
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (folderInputRef.current) folderInputRef.current.value = "";
+  };
+
+  const showUpload = isMemoriesPage || isSkillsPage;
+
   return (
     <CreateAgentModalContext.Provider value={{ openWithTemplate }}>
       <Sidebar />
@@ -122,6 +196,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Upload button for memories/skills */}
+            {showUpload && (
+              <>
+                <input ref={fileInputRef} type="file" accept=".md,.txt" multiple className="hidden" onChange={handleUpload} />
+                <input {...({ webkitdirectory: "" } as DirectoryInputProps)} ref={folderInputRef} type="file" accept=".md,.txt" multiple className="hidden" onChange={handleUpload} />
+                <div ref={uploadMenuRef} className="relative">
+                  <button
+                    onClick={() => setUploadMenuOpen((o) => !o)}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload className="size-3" />
+                    <span>{uploading ? "Uploading..." : "Upload"}</span>
+                    {!uploading && <ChevronDown className="size-3" />}
+                  </button>
+                  <AnimatePresence>
+                    {uploadMenuOpen && !uploading && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] shadow-lg"
+                      >
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]">
+                          <Upload className="size-3" /> Upload files
+                        </button>
+                        <button type="button" onClick={() => folderInputRef.current?.click()} className="flex w-full cursor-pointer items-center gap-2 border-t border-[var(--color-border)] px-3 py-2 text-left text-xs text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]">
+                          <FolderOpen className="size-3" /> Upload folder
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
+
+            {/* Page-specific create button */}
+            {isSchedulesPage ? (
+              <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
+            ) : isMemoriesPage ? (
+              <HeaderAction label="New Memory" onClick={() => setCreateMemoryOpen(true)} />
+            ) : isSkillsPage ? (
+              <HeaderAction label="New Skill" onClick={() => setCreateSkillOpen(true)} />
+            ) : (
+              <HeaderAction label="New Agent" onClick={() => { setAgentInitialValues(null); setCreateAgentOpen(true); }} />
+            )}
+
+            {/* Refresh — always rightmost */}
             {refreshFn && (
               <button
                 onClick={handleRefresh}
@@ -130,11 +253,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </button>
-            )}
-            {isSchedulesPage ? (
-              <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
-            ) : (
-              <HeaderAction label="New Agent" onClick={() => { setAgentInitialValues(null); setCreateAgentOpen(true); }} />
             )}
           </div>
         </header>
@@ -146,6 +264,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <CreateAgentModal open={createAgentOpen} onOpenChange={handleAgentOpenChange} initialValues={agentInitialValues} />
       <CreateScheduleModal open={createScheduleOpen} onOpenChange={setCreateScheduleOpen} />
+      <CreateMemoryModal open={createMemoryOpen} onOpenChange={setCreateMemoryOpen} onCreated={() => refreshFn?.()} />
+      <CreateSkillModal open={createSkillOpen} onOpenChange={setCreateSkillOpen} onCreated={() => refreshFn?.()} />
     </CreateAgentModalContext.Provider>
   );
 }

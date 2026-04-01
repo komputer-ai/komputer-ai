@@ -27,6 +27,7 @@ type CreateMemoryModalProps = {
 export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemoryModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [namespace, setNamespace] = useState("default");
   const [content, setContent] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +35,7 @@ export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemor
 
   function resetForm() {
     setName("");
+    setNamespace("default");
     setContent("");
     setDescription("");
     setError(null);
@@ -62,6 +64,7 @@ export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemor
         name: name.trim(),
         content: content.trim(),
         description: description.trim() || undefined,
+        namespace: namespace.trim() || undefined,
       });
       const memoryName = name.trim();
       resetForm();
@@ -100,6 +103,17 @@ export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemor
                 placeholder="k8s-debugging-guide"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="memory-namespace">Namespace</Label>
+              <Input
+                id="memory-namespace"
+                placeholder="default"
+                value={namespace}
+                onChange={(e) => setNamespace(e.target.value)}
                 autoComplete="off"
               />
             </div>
