@@ -44,7 +44,7 @@
 | [komputer-api](komputer-api/) | Go | REST + WebSocket API for creating agents, listing status, and streaming real-time events |
 | [komputer-agent](komputer-agent/) | Python | The agent runtime — runs Claude with bash/web tools in a persistent workspace |
 | [komputer-cli](komputer-cli/) | Go | Beautiful CLI for interacting with the platform |
-| [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing and interacting with agents, offices, schedules, and costs |
+| [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing agents, offices, schedules, memories, and costs |
 
 
 ## Documentation

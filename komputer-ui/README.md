@@ -1,6 +1,6 @@
 # komputer-ui
 
-Web dashboard for the komputer.ai platform. Provides a visual interface for monitoring and managing agents, offices, schedules, and costs.
+Web dashboard for the komputer.ai platform. Provides a visual interface for monitoring and managing agents, offices, schedules, memories, and costs.
 
 Built with [Next.js](https://nextjs.org/) 16, [React](https://react.dev/) 19, [Tailwind CSS](https://tailwindcss.com/) 4, and [Framer Motion](https://motion.dev/).
 
@@ -11,6 +11,8 @@ Built with [Next.js](https://nextjs.org/) 16, [React](https://react.dev/) 19, [T
 | Dashboard | `/` | Overview with stats (active agents, total cost, offices, schedules) and recent agents |
 | Agents | `/agents` | List all agents with status, cost, model, and lifecycle |
 | Agent Detail | `/agents/:name` | Agent details, live event stream, and actions (cancel, delete) |
+| Memories | `/memories` | List reusable memories, create new ones, and upload `.md` or `.txt` files or folders |
+| Memory Detail | `/memories/:name` | Edit memory content and description, inspect namespace and attached agents |
 | Offices | `/offices` | List offices with member counts, active agents, and total cost |
 | Office Detail | `/offices/:name` | Office members, per-agent status, and event history |
 | Schedules | `/schedules` | List schedules with cron expression, run count, and cost |
@@ -22,6 +24,7 @@ Built with [Next.js](https://nextjs.org/) 16, [React](https://react.dev/) 19, [T
 
 - **See every agent at a glance** — Dashboard shows active agents, total cost, offices, and schedules with live status updates
 - **Create and manage agents from the browser** — Spin up new agents, send tasks, cancel runs, and delete resources without touching the CLI
+- **Reusable memory management** — Create, edit, and delete memories, then bulk-import markdown or text files from a file picker or folder picker
 - **Watch agents work in real-time** — Live event stream on agent detail pages shows thinking, tool calls, and results as they happen
 - **Topology view** — Interactive graph visualizing manager-worker relationships across your offices
 - **Cost visibility** — Track spend per agent, per office, and across the entire platform
@@ -80,6 +83,7 @@ komputer-ui/
 │   ├── app/                  # Next.js app router pages
 │   │   ├── page.tsx          # Dashboard
 │   │   ├── agents/           # Agent list + detail pages
+│   │   ├── memories/         # Memory list + detail pages
 │   │   ├── offices/          # Office list + detail pages
 │   │   ├── schedules/        # Schedule list + detail pages
 │   │   ├── topology/         # Visual agent graph
@@ -95,7 +99,7 @@ komputer-ui/
 │   │   └── costs/            # Cost chart components
 │   ├── hooks/                # Custom React hooks
 │   └── lib/
-│       ├── api.ts            # API client (agents, offices, schedules, health)
+│       ├── api.ts            # API client (agents, memories, offices, schedules, health)
 │       ├── config.ts         # Runtime config loader
 │       ├── types.ts          # TypeScript types
 │       └── utils.ts          # Formatting helpers
