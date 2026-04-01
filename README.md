@@ -26,6 +26,14 @@
   <img src="docs/demo.gif" alt="komputer.ai CLI demo" width="800" />
 </p>
 
+<p align="center">
+  <img src="docs/assets/agent-page.png" alt="komputer.ai agent dashboard" width="800" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/dashboard-page.png" alt="komputer.ai dashboard" width="800" />
+</p>
+
 ---
 
 ## Components
