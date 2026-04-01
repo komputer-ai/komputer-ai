@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
-import { Plus, Trash2, ChevronRight } from "lucide-react";
-import { createAgent, listTemplates } from "@/lib/api";
+import { Plus, Trash2, ChevronRight, Check } from "lucide-react";
+import { createAgent, listAgents, listTemplates } from "@/lib/api";
 import type { CreateAgentRequest, TemplateResponse } from "@/lib/types";
 import type { AgentTemplate } from "@/lib/create-agent-modal-context";
 
@@ -54,6 +54,12 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [knownNamespaces, setKnownNamespaces] = useState<string[]>(["default"]);
+  const [addingNamespace, setAddingNamespace] = useState(false);
+  const [newNamespace, setNewNamespace] = useState("");
+  const [nsDropdownOpen, setNsDropdownOpen] = useState(false);
+  const nsDropdownRef = useRef<HTMLDivElement>(null);
+  const nsInputRef = useRef<HTMLInputElement>(null);
 
   function resetForm() {
     setName("");
@@ -66,7 +72,22 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setSecrets([]);
     setAdvancedOpen(false);
     setError(null);
+    setAddingNamespace(false);
+    setNewNamespace("");
+    setNsDropdownOpen(false);
   }
+
+  // Fetch existing namespaces from deployed agents when modal opens
+  useEffect(() => {
+    if (!open) return;
+    listAgents()
+      .then((res) => {
+        const nsList = [...new Set((res.agents ?? []).map((a) => a.namespace))].sort();
+        if (!nsList.includes("default")) nsList.unshift("default");
+        setKnownNamespaces(nsList);
+      })
+      .catch(() => setKnownNamespaces(["default"]));
+  }, [open]);
 
   // Fetch templates when modal opens or namespace changes
   useEffect(() => {
@@ -75,6 +96,27 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
       .then((res) => setTemplates(res.templates ?? []))
       .catch(() => setTemplates([]));
   }, [open, namespace]);
+
+  // Close namespace dropdown on click outside
+  useEffect(() => {
+    if (!nsDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (nsDropdownRef.current && !nsDropdownRef.current.contains(e.target as Node)) {
+        setNsDropdownOpen(false);
+        setAddingNamespace(false);
+        setNewNamespace("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [nsDropdownOpen]);
+
+  // Focus input when adding new namespace
+  useEffect(() => {
+    if (addingNamespace && nsInputRef.current) {
+      nsInputRef.current.focus();
+    }
+  }, [addingNamespace]);
 
   useEffect(() => {
     if (open && initialValues) {
@@ -197,14 +239,91 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="agent-namespace">Namespace</Label>
-              <Input
-                id="agent-namespace"
-                placeholder="default"
-                value={namespace}
-                onChange={(e) => setNamespace(e.target.value)}
-                autoComplete="off"
-              />
+              <Label>Namespace</Label>
+              <div className="relative" ref={nsDropdownRef}>
+                <button
+                  type="button"
+                  className="flex items-center justify-between w-full h-8 px-3 rounded-[var(--radius-sm)] text-[13px] font-[family-name:var(--font-mono)] bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 cursor-pointer hover:border-[var(--color-border-hover)] focus:outline-none focus:border-[var(--color-brand-blue)]/60 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_2px_var(--color-brand-blue-glow)]"
+                  onClick={() => setNsDropdownOpen(!nsDropdownOpen)}
+                >
+                  <span className="truncate">{namespace || "default"}</span>
+                  <ChevronRight className={`h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 ${nsDropdownOpen ? "rotate-90" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {nsDropdownOpen && (
+                    <motion.div
+                      className="absolute z-50 w-full mt-1 py-1 rounded-[var(--radius-md)] bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] overflow-y-auto max-h-60"
+                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                    >
+                      {knownNamespaces.map((ns) => (
+                        <div
+                          key={ns}
+                          className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${namespace === ns ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+                          onClick={() => {
+                            setNamespace(ns);
+                            setNsDropdownOpen(false);
+                            setAddingNamespace(false);
+                            setNewNamespace("");
+                          }}
+                        >
+                          <span className="truncate">{ns}</span>
+                          {namespace === ns && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
+                        </div>
+                      ))}
+
+                      <div className="border-t border-[var(--color-border)] mt-1 pt-1">
+                        {addingNamespace ? (
+                          <form
+                            className="flex items-center gap-2 px-3 py-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const trimmed = newNamespace.trim();
+                              if (trimmed) {
+                                if (!knownNamespaces.includes(trimmed)) {
+                                  setKnownNamespaces((prev) => [...prev, trimmed].sort());
+                                }
+                                setNamespace(trimmed);
+                              }
+                              setAddingNamespace(false);
+                              setNewNamespace("");
+                              setNsDropdownOpen(false);
+                            }}
+                          >
+                            <Input
+                              ref={nsInputRef}
+                              placeholder="namespace-name"
+                              value={newNamespace}
+                              onChange={(e) => setNewNamespace(e.target.value)}
+                              autoComplete="off"
+                              className="flex-1 h-7 text-xs"
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") {
+                                  setAddingNamespace(false);
+                                  setNewNamespace("");
+                                }
+                              }}
+                            />
+                            <Button type="submit" size="sm" variant="secondary" className="h-7 text-xs px-2">
+                              Add
+                            </Button>
+                          </form>
+                        ) : (
+                          <div
+                            className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
+                            onClick={() => setAddingNamespace(true)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Add namespace</span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">

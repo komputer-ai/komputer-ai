@@ -50,7 +50,18 @@ When adding a new field to `KomputerAgentSpec` or `KomputerAgentStatus`, it must
 
 Do not merge a new field unless all layers are updated. A missing layer means clients can't see or set the field.
 
-## 6. Helm RBAC Must Match K8s API Usage
+## 6. Full-Stack Feature Consistency
+
+When adding a new capability (e.g. a new API endpoint, agent action, or operator behavior), ensure it is exposed across all relevant surfaces:
+
+- **API** — endpoint + request/response structs
+- **CLI** — command or flag
+- **UI** — page, button, or display element
+- **Operator** — reconciliation logic if it affects CR lifecycle
+
+Not every feature needs all four — use judgment — but the default is to expose everywhere unless there's a reason not to.
+
+## 7. Helm RBAC Must Match K8s API Usage
 
 When adding a new Kubernetes API call in `komputer-api` or `komputer-operator` (e.g. creating a new resource type, reading a new API group), update the matching RBAC template in Helm:
 
@@ -60,14 +71,14 @@ When adding a new Kubernetes API call in `komputer-api` or `komputer-operator` (
 
 Add the resource, API group, and verbs needed. Without this, the component will get `403 Forbidden` at runtime.
 
-## 7. Tags Must Include Release Notes
+## 8. Tags Must Include Release Notes
 
 When creating a git tag, always create a GitHub release with release notes. Summarize changes since the last tag using the commit history, grouped by category (features, fixes, docs, etc.). Use `gh release create` with a descriptive body.
 
-## 8. Minimal Prompt Changes
+## 9. Minimal Prompt Changes
 
 When modifying agent system prompts (`komputer-api/prompt.go`, `komputer-agent/prompts.py`), keep additions as short as possible — a sentence or two, not whole sections. Prompts accumulate fast and directly impact token cost and context limits. Before adding, check if an existing line can be tweaked instead.
 
-## 9. Surgical Changes, Cloud-Native Mindset
+## 10. Surgical Changes, Cloud-Native Mindset
 
 When implementing a feature or fix, make the smallest clean change that solves the problem. Do not bundle refactors, renames, or "improvements" unless the problem specifically requires them. Default to cloud-native patterns (CRDs, controllers, reconciliation loops, declarative config) — avoid inventing custom state machines or orchestration when Kubernetes primitives already handle it.

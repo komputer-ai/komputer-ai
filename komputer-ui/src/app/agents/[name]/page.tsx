@@ -18,6 +18,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent } from "@/lib/api";
+import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
 import { Input } from "@/components/kit/input";
 import { Textarea } from "@/components/kit/textarea";
@@ -296,11 +297,12 @@ export default function AgentDetailPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 overflow-hidden">
+        <TabsContent value="chat" className="flex-1 overflow-hidden flex">
           <AgentChat
             agentName={agent.name}
             agentNamespace={agentNs}
             agentStatus={agent.status}
+            agentLifecycle={agent.lifecycle}
             events={events}
             taskStatus={agent.taskStatus}
             initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
@@ -308,6 +310,7 @@ export default function AgentDetailPage() {
             loadingOlder={loadingOlder}
             onLoadOlder={loadOlderEvents}
           />
+          <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
         </TabsContent>
 
         <TabsContent value="info" className="flex-1 overflow-y-auto p-6">

@@ -28,6 +28,7 @@ type AgentChatProps = {
   agentName: string;
   agentNamespace?: string;
   agentStatus: string;
+  agentLifecycle?: string;
   events: AgentEvent[];
   taskStatus?: string;
   initialPending?: string;
@@ -448,6 +449,7 @@ export function AgentChat({
   agentName,
   agentNamespace,
   agentStatus,
+  agentLifecycle,
   events,
   taskStatus,
   initialPending,
@@ -456,7 +458,7 @@ export function AgentChat({
   onLoadOlder,
 }: AgentChatProps) {
   const [input, setInput] = useState("");
-  const [lifecycle, setLifecycle] = useState<"" | "Sleep" | "AutoDelete">("");
+  const [lifecycle, setLifecycle] = useState<"" | "Sleep" | "AutoDelete">((agentLifecycle as "" | "Sleep" | "AutoDelete") || "");
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const lifecycleRef = useRef<HTMLDivElement>(null);
 
@@ -699,7 +701,7 @@ export function AgentChat({
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-1 min-w-0 flex-col">
       {/* Messages area */}
       <div className="relative flex-1 overflow-hidden">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto px-4 pt-4 pb-4">
@@ -897,7 +899,7 @@ export function AgentChat({
                 color: lifecycle === "" ? "var(--color-text-secondary)" : lifecycle === "Sleep" ? "#facc15" : "#f87171",
               }}
               transition={{ duration: 0.3 }}
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl border hover:opacity-80"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border hover:opacity-80 cursor-pointer"
               title={`Lifecycle: ${lifecycle || "Default (keep running)"}`}
             >
               <Settings2 className="size-4" />
@@ -923,7 +925,7 @@ export function AgentChat({
                       color: lifecycle === "" ? "#3f85d9" : "#7c7c98",
                     }}
                     transition={{ backgroundColor: { duration: 0.2 }, color: { duration: 0.2 }, opacity: { duration: 0.15 }, y: { duration: 0.15 } }}
-                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)]"
+                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)] cursor-pointer"
                     title="Keep running after task"
                   >
                     <Play className="size-4" />
@@ -939,7 +941,7 @@ export function AgentChat({
                       color: lifecycle === "Sleep" ? "#facc15" : "#7c7c98",
                     }}
                     transition={{ backgroundColor: { duration: 0.2 }, color: { duration: 0.2 }, opacity: { duration: 0.15, delay: 0.05 }, y: { duration: 0.15, delay: 0.05 } }}
-                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)]"
+                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)] cursor-pointer"
                     title="Sleep after task (preserve workspace)"
                   >
                     <Moon className="size-4" />
@@ -955,7 +957,7 @@ export function AgentChat({
                       color: lifecycle === "AutoDelete" ? "#f87171" : "#7c7c98",
                     }}
                     transition={{ backgroundColor: { duration: 0.2 }, color: { duration: 0.2 }, opacity: { duration: 0.15, delay: 0.1 }, y: { duration: 0.15, delay: 0.1 } }}
-                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)]"
+                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)] cursor-pointer"
                     title="Delete agent after task"
                   >
                     <Trash2 className="size-4" />

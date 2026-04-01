@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,6 +23,7 @@ import type {
   ScheduleResponse,
 } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown } from "lucide-react";
 import {
   AgentNode,
   OfficeNode,
@@ -141,7 +142,8 @@ function layoutSingleGroup(nodes: Node[], edges: Edge[]): { nodes: Node[]; width
   return { nodes: normalized, width: maxX - minX, height: maxY - minY };
 }
 
-function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
+function applyDagreLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; firstRowNodeIds: Set<string> } {
+  const firstRowNodeIds = new Set<string>();
   // Find connected components
   const nodeIds = new Set(nodes.map((n) => n.id));
   const adj = new Map<string, Set<string>>();
@@ -184,6 +186,8 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
   const allNodes: Node[] = [];
   let currentY = 0;
 
+  const ROW_GAP = 40;
+
   // 1. Standalone agents in a grid row at the top
   if (standaloneIds.length > 0) {
     const cols = Math.min(standaloneIds.length, 6);
@@ -191,31 +195,46 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
       const node = nodes.find((n) => n.id === standaloneIds[i])!;
       const col = i % cols;
       const row = Math.floor(i / cols);
-      allNodes.push({
+      const placed = {
         ...node,
         position: {
           x: col * (NODE_WIDTH + 30),
           y: currentY + row * (NODE_HEIGHT + 30),
         },
-      });
+      };
+      allNodes.push(placed);
+      firstRowNodeIds.add(placed.id);
     }
     const standaloneRows = Math.ceil(standaloneIds.length / 6);
     currentY += standaloneRows * (NODE_HEIGHT + 30) + GROUP_GAP;
   }
 
-  // 2. Connected groups (offices) arranged in a row below standalone agents
+  // 2. Connected groups (offices) arranged in rows (max 4 per row)
+  const MAX_GROUPS_PER_ROW = 4;
   let offsetX = 0;
-  for (const group of groups) {
+  let rowMaxHeight = 0;
+  let groupRow = 0;
+  for (let i = 0; i < groups.length; i++) {
+    if (i > 0 && i % MAX_GROUPS_PER_ROW === 0) {
+      currentY += rowMaxHeight + ROW_GAP;
+      offsetX = 0;
+      rowMaxHeight = 0;
+      groupRow++;
+    }
+    const group = groups[i];
     const groupNodes = nodes.filter((n) => group.nodeIds.has(n.id));
     const groupEdges = edges.filter((e) => group.nodeIds.has(e.source));
-    const { nodes: laid, width } = layoutSingleGroup(groupNodes, groupEdges);
+    const { nodes: laid, width, height } = layoutSingleGroup(groupNodes, groupEdges);
     for (const n of laid) {
-      allNodes.push({ ...n, position: { x: n.position.x + offsetX, y: n.position.y + currentY } });
+      const placed = { ...n, position: { x: n.position.x + offsetX, y: n.position.y + currentY } };
+      allNodes.push(placed);
+      if (groupRow === 0) firstRowNodeIds.add(placed.id);
     }
     offsetX += width + GROUP_GAP;
+    rowMaxHeight = Math.max(rowMaxHeight, height);
   }
 
-  return allNodes;
+  return { nodes: allNodes, firstRowNodeIds };
 }
 
 /* ------------------------------------------------------------------ */
@@ -369,8 +388,8 @@ function buildGraph(
   }
 
   // Apply layout
-  const laidOutNodes = applyDagreLayout(nodes, edges);
-  return { nodes: laidOutNodes, edges };
+  const { nodes: laidOutNodes, firstRowNodeIds } = applyDagreLayout(nodes, edges);
+  return { nodes: laidOutNodes, edges, firstRowNodeIds };
 }
 
 /* ------------------------------------------------------------------ */
@@ -380,12 +399,19 @@ function buildGraph(
 function TopologyGraphInner({
   initialNodes,
   initialEdges,
+  firstRowNodeIds,
 }: {
   initialNodes: Node[];
   initialEdges: Edge[];
+  firstRowNodeIds: Set<string>;
 }) {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  const fitViewOptions = useMemo(() => ({
+    nodes: initialNodes.filter((n) => firstRowNodeIds.has(n.id)).map((n) => ({ id: n.id })),
+    padding: 0.15,
+  }), [initialNodes, firstRowNodeIds]);
 
   return (
     <ReactFlow
@@ -395,6 +421,7 @@ function TopologyGraphInner({
       onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
       fitView
+      fitViewOptions={fitViewOptions}
       proOptions={{ hideAttribution: true }}
       minZoom={0.2}
       maxZoom={2}
@@ -427,20 +454,37 @@ export function TopologyGraph() {
     if (typeof window !== "undefined") return new URLSearchParams(window.location.search).get("ns") || "all";
     return "all";
   });
-  const [officeFilter, setOfficeFilter] = useState<string>(() => {
-    if (typeof window !== "undefined") return new URLSearchParams(window.location.search).get("office") || "all";
-    return "all";
+  const [officeFilter, setOfficeFilter] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const val = new URLSearchParams(window.location.search).get("office");
+      return val ? val.split(",") : [];
+    }
+    return [];
   });
+  const [officeDropdownOpen, setOfficeDropdownOpen] = useState(false);
+  const officeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Sync filters to URL
   useEffect(() => {
     const params = new URLSearchParams();
     if (nsFilter !== "all") params.set("ns", nsFilter);
-    if (officeFilter !== "all") params.set("office", officeFilter);
+    if (officeFilter.length > 0) params.set("office", officeFilter.join(","));
     const qs = params.toString();
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", url);
   }, [nsFilter, officeFilter]);
+
+  // Close office dropdown on click outside (capture phase so React Flow doesn't swallow it)
+  useEffect(() => {
+    if (!officeDropdownOpen) return;
+    function handleClick(e: PointerEvent) {
+      if (officeDropdownRef.current && !officeDropdownRef.current.contains(e.target as globalThis.Node)) {
+        setOfficeDropdownOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", handleClick, true);
+    return () => document.removeEventListener("pointerdown", handleClick, true);
+  }, [officeDropdownOpen]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -496,12 +540,17 @@ export function TopologyGraph() {
       schedules = schedules.filter((s) => s.namespace === nsFilter);
     }
 
-    if (officeFilter !== "all") {
-      const office = offices.find((o) => o.name === officeFilter);
-      if (office) {
-        const memberNames = new Set([office.manager, ...(office.members || []).map((m) => m.name)]);
+    if (officeFilter.length > 0) {
+      const filterSet = new Set(officeFilter);
+      const selectedOffices = offices.filter((o) => filterSet.has(o.name));
+      if (selectedOffices.length > 0) {
+        const memberNames = new Set<string>();
+        for (const office of selectedOffices) {
+          if (office.manager) memberNames.add(office.manager);
+          for (const m of office.members || []) memberNames.add(m.name);
+        }
         agents = agents.filter((a) => memberNames.has(a.name));
-        offices = [office];
+        offices = selectedOffices;
         schedules = [];
       }
     }
@@ -557,17 +606,54 @@ export function TopologyGraph() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-[var(--color-text-secondary)]">Office</span>
-          <Select value={officeFilter} onValueChange={setOfficeFilter}>
-            <SelectTrigger className="w-56 !text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {officeNames.map((name) => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative" ref={officeDropdownRef}>
+            <button
+              type="button"
+              className="flex items-center justify-between w-56 h-8 px-3 rounded-[var(--radius-sm)] text-[11px] font-[family-name:var(--font-mono)] bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 cursor-pointer hover:border-[var(--color-border-hover)] focus:outline-none focus:border-[var(--color-brand-blue)]/60"
+              onClick={() => setOfficeDropdownOpen(!officeDropdownOpen)}
+            >
+              <span className="truncate">
+                {officeFilter.length === 0 ? "All" : officeFilter.length === 1 ? officeFilter[0] : `${officeFilter.length} selected`}
+              </span>
+              <ChevronDown className={`h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 ${officeDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+            <AnimatePresence>
+              {officeDropdownOpen && (
+                <motion.div
+                  className="absolute right-0 z-50 w-56 mt-1 py-1 rounded-[var(--radius-md)] bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] overflow-y-auto max-h-60"
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                >
+                  <div
+                    className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${officeFilter.length === 0 ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+                    onClick={() => setOfficeFilter([])}
+                  >
+                    <span>All</span>
+                    {officeFilter.length === 0 && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
+                  </div>
+                  {officeNames.map((name) => {
+                    const selected = officeFilter.includes(name);
+                    return (
+                      <div
+                        key={name}
+                        className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${selected ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+                        onClick={() => {
+                          setOfficeFilter((prev) =>
+                            selected ? prev.filter((n) => n !== name) : [...prev, name]
+                          );
+                        }}
+                      >
+                        <span className="truncate">{name}</span>
+                        {selected && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -589,7 +675,7 @@ export function TopologyGraph() {
             </motion.div>
           ) : (
             <motion.div
-              key={`${nsFilter}-${officeFilter}`}
+              key={`${nsFilter}-${officeFilter.join(",")}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -600,6 +686,7 @@ export function TopologyGraph() {
                 <TopologyGraphInner
                   initialNodes={graphData.nodes}
                   initialEdges={graphData.edges}
+                  firstRowNodeIds={graphData.firstRowNodeIds}
                 />
               </ReactFlowProvider>
             </motion.div>
