@@ -70,6 +70,16 @@ def main():
 
     # Initialize runtime config from env vars.
     config.init()
+
+    # Write skill files from SKILL_* env vars
+    from pathlib import Path
+    skills_dir = Path.home() / ".claude" / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    for key, value in os.environ.items():
+        if key.startswith("SKILL_"):
+            name = key[6:].lower().replace("_", "-")
+            (skills_dir / f"{name}.md").write_text(value)
+
     cfg = config.load()
     model = cfg["model"]
 

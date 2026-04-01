@@ -249,6 +249,19 @@ type MemoryListResponse struct {
 	Memories []MemoryResponse `json:"memories"`
 }
 
+type SkillResponse struct {
+	Name        string   `json:"name"`
+	Namespace   string   `json:"namespace"`
+	Description string   `json:"description"`
+	Content     string   `json:"content"`
+	Agents      []string `json:"agentNames"`
+	CreatedAt   string   `json:"createdAt"`
+}
+
+type SkillListResponse struct {
+	Skills []SkillResponse `json:"skills"`
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 func printAgent(a AgentResponse) {
@@ -580,6 +593,9 @@ func main() {
 			if memFlags, _ := cmd.Flags().GetStringSlice("memory"); len(memFlags) > 0 {
 				body["memories"] = memFlags
 			}
+			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
+				body["skills"] = skillFlags
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -616,6 +632,8 @@ func main() {
 	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	createCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
+	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
+	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	root.AddCommand(createCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────
@@ -766,9 +784,12 @@ func main() {
 			if memFlags, _ := cmd.Flags().GetStringSlice("memory"); len(memFlags) > 0 {
 				body["memories"] = memFlags
 			}
+			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
+				body["skills"] = skillFlags
+			}
 
 			if len(body) == 0 {
-				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, or --memory flags."))
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, or --skill flags."))
 				os.Exit(1)
 			}
 
@@ -796,6 +817,7 @@ func main() {
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
+	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	root.AddCommand(configCmd)
 
 	// ── watch ────────────────────────────────────────────────────────────
@@ -2275,6 +2297,191 @@ func main() {
 	})
 
 	root.AddCommand(memoryCmd)
+
+	// ── skill ──────────────────────────────────────────────────────────────
+	skillCmd := &cobra.Command{
+		Use:   "skill",
+		Short: "Manage agent skills",
+	}
+
+	// ── skill list ──────────────────────────────────────────────────────
+	skillCmd.AddCommand(&cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List all skills",
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/skills%s", ep, nsQuery(cmd)), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			var resp SkillListResponse
+			json.Unmarshal(data, &resp)
+			if len(resp.Skills) == 0 {
+				fmt.Println(dimStyle.Render("No skills found."))
+				return
+			}
+			fmt.Println(titleStyle.Render(fmt.Sprintf("  %d skill(s)  ", len(resp.Skills))))
+			fmt.Println()
+			nameW := len("NAME")
+			descW := len("DESCRIPTION")
+			for _, s := range resp.Skills {
+				if len(s.Name) > nameW { nameW = len(s.Name) }
+				d := s.Description
+				if len(d) > 40 { d = d[:40] }
+				if len(d) > descW { descW = len(d) }
+			}
+			header := fmt.Sprintf("  %-*s  %-*s  %s", nameW, "NAME", descW, "DESCRIPTION", "AGENTS")
+			fmt.Println(dimStyle.Render(header))
+			for _, s := range resp.Skills {
+				desc := s.Description
+				if len(desc) > 40 { desc = desc[:40] + "..." }
+				fmt.Printf("  %-*s  %-*s  %d\n", nameW, s.Name, descW, desc, len(s.Agents))
+			}
+		},
+	})
+
+	// ── skill get ───────────────────────────────────────────────────────
+	skillCmd.AddCommand(&cobra.Command{
+		Use:   "get <name>",
+		Short: "Get skill details",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Skill %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			var s SkillResponse
+			json.Unmarshal(data, &s)
+			fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", s.Name)))
+			fmt.Println()
+			if s.Description != "" {
+				fmt.Printf("  Description: %s\n", s.Description)
+			}
+			fmt.Printf("  Namespace:   %s\n", s.Namespace)
+			fmt.Printf("  Agents:      %d\n", len(s.Agents))
+			fmt.Printf("  Created:     %s\n", s.CreatedAt)
+			fmt.Println()
+			fmt.Println(dimStyle.Render("  ── Content ──"))
+			fmt.Println()
+			fmt.Println(s.Content)
+		},
+	})
+
+	// ── skill create ────────────────────────────────────────────────────
+	skillCreateCmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a new skill",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			content, _ := cmd.Flags().GetString("content")
+			description, _ := cmd.Flags().GetString("description")
+			if content == "" {
+				fmt.Println(errorStyle.Render("--content is required"))
+				os.Exit(1)
+			}
+			body := map[string]interface{}{
+				"name":    args[0],
+				"content": content,
+			}
+			if description != "" {
+				body["description"] = description
+			}
+			if ns, _ := cmd.Flags().GetString("namespace"); ns != "" {
+				body["namespace"] = ns
+			}
+			data, status, err := apiRequest("POST", ep+"/api/v1/skills", body)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 201 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q created", args[0])))
+		},
+	}
+	skillCreateCmd.Flags().String("content", "", "Skill content (required)")
+	skillCreateCmd.Flags().String("description", "", "Short description")
+	skillCmd.AddCommand(skillCreateCmd)
+
+	// ── skill edit ──────────────────────────────────────────────────────
+	skillEditCmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit a skill's content or description",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			body := map[string]interface{}{}
+			if content, _ := cmd.Flags().GetString("content"); content != "" {
+				body["content"] = content
+			}
+			if description, _ := cmd.Flags().GetString("description"); description != "" {
+				body["description"] = description
+			}
+			if len(body) == 0 {
+				fmt.Println(errorStyle.Render("No changes provided. Use --content or --description flags."))
+				os.Exit(1)
+			}
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Skill %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q updated", args[0])))
+		},
+	}
+	skillEditCmd.Flags().String("content", "", "New skill content")
+	skillEditCmd.Flags().String("description", "", "New description")
+	skillCmd.AddCommand(skillEditCmd)
+
+	// ── skill delete ────────────────────────────────────────────────────
+	skillCmd.AddCommand(&cobra.Command{
+		Use:     "delete <name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a skill",
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q deleted", args[0])))
+		},
+	})
+
+	root.AddCommand(skillCmd)
 
 	root.Execute()
 }

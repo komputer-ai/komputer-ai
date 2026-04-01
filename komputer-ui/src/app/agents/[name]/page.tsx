@@ -15,7 +15,7 @@ import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills } from "@/lib/api";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
 import { Input } from "@/components/kit/input";
@@ -388,6 +388,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [newSecrets, setNewSecrets] = useState<{ key: string; value: string }[]>([]);
   const [agentMemories, setAgentMemories] = useState<string[]>(agent.memories ?? []);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
+  const [agentSkills, setAgentSkills] = useState<string[]>(agent.skills ?? []);
+  const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -400,11 +402,19 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         ref: m.namespace === (agentNs || "default") ? m.name : `${m.namespace}/${m.name}`,
       })));
     }).catch(() => {});
+    listSkills().then((res) => {
+      setAvailableSkills((res.skills ?? []).map((s) => ({
+        name: s.name,
+        namespace: s.namespace,
+        ref: s.namespace === (agentNs || "default") ? s.name : `${s.namespace}/${s.name}`,
+      })));
+    }).catch(() => {});
   }, [agentNs]);
 
   const agentLifecycle = agent.lifecycle || "default";
   const memoriesChanged = JSON.stringify(agentMemories.sort()) !== JSON.stringify((agent.memories ?? []).sort());
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || newSecrets.some(s => s.key.trim() && s.value.trim()) || memoriesChanged;
+  const skillsChanged = JSON.stringify(agentSkills.sort()) !== JSON.stringify((agent.skills ?? []).sort());
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || newSecrets.some(s => s.key.trim() && s.value.trim()) || memoriesChanged || skillsChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -422,6 +432,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       }
       if (Object.keys(secretsMap).length > 0) patch.secrets = secretsMap;
       if (memoriesChanged) patch.memories = agentMemories;
+      if (skillsChanged) patch.skills = agentSkills;
       await patchAgent(agent.name, patch, agentNs);
       setNewSecrets([]);
       setSaved(true);
@@ -549,6 +560,37 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           })}
           {availableMemories.length === 0 && (
             <p className="text-xs text-[var(--color-text-muted)]">No memories available</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Skills</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {availableSkills.map((s) => {
+            const attached = agentSkills.includes(s.ref);
+            const isCrossNs = s.ref.includes("/");
+            return (
+              <button
+                key={s.ref}
+                type="button"
+                onClick={() => setAgentSkills(prev =>
+                  attached ? prev.filter(n => n !== s.ref) : [...prev, s.ref]
+                )}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                  attached
+                    ? "border-violet-400 bg-violet-400/10 text-violet-300"
+                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                }`}
+              >
+                {attached && <Check className="inline size-2.5 mr-1" />}
+                {s.name}
+                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{s.namespace}</span>}
+              </button>
+            );
+          })}
+          {availableSkills.length === 0 && (
+            <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
           )}
         </div>
       </div>

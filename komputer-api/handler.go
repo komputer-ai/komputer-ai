@@ -25,6 +25,7 @@ type CreateAgentRequest struct {
 	Namespace    string            `json:"namespace"` // optional, defaults to server default
 	Secrets      map[string]string `json:"secrets"`   // optional key-value secrets
 	Memories     []string          `json:"memories"`  // optional KomputerMemory names to attach
+	Skills       []string          `json:"skills"`    // optional KomputerSkill names to attach
 	Lifecycle     string            `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
 	OfficeManager string            `json:"officeManager"` // set by manager MCP tool
 }
@@ -41,6 +42,7 @@ type AgentResponse struct {
 	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
 	Secrets         []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
 	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
+	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
 	Instructions    string   `json:"instructions,omitempty"` // User task extracted from spec.instructions
 	CreatedAt       string   `json:"createdAt"`
 }
@@ -198,6 +200,12 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.DELETE("/memories/:name", deleteMemory(k8s))
 		v1.PATCH("/memories/:name", patchMemory(k8s))
 
+		v1.POST("/skills", createSkill(k8s))
+		v1.GET("/skills", listSkills(k8s))
+		v1.GET("/skills/:name", getSkill(k8s))
+		v1.DELETE("/skills/:name", deleteSkill(k8s))
+		v1.PATCH("/skills/:name", patchSkill(k8s))
+
 		v1.GET("/templates", listTemplates(k8s))
 	}
 }
@@ -289,6 +297,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					TotalCostUSD:    existing.Status.TotalCostUSD,
 					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 					Memories:        existing.Spec.Memories,
+					Skills:          existing.Spec.Skills,
 					Instructions:    extractUserTask(existing.Spec.Instructions),
 					CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
 				})
@@ -341,6 +350,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				TotalCostUSD:    existing.Status.TotalCostUSD,
 				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 				Memories:        existing.Spec.Memories,
+				Skills:          existing.Spec.Skills,
 				Instructions:    extractUserTask(existing.Spec.Instructions),
 				CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
 			})
@@ -362,7 +372,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			secretNames = []string{secretName}
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, secretNames, req.Memories, req.Lifecycle, req.OfficeManager)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, secretNames, req.Memories, req.Skills, req.Lifecycle, req.OfficeManager)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
@@ -377,6 +387,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:    string(agent.Spec.Lifecycle),
 			Secrets:      collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
 			Memories:     agent.Spec.Memories,
+			Skills:       agent.Spec.Skills,
 			Instructions: extractUserTask(agent.Spec.Instructions),
 			CreatedAt:    agent.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
@@ -499,6 +510,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			TotalCostUSD:    agent.Status.TotalCostUSD,
 			Secrets:         agent.Spec.Secrets,
 			Memories:        agent.Spec.Memories,
+			Skills:          agent.Spec.Skills,
 			Instructions:    extractUserTask(agent.Spec.Instructions),
 			CreatedAt:       agent.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
@@ -574,6 +586,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				TotalCostUSD:    a.Status.TotalCostUSD,
 				Secrets:         collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
 				Memories:        a.Spec.Memories,
+				Skills:          a.Spec.Skills,
 				Instructions:    extractUserTask(a.Spec.Instructions),
 				CreatedAt:       a.CreationTimestamp.UTC().Format(time.RFC3339),
 			})
@@ -1018,6 +1031,151 @@ func deleteMemory(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// --- Skill handlers ---
+
+type CreateSkillRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description" binding:"required"`
+	Content     string `json:"content" binding:"required"`
+	Namespace   string `json:"namespace"`
+}
+
+type SkillResponse struct {
+	Name           string   `json:"name"`
+	Namespace      string   `json:"namespace"`
+	Description    string   `json:"description"`
+	Content        string   `json:"content"`
+	AttachedAgents int      `json:"attachedAgents"`
+	AgentNames     []string `json:"agentNames,omitempty"`
+	CreatedAt      string   `json:"createdAt"`
+}
+
+type PatchSkillRequest struct {
+	Description *string `json:"description,omitempty"`
+	Content     *string `json:"content,omitempty"`
+}
+
+func createSkill(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req CreateSkillRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		if !isValidK8sName(req.Name) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid skill name: must be lowercase letters, numbers, and hyphens"})
+			return
+		}
+		ns := req.Namespace
+		if ns == "" {
+			ns = resolveNamespace(c, k8s)
+		}
+		skill, err := k8s.CreateSkill(c.Request.Context(), ns, req.Name, req.Description, req.Content)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create skill: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, SkillResponse{
+			Name:        skill.Name,
+			Namespace:   skill.Namespace,
+			Description: skill.Spec.Description,
+			Content:     skill.Spec.Content,
+			CreatedAt:   skill.CreationTimestamp.UTC().Format(time.RFC3339),
+		})
+	}
+}
+
+func getSkill(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		skill, err := k8s.GetSkill(c.Request.Context(), ns, name)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+			return
+		}
+		c.JSON(http.StatusOK, SkillResponse{
+			Name:           skill.Name,
+			Namespace:      skill.Namespace,
+			Description:    skill.Spec.Description,
+			Content:        skill.Spec.Content,
+			AttachedAgents: skill.Status.AttachedAgents,
+			AgentNames:     skill.Status.AgentNames,
+			CreatedAt:      skill.CreationTimestamp.UTC().Format(time.RFC3339),
+		})
+	}
+}
+
+func listSkills(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ns := resolveNamespace(c, k8s)
+		skills, err := k8s.ListSkills(c.Request.Context(), ns)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list skills: " + err.Error()})
+			return
+		}
+		resp := make([]SkillResponse, 0, len(skills))
+		for _, s := range skills {
+			resp = append(resp, SkillResponse{
+				Name:           s.Name,
+				Namespace:      s.Namespace,
+				Description:    s.Spec.Description,
+				Content:        s.Spec.Content,
+				AttachedAgents: s.Status.AttachedAgents,
+				AgentNames:     s.Status.AgentNames,
+				CreatedAt:      s.CreationTimestamp.UTC().Format(time.RFC3339),
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"skills": resp})
+	}
+}
+
+func patchSkill(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		var req PatchSkillRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		if req.Description == nil && req.Content == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
+			return
+		}
+		if err := k8s.PatchSkill(c.Request.Context(), ns, name, req.Description, req.Content); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch skill: " + err.Error()})
+			return
+		}
+		skill, err := k8s.GetSkill(c.Request.Context(), ns, name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "patched but failed to read back: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, SkillResponse{
+			Name:           skill.Name,
+			Namespace:      skill.Namespace,
+			Description:    skill.Spec.Description,
+			Content:        skill.Spec.Content,
+			AttachedAgents: skill.Status.AttachedAgents,
+			AgentNames:     skill.Status.AgentNames,
+			CreatedAt:      skill.CreationTimestamp.UTC().Format(time.RFC3339),
+		})
+	}
+}
+
+func deleteSkill(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		if err := k8s.DeleteSkill(c.Request.Context(), ns, name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete skill: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	}
+}
+
 type TemplateResponse struct {
 	Name      string `json:"name"`
 	Scope     string `json:"scope"`               // "namespace" or "cluster"
@@ -1048,6 +1206,7 @@ type PatchAgentRequest struct {
 	TemplateRef  *string           `json:"templateRef,omitempty"`
 	Secrets      map[string]string `json:"secrets,omitempty"`  // key-value pairs to set/update
 	Memories     *[]string         `json:"memories,omitempty"` // memory names to attach
+	Skills       *[]string         `json:"skills,omitempty"`   // skill names to attach
 }
 
 func patchAgent(k8s *K8sClient) gin.HandlerFunc {
@@ -1060,7 +1219,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && len(req.Secrets) == 0 && req.Memories == nil {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && len(req.Secrets) == 0 && req.Memories == nil && req.Skills == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1099,6 +1258,25 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			k8s.PatchAgentMemoriesList(c.Request.Context(), ns, name, *req.Memories)
 		}
 
+		// 1d. Update skills if provided.
+		if req.Skills != nil {
+			k8s.PatchAgentSkillsList(c.Request.Context(), ns, name, *req.Skills)
+			skillFiles, _ := k8s.ResolveSkillFiles(c.Request.Context(), ns, *req.Skills)
+			if len(skillFiles) > 0 {
+				if configJSON, err := json.Marshal(map[string]interface{}{"skills": skillFiles}); err == nil {
+					agentForSkills, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
+					if getErr == nil && agentForSkills.Status.PodName != "" && agentForSkills.Status.Phase == "Running" {
+						podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agentForSkills.Status.PodName)
+						if ipErr == nil {
+							if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agentForSkills.Status.PodName, podIP, string(configJSON)); applyErr != nil {
+								log.Printf("warning: skills config apply to pod failed for %s: %v", name, applyErr)
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// 2. If pod is running, forward config to the agent so it takes effect immediately.
 		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err == nil && agent.Status.PodName != "" && agent.Status.Phase == "Running" {
@@ -1129,6 +1307,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			TotalCostUSD:    updated.Status.TotalCostUSD,
 			Secrets:         updated.Spec.Secrets,
 			Memories:        updated.Spec.Memories,
+			Skills:          updated.Spec.Skills,
 			Instructions:    extractUserTask(updated.Spec.Instructions),
 			CreatedAt:       updated.CreationTimestamp.UTC().Format(time.RFC3339),
 		})

@@ -189,7 +189,7 @@ func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([
 	return keys, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, memories []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, memories []string, skills []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -212,6 +212,7 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, mod
 			Role:          role,
 			Secrets:       secretNames,
 			Memories:      memories,
+			Skills:        skills,
 			Lifecycle:     komputerv1alpha1.AgentLifecycle(lifecycle),
 			OfficeManager: officeManager,
 		},
@@ -580,6 +581,18 @@ func (k *K8sClient) PatchAgentMemoriesList(ctx context.Context, ns, agentName st
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// PatchAgentSkillsList updates the skills list on an agent's spec.
+func (k *K8sClient) PatchAgentSkillsList(ctx context.Context, ns, agentName string, skills []string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	agent.Spec.Skills = skills
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
 // --- Memory CRUD ---
 
 func (k *K8sClient) CreateMemory(ctx context.Context, ns, name, content, description string) (*komputerv1alpha1.KomputerMemory, error) {
@@ -679,6 +692,107 @@ func (k *K8sClient) ResolveMemoryContent(ctx context.Context, agentNs string, me
 		return "", nil
 	}
 	return "\n## Memory / Knowledge\nThe following knowledge has been provided. Use it as context when relevant.\n\n" + strings.Join(sections, "\n\n"), nil
+}
+
+// --- Skill CRUD ---
+
+func (k *K8sClient) CreateSkill(ctx context.Context, ns, name, description, content string) (*komputerv1alpha1.KomputerSkill, error) {
+	skill := &komputerv1alpha1.KomputerSkill{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			Labels: map[string]string{
+				"komputer.ai/skill-name": name,
+			},
+		},
+		Spec: komputerv1alpha1.KomputerSkillSpec{
+			Description: description,
+			Content:     content,
+		},
+	}
+	if err := k.client.Create(ctx, skill); err != nil {
+		return nil, err
+	}
+	return skill, nil
+}
+
+func (k *K8sClient) GetSkill(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerSkill, error) {
+	skill := &komputerv1alpha1.KomputerSkill{}
+	err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, skill)
+	if err != nil {
+		return nil, err
+	}
+	return skill, nil
+}
+
+func (k *K8sClient) ListSkills(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerSkill, error) {
+	list := &komputerv1alpha1.KomputerSkillList{}
+	var opts []client.ListOption
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (k *K8sClient) DeleteSkill(ctx context.Context, ns, name string) error {
+	skill := &komputerv1alpha1.KomputerSkill{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+	}
+	return k.client.Delete(ctx, skill)
+}
+
+func (k *K8sClient) PatchSkill(ctx context.Context, ns, name string, description, content *string) error {
+	skill := &komputerv1alpha1.KomputerSkill{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, skill); err != nil {
+		return fmt.Errorf("failed to get skill %s: %w", name, err)
+	}
+	original := skill.DeepCopy()
+	changed := false
+	if description != nil && *description != skill.Spec.Description {
+		skill.Spec.Description = *description
+		changed = true
+	}
+	if content != nil && *content != skill.Spec.Content {
+		skill.Spec.Content = *content
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return k.client.Patch(ctx, skill, client.MergeFrom(original))
+}
+
+// ResolveSkillFiles fetches all referenced skills and returns a map of skill name to {"description": ..., "content": ...}.
+// References can be "name" (same namespace) or "namespace/name" (cross-namespace).
+func (k *K8sClient) ResolveSkillFiles(ctx context.Context, agentNs string, skillRefs []string) (map[string]map[string]string, error) {
+	if len(skillRefs) == 0 {
+		return nil, nil
+	}
+	result := make(map[string]map[string]string)
+	for _, ref := range skillRefs {
+		ns := agentNs
+		name := ref
+		if parts := strings.SplitN(ref, "/", 2); len(parts) == 2 {
+			ns = parts[0]
+			name = parts[1]
+		}
+		skill, err := k.GetSkill(ctx, ns, name)
+		if err != nil {
+			continue // skip missing skills
+		}
+		result[name] = map[string]string{
+			"description": skill.Spec.Description,
+			"content":     skill.Spec.Content,
+		}
+	}
+	return result, nil
 }
 
 // PatchAgentTaskStatus patches only the task-related status fields on a KomputerAgent CR.

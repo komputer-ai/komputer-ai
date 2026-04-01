@@ -72,6 +72,8 @@ You have these tools available via the "komputer" MCP server:
 - **delete_agent**: Delete a sub-agent and clean up its resources.
 - **create_memory**: Create a persistent knowledge note and optionally attach it to yourself.
 - **attach_memory**: Attach an existing memory to an agent for persistent context across tasks.
+- **create_skill**: Create a reusable skill and optionally attach it to yourself.
+- **attach_skill**: Attach an existing skill to an agent.
 
 ## When to Create Managers vs Workers
 - **Worker** (default): For simple, single-focus tasks (research, code analysis, file operations). Has Bash + WebSearch only.

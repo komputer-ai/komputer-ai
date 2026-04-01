@@ -34,6 +34,7 @@ class ConfigRequest(BaseModel):
     instructions: Optional[str] = None
     templateRef: Optional[str] = None
     secrets: Optional[dict[str, str]] = None
+    skills: Optional[dict[str, dict]] = None  # name -> {description, content}
 
 
 @app.get("/status")
@@ -70,11 +71,19 @@ async def apply_config(req: ConfigRequest):
             env_key = f"SECRET_{sanitized}"
             _os.environ[env_key] = value
 
-    updates = {k: v for k, v in req.model_dump(exclude={"secrets"}).items() if v is not None}
+    if req.skills:
+        from pathlib import Path
+        skills_dir = Path.home() / ".claude" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        for name, skill in req.skills.items():
+            md = f"---\nname: {name}\ndescription: {skill['description']}\n---\n\n{skill['content']}"
+            (skills_dir / f"{name}.md").write_text(md)
+
+    updates = {k: v for k, v in req.model_dump(exclude={"secrets", "skills"}).items() if v is not None}
     if updates:
         agent_config.apply(updates)
 
-    if not updates and not req.secrets:
+    if not updates and not req.secrets and not req.skills:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
     return {"status": "applied", "config": agent_config.load()}

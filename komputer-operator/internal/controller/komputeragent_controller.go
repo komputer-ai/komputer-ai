@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -52,6 +53,8 @@ type KomputerAgentReconciler struct {
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputermemories,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputermemories/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerskills,verbs=get;list;watch
+// +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerskills/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
@@ -233,6 +236,11 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Info("Failed to reconcile memory status", "error", err)
 	}
 
+	// 11. Update KomputerSkill status for all referenced skills
+	if err := r.reconcileSkillStatus(ctx, agent); err != nil {
+		log.Info("Failed to reconcile skill status", "error", err)
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -278,6 +286,54 @@ func (r *KomputerAgentReconciler) reconcileMemoryStatus(ctx context.Context, age
 			memory.Status.AttachedAgents = len(agentNames)
 			memory.Status.AgentNames = agentNames
 			if err := r.Status().Patch(ctx, memory, client.MergeFrom(original)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// reconcileSkillStatus updates the status of each KomputerSkill referenced by any agent.
+func (r *KomputerAgentReconciler) reconcileSkillStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+	for _, skillRef := range agent.Spec.Skills {
+		ns := agent.Namespace
+		name := skillRef
+		if parts := strings.SplitN(skillRef, "/", 2); len(parts) == 2 {
+			ns = parts[0]
+			name = parts[1]
+		}
+
+		skill := &komputerv1alpha1.KomputerSkill{}
+		if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, skill); err != nil {
+			continue
+		}
+
+		allAgents := &komputerv1alpha1.KomputerAgentList{}
+		if err := r.List(ctx, allAgents); err != nil {
+			continue
+		}
+
+		agentNames := []string{}
+		for _, a := range allAgents.Items {
+			for _, s := range a.Spec.Skills {
+				refNs := a.Namespace
+				refName := s
+				if parts := strings.SplitN(s, "/", 2); len(parts) == 2 {
+					refNs = parts[0]
+					refName = parts[1]
+				}
+				if refNs == ns && refName == name {
+					agentNames = append(agentNames, a.Name)
+					break
+				}
+			}
+		}
+
+		if skill.Status.AttachedAgents != len(agentNames) {
+			original := skill.DeepCopy()
+			skill.Status.AttachedAgents = len(agentNames)
+			skill.Status.AgentNames = agentNames
+			if err := r.Status().Patch(ctx, skill, client.MergeFrom(original)); err != nil {
 				return err
 			}
 		}
@@ -538,6 +594,27 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 				},
 			})
 		}
+	}
+
+	// Inject skills as SKILL_* env vars (full markdown content).
+	for _, skillRef := range agent.Spec.Skills {
+		skillNs := agent.Namespace
+		skillName := skillRef
+		if parts := strings.SplitN(skillRef, "/", 2); len(parts) == 2 {
+			skillNs = parts[0]
+			skillName = parts[1]
+		}
+		skill := &komputerv1alpha1.KomputerSkill{}
+		if err := r.Get(ctx, types.NamespacedName{Name: skillName, Namespace: skillNs}, skill); err != nil {
+			log.Info("Skill not found, skipping", "skill", skillRef)
+			continue
+		}
+		sanitized := strings.ToUpper(regexp.MustCompile(`[^A-Za-z0-9]`).ReplaceAllString(skillName, "_"))
+		md := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n\n%s", skillName, skill.Spec.Description, skill.Spec.Content)
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "SKILL_" + sanitized,
+			Value: md,
+		})
 	}
 
 	// Dedup env vars: agent secrets override template env vars with same name.

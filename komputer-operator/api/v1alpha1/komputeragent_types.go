@@ -74,6 +74,10 @@ type KomputerAgentSpec struct {
 	// Each key in each secret is injected as an env var into the agent pod.
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
+	// Skills is a list of KomputerSkill names to attach to this agent.
+	// Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+	// +optional
+	Skills []string `json:"skills,omitempty"`
 	// Memories is a list of KomputerMemory names to attach to this agent.
 	// Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
 	// +optional

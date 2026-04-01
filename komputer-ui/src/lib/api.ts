@@ -13,6 +13,9 @@ import type {
   MemoryListResponse,
   CreateMemoryRequest,
   MemoryResponse,
+  SkillListResponse,
+  CreateSkillRequest,
+  SkillResponse,
 } from './types';
 import { getConfig } from './config';
 
@@ -107,6 +110,24 @@ export const deleteMemory = (name: string, ns?: string) =>
 
 export const patchMemory = (name: string, data: { content?: string; description?: string }, ns?: string) =>
   request<MemoryResponse>(`/memories/${name}${ns ? `?namespace=${ns}` : ''}`, {
+    method: 'PATCH', body: JSON.stringify(data),
+  });
+
+// Skills
+export const listSkills = (ns?: string) =>
+  request<SkillListResponse>(`/skills${ns ? `?namespace=${ns}` : ''}`);
+
+export const getSkill = (name: string, ns?: string) =>
+  request<SkillResponse>(`/skills/${name}${ns ? `?namespace=${ns}` : ''}`);
+
+export const createSkill = (data: CreateSkillRequest) =>
+  request<SkillResponse>('/skills', { method: 'POST', body: JSON.stringify(data) });
+
+export const deleteSkill = (name: string, ns?: string) =>
+  request<void>(`/skills/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
+
+export const patchSkill = (name: string, data: { content?: string; description?: string }, ns?: string) =>
+  request<SkillResponse>(`/skills/${name}${ns ? `?namespace=${ns}` : ''}`, {
     method: 'PATCH', body: JSON.stringify(data),
   });
 

@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/kit/select";
 import { Plus, Trash2, ChevronRight, Check } from "lucide-react";
-import { createAgent, listAgents, listTemplates, listMemories } from "@/lib/api";
+import { createAgent, listAgents, listTemplates, listMemories, listSkills } from "@/lib/api";
 import type { CreateAgentRequest, TemplateResponse } from "@/lib/types";
 import type { AgentTemplate } from "@/lib/create-agent-modal-context";
 
@@ -52,6 +52,8 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
   const [templates, setTemplates] = useState<TemplateResponse[]>([]);
   const [selectedMemories, setSelectedMemories] = useState<string[]>([]);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [secrets, setSecrets] = useState<SecretEntry[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +75,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setRole(undefined);
     setSecrets([]);
     setSelectedMemories([]);
+    setSelectedSkills([]);
     setAdvancedOpen(false);
     setError(null);
     setAddingNamespace(false);
@@ -105,6 +108,13 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         ref: m.namespace === (namespace || "default") ? m.name : `${m.namespace}/${m.name}`,
       }))))
       .catch(() => setAvailableMemories([]));
+    listSkills()
+      .then((res) => setAvailableSkills((res.skills ?? []).map((s) => ({
+        name: s.name,
+        namespace: s.namespace,
+        ref: s.namespace === (namespace || "default") ? s.name : `${s.namespace}/${s.name}`,
+      }))))
+      .catch(() => setAvailableSkills([]));
   }, [open, namespace]);
 
   // Close namespace dropdown on click outside
@@ -184,6 +194,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         templateRef: templateRef !== "default" ? templateRef : undefined,
         secrets: Object.keys(secretsMap).length > 0 ? secretsMap : undefined,
         memories: selectedMemories.length > 0 ? selectedMemories : undefined,
+        skills: selectedSkills.length > 0 ? selectedSkills : undefined,
       };
       await createAgent(req);
       const agentName = name.trim();
@@ -494,6 +505,38 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
                           })}
                           {availableMemories.length === 0 && (
                             <p className="text-xs text-[var(--color-text-muted)]">No memories available</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Skills */}
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Skills</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableSkills.map((s) => {
+                            const selected = selectedSkills.includes(s.ref);
+                            const isCrossNs = s.ref.includes("/");
+                            return (
+                              <button
+                                key={s.ref}
+                                type="button"
+                                onClick={() => setSelectedSkills(prev =>
+                                  selected ? prev.filter(n => n !== s.ref) : [...prev, s.ref]
+                                )}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                                  selected
+                                    ? "border-violet-400 bg-violet-400/10 text-violet-300"
+                                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                                }`}
+                              >
+                                {selected && <Check className="inline size-2.5 mr-1" />}
+                                {s.name}
+                                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{s.namespace}</span>}
+                              </button>
+                            );
+                          })}
+                          {availableSkills.length === 0 && (
+                            <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
                           )}
                         </div>
                       </div>

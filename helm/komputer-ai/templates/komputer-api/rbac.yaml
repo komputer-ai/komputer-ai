@@ -90,6 +90,7 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputermemories
+  - komputerskills
   verbs:
   - create
   - get

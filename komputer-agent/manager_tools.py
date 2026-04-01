@@ -301,9 +301,92 @@ async def attach_memory(args):
     return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"memories": current_memories})
 
 
+@tool(
+    name="create_skill",
+    description="Create a KomputerSkill resource containing a reusable skill (instructions, workflows, tool usage patterns). Optionally attach it to yourself so it's available in your next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Unique name for the skill (lowercase, hyphens, no spaces)."},
+            "content": {"type": "string", "description": "The skill content (markdown text describing the skill workflow or instructions)."},
+            "description": {"type": "string", "description": "Short human-readable description of what this skill does."},
+            "attach": {"type": "boolean", "description": "If true, also attach this skill to the current agent."},
+        },
+        "required": ["name", "content"],
+    },
+)
+async def create_skill(args):
+    sanitized = _sanitize_name(args["name"])
+    payload = {
+        "name": sanitized,
+        "content": args["content"],
+        "namespace": NAMESPACE,
+    }
+    if args.get("description"):
+        payload["description"] = args["description"]
+
+    result = await _request("POST", "/api/v1/skills", timeout=30, json=payload)
+    if result.get("isError"):
+        return result
+
+    if args.get("attach"):
+        self_name = os.environ.get("KOMPUTER_AGENT_NAME", "")
+        if not self_name:
+            return _err("Skill created but could not attach: KOMPUTER_AGENT_NAME not set.")
+        # Get current skills, then append.
+        get_result = await _request("GET", f"/api/v1/agents/{self_name}")
+        if get_result.get("isError"):
+            return _err(f"Skill created but failed to fetch agent for attach: {get_result['content'][0]['text']}")
+        agent_data = json.loads(get_result["content"][0]["text"])
+        current_skills = agent_data.get("skills") or []
+        if sanitized not in current_skills:
+            current_skills.append(sanitized)
+        patch_result = await _request("PATCH", f"/api/v1/agents/{self_name}", timeout=30, json={"skills": current_skills})
+        if patch_result.get("isError"):
+            return _err(f"Skill created but attach failed: {patch_result['content'][0]['text']}")
+        return _ok(f"Skill '{sanitized}' created and attached to '{self_name}'.")
+
+    return result
+
+
+@tool(
+    name="attach_skill",
+    description="Attach an existing KomputerSkill to an agent so it's available in the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Name of the KomputerSkill to attach."},
+            "agent_name": {"type": "string", "description": "Agent to attach the skill to. Defaults to the current agent."},
+        },
+        "required": ["skill_name"],
+    },
+)
+async def attach_skill(args):
+    skill = _sanitize_name(args["skill_name"])
+    agent = args.get("agent_name")
+    if agent:
+        agent = _sanitize_name(agent)
+    else:
+        agent = os.environ.get("KOMPUTER_AGENT_NAME", "")
+        if not agent:
+            return _err("No agent_name provided and KOMPUTER_AGENT_NAME not set.")
+
+    # Get current skills, then append.
+    get_result = await _request("GET", f"/api/v1/agents/{agent}")
+    if get_result.get("isError"):
+        return get_result
+    agent_data = json.loads(get_result["content"][0]["text"])
+    current_skills = agent_data.get("skills") or []
+    if skill in current_skills:
+        return _ok(f"Skill '{skill}' is already attached to '{agent}'.")
+    current_skills.append(skill)
+
+    return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"skills": current_skills})
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, delete_agent, delete_schedule, create_memory, attach_memory],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill],
     )

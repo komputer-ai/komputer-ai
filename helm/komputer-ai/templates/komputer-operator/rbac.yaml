@@ -119,6 +119,7 @@ rules:
   - komputeragenttemplates
   - komputerconfigs
   - komputermemories
+  - komputerskills
   verbs:
   - get
   - list
@@ -127,6 +128,7 @@ rules:
   - komputer.komputer.ai
   resources:
   - komputermemories/status
+  - komputerskills/status
   verbs:
   - get
   - patch

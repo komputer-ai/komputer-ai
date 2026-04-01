@@ -61,7 +61,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         return {}
 
     options = ClaudeAgentOptions(
-        tools=["Bash", "WebSearch"],
+        tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep"],
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
@@ -71,6 +71,13 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             ],
         },
     )
+
+    # Enable Skill tool if skill files are present
+    skills_dir = Path.home() / ".claude" / "skills"
+    if skills_dir.exists() and any(skills_dir.glob("*.md")):
+        options.setting_sources = ["user"]
+        if "Skill" not in options.tools:
+            options.tools.append("Skill")
 
     # Set system prompt via SDK (replaces previous system prompt, doesn't accumulate in history)
     if system_prompt:

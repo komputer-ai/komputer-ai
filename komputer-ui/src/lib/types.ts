@@ -10,6 +10,7 @@ export interface AgentResponse {
   totalCostUSD?: string;
   secrets?: string[];
   memories?: string[];
+  skills?: string[];
   instructions?: string;
   createdAt: string;
 }
@@ -83,6 +84,7 @@ export interface CreateAgentRequest {
   namespace?: string;
   secrets?: Record<string, string>;
   memories?: string[];
+  skills?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
 }
 
@@ -108,6 +110,7 @@ export interface PatchAgentRequest {
   instructions?: string;
   templateRef?: string;
   memories?: string[];
+  skills?: string[];
 }
 
 export interface TemplateResponse {
@@ -138,5 +141,26 @@ export interface CreateMemoryRequest {
   name: string;
   content: string;
   description?: string;
+  namespace?: string;
+}
+
+export interface SkillResponse {
+  name: string;
+  namespace: string;
+  description: string;
+  content: string;
+  attachedAgents: number;
+  agentNames?: string[];
+  createdAt: string;
+}
+
+export interface SkillListResponse {
+  skills: SkillResponse[];
+}
+
+export interface CreateSkillRequest {
+  name: string;
+  description: string;
+  content: string;
   namespace?: string;
 }

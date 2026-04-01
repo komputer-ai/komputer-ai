@@ -101,6 +101,13 @@ spec:
                 items:
                   type: string
                 type: array
+              skills:
+                description: |-
+                  Skills is a list of KomputerSkill names to attach to this agent.
+                  Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+                items:
+                  type: string
+                type: array
               templateRef:
                 default: default
                 description: TemplateRef is the name of the KomputerAgentTemplate
