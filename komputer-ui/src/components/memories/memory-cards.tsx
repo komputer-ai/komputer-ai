@@ -24,10 +24,11 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}
             transition={{ duration: 0.25, delay: i * 0.04 }}
+            className="h-full"
           >
             <Link href={`/memories/${memory.name}?namespace=${memory.namespace}`} className="block group">
-              <div className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(139,92,246,0.06)]">
-                <div className="p-3 flex flex-col h-full">
+              <div className="relative h-full min-h-32 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(139,92,246,0.06)]">
+                <div className="flex h-full flex-col p-3">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-7 h-7 rounded-md shrink-0 bg-[var(--color-brand-violet)]/10">
                       <Brain className="w-3.5 h-3.5 text-[var(--color-brand-violet)]" />
@@ -36,7 +37,7 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
                       {memory.name}
                     </span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <ConfirmDialog
                           title={`Delete ${memory.name}?`}
                           description="This will permanently delete this memory."
@@ -51,11 +52,13 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
                     </div>
                   </div>
 
-                  {memory.description && (
-                    <p className="mt-2 text-[11px] text-[var(--color-text-secondary)] line-clamp-2">
-                      {memory.description}
-                    </p>
-                  )}
+                  <div className="mt-2 min-h-[2.75rem]">
+                    {memory.description && (
+                      <p className="text-[11px] text-[var(--color-text-secondary)] line-clamp-2">
+                        {memory.description}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="mt-auto pt-3 space-y-1">
                     <div className="flex items-center justify-between">
