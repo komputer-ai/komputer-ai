@@ -721,6 +721,62 @@ func main() {
 		},
 	})
 
+	// ── config ───────────────────────────────────────────────────────────
+	configCmd := &cobra.Command{
+		Use:   "config <name>",
+		Short: "Update settings on an existing agent (model, lifecycle, secrets)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			ep := resolveEndpoint(cmd)
+			body := map[string]interface{}{}
+
+			if model, _ := cmd.Flags().GetString("model"); model != "" {
+				body["model"] = model
+			}
+			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
+				body["lifecycle"] = lc
+			}
+			if secretFlags, _ := cmd.Flags().GetStringSlice("secret"); len(secretFlags) > 0 {
+				secrets := make(map[string]string)
+				for _, s := range secretFlags {
+					parts := strings.SplitN(s, "=", 2)
+					if len(parts) == 2 {
+						secrets[parts[0]] = parts[1]
+					}
+				}
+				body["secrets"] = secrets
+			}
+
+			if len(body) == 0 {
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, or --secret flags."))
+				os.Exit(1)
+			}
+
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
+			if err != nil {
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+			fmt.Println(successStyle.Render("✔ Settings updated"))
+			printAgent(agent)
+		},
+	}
+	configCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
+	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
+	root.AddCommand(configCmd)
+
 	// ── watch ────────────────────────────────────────────────────────────
 	root.AddCommand(&cobra.Command{
 		Use:   "watch <name>",
