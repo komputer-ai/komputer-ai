@@ -194,7 +194,10 @@ func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([
 // with the label komputer.ai/managed-by=komputer-ai. If all=true, returns all secrets.
 func (k *K8sClient) ListSecrets(ctx context.Context, ns string, all bool) ([]corev1.Secret, error) {
 	list := &corev1.SecretList{}
-	opts := []client.ListOption{client.InNamespace(ns)}
+	opts := []client.ListOption{}
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
 	if !all {
 		opts = append(opts, client.MatchingLabels{"komputer.ai/managed-by": "komputer-ai"})
 	}

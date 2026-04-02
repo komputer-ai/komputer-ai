@@ -1243,7 +1243,7 @@ func deleteSkill(k8s *K8sClient) gin.HandlerFunc {
 
 func listSecrets(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		all := c.Query("all") == "true"
 		secrets, err := k8s.ListSecrets(c.Request.Context(), ns, all)
 		if err != nil {
