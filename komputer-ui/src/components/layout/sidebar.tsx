@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -47,14 +48,17 @@ function NavItem({
 }) {
   const Icon = item.icon;
 
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  function handleMouseEnter() {
+    if (!collapsed || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 8 });
+  }
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => collapsed && setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
+    <div ref={wrapperRef} onMouseEnter={handleMouseEnter} onMouseLeave={() => setTooltipPos(null)}>
       <Link
         href={item.href}
         className={`
@@ -82,32 +86,35 @@ function NavItem({
           </motion.span>
         )}
       </Link>
-      <AnimatePresence>
-        {collapsed && showTooltip && (
-          <motion.div
-            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)] bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.1 }}
-          >
-            {item.label}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {tooltipPos && typeof document !== "undefined" && createPortal(
+        <motion.div
+          className="fixed z-[9999] px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)] bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none -translate-y-1/2"
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.1 }}
+        >
+          {item.label}
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
 
 function CollapseButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  function handleMouseEnter() {
+    if (!collapsed || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 8 });
+  }
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => collapsed && setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
+    <div ref={wrapperRef} onMouseEnter={handleMouseEnter} onMouseLeave={() => setTooltipPos(null)}>
       <button
         onClick={onClick}
         className="p-1.5 rounded text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
@@ -118,19 +125,19 @@ function CollapseButton({ collapsed, onClick }: { collapsed: boolean; onClick: (
           <PanelLeftClose className="h-4 w-4" />
         )}
       </button>
-      <AnimatePresence>
-        {collapsed && showTooltip && (
-          <motion.div
-            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)] bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.1 }}
-          >
-            Expand sidebar
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {tooltipPos && typeof document !== "undefined" && createPortal(
+        <motion.div
+          className="fixed z-[9999] px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)] bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none -translate-y-1/2"
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.1 }}
+        >
+          Expand sidebar
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
