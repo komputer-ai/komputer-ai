@@ -16,6 +16,8 @@ spec:
       app.kubernetes.io/component: ui
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/komputer-ui/configmap.yaml") . | sha256sum }}
       labels:
         {{- include "komputer.labels" . | nindent 8 }}
         app.kubernetes.io/component: ui
