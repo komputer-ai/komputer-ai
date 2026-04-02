@@ -8,6 +8,7 @@ export interface AgentResponse {
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
   lastTaskCostUSD?: string;
   totalCostUSD?: string;
+  totalTokens?: number;
   secrets?: string[];
   memories?: string[];
   skills?: string[];
@@ -35,6 +36,7 @@ export interface OfficeResponse {
   activeAgents: number;
   completedAgents: number;
   totalCostUSD?: string;
+  totalTokens?: number;
   members: OfficeMemberResponse[];
   createdAt: string;
 }
@@ -59,6 +61,8 @@ export interface ScheduleResponse {
   failedRuns?: number;
   totalCostUSD?: string;
   lastRunCostUSD?: string;
+  totalTokens?: number;
+  lastRunTokens?: number;
   lastRunStatus?: string;
   createdAt: string;
 }
