@@ -18,7 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import { Tooltip, TooltipProvider } from "@/components/kit/tooltip";
+import { TooltipProvider } from "@/components/kit/tooltip";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -47,45 +47,56 @@ function NavItem({
 }) {
   const Icon = item.icon;
 
-  const link = (
-    <Link
-      href={item.href}
-      className={`
-        flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium font-[family-name:var(--font-sans)] transition-all duration-200 relative overflow-hidden
-        ${
-          isActive
-            ? "bg-[var(--color-brand-blue)]/10 shadow-[inset_0_0_12px_rgba(63,133,217,0.08)]"
-            : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]"
-        }
-      `}
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => collapsed && setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
-      {isActive && (
-        <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full bg-gradient-to-b from-[var(--color-brand-blue-light)] via-[var(--color-brand-violet)] to-[var(--color-brand-blue-light)] shadow-[0_0_8px_var(--color-brand-blue),0_0_16px_rgba(63,133,217,0.3)] animate-gradient" />
-      )}
-      <Icon className="h-5 w-5 shrink-0" style={isActive ? { color: "#5a9be6", filter: "drop-shadow(0 0 4px rgba(63,133,217,0.6))" } : undefined} />
-      {!collapsed && (
-        <motion.span
-          className={isActive ? "bg-gradient-to-r from-[#5a9be6] via-[#A78BFA] to-[#5a9be6] bg-clip-text text-transparent animate-gradient" : ""}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-        >
-          {item.label}
-        </motion.span>
-      )}
-    </Link>
+      <Link
+        href={item.href}
+        className={`
+          flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium font-[family-name:var(--font-sans)] transition-all duration-200 relative overflow-hidden
+          ${
+            isActive
+              ? "bg-[var(--color-brand-blue)]/10 shadow-[inset_0_0_12px_rgba(63,133,217,0.08)]"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+          }
+        `}
+      >
+        {isActive && (
+          <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full bg-gradient-to-b from-[var(--color-brand-blue-light)] via-[var(--color-brand-violet)] to-[var(--color-brand-blue-light)] shadow-[0_0_8px_var(--color-brand-blue),0_0_16px_rgba(63,133,217,0.3)] animate-gradient" />
+        )}
+        <Icon className="h-5 w-5 shrink-0" style={isActive ? { color: "#5a9be6", filter: "drop-shadow(0 0 4px rgba(63,133,217,0.6))" } : undefined} />
+        {!collapsed && (
+          <motion.span
+            className={isActive ? "bg-gradient-to-r from-[#5a9be6] via-[#A78BFA] to-[#5a9be6] bg-clip-text text-transparent animate-gradient" : ""}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </Link>
+      <AnimatePresence>
+        {collapsed && showTooltip && (
+          <motion.div
+            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)] bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+          >
+            {item.label}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
-
-  if (collapsed) {
-    return (
-      <Tooltip content={item.label} side="right" sideOffset={8}>
-        {link}
-      </Tooltip>
-    );
-  }
-
-  return link;
 }
 
 function CollapseButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {

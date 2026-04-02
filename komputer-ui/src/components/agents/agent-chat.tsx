@@ -620,15 +620,14 @@ export function AgentChat({
     }
 
     if (messages.length <= prevCount) return;
-    // Force scroll after user sends a message, otherwise only when near bottom
-    if (forceScrollToBottom.current) {
+    // Measure distance BEFORE new content renders — this reflects whether the user was near bottom
+    const distFromBottomBefore = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (forceScrollToBottom.current || distFromBottomBefore < 600) {
       forceScrollToBottom.current = false;
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (distFromBottom < 150) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      // rAF to scroll after new content is in the DOM
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
     }
   }, [messages.length]);
 

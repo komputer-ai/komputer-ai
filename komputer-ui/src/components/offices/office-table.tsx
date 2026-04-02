@@ -52,7 +52,7 @@ export function OfficeTable({ offices, onDelete }: OfficeTableProps) {
             >
               <TableCell>
                 <Link
-                  href={`/offices/${office.name}`}
+                  href={`/offices/${office.name}?namespace=${office.namespace}`}
                   className="font-medium text-[var(--color-brand-blue)] hover:underline"
                 >
                   {office.name}

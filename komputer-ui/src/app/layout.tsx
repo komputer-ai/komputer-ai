@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}>
+    <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`} suppressHydrationWarning>
       <head>
         <script src="/config.js" />
       </head>

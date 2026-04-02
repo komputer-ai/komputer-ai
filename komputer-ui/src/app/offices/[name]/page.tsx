@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Trash2 } from "lucide-react";
@@ -21,6 +21,8 @@ import type { OfficeResponse, AgentEvent } from "@/lib/types";
 export default function OfficeDetailPage() {
   const params = useParams<{ name: string }>();
   const name = params.name;
+  const searchParams = useSearchParams();
+  const namespace = searchParams.get("namespace") ?? undefined;
   const router = useRouter();
 
   const [office, setOffice] = useState<OfficeResponse | null>(null);
@@ -49,8 +51,8 @@ export default function OfficeDetailPage() {
   const fetchData = useCallback(async () => {
     try {
       const [officeData, eventsData, agentsData] = await Promise.all([
-        getOffice(name),
-        getOfficeEvents(name),
+        getOffice(name, namespace),
+        getOfficeEvents(name, 50, namespace),
         listAgents(),
       ]);
       setOffice(officeData);
@@ -74,7 +76,7 @@ export default function OfficeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, namespace]);
 
   useEffect(() => {
     fetchData();
@@ -82,7 +84,7 @@ export default function OfficeDetailPage() {
 
   async function handleDelete() {
     try {
-      await deleteOffice(name);
+      await deleteOffice(name, namespace);
       router.push("/offices");
     } catch {
       // non-critical
