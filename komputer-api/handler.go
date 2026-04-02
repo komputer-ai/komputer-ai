@@ -41,6 +41,7 @@ type AgentResponse struct {
 	Lifecycle       string   `json:"lifecycle,omitempty"`
 	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
 	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
+	TotalTokens     int64    `json:"totalTokens,omitempty"`
 	Secrets         []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
 	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
 	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
@@ -73,6 +74,7 @@ type OfficeResponse struct {
 	ActiveAgents    int                    `json:"activeAgents"`
 	CompletedAgents int                    `json:"completedAgents"`
 	TotalCostUSD    string                 `json:"totalCostUSD,omitempty"`
+	TotalTokens     int64                  `json:"totalTokens,omitempty"`
 	Members         []OfficeMemberResponse `json:"members,omitempty"`
 	CreatedAt       string                 `json:"createdAt"`
 }
@@ -124,6 +126,8 @@ type ScheduleResponse struct {
 	FailedRuns     int    `json:"failedRuns,omitempty"`
 	TotalCostUSD   string `json:"totalCostUSD,omitempty"`
 	LastRunCostUSD string `json:"lastRunCostUSD,omitempty"`
+	TotalTokens    int64  `json:"totalTokens,omitempty"`
+	LastRunTokens  int64  `json:"lastRunTokens,omitempty"`
 	LastRunStatus  string `json:"lastRunStatus,omitempty"`
 	CreatedAt      string `json:"createdAt"`
 }
@@ -322,6 +326,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Lifecycle:       string(existing.Spec.Lifecycle),
 					LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 					TotalCostUSD:    existing.Status.TotalCostUSD,
+					TotalTokens:     existing.Status.TotalTokens,
 					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 					Memories:        existing.Spec.Memories,
 					Skills:          existing.Spec.Skills,
@@ -375,6 +380,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       string(existing.Spec.Lifecycle),
 				LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 				TotalCostUSD:    existing.Status.TotalCostUSD,
+				TotalTokens:     existing.Status.TotalTokens,
 				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 				Memories:        existing.Spec.Memories,
 				Skills:          existing.Spec.Skills,
@@ -536,6 +542,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:       string(agent.Spec.Lifecycle),
 			LastTaskCostUSD: agent.Status.LastTaskCostUSD,
 			TotalCostUSD:    agent.Status.TotalCostUSD,
+			TotalTokens:     agent.Status.TotalTokens,
 			Secrets:         agent.Spec.Secrets,
 			Memories:        agent.Spec.Memories,
 			Skills:          agent.Spec.Skills,
@@ -612,6 +619,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       string(a.Spec.Lifecycle),
 				LastTaskCostUSD: a.Status.LastTaskCostUSD,
 				TotalCostUSD:    a.Status.TotalCostUSD,
+				TotalTokens:     a.Status.TotalTokens,
 				Secrets:         collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
 				Memories:        a.Spec.Memories,
 				Skills:          a.Spec.Skills,
@@ -635,6 +643,7 @@ func officeToResponse(o komputerv1alpha1.KomputerOffice, includeMembers bool) Of
 		ActiveAgents:    o.Status.ActiveAgents,
 		CompletedAgents: o.Status.CompletedAgents,
 		TotalCostUSD:    o.Status.TotalCostUSD,
+		TotalTokens:     o.Status.TotalTokens,
 		CreatedAt:       o.CreationTimestamp.UTC().Format(time.RFC3339),
 	}
 	if includeMembers {
@@ -752,6 +761,8 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 		FailedRuns:     s.Status.FailedRuns,
 		TotalCostUSD:   s.Status.TotalCostUSD,
 		LastRunCostUSD: s.Status.LastRunCostUSD,
+		TotalTokens:    s.Status.TotalTokens,
+		LastRunTokens:  s.Status.LastRunTokens,
 		LastRunStatus:  s.Status.LastRunStatus,
 		CreatedAt:      s.CreationTimestamp.UTC().Format(time.RFC3339),
 	}
@@ -1446,6 +1457,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:       string(updated.Spec.Lifecycle),
 			LastTaskCostUSD: updated.Status.LastTaskCostUSD,
 			TotalCostUSD:    updated.Status.TotalCostUSD,
+			TotalTokens:     updated.Status.TotalTokens,
 			Secrets:         updated.Spec.Secrets,
 			Memories:        updated.Spec.Memories,
 			Skills:          updated.Spec.Skills,
