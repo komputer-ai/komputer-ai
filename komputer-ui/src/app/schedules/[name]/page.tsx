@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Trash2, Calendar, CheckCircle, DollarSign, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -13,7 +13,8 @@ import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
-import { getSchedule, deleteSchedule } from "@/lib/api";
+import { Input } from "@/components/kit/input";
+import { getSchedule, deleteSchedule, patchSchedule } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { cronToHuman, formatCost } from "@/lib/utils";
 import type { ScheduleResponse } from "@/lib/types";
@@ -49,6 +50,9 @@ export default function ScheduleDetailPage() {
   const [loading, setLoading] = useState(true);
   const showLoading = useDelayedLoading(loading);
   const [notFound, setNotFound] = useState(false);
+  const [editingCron, setEditingCron] = useState(false);
+  const [cronDraft, setCronDraft] = useState("");
+  const [savingCron, setSavingCron] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -76,6 +80,24 @@ export default function ScheduleDetailPage() {
       router.push("/schedules");
     } catch {
       // non-critical
+    }
+  }
+
+  async function handleSaveCron() {
+    const trimmed = cronDraft.trim();
+    if (!trimmed || trimmed === schedule?.schedule) {
+      setEditingCron(false);
+      return;
+    }
+    setSavingCron(true);
+    try {
+      await patchSchedule(name, { schedule: trimmed });
+      await fetchData();
+      setEditingCron(false);
+    } catch {
+      // keep editing on error
+    } finally {
+      setSavingCron(false);
     }
   }
 
@@ -127,15 +149,9 @@ export default function ScheduleDetailPage() {
         transition={{ duration: 0.3, ease: "easeOut" }}
         className="flex-1 overflow-y-auto p-6 space-y-8"
       >
-        {/* Header info bar */}
-        <div className="flex flex-wrap items-center gap-4">
+        {/* Header bar */}
+        <div className="flex flex-wrap items-center gap-3">
           <StatusBadge status={schedule.phase} />
-          <Badge variant="outline" className="font-mono text-[10px]">
-            {schedule.schedule}
-          </Badge>
-          <span className="text-xs text-[var(--color-text-secondary)]">
-            {cronToHuman(schedule.schedule)}
-          </span>
           {schedule.timezone && (
             <Badge variant="secondary" className="text-[10px]">
               {schedule.timezone}
@@ -158,6 +174,81 @@ export default function ScheduleDetailPage() {
                 </Button>
               }
             />
+          </div>
+        </div>
+
+        {/* Cron expression — hero card */}
+        <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {/* Subtle gradient accent along top edge */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-brand-blue)]/40 to-transparent" />
+          <div className="px-4 py-3">
+            <AnimatePresence mode="wait">
+              {editingCron ? (
+                <motion.div
+                  key="edit"
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.12 }}
+                  className="flex items-center gap-2"
+                >
+                  <Clock className="size-3.5 text-[var(--color-brand-blue)] shrink-0" />
+                  <input
+                    value={cronDraft}
+                    onChange={(e) => setCronDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveCron();
+                      if (e.key === "Escape") setEditingCron(false);
+                    }}
+                    className="flex-1 bg-transparent font-mono text-base font-medium tracking-wide text-[var(--color-text)] outline-none border-b border-[var(--color-brand-blue)] pb-0.5 caret-[var(--color-brand-blue)] placeholder:text-[var(--color-text-muted)]"
+                    placeholder="* * * * *"
+                    autoFocus
+                    disabled={savingCron}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-emerald-500/10"
+                    onClick={handleSaveCron}
+                    disabled={savingCron}
+                  >
+                    <Check className="size-3.5 text-emerald-400" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setEditingCron(false)}
+                    disabled={savingCron}
+                  >
+                    <X className="size-3.5 text-[var(--color-text-secondary)]" />
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.button
+                  key="display"
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.12 }}
+                  type="button"
+                  onClick={() => {
+                    setCronDraft(schedule.schedule);
+                    setEditingCron(true);
+                  }}
+                  className="group flex w-full items-center gap-2.5 text-left cursor-pointer"
+                >
+                  <Clock className="size-3.5 text-[var(--color-brand-blue)] shrink-0" />
+                  <span className="font-mono text-base font-medium tracking-wide text-[var(--color-text)] group-hover:text-[var(--color-brand-blue)] transition-colors">
+                    {schedule.schedule}
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {cronToHuman(schedule.schedule)}
+                  </span>
+                  <Pencil className="size-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-auto" />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

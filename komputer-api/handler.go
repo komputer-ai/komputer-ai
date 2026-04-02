@@ -193,6 +193,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/schedules", listSchedules(k8s))
 		v1.GET("/schedules/:name", getSchedule(k8s))
 		v1.DELETE("/schedules/:name", deleteSchedule(k8s))
+		v1.PATCH("/schedules/:name", patchSchedule(k8s))
 
 		v1.POST("/memories", createMemory(k8s))
 		v1.GET("/memories", listMemories(k8s))
@@ -821,6 +822,36 @@ func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 		}
 		log.Printf("deleted schedule %s/%s", ns, name)
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
+	}
+}
+
+type PatchScheduleRequest struct {
+	Schedule *string `json:"schedule,omitempty"`
+}
+
+func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		var req PatchScheduleRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		if req.Schedule == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
+			return
+		}
+		if err := k8s.PatchScheduleCron(c.Request.Context(), ns, name, *req.Schedule); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch schedule: " + err.Error()})
+			return
+		}
+		sched, err := k8s.GetSchedule(c.Request.Context(), ns, name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "patched but failed to read back: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, scheduleToResponse(*sched))
 	}
 }
 

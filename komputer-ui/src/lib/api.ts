@@ -89,6 +89,9 @@ export const createSchedule = (data: CreateScheduleRequest) =>
 export const deleteSchedule = (name: string, ns?: string) =>
   request<void>(`/schedules/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
 
+export const patchSchedule = (name: string, data: { schedule?: string }, ns?: string) =>
+  request<ScheduleResponse>(`/schedules/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'PATCH', body: JSON.stringify(data) });
+
 // Agent settings
 export const patchAgent = (name: string, data: PatchAgentRequest, ns?: string) =>
   request<AgentResponse>(`/agents/${name}${ns ? `?namespace=${ns}` : ''}`, {

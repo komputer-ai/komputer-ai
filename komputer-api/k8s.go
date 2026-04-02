@@ -491,6 +491,20 @@ func (k *K8sClient) GetSchedule(ctx context.Context, ns, name string) (*komputer
 	return schedule, nil
 }
 
+func (k *K8sClient) PatchScheduleCron(ctx context.Context, ns, name, cron string) error {
+	schedule := &komputerv1alpha1.KomputerSchedule{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, schedule); err != nil {
+		return fmt.Errorf("failed to get schedule %s: %w", name, err)
+	}
+	if schedule.Spec.Schedule == cron {
+		return nil
+	}
+	original := schedule.DeepCopy()
+	schedule.Spec.Schedule = cron
+	return k.client.Patch(ctx, schedule, client.MergeFrom(original))
+}
+
 func (k *K8sClient) ListSchedules(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerSchedule, error) {
 	list := &komputerv1alpha1.KomputerScheduleList{}
 	var opts []client.ListOption
