@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel
 
+from agent import _write_skills
 import config as agent_config
 import state
 
@@ -72,12 +73,7 @@ async def apply_config(req: ConfigRequest):
             _os.environ[env_key] = value
 
     if req.skills:
-        from pathlib import Path
-        skills_dir = Path.home() / ".claude" / "skills"
-        skills_dir.mkdir(parents=True, exist_ok=True)
-        for name, skill in req.skills.items():
-            md = f"---\nname: {name}\ndescription: {skill['description']}\n---\n\n{skill['content']}"
-            (skills_dir / f"{name}.md").write_text(md)
+        _write_skills(req.skills)
 
     updates = {k: v for k, v in req.model_dump(exclude={"secrets", "skills"}).items() if v is not None}
     if updates:

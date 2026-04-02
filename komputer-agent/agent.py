@@ -18,6 +18,7 @@ from claude_agent_sdk import (
 os.environ.setdefault("CLAUDE_CONFIG_DIR", "/workspace/.claude")
 
 SESSION_FILE = Path("/workspace/.komputer-session")
+SKILLS_DIR = Path.home() / ".claude" / "skills"
 
 
 def _load_session_id() -> str | None:
@@ -31,6 +32,19 @@ def _load_session_id() -> str | None:
 def _save_session_id(session_id: str):
     """Save the session ID to the workspace for future tasks."""
     SESSION_FILE.write_text(session_id)
+
+
+def _write_skills(skills: dict[str, str | dict[str, str]]):
+    """Write Claude skills to ~/.claude/skills/<name>/SKILL.md."""
+    for name, skill in skills.items():
+        if isinstance(skill, dict):
+            content = f"---\nname: {name}\ndescription: {skill['description']}\n---\n\n{skill['content']}"
+        else:
+            content = skill
+
+        skill_dir = SKILLS_DIR / name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(content)
 
 
 async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None):
@@ -61,7 +75,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         return {}
 
     options = ClaudeAgentOptions(
-        tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep"],
+        tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
+        allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
@@ -71,13 +86,6 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             ],
         },
     )
-
-    # Enable Skill tool if skill files are present
-    skills_dir = Path.home() / ".claude" / "skills"
-    if skills_dir.exists() and any(skills_dir.glob("*.md")):
-        options.setting_sources = ["user"]
-        if "Skill" not in options.tools:
-            options.tools.append("Skill")
 
     # Set system prompt via SDK (replaces previous system prompt, doesn't accumulate in history)
     if system_prompt:
