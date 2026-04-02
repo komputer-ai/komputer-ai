@@ -77,6 +77,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     options = ClaudeAgentOptions(
         tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
         allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
+        setting_sources=["user", "project"],
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
