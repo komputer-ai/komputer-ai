@@ -31,7 +31,7 @@ export default function MemoriesPage() {
       if (search && !m.name.toLowerCase().includes(search.toLowerCase()) && !m.description?.toLowerCase().includes(search.toLowerCase())) return false;
       if (namespace && m.namespace !== namespace) return false;
       return true;
-    });
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [memories, search, namespace]);
 
   const handleDelete = async (name: string) => {

@@ -32,7 +32,7 @@ export default function SchedulesPage() {
       const q = search.trim().toLowerCase();
       result = result.filter((s) => s.name.toLowerCase().includes(q));
     }
-    return result;
+    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [schedules, search, namespace]);
 
   async function handleDelete(name: string) {

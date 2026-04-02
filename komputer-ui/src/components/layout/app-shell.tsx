@@ -11,6 +11,7 @@ import { CreateAgentModal } from "@/components/agents/create-agent-modal";
 import { CreateScheduleModal } from "@/components/schedules/create-schedule-modal";
 import { CreateMemoryModal } from "@/components/memories/create-memory-modal";
 import { CreateSkillModal } from "@/components/skills/create-skill-modal";
+import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { createMemory, createSkill } from "@/lib/api";
 import {
   CreateAgentModalContext,
@@ -39,6 +40,7 @@ const pageTitles: Record<string, string> = {
   "/agents": "Agents",
   "/memories": "Memories",
   "/skills": "Skills",
+  "/secrets": "Secrets",
   "/offices": "Offices",
   "/schedules": "Schedules",
   "/topology": "Topology",
@@ -85,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [createScheduleOpen, setCreateScheduleOpen] = useState(false);
   const [createMemoryOpen, setCreateMemoryOpen] = useState(false);
   const [createSkillOpen, setCreateSkillOpen] = useState(false);
+  const [createSecretOpen, setCreateSecretOpen] = useState(false);
   const [agentInitialValues, setAgentInitialValues] = useState<AgentTemplate | null>(null);
   const pathname = usePathname();
   const title = getPageTitle(pathname);
@@ -92,6 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isSchedulesPage = pathname === "/schedules" || pathname.startsWith("/schedules/");
   const isMemoriesPage = pathname === "/memories" || pathname.startsWith("/memories/");
   const isSkillsPage = pathname === "/skills" || pathname.startsWith("/skills/");
+  const isSecretsPage = pathname === "/secrets" || pathname.startsWith("/secrets/");
 
   const backLink = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
@@ -240,6 +244,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <HeaderAction label="New Memory" onClick={() => setCreateMemoryOpen(true)} />
             ) : isSkillsPage ? (
               <HeaderAction label="New Skill" onClick={() => setCreateSkillOpen(true)} />
+            ) : isSecretsPage ? (
+              <HeaderAction label="New Secret" onClick={() => setCreateSecretOpen(true)} />
             ) : (
               <HeaderAction label="New Agent" onClick={() => { setAgentInitialValues(null); setCreateAgentOpen(true); }} />
             )}
@@ -266,6 +272,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CreateScheduleModal open={createScheduleOpen} onOpenChange={setCreateScheduleOpen} />
       <CreateMemoryModal open={createMemoryOpen} onOpenChange={setCreateMemoryOpen} onCreated={() => refreshFn?.()} />
       <CreateSkillModal open={createSkillOpen} onOpenChange={setCreateSkillOpen} onCreated={() => refreshFn?.()} />
+      <CreateSecretModal open={createSecretOpen} onOpenChange={setCreateSecretOpen} onCreated={() => refreshFn?.()} />
     </CreateAgentModalContext.Provider>
   );
 }

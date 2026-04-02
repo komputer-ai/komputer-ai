@@ -31,7 +31,7 @@ export default function SkillsPage() {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.description?.toLowerCase().includes(search.toLowerCase())) return false;
       if (namespace && s.namespace !== namespace) return false;
       return true;
-    });
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [skills, search, namespace]);
 
   const handleDelete = async (name: string) => {

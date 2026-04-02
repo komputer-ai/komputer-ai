@@ -152,6 +152,7 @@ func (k *K8sClient) CreateAgentSecrets(ctx context.Context, ns, agentName string
 			Name:      secretName,
 			Namespace: ns,
 			Labels: map[string]string{
+				"komputer.ai/managed-by":  "komputer-ai",
 				"komputer.ai/agent-name": agentName,
 			},
 		},
@@ -187,6 +188,58 @@ func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+// ListSecrets lists K8s Secrets in a namespace. If all=false, only returns secrets
+// with the label komputer.ai/managed-by=komputer-ai. If all=true, returns all secrets.
+func (k *K8sClient) ListSecrets(ctx context.Context, ns string, all bool) ([]corev1.Secret, error) {
+	list := &corev1.SecretList{}
+	opts := []client.ListOption{client.InNamespace(ns)}
+	if !all {
+		opts = append(opts, client.MatchingLabels{"komputer.ai/managed-by": "komputer-ai"})
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// CreateManagedSecret creates a K8s Secret managed by komputer-ai.
+// Keys are sanitized to SECRET_{UPPERCASE_KEY} format.
+func (k *K8sClient) CreateManagedSecret(ctx context.Context, ns, name string, data map[string]string) (*corev1.Secret, error) {
+	sanitize := regexp.MustCompile(`[^A-Za-z0-9]`)
+	secretData := make(map[string][]byte, len(data))
+	for key, value := range data {
+		safe := strings.ToUpper(sanitize.ReplaceAllString(key, "_"))
+		secretData["SECRET_"+safe] = []byte(value)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			Labels: map[string]string{
+				"komputer.ai/managed-by":  "komputer-ai",
+				"komputer.ai/secret-name": name,
+			},
+		},
+		Data: secretData,
+	}
+	if err := k.client.Create(ctx, secret); err != nil {
+		return nil, fmt.Errorf("failed to create secret: %w", err)
+	}
+	return secret, nil
+}
+
+// DeleteManagedSecret deletes a K8s Secret by name.
+func (k *K8sClient) DeleteManagedSecret(ctx context.Context, ns, name string) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+	}
+	return k.client.Delete(ctx, secret)
 }
 
 func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, memories []string, skills []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {

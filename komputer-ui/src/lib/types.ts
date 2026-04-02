@@ -85,6 +85,7 @@ export interface CreateAgentRequest {
   secrets?: Record<string, string>;
   memories?: string[];
   skills?: string[];
+  secretRefs?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
 }
 
@@ -163,5 +164,24 @@ export interface CreateSkillRequest {
   name: string;
   description: string;
   content: string;
+  namespace?: string;
+}
+
+export interface SecretResponse {
+  name: string;
+  namespace: string;
+  keys: string[];
+  managed: boolean;
+  agentName?: string;
+  createdAt: string;
+}
+
+export interface SecretListResponse {
+  secrets: SecretResponse[];
+}
+
+export interface CreateSecretRequest {
+  name: string;
+  data: Record<string, string>;
   namespace?: string;
 }

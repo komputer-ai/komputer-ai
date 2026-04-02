@@ -23,9 +23,10 @@ type CreateAgentRequest struct {
 	TemplateRef  string            `json:"templateRef"`
 	Role         string            `json:"role"`      // "manager" or "" (default manager)
 	Namespace    string            `json:"namespace"` // optional, defaults to server default
-	Secrets      map[string]string `json:"secrets"`   // optional key-value secrets
-	Memories     []string          `json:"memories"`  // optional KomputerMemory names to attach
-	Skills       []string          `json:"skills"`    // optional KomputerSkill names to attach
+	Secrets      map[string]string `json:"secrets"`    // optional key-value secrets
+	SecretRefs   []string          `json:"secretRefs"` // names of existing K8s Secrets to attach
+	Memories     []string          `json:"memories"`   // optional KomputerMemory names to attach
+	Skills       []string          `json:"skills"`     // optional KomputerSkill names to attach
 	Lifecycle     string            `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
 	OfficeManager string            `json:"officeManager"` // set by manager MCP tool
 }
@@ -131,6 +132,27 @@ type ScheduleListResponse struct {
 	Schedules []ScheduleResponse `json:"schedules"`
 }
 
+// --- Secret types ---
+
+type SecretResponse struct {
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Keys      []string `json:"keys"`
+	Managed   bool     `json:"managed"`
+	AgentName string   `json:"agentName,omitempty"`
+	CreatedAt string   `json:"createdAt"`
+}
+
+type SecretListResponse struct {
+	Secrets []SecretResponse `json:"secrets"`
+}
+
+type CreateSecretRequest struct {
+	Name      string            `json:"name" binding:"required"`
+	Data      map[string]string `json:"data" binding:"required"`
+	Namespace string            `json:"namespace"`
+}
+
 // isValidK8sName checks if a string is a valid Kubernetes DNS subdomain name.
 var k8sNameRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 
@@ -206,6 +228,10 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/skills/:name", getSkill(k8s))
 		v1.DELETE("/skills/:name", deleteSkill(k8s))
 		v1.PATCH("/skills/:name", patchSkill(k8s))
+
+		v1.GET("/secrets", listSecrets(k8s))
+		v1.POST("/secrets", createManagedSecret(k8s))
+		v1.DELETE("/secrets/:name", deleteManagedSecret(k8s))
 
 		v1.GET("/templates", listTemplates(k8s))
 	}
@@ -372,6 +398,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			secretNames = []string{secretName}
 		}
+		secretNames = append(secretNames, req.SecretRefs...)
 
 		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, secretNames, req.Memories, req.Skills, req.Lifecycle, req.OfficeManager)
 		if err != nil {
@@ -1209,6 +1236,84 @@ func deleteSkill(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	}
+}
+
+// --- Secret handlers ---
+
+func listSecrets(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ns := resolveNamespace(c, k8s)
+		all := c.Query("all") == "true"
+		secrets, err := k8s.ListSecrets(c.Request.Context(), ns, all)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list secrets: " + err.Error()})
+			return
+		}
+		resp := make([]SecretResponse, 0, len(secrets))
+		for _, s := range secrets {
+			keys := make([]string, 0, len(s.Data))
+			for k := range s.Data {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			resp = append(resp, SecretResponse{
+				Name:      s.Name,
+				Namespace: s.Namespace,
+				Keys:      keys,
+				Managed:   s.Labels["komputer.ai/managed-by"] == "komputer-ai",
+				AgentName: s.Labels["komputer.ai/agent-name"],
+				CreatedAt: s.CreationTimestamp.UTC().Format(time.RFC3339),
+			})
+		}
+		c.JSON(http.StatusOK, SecretListResponse{Secrets: resp})
+	}
+}
+
+func createManagedSecret(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req CreateSecretRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		if !isValidK8sName(req.Name) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid secret name: must be lowercase letters, numbers, and hyphens"})
+			return
+		}
+		ns := req.Namespace
+		if ns == "" {
+			ns = resolveNamespace(c, k8s)
+		}
+		secret, err := k8s.CreateManagedSecret(c.Request.Context(), ns, req.Name, req.Data)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create secret: " + err.Error()})
+			return
+		}
+		keys := make([]string, 0, len(secret.Data))
+		for k := range secret.Data {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		c.JSON(http.StatusCreated, SecretResponse{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+			Keys:      keys,
+			Managed:   true,
+			CreatedAt: secret.CreationTimestamp.UTC().Format(time.RFC3339),
+		})
+	}
+}
+
+func deleteManagedSecret(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		if err := k8s.DeleteManagedSecret(c.Request.Context(), ns, name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete secret: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
 }
 

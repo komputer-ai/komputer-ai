@@ -42,7 +42,7 @@ export default function AgentsPage() {
       const q = search.trim().toLowerCase();
       result = result.filter((a) => a.name.toLowerCase().includes(q));
     }
-    return result;
+    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [agents, statusFilter, search, namespace]);
 
   async function handleDelete(name: string) {

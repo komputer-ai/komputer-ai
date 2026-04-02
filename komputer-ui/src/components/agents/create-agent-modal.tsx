@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -22,13 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
-import { Plus, Trash2, ChevronRight, Check } from "lucide-react";
+import { ChevronRight, Check, Plus } from "lucide-react";
+import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
-import { createAgent, listTemplates, listMemories, listSkills } from "@/lib/api";
+import { createAgent, listTemplates, listMemories, listSkills, listSecrets } from "@/lib/api";
 import type { CreateAgentRequest, TemplateResponse } from "@/lib/types";
 import type { AgentTemplate } from "@/lib/create-agent-modal-context";
-
-type SecretEntry = { key: string; value: string };
 
 type CreateAgentModalProps = {
   open: boolean;
@@ -55,7 +54,9 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
-  const [secrets, setSecrets] = useState<SecretEntry[]>([]);
+  const [selectedSecretRefs, setSelectedSecretRefs] = useState<string[]>([]);
+  const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
+  const [createSecretOpen, setCreateSecretOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,8 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setLifecycle("default");
     setTemplateRef("default");
     setRole(undefined);
-    setSecrets([]);
+    setSelectedSecretRefs([]);
+    setCreateSecretOpen(false);
     setSelectedMemories([]);
     setSelectedSkills([]);
     setAdvancedOpen(false);
@@ -97,6 +99,9 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         ref: s.namespace === (namespace || "default") ? s.name : `${s.namespace}/${s.name}`,
       }))))
       .catch(() => setAvailableSkills([]));
+    listSecrets(namespace || undefined)
+      .then((res) => setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace }))))
+      .catch(() => setAvailableSecrets([]));
   }, [open, namespace]);
 
   useEffect(() => {
@@ -107,13 +112,6 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
       setLifecycle(initialValues.lifecycle);
       setRole(initialValues.role);
       if (initialValues.templateRef) setTemplateRef(initialValues.templateRef);
-      if (initialValues.secrets) {
-        setSecrets(
-          Object.entries(initialValues.secrets).map(([key, value]) => ({ key, value }))
-        );
-      } else {
-        setSecrets([]);
-      }
       setError(null);
     }
   }, [open, initialValues]);
@@ -138,13 +136,6 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setError(null);
 
     try {
-      const secretsMap: Record<string, string> = {};
-      for (const s of secrets) {
-        const k = s.key.trim();
-        const v = s.value.trim();
-        if (k && v) secretsMap[k] = v;
-      }
-
       const req: CreateAgentRequest = {
         name: name.trim(),
         instructions: instructions.trim(),
@@ -153,7 +144,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         lifecycle: lifecycle === "default" ? "" : (lifecycle as "" | "Sleep" | "AutoDelete"),
         role: role || undefined,
         templateRef: templateRef !== "default" ? templateRef : undefined,
-        secrets: Object.keys(secretsMap).length > 0 ? secretsMap : undefined,
+        secretRefs: selectedSecretRefs.length > 0 ? selectedSecretRefs : undefined,
         memories: selectedMemories.length > 0 ? selectedMemories : undefined,
         skills: selectedSkills.length > 0 ? selectedSkills : undefined,
       };
@@ -174,23 +165,6 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
       setSubmitting(false);
     }
   }
-
-  const addSecret = useCallback(() => {
-    setSecrets((prev) => [...prev, { key: "", value: "" }]);
-  }, []);
-
-  const removeSecret = useCallback((index: number) => {
-    setSecrets((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const updateSecret = useCallback(
-    (index: number, field: "key" | "value", val: string) => {
-      setSecrets((prev) =>
-        prev.map((s, i) => (i === index ? { ...s, [field]: val } : s))
-      );
-    },
-    []
-  );
 
   return (
     <Dialog
@@ -268,47 +242,46 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
 
             <div className="flex flex-col gap-1.5">
               <Label>Secrets</Label>
-              <div className="flex flex-col gap-2">
-                {secrets.map((secret, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      placeholder="KEY"
-                      value={secret.key}
-                      onChange={(e) => updateSecret(index, "key", e.target.value)}
-                      autoComplete="off"
-                      className="flex-1"
-                    />
-                    <Input
-                      type="password"
-                      placeholder="value"
-                      value={secret.value}
-                      onChange={(e) => updateSecret(index, "value", e.target.value)}
-                      autoComplete="off"
-                      className="flex-1"
-                    />
-                    <Button
+              <div className="flex flex-wrap gap-1.5">
+                {availableSecrets.map((s) => {
+                  const selected = selectedSecretRefs.includes(s.name);
+                  return (
+                    <button
+                      key={s.name}
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSecret(index)}
-                      className="shrink-0"
+                      onClick={() => setSelectedSecretRefs(prev =>
+                        selected ? prev.filter(n => n !== s.name) : [...prev, s.name]
+                      )}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                        selected
+                          ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                          : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                      }`}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
+                      {selected && <Check className="inline size-2.5 mr-1" />}
+                      {s.name}
+                    </button>
+                  );
+                })}
+                <button
                   type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={addSecret}
-                  className="w-fit"
+                  onClick={() => setCreateSecretOpen(true)}
+                  className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer"
                 >
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add Secret
-                </Button>
+                  <Plus className="inline size-2.5 mr-1" />
+                  New Secret
+                </button>
               </div>
             </div>
+            <CreateSecretModal
+              open={createSecretOpen}
+              onOpenChange={setCreateSecretOpen}
+              onCreated={() => {
+                listSecrets(namespace || undefined)
+                  .then((res) => setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace }))))
+                  .catch(() => {});
+              }}
+            />
 
             {/* Advanced section */}
             <div ref={advancedRef} className="rounded-md border border-[var(--color-border)]">

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Ban, Trash2, Zap, Save, Check, Plus } from "lucide-react";
+import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/kit/tabs";
@@ -15,10 +16,9 @@ import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets } from "@/lib/api";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
-import { Input } from "@/components/kit/input";
 import { Textarea } from "@/components/kit/textarea";
 import { Label } from "@/components/kit/label";
 import {
@@ -385,7 +385,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [model, setModel] = useState(agent.model);
   const [lifecycle, setLifecycle] = useState<string>(agent.lifecycle || "default");
   const instructions = agent.instructions ?? "";
-  const [newSecrets, setNewSecrets] = useState<{ key: string; value: string }[]>([]);
+  const [agentSecretRefs, setAgentSecretRefs] = useState<string[]>(agent.secrets ?? []);
+  const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
+  const [createSecretOpen, setCreateSecretOpen] = useState(false);
   const [agentMemories, setAgentMemories] = useState<string[]>(agent.memories ?? []);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [agentSkills, setAgentSkills] = useState<string[]>(agent.skills ?? []);
@@ -409,12 +411,16 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         ref: s.namespace === (agentNs || "default") ? s.name : `${s.namespace}/${s.name}`,
       })));
     }).catch(() => {});
+    listSecrets(agentNs || undefined).then((res) => {
+      setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
+    }).catch(() => {});
   }, [agentNs]);
 
   const agentLifecycle = agent.lifecycle || "default";
   const memoriesChanged = JSON.stringify(agentMemories.sort()) !== JSON.stringify((agent.memories ?? []).sort());
   const skillsChanged = JSON.stringify(agentSkills.sort()) !== JSON.stringify((agent.skills ?? []).sort());
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || newSecrets.some(s => s.key.trim() && s.value.trim()) || memoriesChanged || skillsChanged;
+  const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -424,17 +430,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       const patch: Record<string, unknown> = {};
       if (model !== agent.model) patch.model = model;
       if (lifecycle !== agentLifecycle) patch.lifecycle = lifecycle === "default" ? "" : lifecycle;
-      const secretsMap: Record<string, string> = {};
-      for (const s of newSecrets) {
-        const k = s.key.trim();
-        const v = s.value.trim();
-        if (k && v) secretsMap[k] = v;
-      }
-      if (Object.keys(secretsMap).length > 0) patch.secrets = secretsMap;
+      if (secretsChanged) patch.secretRefs = agentSecretRefs;
       if (memoriesChanged) patch.memories = agentMemories;
       if (skillsChanged) patch.skills = agentSkills;
       await patchAgent(agent.name, patch, agentNs);
-      setNewSecrets([]);
       setSaved(true);
       onSaved();
       setTimeout(() => setSaved(false), 2000);
@@ -495,42 +494,45 @@ function SettingsCard({ agent, agentNs, onSaved }: {
 
       <div className="flex flex-col gap-1.5">
         <Label>Secrets</Label>
-        {agent.secrets && agent.secrets.length > 0 && (
-          <div className="space-y-1.5 mb-1">
-            {agent.secrets.map((key) => (
-              <div key={key} className="flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--color-bg)] px-3 py-2">
-                <span className="text-[12px] font-[family-name:var(--font-mono)] text-[var(--color-text-secondary)]">{key}</span>
-                <span className="ml-auto font-[family-name:var(--font-mono)] text-[11px] tracking-widest text-[var(--color-text-muted)]">••••••</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {newSecrets.map((secret, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <Input
-              placeholder="KEY"
-              value={secret.key}
-              onChange={(e) => setNewSecrets(prev => prev.map((s, i) => i === index ? { ...s, key: e.target.value } : s))}
-              autoComplete="off"
-              className="flex-1"
-            />
-            <Input
-              type="password"
-              placeholder="value"
-              value={secret.value}
-              onChange={(e) => setNewSecrets(prev => prev.map((s, i) => i === index ? { ...s, value: e.target.value } : s))}
-              autoComplete="off"
-              className="flex-1"
-            />
-            <Button type="button" variant="ghost" size="icon" onClick={() => setNewSecrets(prev => prev.filter((_, i) => i !== index))} className="shrink-0">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-        <Button type="button" variant="secondary" size="sm" onClick={() => setNewSecrets(prev => [...prev, { key: "", value: "" }])} className="w-fit">
-          <Plus className="mr-1 h-4 w-4" />
-          Add Secret
-        </Button>
+        <div className="flex flex-wrap gap-1.5">
+          {availableSecrets.map((s) => {
+            const attached = agentSecretRefs.includes(s.name);
+            return (
+              <button
+                key={s.name}
+                type="button"
+                onClick={() => setAgentSecretRefs(prev =>
+                  attached ? prev.filter(n => n !== s.name) : [...prev, s.name]
+                )}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                  attached
+                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                }`}
+              >
+                {attached && <Check className="inline size-2.5 mr-1" />}
+                {s.name}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setCreateSecretOpen(true)}
+            className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer"
+          >
+            <Plus className="inline size-2.5 mr-1" />
+            New Secret
+          </button>
+        </div>
+        <CreateSecretModal
+          open={createSecretOpen}
+          onOpenChange={setCreateSecretOpen}
+          onCreated={() => {
+            listSecrets(agentNs || undefined).then((res) => {
+              setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
+            }).catch(() => {});
+          }}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">

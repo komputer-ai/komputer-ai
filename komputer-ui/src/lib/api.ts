@@ -16,6 +16,9 @@ import type {
   SkillListResponse,
   CreateSkillRequest,
   SkillResponse,
+  SecretListResponse,
+  SecretResponse,
+  CreateSecretRequest,
 } from './types';
 import { getConfig } from './config';
 
@@ -133,6 +136,21 @@ export const patchSkill = (name: string, data: { content?: string; description?:
   request<SkillResponse>(`/skills/${name}${ns ? `?namespace=${ns}` : ''}`, {
     method: 'PATCH', body: JSON.stringify(data),
   });
+
+// Secrets
+export const listSecrets = (ns?: string, all?: boolean) => {
+  const params = new URLSearchParams();
+  if (ns) params.set('namespace', ns);
+  if (all) params.set('all', 'true');
+  const qs = params.toString();
+  return request<SecretListResponse>(`/secrets${qs ? `?${qs}` : ''}`);
+};
+
+export const createSecretResource = (data: CreateSecretRequest) =>
+  request<SecretResponse>('/secrets', { method: 'POST', body: JSON.stringify(data) });
+
+export const deleteSecretResource = (name: string, ns?: string) =>
+  request<void>(`/secrets/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
 
 // Templates
 export const listTemplates = (ns?: string) =>
