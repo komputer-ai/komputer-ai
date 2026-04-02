@@ -327,6 +327,12 @@ curl -X POST http://localhost:8080/api/v1/agents \
 
 Run isolated agent pools per team or environment.
 
+> ⚠️ **Each namespace needs the Anthropic API key secret.** Before deploying agents to a new namespace, create the secret there or agents will fail to start:
+> ```bash
+> kubectl create secret generic anthropic-api-key --from-literal=api-key=sk-ant-... -n prod-agents
+> kubectl create secret generic anthropic-api-key --from-literal=api-key=sk-ant-... -n staging-agents
+> ```
+
 ```bash
 # Production agents
 curl -X POST "http://localhost:8080/api/v1/agents" \
