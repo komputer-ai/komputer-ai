@@ -30,6 +30,12 @@ import {
 } from "@/components/kit/select";
 import type { AgentResponse, AgentEvent } from "@/lib/types";
 
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
+  if (n >= 1000) { const v = n / 1000; return `${Number.isInteger(v) ? v : v.toFixed(1)}k`; }
+  return String(n);
+}
+
 export default function AgentDetailPage() {
   const params = useParams<{ name: string }>();
   const searchParams = useSearchParams();
@@ -266,9 +272,7 @@ export default function AgentDetailPage() {
               <>
                 <span className="text-[var(--color-border)]">·</span>
                 <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                  {agent.totalTokens >= 1000
-                    ? `${(agent.totalTokens / 1000).toFixed(1)}k`
-                    : agent.totalTokens}{" "}
+                  {fmtTokens(agent.totalTokens)}{" "}
                   total tokens
                 </span>
               </>
@@ -431,7 +435,7 @@ function MetricsRow({ totalCostUSD, lastTaskCostUSD, totalTokens }: {
   if (totalTokens != null && totalTokens > 0) {
     items.push({
       label: "Total Tokens",
-      value: totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens),
+      value: fmtTokens(totalTokens),
     });
   }
   return (
