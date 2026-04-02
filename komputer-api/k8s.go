@@ -881,7 +881,7 @@ func (k *K8sClient) PatchAgentLifecycle(ctx context.Context, ns, agentName, life
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
-func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64) error {
+func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -896,13 +896,15 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	}
 	if costUSD > 0 {
 		agent.Status.LastTaskCostUSD = fmt.Sprintf("%.4f", costUSD)
-		// Accumulate total cost.
 		var total float64
 		if agent.Status.TotalCostUSD != "" {
 			fmt.Sscanf(agent.Status.TotalCostUSD, "%f", &total)
 		}
 		total += costUSD
 		agent.Status.TotalCostUSD = fmt.Sprintf("%.4f", total)
+	}
+	if totalTokens > 0 {
+		agent.Status.TotalTokens += totalTokens
 	}
 
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))

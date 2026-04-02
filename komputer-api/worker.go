@@ -157,12 +157,14 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 					if taskStatus != "" {
 						sessionID := ""
 						costUSD := 0.0
+						var totalTokens int64
 						if event.Type == "task_completed" {
 							sessionID, _ = event.Payload["session_id"].(string)
 							costUSD, _ = event.Payload["cost_usd"].(float64)
+							totalTokens = extractTotalTokens(event.Payload)
 						}
 
-						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD); err != nil {
+						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens); err != nil {
 							log.Printf("failed to patch task status for %s: %v", event.AgentName, err)
 						}
 					}
@@ -338,11 +340,13 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 				if taskStatus != "" {
 					sessionID := ""
 					costUSD := 0.0
+					var totalTokens int64
 					if event.Type == "task_completed" {
 						sessionID, _ = event.Payload["session_id"].(string)
 						costUSD, _ = event.Payload["cost_usd"].(float64)
+						totalTokens = extractTotalTokens(event.Payload)
 					}
-					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD)
+					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens)
 				}
 
 				rdb.XAck(ctx, stream, consumerGroup, msg.ID)
@@ -552,4 +556,25 @@ func truncate(s string, max int) string {
 		return string(runes[:max])
 	}
 	return s
+}
+
+// extractTotalTokens reads input_tokens + output_tokens from a task_completed payload's
+// "usage" map. Returns 0 if the field is absent or malformed.
+func extractTotalTokens(payload map[string]interface{}) int64 {
+	raw, ok := payload["usage"]
+	if !ok || raw == nil {
+		return 0
+	}
+	usageMap, ok := raw.(map[string]interface{})
+	if !ok {
+		return 0
+	}
+	var total int64
+	if v, ok := usageMap["input_tokens"].(float64); ok {
+		total += int64(v)
+	}
+	if v, ok := usageMap["output_tokens"].(float64); ok {
+		total += int64(v)
+	}
+	return total
 }
