@@ -112,6 +112,11 @@ spec:
                 type: integer
               totalCostUSD:
                 type: string
+              totalTokens:
+                description: TotalTokens is the cumulative number of tokens consumed
+                  by all agents in this office.
+                format: int64
+                type: integer
             type: object
         type: object
     served: true

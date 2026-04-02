@@ -129,6 +129,11 @@ spec:
               lastRunTime:
                 format: date-time
                 type: string
+              lastRunTokens:
+                description: LastRunTokens is the token count for the most recent
+                  scheduled run.
+                format: int64
+                type: integer
               message:
                 type: string
               nextRunTime:
@@ -142,6 +147,11 @@ spec:
                 type: integer
               totalCostUSD:
                 type: string
+              totalTokens:
+                description: TotalTokens is the cumulative number of tokens consumed
+                  across all scheduled runs.
+                format: int64
+                type: integer
             type: object
         type: object
     served: true

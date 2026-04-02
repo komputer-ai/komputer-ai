@@ -162,6 +162,11 @@ spec:
                 description: TotalCostUSD is the cumulative cost of all tasks run
                   by this agent.
                 type: string
+              totalTokens:
+                description: TotalTokens is the cumulative number of tokens (input
+                  + output) consumed by all tasks run by this agent.
+                format: int64
+                type: integer
             type: object
         type: object
     served: true
