@@ -82,7 +82,9 @@ async def apply_config(req: ConfigRequest):
     if not updates and not req.secrets and not req.skills:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
-    return {"status": "applied", "config": agent_config.load()}
+    cfg = agent_config.load()
+    from agent import _fetch_context_window
+    return {"status": "applied", "config": cfg, "context_window": _fetch_context_window(cfg["model"])}
 
 
 @app.post("/task")
@@ -119,7 +121,8 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
                 loop.close()
 
     background_tasks.add_task(run_with_lock)
-    return {"status": "accepted", "instructions": req.instructions[:100], "model": task_model}
+    from agent import _fetch_context_window
+    return {"status": "accepted", "instructions": req.instructions[:100], "model": task_model, "context_window": _fetch_context_window(task_model)}
 
 
 def _interrupt_agent():

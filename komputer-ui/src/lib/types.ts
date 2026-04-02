@@ -9,6 +9,7 @@ export interface AgentResponse {
   lastTaskCostUSD?: string;
   totalCostUSD?: string;
   totalTokens?: number;
+  modelContextWindow?: number;
   secrets?: string[];
   memories?: string[];
   skills?: string[];

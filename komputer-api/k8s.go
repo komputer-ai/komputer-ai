@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -371,7 +372,7 @@ func (k *K8sClient) CancelAgentTask(ctx context.Context, ns, podName, podIP stri
 }
 
 // ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
-func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, instructions, model, systemPrompt string) error {
+func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, instructions, model, systemPrompt string) (int64, error) {
 	bodyMap := map[string]string{"instructions": instructions}
 	if model != "" {
 		bodyMap["model"] = model
@@ -381,15 +382,23 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, 
 	}
 	bodyJSON, _ := json.Marshal(bodyMap)
 
-	err := k.postToAgent(ctx, podIP, "/task", string(bodyJSON))
+	respBody, err := k.postToAgentWithResponse(ctx, podIP, "/task", string(bodyJSON))
 	if err != nil {
-		// Fallback: kubectl exec curl inside the pod
-		return k.execInPod(ctx, ns, podName, "curl", "-s", "-X", "POST",
+		// Fallback: kubectl exec curl inside the pod — capture stdout to get context_window
+		out, execErr := k.execInPodWithOutput(ctx, ns, podName, "curl", "-s", "-X", "POST",
 			"-H", "Content-Type: application/json",
 			"-d", string(bodyJSON),
 			"http://localhost:8000/task")
+		if execErr != nil {
+			return 0, execErr
+		}
+		respBody = out
 	}
-	return nil
+	var result struct {
+		ContextWindow int64 `json:"context_window"`
+	}
+	json.Unmarshal(respBody, &result)
+	return result.ContextWindow, nil
 }
 
 // postToAgent makes a direct HTTP POST to an agent pod. Returns error if unreachable.
@@ -427,9 +436,15 @@ func (k *K8sClient) postToAgent(ctx context.Context, podIP, path, body string) e
 
 // execInPod runs a command inside a pod using the Kubernetes API (equivalent to kubectl exec).
 func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command ...string) error {
+	_, err := k.execInPodWithOutput(ctx, ns, podName, command...)
+	return err
+}
+
+// execInPodWithOutput runs a command inside a pod and returns stdout.
+func (k *K8sClient) execInPodWithOutput(ctx context.Context, ns, podName string, command ...string) ([]byte, error) {
 	pod := &corev1.Pod{}
 	if err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, pod); err != nil {
-		return fmt.Errorf("failed to get pod %s: %w", podName, err)
+		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
 	}
 
 	execReq := k.clientset.CoreV1().RESTClient().Post().
@@ -446,7 +461,7 @@ func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command .
 
 	exec, err := remotecommand.NewSPDYExecutor(k.restConfig, "POST", execReq.URL())
 	if err != nil {
-		return fmt.Errorf("failed to create executor: %w", err)
+		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -454,10 +469,10 @@ func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command .
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}); err != nil {
-		return fmt.Errorf("exec failed: %w (stderr: %s)", err, stderr.String())
+		return nil, fmt.Errorf("exec failed: %w (stderr: %s)", err, stderr.String())
 	}
 
-	return nil
+	return stdout.Bytes(), nil
 }
 
 func (k *K8sClient) GetOffice(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerOffice, error) {
@@ -614,6 +629,39 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// postToAgentWithResponse makes a direct HTTP POST to an agent pod and returns the response body.
+func (k *K8sClient) postToAgentWithResponse(ctx context.Context, podIP, path, body string) ([]byte, error) {
+	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	}
+
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, reqBody)
+	if err != nil {
+		return nil, err
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+	return respBody, nil
+}
+
 // ApplyAgentConfig sends a config update to the agent's FastAPI /config endpoint.
 func (k *K8sClient) ApplyAgentConfig(ctx context.Context, ns, podName, podIP string, configPayload string) error {
 	err := k.postToAgent(ctx, podIP, "/config", configPayload)
@@ -625,6 +673,30 @@ func (k *K8sClient) ApplyAgentConfig(ctx context.Context, ns, podName, podIP str
 			"http://localhost:8000/config")
 	}
 	return nil
+}
+
+// ApplyAgentConfigGetContextWindow sends a config update and returns the context_window from the response.
+// Returns 0 if the agent is unreachable or the field is absent.
+func (k *K8sClient) ApplyAgentConfigGetContextWindow(ctx context.Context, ns, podName, podIP string, configPayload string) int64 {
+	respBody, err := k.postToAgentWithResponse(ctx, podIP, "/config", configPayload)
+	if err != nil {
+		// Fallback via exec — capture stdout to still get context_window
+		out, execErr := k.execInPodWithOutput(ctx, ns, podName, "curl", "-s", "-X", "POST",
+			"-H", "Content-Type: application/json",
+			"-d", configPayload,
+			"http://localhost:8000/config")
+		if execErr != nil {
+			return 0
+		}
+		respBody = out
+	}
+	var result struct {
+		ContextWindow int64 `json:"context_window"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return 0
+	}
+	return result.ContextWindow
 }
 
 // PatchAgentSecretsList updates the secrets list on an agent's spec.
@@ -881,7 +953,42 @@ func (k *K8sClient) PatchAgentLifecycle(ctx context.Context, ns, agentName, life
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
-func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64) error {
+func fetchModelContextWindow(ctx context.Context, model string) (int64, error) {
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey == "" {
+		return 0, fmt.Errorf("ANTHROPIC_API_KEY not set")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.anthropic.com/v1/models/"+model, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("x-api-key", apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	var result struct {
+		MaxInputTokens int64 `json:"max_input_tokens"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, err
+	}
+	return result.MaxInputTokens, nil
+}
+
+func (k *K8sClient) PatchAgentContextWindow(ctx context.Context, ns, agentName string, contextWindow int64) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: agentName, Namespace: ns}, agent); err != nil {
+		return err
+	}
+	original := agent.DeepCopy()
+	agent.Status.ModelContextWindow = contextWindow
+	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
+}
+
+func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -905,6 +1012,9 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	}
 	if totalTokens > 0 {
 		agent.Status.TotalTokens += totalTokens
+	}
+	if contextWindow > 0 {
+		agent.Status.ModelContextWindow = contextWindow
 	}
 
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))

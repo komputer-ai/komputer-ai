@@ -2,6 +2,8 @@ import asyncio
 import os
 from pathlib import Path
 
+import httpx
+
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
@@ -32,6 +34,28 @@ def _load_session_id() -> str | None:
 def _save_session_id(session_id: str):
     """Save the session ID to the workspace for future tasks."""
     SESSION_FILE.write_text(session_id)
+
+
+def _fetch_context_window(model: str) -> int | None:
+    """Fetch the context window size for a model from the Anthropic API."""
+    import logging
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        logging.warning("_fetch_context_window: ANTHROPIC_API_KEY not set")
+        return None
+    try:
+        resp = httpx.get(
+            f"https://api.anthropic.com/v1/models/{model}",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            timeout=5,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        logging.info(f"_fetch_context_window: model={model} response={data}")
+        return data.get("max_input_tokens")
+    except Exception as e:
+        logging.warning(f"_fetch_context_window: failed for model={model}: {e}")
+        return None
 
 
 def _write_skills(skills: dict[str, str | dict[str, str]]):
@@ -140,6 +164,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 "stop_reason": result.stop_reason,
                 "session_id": result.session_id,
                 "usage": result.usage,
+                "context_window": _fetch_context_window(model),
             })
 
     return result

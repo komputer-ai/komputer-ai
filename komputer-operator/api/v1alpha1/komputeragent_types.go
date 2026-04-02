@@ -131,6 +131,10 @@ type KomputerAgentStatus struct {
 	// TotalTokens is the cumulative number of tokens (input + output) consumed by all tasks run by this agent.
 	// +optional
 	TotalTokens int64 `json:"totalTokens,omitempty"`
+	// ModelContextWindow is the context window size (in tokens) of the model currently assigned to this agent.
+	// Fetched from the Anthropic API after each task completion or model change.
+	// +optional
+	ModelContextWindow int64 `json:"modelContextWindow,omitempty"`
 }
 
 // +kubebuilder:object:root=true

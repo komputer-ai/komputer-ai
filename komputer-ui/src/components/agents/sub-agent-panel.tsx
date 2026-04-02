@@ -366,11 +366,19 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
     return () => clearInterval(interval);
   }, [subAgents.length, fetchStatuses]);
 
+  // Track which agents were present on first render — skip animations for those (page refresh case).
+  const initialAgentNames = useRef<Set<string> | null>(null);
+  if (initialAgentNames.current === null) {
+    initialAgentNames.current = new Set(subAgents.map((a) => a.name));
+  }
+
   if (subAgents.length === 0) return null;
+
+  const skipPanelAnimation = initialAgentNames.current.size > 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, width: 0 }}
+      initial={skipPanelAnimation ? { opacity: 1, width: 260 } : { opacity: 0, width: 0 }}
       animate={{ opacity: 1, width: 260 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="shrink-0 border-l border-[var(--color-border)] bg-[var(--color-bg-subtle)] overflow-y-auto"
@@ -385,7 +393,7 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
         {subAgents.map((agent, i) => (
           <motion.div
             key={agent.name}
-            initial={{ opacity: 0, y: 8 }}
+            initial={initialAgentNames.current?.has(agent.name) ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, delay: i * 0.05 }}
           >

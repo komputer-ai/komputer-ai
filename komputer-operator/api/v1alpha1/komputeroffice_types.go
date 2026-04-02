@@ -49,8 +49,8 @@ type KomputerOfficeStatus struct {
 	TotalCostUSD    string               `json:"totalCostUSD,omitempty"`
 	// TotalTokens is the cumulative number of tokens consumed by all agents in this office.
 	// +optional
-	TotalTokens  int64        `json:"totalTokens,omitempty"`
-	CreatedAt    *metav1.Time `json:"createdAt,omitempty"`
+	TotalTokens int64        `json:"totalTokens,omitempty"`
+	CreatedAt   *metav1.Time `json:"createdAt,omitempty"`
 }
 
 // +kubebuilder:object:root=true

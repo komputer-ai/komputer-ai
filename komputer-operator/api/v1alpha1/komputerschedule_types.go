@@ -79,8 +79,8 @@ type KomputerScheduleStatus struct {
 	RunCount       int          `json:"runCount,omitempty"`
 	SuccessfulRuns int          `json:"successfulRuns,omitempty"`
 	FailedRuns     int          `json:"failedRuns,omitempty"`
-	TotalCostUSD   string `json:"totalCostUSD,omitempty"`
-	LastRunCostUSD string `json:"lastRunCostUSD,omitempty"`
+	TotalCostUSD   string       `json:"totalCostUSD,omitempty"`
+	LastRunCostUSD string       `json:"lastRunCostUSD,omitempty"`
 	// TotalTokens is the cumulative number of tokens consumed across all scheduled runs.
 	// +optional
 	TotalTokens int64 `json:"totalTokens,omitempty"`
@@ -88,8 +88,8 @@ type KomputerScheduleStatus struct {
 	// +optional
 	LastRunTokens int64  `json:"lastRunTokens,omitempty"`
 	AgentName     string `json:"agentName,omitempty"`
-	LastRunStatus  string       `json:"lastRunStatus,omitempty"`
-	Message        string       `json:"message,omitempty"`
+	LastRunStatus string `json:"lastRunStatus,omitempty"`
+	Message       string `json:"message,omitempty"`
 }
 
 // +kubebuilder:object:root=true

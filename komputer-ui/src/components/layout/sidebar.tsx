@@ -150,6 +150,7 @@ export function Sidebar() {
     <TooltipProvider>
       <motion.aside
         className="flex flex-col h-screen border-r border-[var(--color-border)] bg-[var(--color-bg-subtle)] shrink-0"
+        initial={false}
         animate={{ width: collapsed ? 56 : 210 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
       >

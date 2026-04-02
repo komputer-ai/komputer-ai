@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Ban, Trash2, Zap, Save, Check, Plus } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -42,6 +42,7 @@ export default function AgentDetailPage() {
   const [loading, setLoading] = useState(true);
   const showLoading = useDelayedLoading(loading);
   const [error, setError] = useState<string | null>(null);
+  const [sleeping, setSleeping] = useState(false);
 
   const { events: wsEvents } = useWebSocket(agentName);
   const [historyEvents, setHistoryEvents] = useState<AgentEvent[]>([]);
@@ -106,6 +107,7 @@ export default function AgentDetailPage() {
     try {
       const data = await getAgent(agentName, agentNs);
       setAgent(data);
+      if (data.status === "Sleeping") setSleeping(false);
       setError(null);
     } catch (e: unknown) {
       if (e instanceof Error && e.message.includes("not found")) {
@@ -169,6 +171,17 @@ export default function AgentDetailPage() {
       fetchAgent();
     } catch {
       // Will be reflected in next poll
+    }
+  };
+
+  const handleSleep = async () => {
+    if (!agentName) return;
+    setSleeping(true);
+    try {
+      await patchAgent(agentName, { lifecycle: "Sleep" }, agentNs);
+      fetchAgent();
+    } catch {
+      setSleeping(false);
     }
   };
 
@@ -256,7 +269,7 @@ export default function AgentDetailPage() {
                   {agent.totalTokens >= 1000
                     ? `${(agent.totalTokens / 1000).toFixed(1)}k`
                     : agent.totalTokens}{" "}
-                  tokens
+                  total tokens
                 </span>
               </>
             )}
@@ -270,17 +283,24 @@ export default function AgentDetailPage() {
 
           {/* Action buttons */}
           <div className="flex items-center gap-1.5">
-            {agent.status === "Sleeping" && (
+            {agent.status === "Sleeping" ? (
               <Button variant="secondary" size="sm" onClick={handleWake}>
                 <Zap className="size-3" data-icon="inline-start" />
                 Wake
               </Button>
-            )}
-            {agent.taskStatus === "InProgress" && (
-              <Button variant="secondary" size="sm" onClick={handleCancel}>
-                <Ban className="size-3" data-icon="inline-start" />
-                Cancel
-              </Button>
+            ) : (
+              <>
+                {agent.taskStatus === "InProgress" && (
+                  <Button variant="secondary" size="sm" onClick={handleCancel}>
+                    <Ban className="size-3" data-icon="inline-start" />
+                    Cancel
+                  </Button>
+                )}
+                <Button variant="secondary" size="sm" onClick={handleSleep} disabled={sleeping}>
+                  <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
+                  {sleeping ? "Sleeping…" : "Sleep"}
+                </Button>
+              </>
             )}
             <ConfirmDialog
               title="Delete Agent"
@@ -312,6 +332,7 @@ export default function AgentDetailPage() {
             agentNamespace={agentNs}
             agentStatus={agent.status}
             agentLifecycle={agent.lifecycle}
+            agentContextWindow={agent.modelContextWindow}
             events={events}
             taskStatus={agent.taskStatus}
             initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
@@ -324,41 +345,23 @@ export default function AgentDetailPage() {
 
         <TabsContent value="info" className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
-            {/* Top stats row */}
+            {/* Status + metrics */}
             <motion.div
-              className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+              className="flex justify-center gap-3"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
-              <StatCard
-                label="Phase"
-                value={agent.status}
-                color={
-                  agent.status === "Running" ? "var(--color-status-running)" :
-                  agent.status === "Sleeping" ? "var(--color-status-sleeping)" :
-                  agent.status === "Failed" ? "var(--color-status-error)" :
-                  agent.status === "Pending" ? "var(--color-status-pending)" :
-                  agent.status === "Succeeded" ? "var(--color-status-success)" : undefined
-                }
+              <StatusStrip status={agent.status} taskStatus={agent.taskStatus} />
+              <MetricsRow
+                totalCostUSD={agent.totalCostUSD}
+                lastTaskCostUSD={agent.lastTaskCostUSD}
+                totalTokens={agent.totalTokens}
               />
-              <StatCard label="Task" value={agent.taskStatus || "Idle"} />
-              <StatCard label="Total Cost" value={agent.totalCostUSD ? `$${agent.totalCostUSD}` : "—"} highlight />
-              <StatCard label="Last Task" value={agent.lastTaskCostUSD ? `$${agent.lastTaskCostUSD}` : "—"} />
-              {agent.totalTokens != null && agent.totalTokens > 0 && (
-                <StatCard
-                  label="Total Tokens"
-                  value={
-                    agent.totalTokens >= 1000
-                      ? `${(agent.totalTokens / 1000).toFixed(1)}k`
-                      : String(agent.totalTokens)
-                  }
-                />
-              )}
             </motion.div>
 
             {/* Settings */}
-            <SettingsCard agent={agent} agentNs={agentNs} onSaved={fetchAgent} />
+            <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
 
             {/* Agent info */}
             <motion.div
@@ -379,21 +382,68 @@ export default function AgentDetailPage() {
   );
 }
 
-function StatCard({ label, value, color, highlight }: {
-  label: string;
-  value: string;
-  color?: string;
-  highlight?: boolean;
-}) {
+function StatusStrip({ status, taskStatus }: { status: AgentResponse["status"]; taskStatus?: string }) {
+  const accentColor =
+    status === "Running" ? "var(--color-status-running)" :
+    status === "Sleeping" ? "var(--color-status-sleeping)" :
+    status === "Failed" ? "var(--color-status-error)" :
+    status === "Pending" ? "var(--color-status-pending)" :
+    status === "Succeeded" ? "var(--color-status-success)" :
+    "var(--color-border)";
+
+  const isRunning = status === "Running";
+
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]">
-      <p className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] mb-1.5">{label}</p>
-      <p
-        className={`text-lg font-semibold ${highlight ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </p>
+    <div
+      className="relative flex items-center gap-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 overflow-hidden"
+      style={{ borderLeftColor: accentColor, borderLeftWidth: "3px" }}
+    >
+      {isRunning && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-16 pointer-events-none"
+          style={{ background: `linear-gradient(to right, color-mix(in srgb, ${accentColor} 12%, transparent), transparent)` }}
+        />
+      )}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Phase</span>
+        <span className={`font-semibold text-sm ${isRunning ? "animate-pulse" : ""}`} style={{ color: accentColor }}>
+          {status}
+        </span>
+      </div>
+      <div className="w-px h-4 bg-[var(--color-border)]" />
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Task</span>
+        <span className="font-semibold text-sm text-[var(--color-text)]">{taskStatus || "Idle"}</span>
+      </div>
+    </div>
+  );
+}
+
+function MetricsRow({ totalCostUSD, lastTaskCostUSD, totalTokens }: {
+  totalCostUSD?: string;
+  lastTaskCostUSD?: string;
+  totalTokens?: number;
+}) {
+  const items: { label: string; value: string; highlight?: boolean }[] = [
+    { label: "Total Cost", value: totalCostUSD ? `$${totalCostUSD}` : "—", highlight: true },
+    { label: "Last Task", value: lastTaskCostUSD ? `$${lastTaskCostUSD}` : "—" },
+  ];
+  if (totalTokens != null && totalTokens > 0) {
+    items.push({
+      label: "Total Tokens",
+      value: totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens),
+    });
+  }
+  return (
+    <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 divide-x divide-[var(--color-border)]">
+      {items.map((item) => (
+        <div key={item.label} className="flex flex-col items-center gap-1 px-5 first:pl-0 last:pr-0">
+          <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">{item.label}</span>
+          <span className={`font-mono font-semibold text-base tabular-nums ${item.highlight ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}>
+            {item.value}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -401,7 +451,7 @@ function StatCard({ label, value, color, highlight }: {
 function SettingsCard({ agent, agentNs, onSaved }: {
   agent: AgentResponse;
   agentNs?: string;
-  onSaved: () => void;
+  onSaved: (updated?: AgentResponse) => void;
 }) {
   const [model, setModel] = useState(agent.model);
   const [lifecycle, setLifecycle] = useState<string>(agent.lifecycle || "default");
@@ -455,9 +505,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (secretsChanged) patch.secretRefs = agentSecretRefs;
       if (memoriesChanged) patch.memories = agentMemories;
       if (skillsChanged) patch.skills = agentSkills;
-      await patchAgent(agent.name, patch, agentNs);
+      const updated = await patchAgent(agent.name, patch, agentNs);
       setSaved(true);
-      onSaved();
+      onSaved(updated);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");

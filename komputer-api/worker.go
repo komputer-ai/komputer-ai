@@ -158,13 +158,17 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						sessionID := ""
 						costUSD := 0.0
 						var totalTokens int64
+						var contextWindow int64
 						if event.Type == "task_completed" {
 							sessionID, _ = event.Payload["session_id"].(string)
 							costUSD, _ = event.Payload["cost_usd"].(float64)
 							totalTokens = extractTotalTokens(event.Payload)
+							if cw, ok := event.Payload["context_window"].(float64); ok {
+								contextWindow = int64(cw)
+							}
 						}
 
-						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens); err != nil {
+						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
 							log.Printf("failed to patch task status for %s: %v", event.AgentName, err)
 						}
 					}
@@ -341,12 +345,16 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 					sessionID := ""
 					costUSD := 0.0
 					var totalTokens int64
+					var contextWindow int64
 					if event.Type == "task_completed" {
 						sessionID, _ = event.Payload["session_id"].(string)
 						costUSD, _ = event.Payload["cost_usd"].(float64)
 						totalTokens = extractTotalTokens(event.Payload)
+						if cw, ok := event.Payload["context_window"].(float64); ok {
+							contextWindow = int64(cw)
+						}
 					}
-					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens)
+					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow)
 				}
 
 				rdb.XAck(ctx, stream, consumerGroup, msg.ID)
@@ -558,8 +566,8 @@ func truncate(s string, max int) string {
 	return s
 }
 
-// extractTotalTokens reads input_tokens + output_tokens from a task_completed payload's
-// "usage" map. Returns 0 if the field is absent or malformed.
+// extractTotalTokens reads all input + output tokens from a task_completed payload's
+// "usage" map, including cache_read and cache_creation tokens. Returns 0 if absent or malformed.
 func extractTotalTokens(payload map[string]interface{}) int64 {
 	raw, ok := payload["usage"]
 	if !ok || raw == nil {
@@ -570,11 +578,30 @@ func extractTotalTokens(payload map[string]interface{}) int64 {
 		return 0
 	}
 	var total int64
-	if v, ok := usageMap["input_tokens"].(float64); ok {
-		total += int64(v)
+	for _, key := range []string{"input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+		if v, ok := usageMap[key].(float64); ok {
+			total += int64(v)
+		}
 	}
-	if v, ok := usageMap["output_tokens"].(float64); ok {
-		total += int64(v)
+	return total
+}
+
+// extractContextTokens returns the total input size for the last turn — used as a proxy for
+// context window usage. This is input_tokens + cache_read_input_tokens + cache_creation_input_tokens.
+func extractContextTokens(payload map[string]interface{}) int64 {
+	raw, ok := payload["usage"]
+	if !ok || raw == nil {
+		return 0
+	}
+	usageMap, ok := raw.(map[string]interface{})
+	if !ok {
+		return 0
+	}
+	var total int64
+	for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+		if v, ok := usageMap[key].(float64); ok {
+			total += int64(v)
+		}
 	}
 	return total
 }

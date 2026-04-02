@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AgentEvent } from "@/lib/types";
@@ -31,6 +31,7 @@ type AgentChatProps = {
   agentNamespace?: string;
   agentStatus: string;
   agentLifecycle?: string;
+  agentContextWindow?: number;
   events: AgentEvent[];
   taskStatus?: string;
   initialPending?: string;
@@ -47,6 +48,7 @@ type TokenUsage = {
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
 };
+
 
 type ChatMessage =
   | { kind: "user"; text: string; timestamp: string }
@@ -68,6 +70,8 @@ type ChatMessage =
       turns?: number;
       inputTokens?: number;
       outputTokens?: number;
+      cacheReadTokens?: number;
+      cacheCreationTokens?: number;
       timestamp: string;
     }
   | { kind: "error"; message: string; timestamp: string }
@@ -157,8 +161,12 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
           costUSD: cost,
           duration,
           turns: event.payload.turns ?? event.payload.num_turns,
-          inputTokens: usage?.input_tokens,
+          inputTokens: usage
+            ? (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+            : undefined,
           outputTokens: usage?.output_tokens,
+          cacheReadTokens: usage?.cache_read_input_tokens,
+          cacheCreationTokens: usage?.cache_creation_input_tokens,
           timestamp: event.timestamp,
         });
         break;
@@ -180,21 +188,51 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
 }
 
 function formatTokenCount(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${Number.isInteger(v) ? v : v.toFixed(1)}m`;
+  }
+  if (n >= 1000) {
+    const v = n / 1000;
+    return `${Number.isInteger(v) ? v : v.toFixed(1)}k`;
+  }
   return String(n);
 }
 
 function TokenBadge({ usage }: { usage?: TokenUsage }) {
   if (!usage) return null;
-  const input = usage.input_tokens;
-  const output = usage.output_tokens;
-  if (input == null && output == null) return null;
+  const total = (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0);
+  if (total === 0) return null;
   return (
     <span className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
-      {input != null && <span>{formatTokenCount(input)} in</span>}
-      {input != null && output != null && <span className="mx-0.5">·</span>}
-      {output != null && <span>{formatTokenCount(output)} out</span>}
+      {formatTokenCount(total)} tokens
     </span>
+  );
+}
+
+function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; contextWindow: number }) {
+  if (inputTokens == null || inputTokens === 0) return null;
+  const pct = Math.min((inputTokens / contextWindow) * 100, 100);
+  const color =
+    pct >= 90 ? "var(--color-status-error)" :
+    pct >= 70 ? "var(--color-status-pending)" :
+    "var(--color-brand-blue)";
+  return (
+    <div className="group relative h-[12px] cursor-default">
+      {/* Bar sits 8px above the border edge */}
+      <div className="absolute bottom-0 left-0 right-0 h-[5px] bg-[var(--color-border)] transition-[height] duration-150 group-hover:h-[12px]">
+        <div
+          className="h-full transition-[width,box-shadow] duration-150 ease-out group-hover:shadow-[0_-12px_24px_2px_var(--glow)]"
+          style={{ width: `${pct}%`, backgroundColor: color, "--glow": `color-mix(in srgb, ${color} 40%, transparent)` } as React.CSSProperties}
+        />
+      </div>
+      <div className="pointer-events-none absolute bottom-full left-1/2 mb-4 -translate-x-1/2 z-20 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] text-[var(--color-text-secondary)] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+        <span className="text-white">Context window</span>
+        {" · "}
+        <span className="font-mono tabular-nums" style={{ color }}>{formatTokenCount(inputTokens)}</span>
+        <span className="text-white"> / {formatTokenCount(contextWindow)} tokens</span>
+      </div>
+    </div>
   );
 }
 
@@ -402,13 +440,23 @@ function CompletedDivider({
   turns,
   inputTokens,
   outputTokens,
+  cacheReadTokens,
+  cacheCreationTokens,
 }: {
   costUSD?: string;
   duration?: string;
   turns?: number;
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
 }) {
+  const total = (inputTokens ?? 0) + (outputTokens ?? 0);
+  const newInput = total - (cacheReadTokens ?? 0) - (cacheCreationTokens ?? 0) - (outputTokens ?? 0);
+  const hasBreakdown = total > 0 && (cacheReadTokens || cacheCreationTokens);
+  const breakdownControls = useAnimation();
+  useEffect(() => { breakdownControls.set({ opacity: 0, x: -8 }); }, []);
+
   return (
     <motion.div
       className="py-2"
@@ -470,11 +518,25 @@ function CompletedDivider({
               {turns} turn{turns !== 1 ? "s" : ""}
             </span>
           )}
-          {(inputTokens != null || outputTokens != null) && (
-            <span className="text-xs text-[var(--color-text-secondary)] tabular-nums">
-              {inputTokens != null && `${formatTokenCount(inputTokens)} in`}
-              {inputTokens != null && outputTokens != null && " · "}
-              {outputTokens != null && `${formatTokenCount(outputTokens)} out`}
+          {total > 0 && (
+            <span
+              className="relative flex items-center text-xs tabular-nums text-[var(--color-text-secondary)]"
+              onMouseEnter={() => hasBreakdown && breakdownControls.start({ opacity: 1, x: 0, transition: { duration: 0.2, ease: "easeOut" } })}
+              onMouseLeave={() => hasBreakdown && breakdownControls.start({ opacity: 0, x: -8, transition: { duration: 0.15, ease: "easeIn" } })}
+            >
+              {formatTokenCount(total)} tokens
+              {hasBreakdown && (
+                <motion.span
+                  className="absolute left-full ml-2 flex items-center gap-3 text-[11px] text-[var(--color-text-muted)] whitespace-nowrap pointer-events-none"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={breakdownControls}
+                >
+                  <span className="pl-1 border-l border-[var(--color-border)]">in <span className="text-[var(--color-text-secondary)]">{formatTokenCount(newInput)}</span></span>
+                  <span>out <span className="text-[var(--color-text-secondary)]">{formatTokenCount(outputTokens ?? 0)}</span></span>
+                  {(cacheReadTokens ?? 0) > 0 && <span>cache read <span className="text-[var(--color-text-secondary)]">{formatTokenCount(cacheReadTokens!)}</span></span>}
+                  {(cacheCreationTokens ?? 0) > 0 && <span>cache write <span className="text-[var(--color-text-secondary)]">{formatTokenCount(cacheCreationTokens!)}</span></span>}
+                </motion.span>
+              )}
             </span>
           )}
         </motion.div>
@@ -539,6 +601,7 @@ export function AgentChat({
   agentNamespace,
   agentStatus,
   agentLifecycle,
+  agentContextWindow,
   events,
   taskStatus,
   initialPending,
@@ -561,6 +624,10 @@ export function AgentChat({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [lifecycleOpen]);
+  const [contextWindow, setContextWindow] = useState(agentContextWindow ?? 200000);
+  useEffect(() => {
+    if (agentContextWindow) setContextWindow(agentContextWindow);
+  }, [agentContextWindow]);
   const [pendingText, setPendingText] = useState<string | null>(initialPending ?? null);
   const [pendingTimestamp, setPendingTimestamp] = useState<string>(new Date().toISOString());
   // Persisted user messages that the server doesn't echo back (no task_started event)
@@ -628,6 +695,14 @@ export function AgentChat({
     }
 
     return all.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  })();
+
+  const lastInputTokens = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.kind === "completed" && m.inputTokens != null) return m.inputTokens;
+    }
+    return undefined;
   })();
 
   // Preserve scroll position when older messages are prepended
@@ -724,6 +799,7 @@ export function AgentChat({
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     // Fire and forget — state is already set, render happens immediately
     createAgent({ name: agentName, instructions: text, namespace: agentNamespace, lifecycle })
+      .then((res) => { if (res.modelContextWindow) setContextWindow(res.modelContextWindow); })
       .catch(() => setPendingText(null));
   }, [input, isWorking, agentName, agentNamespace, lifecycle, events.length]);
 
@@ -887,6 +963,8 @@ export function AgentChat({
                       turns={msg.turns}
                       inputTokens={msg.inputTokens}
                       outputTokens={msg.outputTokens}
+                      cacheReadTokens={msg.cacheReadTokens}
+                      cacheCreationTokens={msg.cacheCreationTokens}
                     />
                   );
                 case "cancelled":
@@ -953,18 +1031,22 @@ export function AgentChat({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-        <div className="flex items-center gap-2">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={cancelling ? "Cancelling..." : isWorking ? "Agent is working... press Esc to stop" : "Send a message..."}
-            disabled={isWorking && !cancelling}
-            rows={1}
-            className="field-sizing-content max-h-24 min-h-10 flex-1 resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none disabled:opacity-50"
-          />
+      <div className="shrink-0 bg-[var(--color-bg)]">
+        <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} />
+        <div className="border-t border-[var(--color-border)]" />
+        <div className="flex items-end gap-2 p-4">
+          <div className="flex-1">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={cancelling ? "Cancelling..." : isWorking ? "Agent is working... press Esc to stop" : "Send a message..."}
+              disabled={isWorking && !cancelling}
+              rows={1}
+              className="field-sizing-content max-h-24 min-h-10 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none disabled:opacity-50"
+            />
+          </div>
           {isWorking || cancelling ? (
             <button
               type="button"

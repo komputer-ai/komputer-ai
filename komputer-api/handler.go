@@ -41,8 +41,9 @@ type AgentResponse struct {
 	Lifecycle       string   `json:"lifecycle,omitempty"`
 	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
 	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
-	TotalTokens     int64    `json:"totalTokens,omitempty"`
-	Secrets         []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
+	TotalTokens          int64    `json:"totalTokens,omitempty"`
+	ModelContextWindow   int64    `json:"modelContextWindow,omitempty"`
+	Secrets              []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
 	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
 	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
 	Instructions    string   `json:"instructions,omitempty"` // User task extracted from spec.instructions
@@ -326,7 +327,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Lifecycle:       string(existing.Spec.Lifecycle),
 					LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 					TotalCostUSD:    existing.Status.TotalCostUSD,
-					TotalTokens:     existing.Status.TotalTokens,
+					TotalTokens:          existing.Status.TotalTokens,
+						ModelContextWindow:   existing.Status.ModelContextWindow,
 					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 					Memories:        existing.Spec.Memories,
 					Skills:          existing.Spec.Skills,
@@ -357,9 +359,15 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if len(req.Memories) > 0 {
 				forwardMemories = req.Memories
 			}
-			if err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, buildSystemPrompt(forwardMemories)); err != nil {
+			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, buildSystemPrompt(forwardMemories))
+			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
+			}
+			if cw > 0 {
+				if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, req.Name, cw); patchErr != nil {
+					log.Printf("warning: failed to patch context window for %s: %v", req.Name, patchErr)
+				}
 			}
 
 			// Update lifecycle if changed
@@ -380,7 +388,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       string(existing.Spec.Lifecycle),
 				LastTaskCostUSD: existing.Status.LastTaskCostUSD,
 				TotalCostUSD:    existing.Status.TotalCostUSD,
-				TotalTokens:     existing.Status.TotalTokens,
+				TotalTokens:          existing.Status.TotalTokens,
+						ModelContextWindow:   existing.Status.ModelContextWindow,
 				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 				Memories:        existing.Spec.Memories,
 				Skills:          existing.Spec.Skills,
@@ -424,7 +433,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Skills:       agent.Spec.Skills,
 			Instructions: extractUserTask(agent.Spec.Instructions),
 			CreatedAt:    agent.CreationTimestamp.UTC().Format(time.RFC3339),
-			TotalTokens:  agent.Status.TotalTokens,
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
 		})
 	}
 }
@@ -543,12 +553,13 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:       string(agent.Spec.Lifecycle),
 			LastTaskCostUSD: agent.Status.LastTaskCostUSD,
 			TotalCostUSD:    agent.Status.TotalCostUSD,
-			TotalTokens:     agent.Status.TotalTokens,
-			Secrets:         agent.Spec.Secrets,
-			Memories:        agent.Spec.Memories,
-			Skills:          agent.Spec.Skills,
-			Instructions:    extractUserTask(agent.Spec.Instructions),
-			CreatedAt:       agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
+			Secrets:            agent.Spec.Secrets,
+			Memories:           agent.Spec.Memories,
+			Skills:             agent.Spec.Skills,
+			Instructions:       extractUserTask(agent.Spec.Instructions),
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -620,12 +631,13 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       string(a.Spec.Lifecycle),
 				LastTaskCostUSD: a.Status.LastTaskCostUSD,
 				TotalCostUSD:    a.Status.TotalCostUSD,
-				TotalTokens:     a.Status.TotalTokens,
-				Secrets:         collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
-				Memories:        a.Spec.Memories,
-				Skills:          a.Spec.Skills,
-				Instructions:    extractUserTask(a.Spec.Instructions),
-				CreatedAt:       a.CreationTimestamp.UTC().Format(time.RFC3339),
+				TotalTokens:        a.Status.TotalTokens,
+				ModelContextWindow: a.Status.ModelContextWindow,
+				Secrets:            collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
+				Memories:           a.Spec.Memories,
+				Skills:             a.Spec.Skills,
+				Instructions:       extractUserTask(a.Spec.Instructions),
+				CreatedAt:          a.CreationTimestamp.UTC().Format(time.RFC3339),
 			})
 		}
 
@@ -1383,6 +1395,9 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// 1a. If model changed and pod is running, fetch context window via the agent (it has the API key).
+		// This is handled below in step 2 where we forward config to the pod and read the response.
+
 		// 1b. Update secrets if provided.
 		if len(req.Secrets) > 0 {
 			secretName, err := k8s.CreateAgentSecrets(c.Request.Context(), ns, name, req.Secrets)
@@ -1431,13 +1446,25 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 2. If pod is running, forward config to the agent so it takes effect immediately.
+		// If the model changed, read context_window from the response and patch the CR.
+		var freshContextWindow int64
 		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err == nil && agent.Status.PodName != "" && agent.Status.Phase == "Running" {
 			configPayload, _ := json.Marshal(req)
 			podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
 			if ipErr == nil {
-				if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); applyErr != nil {
-					log.Printf("warning: CR patched but config apply to pod failed for %s: %v", name, applyErr)
+				if req.Model != nil && *req.Model != "" {
+					// Read response to capture context_window
+					if cw := k8s.ApplyAgentConfigGetContextWindow(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); cw > 0 {
+						freshContextWindow = cw
+						if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, name, cw); patchErr != nil {
+							log.Printf("warning: failed to patch context window for %s: %v", name, patchErr)
+						}
+					}
+				} else {
+					if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); applyErr != nil {
+						log.Printf("warning: CR patched but config apply to pod failed for %s: %v", name, applyErr)
+					}
 				}
 			}
 		}
@@ -1447,6 +1474,11 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "agent patched but failed to read back: " + err.Error()})
 			return
+		}
+		// Use freshContextWindow if we just fetched it (avoids race with CR status patch propagation).
+		modelContextWindow := updated.Status.ModelContextWindow
+		if freshContextWindow > 0 {
+			modelContextWindow = freshContextWindow
 		}
 		c.JSON(http.StatusOK, AgentResponse{
 			Name:            updated.Name,
@@ -1458,12 +1490,13 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:       string(updated.Spec.Lifecycle),
 			LastTaskCostUSD: updated.Status.LastTaskCostUSD,
 			TotalCostUSD:    updated.Status.TotalCostUSD,
-			TotalTokens:     updated.Status.TotalTokens,
-			Secrets:         updated.Spec.Secrets,
-			Memories:        updated.Spec.Memories,
-			Skills:          updated.Spec.Skills,
-			Instructions:    extractUserTask(updated.Spec.Instructions),
-			CreatedAt:       updated.CreationTimestamp.UTC().Format(time.RFC3339),
+			TotalTokens:        updated.Status.TotalTokens,
+			ModelContextWindow: modelContextWindow,
+			Secrets:            updated.Spec.Secrets,
+			Memories:           updated.Spec.Memories,
+			Skills:             updated.Spec.Skills,
+			Instructions:       extractUserTask(updated.Spec.Instructions),
+			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
 	}
 }
