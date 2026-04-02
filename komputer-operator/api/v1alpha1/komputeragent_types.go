@@ -128,6 +128,9 @@ type KomputerAgentStatus struct {
 	// TotalCostUSD is the cumulative cost of all tasks run by this agent.
 	// +optional
 	TotalCostUSD string `json:"totalCostUSD,omitempty"`
+	// TotalTokens is the cumulative number of tokens (input + output) consumed by all tasks run by this agent.
+	// +optional
+	TotalTokens int64 `json:"totalTokens,omitempty"`
 }
 
 // +kubebuilder:object:root=true
