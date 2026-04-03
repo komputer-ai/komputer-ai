@@ -34,7 +34,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
@@ -803,6 +805,26 @@ func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.ConfigMap{}).
+		Watches(
+			&komputerv1alpha1.KomputerSkill{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+				// Only react to default skills
+				if obj.GetLabels()["komputer.ai/default"] != "true" {
+					return nil
+				}
+				agentList := &komputerv1alpha1.KomputerAgentList{}
+				if err := r.List(ctx, agentList); err != nil {
+					return nil
+				}
+				reqs := make([]reconcile.Request, 0, len(agentList.Items))
+				for _, a := range agentList.Items {
+					reqs = append(reqs, reconcile.Request{
+						NamespacedName: types.NamespacedName{Name: a.Name, Namespace: a.Namespace},
+					})
+				}
+				return reqs
+			}),
+		).
 		Named("komputeragent").
 		Complete(r)
 }

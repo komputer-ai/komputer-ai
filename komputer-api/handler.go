@@ -1052,7 +1052,7 @@ func getMemory(k8s *K8sClient) gin.HandlerFunc {
 
 func listMemories(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		memories, err := k8s.ListMemories(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list memories: " + err.Error()})
@@ -1205,7 +1205,7 @@ func getSkill(k8s *K8sClient) gin.HandlerFunc {
 
 func listSkills(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ns := resolveNamespace(c, k8s)
+		ns := c.Query("namespace") // empty = all namespaces
 		skills, err := k8s.ListSkills(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list skills: " + err.Error()})
