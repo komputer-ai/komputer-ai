@@ -578,16 +578,18 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: config.Spec.APIURL},
 		)
 	}
-	// Inject env vars from agent secrets.
+	// Inject env vars from agent secrets as SECRET_<SECRETNAME>_<KEY>.
 	for _, secretName := range agent.Spec.Secrets {
 		secret := &corev1.Secret{}
 		if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, secret); err != nil {
 			log.Error(err, "Failed to get agent secret", "secret", secretName)
 			continue
 		}
+		sanitizedName := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(secretName))
 		for key := range secret.Data {
+			sanitizedKey := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(key))
 			envVars = append(envVars, corev1.EnvVar{
-				Name: key,
+				Name: "SECRET_" + sanitizedName + "_" + sanitizedKey,
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{Name: secretName},

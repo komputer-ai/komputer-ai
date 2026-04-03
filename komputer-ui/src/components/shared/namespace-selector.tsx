@@ -139,7 +139,7 @@ export function NamespaceSelector({ value, onChange, label = "Namespace" }: Name
                   <button
                     type="button"
                     onClick={handleStartAdding}
-                    className="flex w-full items-center gap-1.5 px-1 py-1 text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded hover:bg-[var(--color-surface-hover)]"
+                    className="flex w-full items-center gap-1.5 px-1 py-1 text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors rounded hover:bg-[var(--color-surface-hover)] cursor-pointer"
                   >
                     <Plus className="h-3 w-3" />
                     Add namespace

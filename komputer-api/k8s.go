@@ -145,7 +145,7 @@ func (k *K8sClient) CreateAgentSecrets(ctx context.Context, ns, agentName string
 	sanitize := regexp.MustCompile(`[^A-Za-z0-9]`)
 	for key, value := range secrets {
 		safe := strings.ToUpper(sanitize.ReplaceAllString(key, "_"))
-		data["SECRET_"+safe] = []byte(value)
+		data[safe] = []byte(value)
 	}
 
 	secret := &corev1.Secret{
