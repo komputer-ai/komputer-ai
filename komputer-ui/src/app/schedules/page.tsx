@@ -35,9 +35,9 @@ export default function SchedulesPage() {
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [schedules, search, namespace]);
 
-  async function handleDelete(name: string) {
+  async function handleDelete(name: string, namespace: string) {
     try {
-      await deleteSchedule(name);
+      await deleteSchedule(name, namespace);
       refresh();
     } catch {
       // Deletion errors are non-critical; next poll will update

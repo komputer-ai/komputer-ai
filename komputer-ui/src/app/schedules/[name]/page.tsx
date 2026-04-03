@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock } from "lucide-react";
@@ -45,6 +45,8 @@ export default function ScheduleDetailPage() {
   const params = useParams<{ name: string }>();
   const name = params.name;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const scheduleNs = searchParams.get("namespace") || undefined;
 
   const [schedule, setSchedule] = useState<ScheduleResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export default function ScheduleDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await getSchedule(name);
+      const data = await getSchedule(name, scheduleNs);
       setSchedule(data);
       setNotFound(false);
     } catch (e: unknown) {
@@ -66,7 +68,7 @@ export default function ScheduleDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, scheduleNs]);
 
   useEffect(() => {
     fetchData();
@@ -76,7 +78,7 @@ export default function ScheduleDetailPage() {
 
   async function handleDelete() {
     try {
-      await deleteSchedule(name);
+      await deleteSchedule(name, scheduleNs);
       router.push("/schedules");
     } catch {
       // non-critical
@@ -91,7 +93,7 @@ export default function ScheduleDetailPage() {
     }
     setSavingCron(true);
     try {
-      await patchSchedule(name, { schedule: trimmed });
+      await patchSchedule(name, { schedule: trimmed }, scheduleNs);
       await fetchData();
       setEditingCron(false);
     } catch {

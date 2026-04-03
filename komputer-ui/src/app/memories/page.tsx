@@ -34,9 +34,9 @@ export default function MemoriesPage() {
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [memories, search, namespace]);
 
-  const handleDelete = async (name: string) => {
+  const handleDelete = async (name: string, namespace: string) => {
     try {
-      await deleteMemory(name);
+      await deleteMemory(name, namespace);
       refresh();
     } catch {}
   };

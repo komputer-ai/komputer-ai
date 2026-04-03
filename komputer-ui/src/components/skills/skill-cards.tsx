@@ -10,7 +10,7 @@ import type { SkillResponse } from "@/lib/types";
 
 type SkillCardsProps = {
   skills: SkillResponse[];
-  onDelete: (name: string) => void;
+  onDelete: (name: string, namespace: string) => void;
 };
 
 export function SkillCards({ skills, onDelete }: SkillCardsProps) {
@@ -47,7 +47,7 @@ export function SkillCards({ skills, onDelete }: SkillCardsProps) {
                         <ConfirmDialog
                           title={`Delete ${skill.name}?`}
                           description="This will permanently delete this skill."
-                          onConfirm={() => onDelete(skill.name)}
+                          onConfirm={() => onDelete(skill.name, skill.namespace)}
                           trigger={
                             <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
                               <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />

@@ -10,7 +10,7 @@ import type { ScheduleResponse } from "@/lib/types";
 
 type ScheduleCardsProps = {
   schedules: ScheduleResponse[];
-  onDelete: (name: string) => void;
+  onDelete: (name: string, namespace: string) => void;
 };
 
 const phaseConfig: Record<string, { color: string; icon: typeof Clock }> = {
@@ -37,7 +37,7 @@ export function ScheduleCards({ schedules, onDelete }: ScheduleCardsProps) {
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ duration: 0.25, delay: i * 0.04 }}
             >
-              <Link href={`/schedules/${schedule.name}`} className="block group">
+              <Link href={`/schedules/${schedule.name}?namespace=${schedule.namespace}`} className="block group">
                 <div className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]">
 
                   <div className="p-3 flex flex-col h-full">
@@ -57,7 +57,7 @@ export function ScheduleCards({ schedules, onDelete }: ScheduleCardsProps) {
                           <ConfirmDialog
                             title={`Delete ${schedule.name}?`}
                             description="This will delete the schedule and managed agents."
-                            onConfirm={() => onDelete(schedule.name)}
+                            onConfirm={() => onDelete(schedule.name, schedule.namespace)}
                             trigger={
                               <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
                                 <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />

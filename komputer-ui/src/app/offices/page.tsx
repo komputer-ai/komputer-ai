@@ -35,9 +35,9 @@ export default function OfficesPage() {
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [offices, search, namespace]);
 
-  async function handleDelete(name: string) {
+  async function handleDelete(name: string, namespace: string) {
     try {
-      await deleteOffice(name);
+      await deleteOffice(name, namespace);
       refresh();
     } catch {
       // Deletion errors are non-critical; next poll will update

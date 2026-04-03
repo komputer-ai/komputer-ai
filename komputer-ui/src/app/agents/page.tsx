@@ -45,9 +45,9 @@ export default function AgentsPage() {
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [agents, statusFilter, search, namespace]);
 
-  async function handleDelete(name: string) {
+  async function handleDelete(name: string, namespace: string) {
     try {
-      await deleteAgent(name);
+      await deleteAgent(name, namespace);
       refresh();
     } catch {
       // Deletion errors are non-critical; next poll will update

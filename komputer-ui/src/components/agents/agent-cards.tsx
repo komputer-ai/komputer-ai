@@ -10,7 +10,7 @@ import type { AgentResponse } from "@/lib/types";
 
 type AgentCardsProps = {
   agents: AgentResponse[];
-  onDelete: (name: string) => void;
+  onDelete: (name: string, namespace: string) => void;
 };
 
 const statusConfig: Record<string, { color: string; icon: typeof Bot; pulse?: boolean }> = {
@@ -60,7 +60,7 @@ export function AgentCards({ agents, onDelete }: AgentCardsProps) {
                           <ConfirmDialog
                             title={`Delete ${agent.name}?`}
                             description="This will permanently delete this agent and its workspace."
-                            onConfirm={() => onDelete(agent.name)}
+                            onConfirm={() => onDelete(agent.name, agent.namespace)}
                             trigger={
                               <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
                                 <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />

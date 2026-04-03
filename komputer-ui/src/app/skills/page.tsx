@@ -34,9 +34,9 @@ export default function SkillsPage() {
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [skills, search, namespace]);
 
-  const handleDelete = async (name: string) => {
+  const handleDelete = async (name: string, namespace: string) => {
     try {
-      await deleteSkill(name);
+      await deleteSkill(name, namespace);
       refresh();
     } catch {}
   };

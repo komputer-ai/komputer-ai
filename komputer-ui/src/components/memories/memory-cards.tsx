@@ -10,7 +10,7 @@ import type { MemoryResponse } from "@/lib/types";
 
 type MemoryCardsProps = {
   memories: MemoryResponse[];
-  onDelete: (name: string) => void;
+  onDelete: (name: string, namespace: string) => void;
 };
 
 export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
@@ -41,7 +41,7 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
                         <ConfirmDialog
                           title={`Delete ${memory.name}?`}
                           description="This will permanently delete this memory."
-                          onConfirm={() => onDelete(memory.name)}
+                          onConfirm={() => onDelete(memory.name, memory.namespace)}
                           trigger={
                             <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
                               <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
