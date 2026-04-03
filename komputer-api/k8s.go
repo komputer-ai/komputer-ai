@@ -191,6 +191,25 @@ func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([
 	return keys, nil
 }
 
+// ResolveSecretEnvVars reads all key-value data from a list of K8s secrets and returns
+// a flat map using the SECRET_<SECRETNAME>_<KEY> naming convention.
+func (k *K8sClient) ResolveSecretEnvVars(ctx context.Context, ns string, secretNames []string) map[string]string {
+	result := make(map[string]string)
+	sanitize := strings.NewReplacer("-", "_", ".", "_")
+	for _, secretName := range secretNames {
+		secret := &corev1.Secret{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: ns}, secret); err != nil {
+			continue
+		}
+		sanitizedName := strings.ToUpper(sanitize.Replace(secretName))
+		for key, val := range secret.Data {
+			sanitizedKey := strings.ToUpper(sanitize.Replace(key))
+			result["SECRET_"+sanitizedName+"_"+sanitizedKey] = string(val)
+		}
+	}
+	return result
+}
+
 // ListSecrets lists K8s Secrets in a namespace. If all=false, only returns secrets
 // with the label komputer.ai/managed-by=komputer-ai. If all=true, returns all secrets.
 func (k *K8sClient) ListSecrets(ctx context.Context, ns string, all bool) ([]corev1.Secret, error) {

@@ -66,11 +66,17 @@ async def apply_config(req: ConfigRequest):
     import os as _os
     import re as _re
     # Handle secrets separately — set as env vars, not written to config file.
-    if req.secrets:
+    # secrets dict is the full desired set: set all present, remove any SECRET_* not in the new set.
+    if req.secrets is not None:
+        new_keys = set()
         for key, value in req.secrets.items():
             sanitized = _re.sub(r"[^A-Za-z0-9]", "_", key).upper()
             env_key = f"SECRET_{sanitized}"
             _os.environ[env_key] = value
+            new_keys.add(env_key)
+        for env_key in list(_os.environ.keys()):
+            if env_key.startswith("SECRET_") and env_key not in new_keys:
+                del _os.environ[env_key]
 
     if req.skills:
         _write_skills(req.skills)
@@ -79,7 +85,7 @@ async def apply_config(req: ConfigRequest):
     if updates:
         agent_config.apply(updates)
 
-    if not updates and not req.secrets and not req.skills:
+    if not updates and req.secrets is None and not req.skills:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
     cfg = agent_config.load()

@@ -1468,7 +1468,28 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		var freshContextWindow int64
 		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err == nil && agent.Status.PodName != "" && agent.Status.Phase == "Running" {
-			configPayload, _ := json.Marshal(req)
+			// Build config payload. If secretRefs changed, resolve all secrets to env-var key-value
+			// pairs so the agent can apply the complete set (and remove any stale SECRET_* vars).
+			type agentConfigPayload struct {
+				Model        *string            `json:"model,omitempty"`
+				Lifecycle    *string            `json:"lifecycle,omitempty"`
+				Instructions *string            `json:"instructions,omitempty"`
+				TemplateRef  *string            `json:"templateRef,omitempty"`
+				Secrets      map[string]string  `json:"secrets"`
+			}
+			payload := agentConfigPayload{
+				Model:        req.Model,
+				Lifecycle:    req.Lifecycle,
+				Instructions: req.Instructions,
+				TemplateRef:  req.TemplateRef,
+			}
+			if req.SecretRefs != nil {
+				// Full replacement: resolve all remaining secrets so the agent can remove stale ones.
+				payload.Secrets = k8s.ResolveSecretEnvVars(c.Request.Context(), ns, *req.SecretRefs)
+			} else if len(req.Secrets) > 0 {
+				payload.Secrets = req.Secrets
+			}
+			configPayload, _ := json.Marshal(payload)
 			podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
 			if ipErr == nil {
 				if req.Model != nil && *req.Model != "" {
