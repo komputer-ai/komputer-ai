@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +25,6 @@ type CreateMemoryModalProps = {
 };
 
 export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemoryModalProps) {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [namespace, setNamespace] = useState("default");
   const [content, setContent] = useState("");
@@ -67,11 +65,9 @@ export function CreateMemoryModal({ open, onOpenChange, onCreated }: CreateMemor
         description: description.trim() || undefined,
         namespace: namespace.trim() || undefined,
       });
-      const memoryName = name.trim();
       resetForm();
       onOpenChange(false);
       onCreated?.();
-      router.push(`/memories/${memoryName}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create memory.");
     } finally {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +25,7 @@ type CreateSkillModalProps = {
 };
 
 export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillModalProps) {
-  const router = useRouter();
+
   const [name, setName] = useState("");
   const [namespace, setNamespace] = useState("default");
   const [content, setContent] = useState("");
@@ -68,11 +67,9 @@ export function CreateSkillModal({ open, onOpenChange, onCreated }: CreateSkillM
         content: content.trim(),
         namespace: namespace.trim() || undefined,
       });
-      const skillName = name.trim();
       resetForm();
       onOpenChange(false);
       onCreated?.();
-      router.push(`/skills/${skillName}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create skill.");
     } finally {
