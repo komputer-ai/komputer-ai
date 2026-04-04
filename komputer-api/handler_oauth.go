@@ -461,11 +461,15 @@ func resolveCallbackURL(c *gin.Context) string {
 }
 
 // oauthSuccessHTML returns an HTML page that signals success to the popup opener.
+// Uses both postMessage (direct) and localStorage (cross-origin fallback).
 func oauthSuccessHTML(connectorName string) string {
 	return fmt.Sprintf(`<html><body><script>
-  window.opener.postMessage({type:"oauth-success",connector:"%s"},"*");
-  window.close();
-</script><p>Connected! You can close this window.</p></body></html>`, connectorName)
+  try { localStorage.setItem("oauth-success", "%s:" + Date.now()); } catch(e) {}
+  if (window.opener) {
+    window.opener.postMessage({type:"oauth-success",connector:"%s"},"*");
+  }
+  setTimeout(function() { window.close(); }, 500);
+</script><p>Connected! You can close this window.</p></body></html>`, connectorName, connectorName)
 }
 
 // oauthErrorHTML returns an HTML page that signals failure to the popup opener.

@@ -196,26 +196,49 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
       // 3. Open popup
       const popup = window.open(authorizeUrl, "oauth-popup", "width=600,height=700,scrollbars=yes");
 
-      // 4. Listen for success message from popup
+      // 4. Listen for success — postMessage (same-origin) + localStorage (cross-origin fallback)
+      let resolved = false;
+      const onSuccess = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        resetForm();
+        onOpenChange(false);
+        onCreated?.();
+      };
+
       const handleMessage = (event: MessageEvent) => {
-        if (event.data?.type === "oauth-success") {
-          window.removeEventListener("message", handleMessage);
-          resetForm();
-          onOpenChange(false);
-          onCreated?.();
-        }
+        if (event.data?.type === "oauth-success") onSuccess();
       };
       window.addEventListener("message", handleMessage);
 
-      // 5. Also handle popup close without success (user cancelled)
+      // localStorage fallback: the callback page writes "oauth-success" key
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === "oauth-success") {
+          localStorage.removeItem("oauth-success");
+          onSuccess();
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+
+      // 5. Poll for popup close (user cancelled)
       const checkClosed = setInterval(() => {
         if (popup?.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener("message", handleMessage);
-          setSubmitting(false);
-          // Don't close modal — let user retry or cancel
+          // Give a short grace period for the success signal to arrive
+          setTimeout(() => {
+            if (!resolved) {
+              cleanup();
+              setSubmitting(false);
+            }
+          }, 1000);
         }
       }, 500);
+
+      const cleanup = () => {
+        clearInterval(checkClosed);
+        window.removeEventListener("message", handleMessage);
+        window.removeEventListener("storage", handleStorage);
+      };
 
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to start OAuth flow.");
