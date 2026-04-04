@@ -15,7 +15,7 @@ import { Button } from "@/components/kit/button";
 import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
-import { createConnector, createSecretResource } from "@/lib/api";
+import { createConnector, createSecretResource, getOAuthAuthorizeUrl } from "@/lib/api";
 import { CONNECTOR_TEMPLATES, type ConnectorTemplate } from "@/lib/connector-templates";
 import { ArrowLeft, Copy, Check, Plug } from "lucide-react";
 
@@ -78,6 +78,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
   const [error, setError] = useState<string | null>(null);
 
   const isCustom = selectedTemplate?.service === "custom";
+  const isOAuth = selectedTemplate?.authType === "oauth";
   const isKnownTemplate = selectedTemplate && selectedTemplate.url && !isCustom;
 
   useEffect(() => {
@@ -160,6 +161,68 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
     }
   }
 
+  function validateOAuth(): string | null {
+    if (!name.trim()) return "Name is required.";
+    if (!NAME_PATTERN.test(name)) return "Name must be lowercase letters, numbers, and hyphens only.";
+    return null;
+  }
+
+  async function handleOAuthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const validationError = validateOAuth();
+    if (validationError) { setError(validationError); return; }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // 1. Create connector CR (without auth secret)
+      await createConnector({
+        name: name.trim(),
+        service: selectedTemplate!.service,
+        displayName: selectedTemplate!.displayName,
+        url: selectedTemplate!.url,
+        authType: "oauth",
+        namespace: namespace.trim() || undefined,
+      });
+
+      // 2. Get OAuth authorize URL
+      const { authorizeUrl } = await getOAuthAuthorizeUrl(
+        selectedTemplate!.service,
+        name.trim(),
+        namespace.trim() || undefined,
+      );
+
+      // 3. Open popup
+      const popup = window.open(authorizeUrl, "oauth-popup", "width=600,height=700,scrollbars=yes");
+
+      // 4. Listen for success message from popup
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === "oauth-success") {
+          window.removeEventListener("message", handleMessage);
+          resetForm();
+          onOpenChange(false);
+          onCreated?.();
+        }
+      };
+      window.addEventListener("message", handleMessage);
+
+      // 5. Also handle popup close without success (user cancelled)
+      const checkClosed = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener("message", handleMessage);
+          setSubmitting(false);
+          // Don't close modal — let user retry or cancel
+        }
+      }, 500);
+
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to start OAuth flow.");
+      setSubmitting(false);
+    }
+  }
+
   return (
     <Dialog
       open={open}
@@ -225,7 +288,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="flex flex-col min-h-0 flex-1"
             >
-              <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+              <form onSubmit={isOAuth ? handleOAuthSubmit : handleSubmit} className="flex flex-col min-h-0 flex-1">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-3 text-lg">
                     <button type="button" onClick={() => setStep("pick")} className="p-1.5 -ml-1 rounded-md hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer">
@@ -304,18 +367,20 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="conn-cred">{isKnownTemplate ? selectedTemplate.authLabel : "Auth Token"}</Label>
-                      <Input
-                        id="conn-cred"
-                        type="password"
-                        placeholder={isKnownTemplate ? selectedTemplate.authPlaceholder : "optional"}
-                        value={credential}
-                        onChange={(e) => setCredential(e.target.value)}
-                        autoComplete="off"
-                        className="font-[family-name:var(--font-mono)]"
-                      />
-                    </div>
+                    {!isOAuth && (
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="conn-cred">{isKnownTemplate ? selectedTemplate.authLabel : "Auth Token"}</Label>
+                        <Input
+                          id="conn-cred"
+                          type="password"
+                          placeholder={isKnownTemplate ? selectedTemplate.authPlaceholder : "optional"}
+                          value={credential}
+                          onChange={(e) => setCredential(e.target.value)}
+                          autoComplete="off"
+                          className="font-[family-name:var(--font-mono)]"
+                        />
+                      </div>
+                    )}
 
                     {error && (
                       <p className="text-sm text-red-400">{error}</p>
@@ -328,7 +393,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                     Cancel
                   </Button>
                   <Button type="submit" disabled={submitting}>
-                    {submitting ? "Connecting..." : "Connect"}
+                    {isOAuth ? `Connect with ${selectedTemplate?.displayName}` : submitting ? "Connecting..." : "Connect"}
                   </Button>
                 </DialogFooter>
               </form>
