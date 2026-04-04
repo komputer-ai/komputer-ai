@@ -129,10 +129,21 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             for name, cfg in _json.loads(mcp_env).items():
                 # Resolve tokenEnv → read env var → set Authorization header
                 token_env = cfg.pop("tokenEnv", None)
+                auth_type = cfg.pop("authType", "token")
                 if token_env:
-                    token = os.environ.get(token_env, "")
-                    if token:
-                        cfg["headers"] = {"Authorization": f"Bearer {token}"}
+                    raw = os.environ.get(token_env, "")
+                    if raw:
+                        if auth_type == "oauth":
+                            try:
+                                token_data = _json.loads(raw)
+                                token = token_data.get("access_token", "")
+                                cfg["_oauth_connector"] = name  # stash connector name for refresh
+                            except _json.JSONDecodeError:
+                                token = raw  # fallback to raw
+                        else:
+                            token = raw
+                        if token:
+                            cfg["headers"] = {"Authorization": f"Bearer {token}"}
                 mcp_servers[name] = cfg
         except Exception as e:
             print(f"[komputer] failed to parse KOMPUTER_MCP_SERVERS: {e}")
