@@ -40,11 +40,11 @@ When adding a new field to `KomputerAgentSpec` or `KomputerAgentStatus`, it must
 |---|-------|----------------|
 | 1 | **CRD types** | `komputer-operator/api/v1alpha1/komputeragent_types.go` |
 | 2 | **CRD YAML** | Regenerate CRD + copy to `helm/komputer-ai/crds/` |
-| 3 | **API request struct** | `CreateAgentRequest` in `komputer-api/handler.go` |
-| 4 | **API response struct** | `AgentResponse` in `komputer-api/handler.go` |
+| 3 | **API request struct** | `CreateAgentRequest` in `komputer-api/handler_agents.go` |
+| 4 | **API response struct** | `AgentResponse` in `komputer-api/handler_agents.go` |
 | 5 | **API handlers** | All response paths in create, get, list, and wake handlers |
 | 6 | **K8s client** | `komputer-api/k8s.go` — pass field when creating/updating CR |
-| 7 | **CLI** | `komputer-cli/main.go` — add flag + include in request/display |
+| 7 | **CLI** | `komputer-cli/cmd_agents.go` — add flag + include in request/display |
 | 8 | **UI types** | `komputer-ui/src/lib/types.ts` — update `AgentResponse` / `CreateAgentRequest` |
 | 9 | **UI components** | `komputer-ui/src/components/` — display/accept the field where relevant |
 

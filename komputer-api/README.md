@@ -332,11 +332,20 @@ docker build -f komputer-api/Dockerfile .
 
 ```
 komputer-api/
-├── main.go       # Entrypoint: starts HTTP server + Redis worker
-├── handler.go    # Gin route handlers (CRUD + cancel)
-├── k8s.go        # Kubernetes client for CRs and pod operations
-├── worker.go     # Redis consumer + CR status patcher
-├── ws.go         # WebSocket hub and handler
+├── main.go                 # Entrypoint: starts HTTP server + Redis worker
+├── routes.go               # Route registration + shared helpers
+├── handler_agents.go       # Agent CRUD, cancel, events handlers
+├── handler_offices.go      # Office list, get, delete, events handlers
+├── handler_schedules.go    # Schedule CRUD handlers
+├── handler_memories.go     # Memory CRUD handlers
+├── handler_skills.go       # Skill CRUD handlers
+├── handler_secrets.go      # Secret CRUD handlers
+├── handler_connectors.go   # Connector CRUD + MCP tool listing
+├── handler_templates.go    # Template and namespace listing
+├── k8s.go                  # Kubernetes client for CRs and pod operations
+├── worker.go               # Redis consumer + CR status patcher
+├── ws.go                   # WebSocket hub and handler
+├── prompt.go               # Agent system prompts
 ├── go.mod
 └── Dockerfile
 ```

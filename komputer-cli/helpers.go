@@ -1,0 +1,198 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+func printAgent(a AgentResponse) {
+	fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", a.Name)))
+
+	taskBadge := dimStyle.Render("—")
+	switch a.TaskStatus {
+	case "InProgress":
+		taskBadge = busyStyle.Render("● In Progress")
+	case "Complete":
+		taskBadge = idleStyle.Render("✔ Complete")
+	case "Error":
+		taskBadge = errorStyle.Render("✗ Error")
+	}
+
+	phaseBadge := dimStyle.Render(a.Status)
+	switch a.Status {
+	case "Running":
+		phaseBadge = successStyle.Render("Running")
+	case "Pending":
+		phaseBadge = warnStyle.Render("Pending")
+	case "Failed":
+		phaseBadge = errorStyle.Render("Failed")
+	case "Sleeping":
+		phaseBadge = dimStyle.Render("💤 Sleeping")
+	}
+
+	row := func(label, value string) {
+		fmt.Printf("  %s %s\n", labelStyle.Render(fmt.Sprintf("%-16s", label)), valueStyle.Render(value))
+	}
+
+	row("Phase:", phaseBadge)
+	row("Task:", taskBadge)
+	row("Model:", a.Model)
+	row("Namespace:", a.Namespace)
+	if a.Lifecycle != "" {
+		row("Lifecycle:", a.Lifecycle)
+	}
+	if a.LastTaskCostUSD != "" {
+		row("Last Task Cost:", "$"+a.LastTaskCostUSD)
+	}
+	if a.TotalCostUSD != "" {
+		row("Total Cost:", "$"+a.TotalCostUSD)
+	}
+	row("Created:", a.CreatedAt)
+	if a.LastTaskMessage != "" {
+		row("Last Message:", a.LastTaskMessage)
+	}
+	fmt.Println()
+}
+
+func apiRequest(method, url string, body interface{}) ([]byte, int, error) {
+	var reqBody io.Reader
+	if body != nil {
+		data, _ := json.Marshal(body)
+		reqBody = bytes.NewReader(data)
+	}
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	return data, resp.StatusCode, nil
+}
+
+func formatEvent(event AgentEvent) string {
+	ts := dimStyle.Render(event.Timestamp)
+	payload := event.Payload
+
+	switch event.Type {
+	case "task_started":
+		instr, _ := payload["instructions"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, eventStartStyle.Render("▶ Task Started"), eventTextStyle.Render("  "+instr))
+
+	case "text":
+		content, _ := payload["content"].(string)
+		// Print content without lipgloss Render — it pads every line to terminal width,
+		// causing excessive whitespace on multi-line markdown output.
+		return fmt.Sprintf("%s %s\n  %s", ts, labelStyle.Render("💬 Text"), content)
+
+	case "thinking":
+		content, _ := payload["content"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, dimStyle.Render("🧠 Thinking"), eventThinkStyle.Render("  "+content))
+
+	case "tool_call":
+		// tool_call events arrive batched at turn end, after tool_result events
+		// already showed the tool execution in real-time. Skip to avoid duplicates.
+		return ""
+
+	case "tool_result":
+		tool, _ := payload["tool"].(string)
+		output, _ := payload["output"].(string)
+		isError := strings.Contains(output, "Error") || strings.Contains(output, "error") || strings.Contains(output, "failed") || strings.Contains(output, "Stream closed")
+		if isError {
+			return fmt.Sprintf("%s %s %s\n%s", ts,
+				eventErrorStyle.Render("✗ Tool Error:"),
+				eventErrorStyle.Render(tool),
+				eventErrorStyle.Render("  "+truncate(output, 500)))
+		}
+		// For Bash tools, show the command that was run.
+		cmdLine := ""
+		if tool == "Bash" {
+			if inputMap, ok := payload["input"].(map[string]interface{}); ok {
+				if cmd, ok := inputMap["command"].(string); ok {
+					cmdLine = dimStyle.Render("  $ " + truncate(cmd, 150) + "\n")
+				}
+			}
+		}
+		return fmt.Sprintf("%s %s %s\n%s%s", ts,
+			eventResultStyle.Render("✓"),
+			eventResultStyle.Render(tool),
+			cmdLine,
+			dimStyle.Render("  "+truncate(output, 200)))
+
+	case "task_completed":
+		cost, _ := payload["cost_usd"].(float64)
+		duration, _ := payload["duration_ms"].(float64)
+		turns, _ := payload["turns"].(float64)
+
+		return fmt.Sprintf("%s %s\n%s", ts,
+			eventCompleteStyle.Render("✔ Task Completed"),
+			dimStyle.Render(fmt.Sprintf("  Cost: $%.4f  Duration: %.1fs  Turns: %.0f", cost, duration/1000, turns)))
+
+	case "task_cancelled":
+		reason, _ := payload["reason"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, warnStyle.Render("⚠ Task Cancelled"), dimStyle.Render("  "+reason))
+
+	case "error":
+		errMsg, _ := payload["error"].(string)
+		return fmt.Sprintf("%s %s\n%s", ts, eventErrorStyle.Render("✗ Error"), eventErrorStyle.Render("  "+errMsg))
+
+	default:
+		raw, _ := json.Marshal(event)
+		return fmt.Sprintf("%s %s %s", ts, dimStyle.Render("["+event.Type+"]"), dimStyle.Render(truncate(string(raw), 200)))
+	}
+}
+
+// nsQuery returns "?namespace=X" or "" based on the --namespace flag.
+func nsQuery(cmd *cobra.Command) string {
+	ns, _ := cmd.Flags().GetString("namespace")
+	if ns != "" {
+		return "?namespace=" + url.QueryEscape(ns)
+	}
+	return ""
+}
+
+// nsQueryAmp returns "&namespace=X" or "" for appending to existing query params.
+func nsQueryAmp(cmd *cobra.Command) string {
+	ns, _ := cmd.Flags().GetString("namespace")
+	if ns != "" {
+		return "&namespace=" + url.QueryEscape(ns)
+	}
+	return ""
+}
+
+func truncate(s string, max int) string {
+	if len(s) > max {
+		return s[:max] + "..."
+	}
+	return s
+}
+
+// ─── JSON output ─────────────────────────────────────────────────────────────
+
+func printJSON(v any) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(v)
+}
+
+func dieJSON(msg string, httpStatus int) {
+	enc := json.NewEncoder(os.Stderr)
+	enc.SetIndent("", "  ")
+	enc.Encode(map[string]any{"error": msg, "status": httpStatus})
+	os.Exit(1)
+}

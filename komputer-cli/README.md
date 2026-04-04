@@ -358,7 +358,17 @@ name=$(komputer create my-agent "Do something" --json | jq -r '.name')
 
 ```
 komputer-cli/
-├── main.go    # All commands, styles, and helpers in one file
+├── main.go            # Root command setup + register calls
+├── styles.go          # Lipgloss style definitions
+├── spinner.go         # Terminal spinner for loading states
+├── config.go          # CLI config (~/.komputer-ai/config.json)
+├── types.go           # API response/request structs
+├── helpers.go         # Shared helpers (apiRequest, formatEvent, printAgent, etc.)
+├── cmd_agents.go      # Agent commands: list, create, get, delete, cancel, config, watch, run, chat, login
+├── cmd_offices.go     # Office commands: list, get, watch, delete
+├── cmd_schedules.go   # Schedule commands: list, get, create, delete
+├── cmd_memories.go    # Memory commands: list, get, create, edit, delete
+├── cmd_skills.go      # Skill commands: list, get, create, edit, delete
 ├── go.mod
 └── go.sum
 ```
