@@ -489,19 +489,31 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all agents",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", ep+"/api/v1/agents"+nsQuery(cmd), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var resp AgentListResponse
 			json.Unmarshal(data, &resp)
+
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 
 			if len(resp.Agents) == 0 {
 				fmt.Println(dimStyle.Render("No agents found."))
