@@ -77,6 +77,14 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+              authType:
+                default: token
+                description: 'AuthType is the authentication method: "token" (default,
+                  static Bearer token) or "oauth".'
+                enum:
+                - token
+                - oauth
+                type: string
               displayName:
                 description: DisplayName is a human-readable name for this connector
                   instance.
