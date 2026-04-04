@@ -12,6 +12,7 @@ import { CreateScheduleModal } from "@/components/schedules/create-schedule-moda
 import { CreateMemoryModal } from "@/components/memories/create-memory-modal";
 import { CreateSkillModal } from "@/components/skills/create-skill-modal";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
+import { CreateConnectorModal } from "@/components/connectors/create-connector-modal";
 import { createMemory, createSkill } from "@/lib/api";
 import {
   CreateAgentModalContext,
@@ -88,6 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [createMemoryOpen, setCreateMemoryOpen] = useState(false);
   const [createSkillOpen, setCreateSkillOpen] = useState(false);
   const [createSecretOpen, setCreateSecretOpen] = useState(false);
+  const [createConnectorOpen, setCreateConnectorOpen] = useState(false);
   const [agentInitialValues, setAgentInitialValues] = useState<AgentTemplate | null>(null);
   const pathname = usePathname();
   const title = getPageTitle(pathname);
@@ -96,6 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isMemoriesPage = pathname === "/memories" || pathname.startsWith("/memories/");
   const isSkillsPage = pathname === "/skills" || pathname.startsWith("/skills/");
   const isSecretsPage = pathname === "/secrets" || pathname.startsWith("/secrets/");
+  const isConnectorsPage = pathname === "/connectors" || pathname.startsWith("/connectors/");
 
   const backLink = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
@@ -246,6 +249,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <HeaderAction label="New Skill" onClick={() => setCreateSkillOpen(true)} />
             ) : isSecretsPage ? (
               <HeaderAction label="New Secret" onClick={() => setCreateSecretOpen(true)} />
+            ) : isConnectorsPage ? (
+              <HeaderAction label="New Connector" onClick={() => setCreateConnectorOpen(true)} />
             ) : (
               <HeaderAction label="New Agent" onClick={() => { setAgentInitialValues(null); setCreateAgentOpen(true); }} />
             )}
@@ -273,6 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CreateMemoryModal open={createMemoryOpen} onOpenChange={setCreateMemoryOpen} onCreated={() => refreshFn?.()} />
       <CreateSkillModal open={createSkillOpen} onOpenChange={setCreateSkillOpen} onCreated={() => refreshFn?.()} />
       <CreateSecretModal open={createSecretOpen} onOpenChange={setCreateSecretOpen} onCreated={() => refreshFn?.()} />
+      <CreateConnectorModal open={createConnectorOpen} onOpenChange={setCreateConnectorOpen} onCreated={() => refreshFn?.()} />
     </CreateAgentModalContext.Provider>
   );
 }

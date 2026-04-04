@@ -82,6 +82,10 @@ type KomputerAgentSpec struct {
 	// Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
 	// +optional
 	Memories []string `json:"memories,omitempty"`
+	// Connectors is a list of KomputerConnector names to attach to this agent.
+	// Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+	// +optional
+	Connectors []string `json:"connectors,omitempty"`
 	// Lifecycle controls what happens after task completion.
 	// Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
 	// "AutoDelete" deletes the entire agent after task completion.

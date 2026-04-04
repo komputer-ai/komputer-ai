@@ -86,6 +86,7 @@ Content-Type: application/json
 | `model` | no | Claude model (default: `claude-sonnet-4-6`) |
 | `templateRef` | no | Pod template to use (default: `default`) |
 | `role` | no | `manager` (can orchestrate sub-agents) or `worker` (default: `manager`) |
+| `connectors` | no | List of `KomputerConnector` names to attach |
 | `namespace` | no | Target Kubernetes namespace |
 
 **Behavior:**
@@ -170,6 +171,81 @@ DELETE /api/v1/agents/:name?namespace=production
 ```
 
 Deletes the agent CR, which triggers the operator to clean up the pod, PVC, Secrets and ConfigMap.
+
+---
+
+### Connectors
+
+#### List Connectors
+
+```
+GET /api/v1/connectors?namespace=default
+```
+
+**Response:**
+```json
+{
+  "connectors": [
+    {
+      "name": "github",
+      "namespace": "default",
+      "service": "github",
+      "displayName": "GitHub",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "attachedAgents": 2,
+      "agentNames": ["dev-agent", "review-agent"],
+      "createdAt": "2026-04-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### Create a Connector
+
+```
+POST /api/v1/connectors
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "github",
+  "service": "github",
+  "displayName": "GitHub",
+  "url": "https://api.githubcopilot.com/mcp/",
+  "authSecretName": "github-credentials",
+  "authSecretKey": "token",
+  "namespace": "default"
+}
+```
+
+#### Get a Connector
+
+```
+GET /api/v1/connectors/:name?namespace=default
+```
+
+#### Delete a Connector
+
+```
+DELETE /api/v1/connectors/:name?namespace=default
+```
+
+#### Attach/Remove Connectors from a Running Agent
+
+Connectors can be changed on a running agent without restarting the pod. The change takes effect on the next task:
+
+```bash
+# Attach connectors
+curl -X PATCH http://localhost:8080/api/v1/agents/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"connectors": ["github", "linear"]}'
+
+# Remove all connectors
+curl -X PATCH http://localhost:8080/api/v1/agents/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"connectors": []}'
+```
 
 ---
 

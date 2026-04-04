@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -23,9 +24,10 @@ type CreateAgentRequest struct {
 	TemplateRef  string            `json:"templateRef"`
 	Role         string            `json:"role"`      // "manager" or "" (default manager)
 	Namespace    string            `json:"namespace"` // optional, defaults to server default
-	SecretRefs   []string          `json:"secretRefs"` // names of existing K8s Secrets to attach
-	Memories     []string          `json:"memories"`   // optional KomputerMemory names to attach
-	Skills       []string          `json:"skills"`     // optional KomputerSkill names to attach
+	SecretRefs   []string          `json:"secretRefs"`   // names of existing K8s Secrets to attach
+	Memories     []string          `json:"memories"`     // optional KomputerMemory names to attach
+	Skills       []string          `json:"skills"`       // optional KomputerSkill names to attach
+	Connectors   []string          `json:"connectors"`   // optional KomputerConnector names to attach
 	Lifecycle     string            `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
 	OfficeManager string            `json:"officeManager"` // set by manager MCP tool
 }
@@ -45,6 +47,7 @@ type AgentResponse struct {
 	Secrets              []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
 	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
 	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
+	Connectors      []string `json:"connectors,omitempty"`   // KomputerConnector names attached to this agent
 	Instructions    string   `json:"instructions,omitempty"` // User task extracted from spec.instructions
 	CreatedAt       string   `json:"createdAt"`
 }
@@ -59,6 +62,21 @@ func extractUserTask(instructions string) string {
 		return instructions
 	}
 	return strings.TrimSpace(instructions[idx+len(marker):])
+}
+
+// mergeDefaultSkills adds default skill names to the explicit list, deduplicating.
+func mergeDefaultSkills(explicit []string, defaults []string) []string {
+	seen := make(map[string]bool, len(explicit))
+	for _, s := range explicit {
+		seen[s] = true
+	}
+	merged := append([]string{}, explicit...)
+	for _, s := range defaults {
+		if !seen[s] {
+			merged = append(merged, s)
+		}
+	}
+	return merged
 }
 
 type AgentListResponse struct {
@@ -238,6 +256,13 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/secrets", listSecrets(k8s))
 		v1.POST("/secrets", createManagedSecret(k8s))
 		v1.DELETE("/secrets/:name", deleteManagedSecret(k8s))
+		v1.PATCH("/secrets/:name", updateManagedSecret(k8s))
+
+		v1.POST("/connectors", createConnector(k8s))
+		v1.GET("/connectors", listConnectors(k8s))
+		v1.GET("/connectors/:name", getConnector(k8s))
+		v1.GET("/connectors/:name/tools", listConnectorTools(k8s))
+		v1.DELETE("/connectors/:name", deleteConnector(k8s))
 
 		v1.GET("/templates", listTemplates(k8s))
 		v1.GET("/namespaces", listNamespaces(k8s))
@@ -276,6 +301,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
 
 		// Validate agent name: must be a valid K8s DNS subdomain name.
 		if !isValidK8sName(req.Name) {
@@ -344,7 +370,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 						ModelContextWindow:   existing.Status.ModelContextWindow,
 					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 					Memories:        existing.Spec.Memories,
-					Skills:          existing.Spec.Skills,
+					Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
+					Connectors:      existing.Spec.Connectors,
 					Instructions:    extractUserTask(existing.Spec.Instructions),
 					CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
 				})
@@ -405,7 +432,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 						ModelContextWindow:   existing.Status.ModelContextWindow,
 				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
 				Memories:        existing.Spec.Memories,
-				Skills:          existing.Spec.Skills,
+				Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
+				Connectors:      existing.Spec.Connectors,
 				Instructions:    extractUserTask(existing.Spec.Instructions),
 				CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
 			})
@@ -417,7 +445,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, req.Lifecycle, req.OfficeManager)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, buildSystemPrompt(req.Memories)+"\n\n"+instructions, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, req.Connectors, req.Lifecycle, req.OfficeManager)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
@@ -432,7 +460,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Lifecycle:    string(agent.Spec.Lifecycle),
 			Secrets:      collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
 			Memories:     agent.Spec.Memories,
-			Skills:       agent.Spec.Skills,
+			Skills:       mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:   agent.Spec.Connectors,
 			Instructions: extractUserTask(agent.Spec.Instructions),
 			CreatedAt:    agent.CreationTimestamp.UTC().Format(time.RFC3339),
 			TotalTokens:        agent.Status.TotalTokens,
@@ -536,6 +565,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
 		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -559,7 +589,8 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			ModelContextWindow: agent.Status.ModelContextWindow,
 			Secrets:            agent.Spec.Secrets,
 			Memories:           agent.Spec.Memories,
-			Skills:             agent.Spec.Skills,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
 			Instructions:       extractUserTask(agent.Spec.Instructions),
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
@@ -615,6 +646,7 @@ func getAgentEvents(worker *RedisWorker) gin.HandlerFunc {
 func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
 		agents, err := k8s.ListAgents(c.Request.Context(), ns)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
@@ -637,7 +669,8 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				ModelContextWindow: a.Status.ModelContextWindow,
 				Secrets:            collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
 				Memories:           a.Spec.Memories,
-				Skills:             a.Spec.Skills,
+				Skills:             mergeDefaultSkills(a.Spec.Skills, defaultSkills),
+				Connectors:         a.Spec.Connectors,
 				Instructions:       extractUserTask(a.Spec.Instructions),
 				CreatedAt:          a.CreationTimestamp.UTC().Format(time.RFC3339),
 			})
@@ -1354,6 +1387,29 @@ func deleteManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+func updateManagedSecret(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		var req struct {
+			Data      map[string]string `json:"data" binding:"required"`
+			Namespace string            `json:"namespace"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		if req.Namespace != "" {
+			ns = req.Namespace
+		}
+		if _, err := k8s.UpdateManagedSecret(c.Request.Context(), ns, name, req.Data); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update secret: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"name": name, "namespace": ns})
+	}
+}
+
 type TemplateResponse struct {
 	Name      string `json:"name"`
 	Scope     string `json:"scope"`               // "namespace" or "cluster"
@@ -1382,22 +1438,24 @@ type PatchAgentRequest struct {
 	Lifecycle    *string           `json:"lifecycle,omitempty"`
 	Instructions *string           `json:"instructions,omitempty"`
 	TemplateRef  *string           `json:"templateRef,omitempty"`
-	SecretRefs   *[]string         `json:"secretRefs,omitempty"` // full replacement list of K8s secret names
-	Memories     *[]string         `json:"memories,omitempty"`   // memory names to attach
-	Skills       *[]string         `json:"skills,omitempty"`     // skill names to attach
+	SecretRefs   *[]string         `json:"secretRefs,omitempty"`  // full replacement list of K8s secret names
+	Memories     *[]string         `json:"memories,omitempty"`    // memory names to attach
+	Skills       *[]string         `json:"skills,omitempty"`      // skill names to attach
+	Connectors   *[]string         `json:"connectors,omitempty"`  // connector names to attach
 }
 
 func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
 
 		var req PatchAgentRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1440,17 +1498,23 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
+		// 1e. Update connectors if provided.
+		if req.Connectors != nil {
+			k8s.PatchAgentConnectorsList(c.Request.Context(), ns, name, *req.Connectors)
+		}
+
 		// 2. If pod is running, forward config to the agent so it takes effect immediately.
 		// If the model changed, read context_window from the response and patch the CR.
 		var freshContextWindow int64
 		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err == nil && agent.Status.PodName != "" && agent.Status.Phase == "Running" {
 			type agentConfigPayload struct {
-				Model        *string           `json:"model,omitempty"`
-				Lifecycle    *string           `json:"lifecycle,omitempty"`
-				Instructions *string           `json:"instructions,omitempty"`
-				TemplateRef  *string           `json:"templateRef,omitempty"`
-				Secrets      map[string]string `json:"secrets,omitempty"`
+				Model        *string                 `json:"model,omitempty"`
+				Lifecycle    *string                 `json:"lifecycle,omitempty"`
+				Instructions *string                 `json:"instructions,omitempty"`
+				TemplateRef  *string                 `json:"templateRef,omitempty"`
+				Secrets      map[string]string       `json:"secrets,omitempty"`
+				McpServers   *map[string]interface{} `json:"mcp_servers,omitempty"`
 			}
 			payload := agentConfigPayload{
 				Model:        req.Model,
@@ -1461,6 +1525,11 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			// If secretRefs changed, resolve all secrets so the agent can set/remove SECRET_* env vars.
 			if req.SecretRefs != nil {
 				payload.Secrets = k8s.ResolveSecretEnvVars(c.Request.Context(), ns, *req.SecretRefs)
+			}
+			// If connectors changed, resolve MCP configs so the agent updates KOMPUTER_MCP_SERVERS.
+			if req.Connectors != nil {
+				mcpServers := k8s.ResolveConnectorMCPConfigs(c.Request.Context(), ns, *req.Connectors)
+				payload.McpServers = &mcpServers
 			}
 			configPayload, _ := json.Marshal(payload)
 			podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
@@ -1506,9 +1575,258 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			ModelContextWindow: modelContextWindow,
 			Secrets:            updated.Spec.Secrets,
 			Memories:           updated.Spec.Memories,
-			Skills:             updated.Spec.Skills,
+			Skills:             mergeDefaultSkills(updated.Spec.Skills, defaultSkills),
 			Instructions:       extractUserTask(updated.Spec.Instructions),
+			Connectors:         updated.Spec.Connectors,
 			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
 	}
+}
+
+// --- Connector types ---
+
+type CreateConnectorRequest struct {
+	Name           string  `json:"name" binding:"required"`
+	Service        string  `json:"service" binding:"required"`
+	DisplayName    string  `json:"displayName"`
+	URL            string  `json:"url" binding:"required"`
+	Type           string  `json:"type"`
+	AuthSecretName *string `json:"authSecretName,omitempty"`
+	AuthSecretKey  *string `json:"authSecretKey,omitempty"`
+	Namespace      string  `json:"namespace"`
+}
+
+type ConnectorResponse struct {
+	Name           string   `json:"name"`
+	Namespace      string   `json:"namespace"`
+	Service        string   `json:"service"`
+	DisplayName    string   `json:"displayName"`
+	URL            string   `json:"url"`
+	Type           string   `json:"type"`
+	AuthSecretName string   `json:"authSecretName,omitempty"`
+	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
+	AttachedAgents int      `json:"attachedAgents"`
+	AgentNames     []string `json:"agentNames,omitempty"`
+	CreatedAt      string   `json:"createdAt"`
+}
+
+// --- Connector handlers ---
+
+func createConnector(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req CreateConnectorRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		ns := req.Namespace
+		if ns == "" {
+			ns = resolveNamespace(c, k8s)
+		}
+		connType := req.Type
+		if connType == "" {
+			connType = "remote"
+		}
+		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthSecretName, req.AuthSecretKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create connector: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, connectorToResponse(conn, nil))
+	}
+}
+
+func listConnectors(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ns := c.Query("namespace")
+		connectors, err := k8s.ListConnectors(c.Request.Context(), ns)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list connectors: " + err.Error()})
+			return
+		}
+		connUsage := make(map[string][]string)
+		agents, _ := k8s.ListAgents(c.Request.Context(), "")
+		for _, a := range agents {
+			for _, connRef := range a.Spec.Connectors {
+				key := a.Namespace + "/" + connRef
+				connUsage[key] = append(connUsage[key], a.Name)
+			}
+		}
+		resp := make([]ConnectorResponse, 0, len(connectors))
+		for _, conn := range connectors {
+			agentNames := connUsage[conn.Namespace+"/"+conn.Name]
+			resp = append(resp, connectorToResponse(&conn, agentNames))
+		}
+		c.JSON(http.StatusOK, gin.H{"connectors": resp})
+	}
+}
+
+func getConnector(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		conn, err := k8s.GetConnector(c.Request.Context(), ns, name)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "connector not found"})
+			return
+		}
+		c.JSON(http.StatusOK, connectorToResponse(conn, nil))
+	}
+}
+
+func listConnectorTools(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		conn, err := k8s.GetConnector(c.Request.Context(), ns, name)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "connector not found"})
+			return
+		}
+		if conn.Spec.URL == "" {
+			c.JSON(http.StatusOK, gin.H{"tools": []interface{}{}})
+			return
+		}
+
+		// Resolve auth token from secret if present.
+		// Use conn.Namespace (the connector's actual namespace) — not the resolved query param —
+		// so the secret is always looked up where it was created.
+		authHeader := ""
+		if conn.Spec.AuthSecretKeyRef != nil {
+			token, err := k8s.GetSecretValue(c.Request.Context(), conn.Namespace, conn.Spec.AuthSecretKeyRef.Name, conn.Spec.AuthSecretKeyRef.Key)
+			if err == nil && token != "" {
+				authHeader = "Bearer " + token
+			}
+		}
+
+		log.Printf("fetching MCP tools for connector %s/%s url=%s auth=%v", conn.Namespace, conn.Name, conn.Spec.URL, authHeader != "")
+		tools, err := fetchMCPTools(conn.Spec.URL, authHeader)
+		if err != nil {
+			log.Printf("error fetching MCP tools for connector %s/%s: %v", conn.Namespace, conn.Name, err)
+			c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch tools from MCP server: " + err.Error()})
+			return
+		}
+		log.Printf("fetched %d tools for connector %s/%s", len(tools), conn.Namespace, conn.Name)
+		c.JSON(http.StatusOK, gin.H{"tools": tools})
+	}
+}
+
+type mcpTool struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
+	payload := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/list",
+		"params":  map[string]interface{}{},
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", serverURL, strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Handle SSE response (text/event-stream)
+	contentType := resp.Header.Get("Content-Type")
+	log.Printf("MCP tools/list response: status=%d content-type=%q url=%s", resp.StatusCode, contentType, serverURL)
+	fullBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read MCP response body: %w", readErr)
+	}
+	var rawBody []byte
+	if strings.Contains(contentType, "text/event-stream") {
+		// Extract the JSON payload from the first "data: {...}" SSE line
+		log.Printf("MCP SSE raw body (first 512 bytes): %s", truncate(string(fullBody), 512))
+		for _, line := range strings.Split(string(fullBody), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "data:") {
+				rawBody = []byte(strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+				break
+			}
+		}
+	} else {
+		rawBody = fullBody
+		log.Printf("MCP JSON raw body (first 512 bytes): %s", truncate(string(rawBody), 512))
+	}
+
+	var rpcResp struct {
+		Result struct {
+			Tools []struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"tools"`
+		} `json:"result"`
+		Error json.RawMessage `json:"error"`
+	}
+	if err := json.Unmarshal(rawBody, &rpcResp); err != nil {
+		log.Printf("MCP tools/list unmarshal error: %v — raw: %s", err, truncate(string(rawBody), 256))
+		return nil, fmt.Errorf("invalid MCP response: %w", err)
+	}
+	if len(rpcResp.Error) > 0 && string(rpcResp.Error) != "null" {
+		// Error may be a string or an object with a "message" field.
+		var errMsg string
+		var errObj struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(rpcResp.Error, &errObj) == nil && errObj.Message != "" {
+			errMsg = errObj.Message
+		} else {
+			_ = json.Unmarshal(rpcResp.Error, &errMsg)
+		}
+		log.Printf("MCP tools/list RPC error: %s", errMsg)
+		return nil, fmt.Errorf("MCP error: %s", errMsg)
+	}
+
+	tools := make([]mcpTool, 0, len(rpcResp.Result.Tools))
+	for _, t := range rpcResp.Result.Tools {
+		tools = append(tools, mcpTool{Name: t.Name, Description: t.Description})
+	}
+	return tools, nil
+}
+
+func deleteConnector(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		if err := k8s.DeleteConnector(c.Request.Context(), ns, name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete connector: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	}
+}
+
+func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []string) ConnectorResponse {
+	resp := ConnectorResponse{
+		Name:           conn.Name,
+		Namespace:      conn.Namespace,
+		Service:        conn.Spec.Service,
+		DisplayName:    conn.Spec.DisplayName,
+		URL:            conn.Spec.URL,
+		Type:           conn.Spec.Type,
+		AttachedAgents: len(agentNames),
+		AgentNames:     agentNames,
+		CreatedAt:      conn.CreationTimestamp.UTC().Format(time.RFC3339),
+	}
+	if conn.Spec.AuthSecretKeyRef != nil {
+		resp.AuthSecretName = conn.Spec.AuthSecretKeyRef.Name
+		resp.AuthSecretKey = conn.Spec.AuthSecretKeyRef.Key
+	}
+	return resp
 }

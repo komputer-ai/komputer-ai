@@ -118,17 +118,23 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
         break;
       }
       case "tool_result": {
-        const toolName = event.payload.tool ?? event.payload.name ?? "tool";
+        let toolName = event.payload.tool ?? event.payload.name ?? "tool";
         const inp = event.payload.input;
         let description: string | undefined;
         let inputSummary: string | undefined;
         let output: unknown;
+        // Strip mcp__<connector>__ prefix and use connector name as description
+        const mcpMatch = toolName.match(/^mcp__([^_]+(?:_[^_]+)*)__(.+)$/);
+        if (mcpMatch) {
+          description = mcpMatch[1].replace(/_/g, "-");
+          toolName = mcpMatch[2];
+        }
         if (toolName === "Skill") {
           description = inp?.skill;
           inputSummary = inp?.args ? String(inp.args) : undefined;
           // Don't show the raw skill file content as output
         } else {
-          description = inp?.description ?? event.payload.description;
+          description = description ?? inp?.description ?? event.payload.description;
           if (inp?.command ?? inp?.cmd) {
             inputSummary = inp.command ?? inp.cmd;
           } else if (inp && typeof inp === "object") {
@@ -356,14 +362,14 @@ function ToolCard({
           )}
         />
         {getToolIcon(toolName)}
-        <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
-          {toolName}
-        </span>
         {description && (
-          <span className="shrink-0 text-sm text-[var(--color-text-secondary)]">
+          <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
             {description}
           </span>
         )}
+        <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
+          {toolName}
+        </span>
         {command && (
           <code className="min-w-0 truncate text-xs font-mono text-[var(--color-text-muted)]">
             {command}
@@ -796,7 +802,7 @@ export function AgentChat({
     ]);
     forceScrollToBottom.current = true;
     // Scroll after React renders the new message
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    setTimeout(() => { textareaRef.current?.focus(); bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 50);
     // Fire and forget — state is already set, render happens immediately
     createAgent({ name: agentName, instructions: text, namespace: agentNamespace, lifecycle })
       .then((res) => { if (res.modelContextWindow) setContextWindow(res.modelContextWindow); })
@@ -1034,29 +1040,34 @@ export function AgentChat({
       <div className="shrink-0 bg-[var(--color-bg)]">
         <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} />
         <div className="border-t border-[var(--color-border)]" />
-        <div className="flex items-end gap-2 p-4">
+        <div className="flex items-center gap-2 p-4">
           <div className="flex-1">
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={cancelling ? "Cancelling..." : isWorking ? "Agent is working... press Esc to stop" : "Send a message..."}
-              disabled={isWorking && !cancelling}
+              placeholder={cancelling ? "Cancelling..." : isWorking ? "Agent is working..." : "Send a message..."}
               rows={1}
-              className="field-sizing-content max-h-24 min-h-10 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none disabled:opacity-50"
+              className="field-sizing-content max-h-24 min-h-10 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none"
             />
           </div>
           {isWorking || cancelling ? (
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={cancelling}
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-500 text-white transition-opacity hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Stop task (Esc)"
-            >
-              <Square className="size-3.5 fill-current" />
-            </button>
+            <div className="group/stop relative shrink-0">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover/stop:opacity-100 transition-opacity duration-150 pointer-events-none">
+                <div className="whitespace-nowrap rounded-md bg-[var(--color-surface-raised)] border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-text-secondary)]">
+                  Press <kbd className="font-mono font-semibold text-[var(--color-text)]">Esc</kbd> to interrupt
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex size-9 items-center justify-center rounded-xl bg-red-500 text-white transition-opacity hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Square className="size-3.5 fill-current" />
+              </button>
+            </div>
           ) : (
             <button
               type="button"

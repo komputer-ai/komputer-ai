@@ -1,0 +1,119 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: komputerconnectors.komputer.komputer.ai
+spec:
+  group: komputer.komputer.ai
+  names:
+    kind: KomputerConnector
+    listKind: KomputerConnectorList
+    plural: komputerconnectors
+    singular: komputerconnector
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.service
+      name: Service
+      type: string
+    - jsonPath: .spec.url
+      name: URL
+      type: string
+    - jsonPath: .status.attachedAgents
+      name: Agents
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: KomputerConnector is a remote MCP server connection that can
+          be attached to agents.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KomputerConnectorSpec defines the desired state of KomputerConnector.
+            properties:
+              authSecretKeyRef:
+                description: AuthSecretKeyRef references a K8s Secret key containing
+                  the auth token.
+                properties:
+                  key:
+                    description: The key of the secret to select from.  Must be a
+                      valid secret key.
+                    type: string
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                  optional:
+                    description: Specify whether the Secret or its key must be defined
+                    type: boolean
+                required:
+                - key
+                type: object
+                x-kubernetes-map-type: atomic
+              displayName:
+                description: DisplayName is a human-readable name for this connector
+                  instance.
+                type: string
+              service:
+                description: |-
+                  Service is the service identifier (e.g. "github", "atlassian", "gmail").
+                  Used for display purposes and marketplace matching.
+                type: string
+              type:
+                description: Type is the MCP transport type. Currently only "remote"
+                  (HTTP/SSE) is supported.
+                enum:
+                - remote
+                type: string
+              url:
+                description: URL is the remote MCP server endpoint.
+                type: string
+            required:
+            - service
+            - type
+            - url
+            type: object
+          status:
+            description: KomputerConnectorStatus defines the observed state of KomputerConnector.
+            properties:
+              agentNames:
+                description: AgentNames is the list of agent names using this connector.
+                items:
+                  type: string
+                type: array
+              attachedAgents:
+                description: AttachedAgents is the number of agents using this connector.
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

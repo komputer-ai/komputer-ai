@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -152,6 +151,19 @@ func (k *K8sClient) GetSecretKeys(ctx context.Context, ns, secretName string) ([
 	return keys, nil
 }
 
+// GetSecretValue returns a single key's value from a K8s Secret.
+func (k *K8sClient) GetSecretValue(ctx context.Context, ns, secretName, key string) (string, error) {
+	secret := &corev1.Secret{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: ns}, secret); err != nil {
+		return "", err
+	}
+	val, ok := secret.Data[key]
+	if !ok {
+		return "", fmt.Errorf("key %q not found in secret %s", key, secretName)
+	}
+	return string(val), nil
+}
+
 // ResolveSecretEnvVars reads all key-value data from a list of K8s secrets and returns
 // a flat map using the SECRET_<SECRETNAME>_<KEY> naming convention.
 func (k *K8sClient) ResolveSecretEnvVars(ctx context.Context, ns string, secretNames []string) map[string]string {
@@ -189,13 +201,13 @@ func (k *K8sClient) ListSecrets(ctx context.Context, ns string, all bool) ([]cor
 }
 
 // CreateManagedSecret creates a K8s Secret managed by komputer-ai.
-// Keys are sanitized to SECRET_{UPPERCASE_KEY} format.
+// CreateManagedSecret creates a K8s Secret managed by komputer-ai.
+// Keys are stored as-is (no transformation). The operator handles naming conventions
+// when injecting as env vars.
 func (k *K8sClient) CreateManagedSecret(ctx context.Context, ns, name string, data map[string]string) (*corev1.Secret, error) {
-	sanitize := regexp.MustCompile(`[^A-Za-z0-9]`)
 	secretData := make(map[string][]byte, len(data))
 	for key, value := range data {
-		safe := strings.ToUpper(sanitize.ReplaceAllString(key, "_"))
-		secretData[safe] = []byte(value)
+		secretData[key] = []byte(value)
 	}
 
 	secret := &corev1.Secret{
@@ -226,7 +238,24 @@ func (k *K8sClient) DeleteManagedSecret(ctx context.Context, ns, name string) er
 	return k.client.Delete(ctx, secret)
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, memories []string, skills []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
+// UpdateManagedSecret replaces the data in an existing K8s Secret managed by komputer-ai.
+func (k *K8sClient) UpdateManagedSecret(ctx context.Context, ns, name string, data map[string]string) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	if err := k.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, secret); err != nil {
+		return nil, fmt.Errorf("secret not found: %w", err)
+	}
+	secretData := make(map[string][]byte, len(data))
+	for key, value := range data {
+		secretData[key] = []byte(value)
+	}
+	secret.Data = secretData
+	if err := k.client.Update(ctx, secret); err != nil {
+		return nil, fmt.Errorf("failed to update secret: %w", err)
+	}
+	return secret, nil
+}
+
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -250,6 +279,7 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, mod
 			Secrets:       secretNames,
 			Memories:      memories,
 			Skills:        skills,
+			Connectors:    connectors,
 			Lifecycle:     komputerv1alpha1.AgentLifecycle(lifecycle),
 			OfficeManager: officeManager,
 		},
@@ -866,6 +896,18 @@ func (k *K8sClient) ListSkills(ctx context.Context, ns string) ([]komputerv1alph
 	return list.Items, nil
 }
 
+func (k *K8sClient) ListDefaultSkillNames(ctx context.Context) ([]string, error) {
+	list := &komputerv1alpha1.KomputerSkillList{}
+	if err := k.client.List(ctx, list, client.MatchingLabels{"komputer.ai/default": "true"}); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(list.Items))
+	for _, s := range list.Items {
+		names = append(names, s.Name)
+	}
+	return names, nil
+}
+
 func (k *K8sClient) DeleteSkill(ctx context.Context, ns, name string) error {
 	skill := &komputerv1alpha1.KomputerSkill{
 		ObjectMeta: metav1.ObjectMeta{
@@ -896,6 +938,117 @@ func (k *K8sClient) PatchSkill(ctx context.Context, ns, name string, description
 		return nil
 	}
 	return k.client.Patch(ctx, skill, client.MergeFrom(original))
+}
+
+// --- Connector CRUD ---
+
+func (k *K8sClient) CreateConnector(ctx context.Context, ns, name, service, displayName, url, connType string, authSecretName, authSecretKey *string) (*komputerv1alpha1.KomputerConnector, error) {
+	conn := &komputerv1alpha1.KomputerConnector{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			Labels: map[string]string{
+				"komputer.ai/service": service,
+			},
+		},
+		Spec: komputerv1alpha1.KomputerConnectorSpec{
+			Type:        connType,
+			Service:     service,
+			DisplayName: displayName,
+			URL:         url,
+		},
+	}
+	if authSecretName != nil && authSecretKey != nil {
+		conn.Spec.AuthSecretKeyRef = &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: *authSecretName},
+			Key:                  *authSecretKey,
+		}
+	}
+	if err := k.client.Create(ctx, conn); err != nil {
+		return nil, err
+	}
+	// Set owner reference on the auth secret so it's garbage-collected when the connector is deleted.
+	if conn.Spec.AuthSecretKeyRef != nil {
+		secret := &corev1.Secret{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: conn.Spec.AuthSecretKeyRef.Name, Namespace: ns}, secret); err == nil {
+			ref := metav1.OwnerReference{
+				APIVersion: "komputer.komputer.ai/v1alpha1",
+				Kind:       "KomputerConnector",
+				Name:       conn.Name,
+				UID:        conn.UID,
+			}
+			secret.OwnerReferences = append(secret.OwnerReferences, ref)
+			k.client.Update(ctx, secret)
+		}
+	}
+	return conn, nil
+}
+
+func (k *K8sClient) GetConnector(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerConnector, error) {
+	conn := &komputerv1alpha1.KomputerConnector{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, conn); err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func (k *K8sClient) ListConnectors(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerConnector, error) {
+	list := &komputerv1alpha1.KomputerConnectorList{}
+	var opts []client.ListOption
+	if ns != "" {
+		opts = append(opts, client.InNamespace(ns))
+	}
+	if err := k.client.List(ctx, list, opts...); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (k *K8sClient) DeleteConnector(ctx context.Context, ns, name string) error {
+	conn := &komputerv1alpha1.KomputerConnector{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+	}
+	return k.client.Delete(ctx, conn)
+}
+
+func (k *K8sClient) PatchAgentConnectorsList(ctx context.Context, ns, agentName string, connectors []string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	agent.Spec.Connectors = connectors
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// ResolveConnectorMCPConfigs resolves connector names to MCP server configs with auth headers.
+// Returns {"connName": {"type": "http", "url": "...", "headers": {"Authorization": "Bearer ..."}}}
+func (k *K8sClient) ResolveConnectorMCPConfigs(ctx context.Context, agentNs string, connectorNames []string) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, connRef := range connectorNames {
+		connNs := agentNs
+		connName := connRef
+		if parts := strings.SplitN(connRef, "/", 2); len(parts) == 2 {
+			connNs = parts[0]
+			connName = parts[1]
+		}
+		conn := &komputerv1alpha1.KomputerConnector{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: connName, Namespace: connNs}, conn); err != nil {
+			continue
+		}
+		entry := map[string]interface{}{"type": "http", "url": conn.Spec.URL}
+		if conn.Spec.AuthSecretKeyRef != nil {
+			secret := &corev1.Secret{}
+			if err := k.client.Get(ctx, types.NamespacedName{Name: conn.Spec.AuthSecretKeyRef.Name, Namespace: connNs}, secret); err == nil {
+				if token, ok := secret.Data[conn.Spec.AuthSecretKeyRef.Key]; ok {
+					entry["headers"] = map[string]string{"Authorization": "Bearer " + string(token)}
+				}
+			}
+		}
+		result[connName] = entry
+	}
+	return result
 }
 
 // ResolveSkillFiles fetches all referenced skills and returns a map of skill name to {"description": ..., "content": ...}.

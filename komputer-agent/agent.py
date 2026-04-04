@@ -116,10 +116,44 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     if system_prompt:
         options.system_prompt = system_prompt
 
-    # Conditionally register manager orchestration tools
+    # Register MCP servers: manager tools + connectors from KOMPUTER_MCP_SERVERS env.
+    mcp_servers = {}
     if os.environ.get("KOMPUTER_ROLE") == "manager":
         from manager_tools import create_manager_server
-        options.mcp_servers = {"komputer": create_manager_server()}
+        mcp_servers["komputer"] = create_manager_server()
+
+    mcp_env = os.environ.get("KOMPUTER_MCP_SERVERS")
+    if mcp_env:
+        import json as _json
+        try:
+            for name, cfg in _json.loads(mcp_env).items():
+                # Resolve tokenEnv → read env var → set Authorization header
+                token_env = cfg.pop("tokenEnv", None)
+                if token_env:
+                    token = os.environ.get(token_env, "")
+                    if token:
+                        cfg["headers"] = {"Authorization": f"Bearer {token}"}
+                mcp_servers[name] = cfg
+        except Exception as e:
+            print(f"[komputer] failed to parse KOMPUTER_MCP_SERVERS: {e}")
+
+    if mcp_servers:
+        options.mcp_servers = mcp_servers
+        # Allow all MCP tools from connected servers.
+        for name in mcp_servers:
+            options.allowed_tools.append(f"mcp__{name}__*")
+        # Log server config (redact auth tokens)
+        debug_servers = {}
+        for n, c in mcp_servers.items():
+            if isinstance(c, dict):
+                d = {k: v for k, v in c.items() if k != "headers"}
+                if "headers" in c:
+                    d["headers"] = {k: v[:10] + "..." for k, v in c["headers"].items()}
+                debug_servers[n] = d
+            else:
+                debug_servers[n] = "<sdk_server>"
+        print(f"[komputer] registered MCP servers: {debug_servers}")
+        print(f"[komputer] allowed_tools: {options.allowed_tools}")
 
     # Resume previous session if one exists
     if session_id:

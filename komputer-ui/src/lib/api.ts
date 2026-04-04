@@ -19,6 +19,9 @@ import type {
   SecretListResponse,
   SecretResponse,
   CreateSecretRequest,
+  ConnectorListResponse,
+  ConnectorResponse,
+  CreateConnectorRequest,
 } from './types';
 import { getConfig } from './config';
 
@@ -151,6 +154,25 @@ export const createSecretResource = (data: CreateSecretRequest) =>
 
 export const deleteSecretResource = (name: string, ns?: string) =>
   request<void>(`/secrets/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
+
+export const updateSecretResource = (name: string, data: Record<string, string>, ns?: string) =>
+  request<void>(`/secrets/${name}`, { method: 'PATCH', body: JSON.stringify({ data, namespace: ns }) });
+
+// Connectors
+export const listConnectors = (ns?: string) =>
+  request<ConnectorListResponse>(`/connectors${ns ? `?namespace=${ns}` : ''}`);
+
+export const getConnector = (name: string, ns?: string) =>
+  request<ConnectorResponse>(`/connectors/${name}${ns ? `?namespace=${ns}` : ''}`);
+
+export const createConnector = (data: CreateConnectorRequest) =>
+  request<ConnectorResponse>('/connectors', { method: 'POST', body: JSON.stringify(data) });
+
+export const deleteConnector = (name: string, ns?: string) =>
+  request<void>(`/connectors/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
+
+export const getConnectorTools = (name: string, ns?: string) =>
+  request<{ tools: { name: string; description: string }[] }>(`/connectors/${name}/tools${ns ? `?namespace=${ns}` : ''}`);
 
 // Templates
 export const listTemplates = (ns?: string) =>

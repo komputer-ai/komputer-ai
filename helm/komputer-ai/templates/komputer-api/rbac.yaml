@@ -99,6 +99,15 @@ rules:
   - get
   - list
   - delete
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerconnectors
+  verbs:
+  - create
+  - get
+  - list
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

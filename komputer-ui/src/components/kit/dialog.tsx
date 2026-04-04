@@ -35,7 +35,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => onOpenChange(false)}>
           {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md"
@@ -43,15 +43,15 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            onClick={() => onOpenChange(false)}
           />
           {/* Panel */}
           <motion.div
-            className="relative z-10 w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col"
+            className="relative z-10 w-auto mx-4 flex flex-col items-center"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
           >
             {children}
           </motion.div>
@@ -73,7 +73,7 @@ export function DialogContent({
         "rounded-[var(--radius-xl)] bg-[var(--color-surface)]",
         "border border-[var(--color-border)]",
         "shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_var(--color-border-light)]",
-        "flex flex-col overflow-hidden max-h-[inherit]",
+        "w-full flex flex-col",
         "p-6 text-[var(--color-text)]",
         className,
       )}

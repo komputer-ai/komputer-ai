@@ -136,7 +136,6 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
 	pod, err := r.ensurePod(ctx, agent, template, pvcName, podName, komputerConfig)
@@ -659,6 +658,56 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			Name:  "SKILL_" + sanitized,
 			Value: md,
 		})
+	}
+
+	// Resolve connectors → build MCP server config JSON for the agent SDK.
+	// Auth tokens are mounted as separate env vars (CONNECTOR_<NAME>_TOKEN) and
+	// referenced in the JSON so secrets are not baked in as plaintext.
+	if len(agent.Spec.Connectors) > 0 {
+		type mcpServerEntry struct {
+			Type     string `json:"type"`
+			URL      string `json:"url"`
+			TokenEnv string `json:"tokenEnv,omitempty"` // env var name holding the Bearer token
+		}
+		mcpServers := make(map[string]mcpServerEntry)
+		for _, connRef := range agent.Spec.Connectors {
+			connNs := agent.Namespace
+			connName := connRef
+			if parts := strings.SplitN(connRef, "/", 2); len(parts) == 2 {
+				connNs = parts[0]
+				connName = parts[1]
+			}
+			conn := &komputerv1alpha1.KomputerConnector{}
+			if err := r.Get(ctx, types.NamespacedName{Name: connName, Namespace: connNs}, conn); err != nil {
+				log.Info("Connector not found, skipping", "connector", connRef)
+				continue
+			}
+			sanitized := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(connName))
+			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL}
+			// Mount auth secret as env var and reference it.
+			if conn.Spec.AuthSecretKeyRef != nil {
+				tokenEnvName := "CONNECTOR_" + sanitized + "_TOKEN"
+				entry.TokenEnv = tokenEnvName
+				envVars = append(envVars, corev1.EnvVar{
+					Name: tokenEnvName,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: conn.Spec.AuthSecretKeyRef.Name},
+							Key:                  conn.Spec.AuthSecretKeyRef.Key,
+						},
+					},
+				})
+			}
+			mcpServers[connName] = entry
+		}
+		if len(mcpServers) > 0 {
+			if mcpJSON, err := json.Marshal(mcpServers); err == nil {
+				envVars = append(envVars, corev1.EnvVar{
+					Name:  "KOMPUTER_MCP_SERVERS",
+					Value: string(mcpJSON),
+				})
+			}
+		}
 	}
 
 	// Dedup env vars: agent secrets override template env vars with same name.

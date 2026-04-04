@@ -36,6 +36,7 @@ class ConfigRequest(BaseModel):
     templateRef: Optional[str] = None
     secrets: Optional[dict[str, str]] = None  # full set of SECRET_*=value env vars
     skills: Optional[dict[str, dict]] = None  # name -> {description, content}
+    mcp_servers: Optional[dict[str, dict]] = None  # connector MCP server configs
 
 
 @app.get("/status")
@@ -78,11 +79,16 @@ async def apply_config(req: ConfigRequest):
     if req.skills:
         _write_skills(req.skills)
 
-    updates = {k: v for k, v in req.model_dump(exclude={"secrets", "skills"}).items() if v is not None}
+    # MCP servers: update env var so the next task picks up the new config.
+    if req.mcp_servers is not None:
+        import json as _json
+        _os.environ["KOMPUTER_MCP_SERVERS"] = _json.dumps(req.mcp_servers) if req.mcp_servers else ""
+
+    updates = {k: v for k, v in req.model_dump(exclude={"secrets", "skills", "mcp_servers"}).items() if v is not None}
     if updates:
         agent_config.apply(updates)
 
-    if not updates and req.secrets is None and not req.skills:
+    if not updates and req.secrets is None and not req.skills and req.mcp_servers is None:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
     cfg = agent_config.load()

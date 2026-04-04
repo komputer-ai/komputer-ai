@@ -13,6 +13,7 @@ export interface AgentResponse {
   secrets?: string[];
   memories?: string[];
   skills?: string[];
+  connectors?: string[];
   instructions?: string;
   createdAt: string;
 }
@@ -87,9 +88,9 @@ export interface CreateAgentRequest {
   templateRef?: string;
   role?: 'manager' | 'worker';
   namespace?: string;
-  secrets?: Record<string, string>;
   memories?: string[];
   skills?: string[];
+  connectors?: string[];
   secretRefs?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
 }
@@ -118,6 +119,36 @@ export interface PatchAgentRequest {
   secretRefs?: string[];
   memories?: string[];
   skills?: string[];
+  connectors?: string[];
+}
+
+export interface ConnectorResponse {
+  name: string;
+  namespace: string;
+  service: string;
+  displayName: string;
+  url: string;
+  type: string;
+  authSecretName?: string;
+  authSecretKey?: string;
+  attachedAgents: number;
+  agentNames?: string[];
+  createdAt: string;
+}
+
+export interface ConnectorListResponse {
+  connectors: ConnectorResponse[];
+}
+
+export interface CreateConnectorRequest {
+  name: string;
+  service: string;
+  displayName?: string;
+  url: string;
+  type?: string;
+  authSecretName?: string;
+  authSecretKey?: string;
+  namespace?: string;
 }
 
 export interface TemplateResponse {

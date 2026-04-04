@@ -1,9 +1,12 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TopologyGraph } from "@/components/topology/topology-graph";
 
 export default function TopologyPage() {
+  const searchParams = useSearchParams();
+
   return (
     <div className="flex h-full flex-col">
       <motion.div
@@ -12,7 +15,7 @@ export default function TopologyPage() {
         transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
         className="flex-1"
       >
-        <TopologyGraph />
+        <TopologyGraph key={searchParams.toString()} />
       </motion.div>
     </div>
   );

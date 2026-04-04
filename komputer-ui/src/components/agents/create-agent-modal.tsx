@@ -25,7 +25,7 @@ import {
 import { ChevronRight, Check, Plus } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
-import { createAgent, listTemplates, listMemories, listSkills, listSecrets } from "@/lib/api";
+import { createAgent, listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import type { CreateAgentRequest, TemplateResponse } from "@/lib/types";
 import type { AgentTemplate } from "@/lib/create-agent-modal-context";
 
@@ -54,6 +54,8 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
+  const [selectedConnectors, setSelectedConnectors] = useState<string[]>([]);
+  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [selectedSecretRefs, setSelectedSecretRefs] = useState<string[]>([]);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [showAllSecrets, setShowAllSecrets] = useState(false);
@@ -76,6 +78,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     setCreateSecretOpen(false);
     setSelectedMemories([]);
     setSelectedSkills([]);
+    setSelectedConnectors([]);
     setAdvancedOpen(false);
     setError(null);
   }
@@ -103,6 +106,13 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
     listSecrets(namespace || undefined, showAllSecrets)
       .then((res) => setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace }))))
       .catch(() => setAvailableSecrets([]));
+    listConnectors()
+      .then((res) => setAvailableConnectors((res.connectors ?? []).map((c) => ({
+        name: c.name,
+        namespace: c.namespace,
+        ref: c.namespace === (namespace || "default") ? c.name : `${c.namespace}/${c.name}`,
+      }))))
+      .catch(() => setAvailableConnectors([]));
   }, [open, namespace, showAllSecrets]);
 
   useEffect(() => {
@@ -148,6 +158,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         secretRefs: selectedSecretRefs.length > 0 ? selectedSecretRefs : undefined,
         memories: selectedMemories.length > 0 ? selectedMemories : undefined,
         skills: selectedSkills.length > 0 ? selectedSkills : undefined,
+        connectors: selectedConnectors.length > 0 ? selectedConnectors : undefined,
       };
       await createAgent(req);
       const agentName = name.trim();
@@ -402,6 +413,38 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
                           })}
                           {availableSkills.length === 0 && (
                             <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Connectors */}
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Connectors</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableConnectors.map((c) => {
+                            const selected = selectedConnectors.includes(c.ref);
+                            const isCrossNs = c.ref.includes("/");
+                            return (
+                              <button
+                                key={c.ref}
+                                type="button"
+                                onClick={() => setSelectedConnectors(prev =>
+                                  selected ? prev.filter(n => n !== c.ref) : [...prev, c.ref]
+                                )}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                                  selected
+                                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                                }`}
+                              >
+                                {selected && <Check className="inline size-2.5 mr-1" />}
+                                {c.name}
+                                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{c.namespace}</span>}
+                              </button>
+                            );
+                          })}
+                          {availableConnectors.length === 0 && (
+                            <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
                           )}
                         </div>
                       </div>

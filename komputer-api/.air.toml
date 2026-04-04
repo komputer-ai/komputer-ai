@@ -1,0 +1,13 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/komputer-api ."
+  bin = "./tmp/komputer-api"
+  delay = 500
+  exclude_dir = ["tmp", "docs"]
+  include_ext = ["go"]
+  kill_delay = "1s"
+
+[log]
+  main_only = true

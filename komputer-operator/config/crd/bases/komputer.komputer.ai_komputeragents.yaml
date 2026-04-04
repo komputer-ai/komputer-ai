@@ -55,6 +55,13 @@ spec:
           spec:
             description: KomputerAgentSpec defines the desired state of KomputerAgent.
             properties:
+              connectors:
+                description: |-
+                  Connectors is a list of KomputerConnector names to attach to this agent.
+                  Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+                items:
+                  type: string
+                type: array
               instructions:
                 description: Instructions is the prompt/task for the Claude agent.
                 type: string

@@ -218,6 +218,66 @@ spec:
 
 Agents can also create and attach skills dynamically at runtime using the `create_skill` and `attach_skill` manager tools.
 
+## Connectors
+
+A **KomputerConnector** is a named MCP (Model Context Protocol) server connection. Connectors give agents access to external tools and data sources — GitHub repositories, Slack channels, Linear issues, and any service that exposes an MCP endpoint.
+
+### When to use it
+
+- **External integrations** — Let agents read and write to services like GitHub, Slack, or Linear without writing custom tools
+- **Custom MCP servers** — Point to any MCP-compatible endpoint, self-hosted or remote
+- **Shared credentials** — One connector definition can be attached to many agents; credentials are stored once as a K8s Secret
+
+### How it works
+
+1. Create a `KomputerConnector` CR with a URL and an optional auth secret reference
+2. The UI can auto-create the K8s Secret from a token you paste in — you never handle the secret directly
+3. Reference the connector by name in `spec.connectors` on a `KomputerAgent`
+4. When the agent pod starts, the operator injects the MCP server config as `KOMPUTER_MCP_SERVERS` and mounts the auth token as a `CONNECTOR_<NAME>_TOKEN` env var
+5. The agent runtime configures the Claude SDK with the MCP server, making all its tools available as `mcp__<name>__*` slash commands
+6. If you attach or remove a connector from a **running** agent via PATCH, the change takes effect on the next task — no pod restart needed
+7. The `.status.attachedAgents` field tracks how many agents reference each connector
+
+### Example
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerConnector
+metadata:
+  name: github
+  namespace: default
+spec:
+  service: github
+  url: "https://api.githubcopilot.com/mcp/"
+  authSecretKeyRef:
+    name: github-credentials
+    key: token
+```
+
+Attach to an agent:
+```yaml
+spec:
+  connectors:
+    - github
+```
+
+The agent can then use tools like `mcp__github__create_pull_request`, `mcp__github__search_code`, etc.
+
+### Built-in connector templates
+
+The dashboard includes templates for common services with step-by-step setup guides:
+
+| Service | Auth type | Notes |
+|---------|-----------|-------|
+| GitHub | Personal Access Token | Full repo, issues, PR access |
+| Slack | User OAuth Token | Channels, messages, threads |
+| Linear | API Key | Issues, projects, cycles |
+| Gmail | OAuth Access Token | Read, search, draft emails |
+| Google Calendar | OAuth Access Token | Events, schedules, availability |
+| Custom | Optional token | Any MCP-compatible URL |
+
+> For services that require OAuth (Notion, Atlassian full access), see [`docs/connectors-mcp-status.md`](connectors-mcp-status.md).
+
 ## How They Fit Together
 
 ```
@@ -236,11 +296,16 @@ KomputerMemory (per namespace)          KomputerSkill (per namespace)
     │                                       │
     └── content injected into system prompt └── written as skill file to agent fs
 
+KomputerConnector (per namespace)
+    │
+    └── MCP server URL + auth secret → injected as env vars into agent pod
+
 KomputerAgent (per namespace)
     │
     ├── references ──▶ Template (by name)
     ├── references ──▶ KomputerMemory names (injected into system prompt)
     ├── references ──▶ KomputerSkill names (written as skill files)
+    ├── references ──▶ KomputerConnector names (MCP servers injected at pod start)
     ├── owns ──▶ Pod, PVC, ConfigMap, Secrets
     ├── lifecycle ──▶ Default (running) / Sleep (PVC only) / AutoDelete
     ├── role: manager ──▶ gets MCP tools to create sub-agents

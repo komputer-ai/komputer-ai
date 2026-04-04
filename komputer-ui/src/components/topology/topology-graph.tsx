@@ -15,6 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
 
+import { useSearchParams } from "next/navigation";
 import { listAgents, listOffices, getOffice, listSchedules } from "@/lib/api";
 import { usePageRefresh } from "@/components/layout/app-shell";
 import type {
@@ -450,16 +451,11 @@ export function TopologyGraph() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [nsFilter, setNsFilter] = useState<string>(() => {
-    if (typeof window !== "undefined") return new URLSearchParams(window.location.search).get("ns") || "all";
-    return "all";
-  });
+  const searchParams = useSearchParams();
+  const [nsFilter, setNsFilter] = useState<string>(searchParams.get("ns") || "all");
   const [officeFilter, setOfficeFilter] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const val = new URLSearchParams(window.location.search).get("office");
-      return val ? val.split(",") : [];
-    }
-    return [];
+    const val = searchParams.get("office");
+    return val ? val.split(",") : [];
   });
   const [officeDropdownOpen, setOfficeDropdownOpen] = useState(false);
   const officeDropdownRef = useRef<HTMLDivElement>(null);

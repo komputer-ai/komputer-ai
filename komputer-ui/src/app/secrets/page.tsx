@@ -88,7 +88,7 @@ export default function SecretsPage() {
             action={{ label: "Create Secret", onClick: () => setCreateOpen(true) }}
           />
         ) : (
-          <SecretCards secrets={filtered} onDelete={handleDelete} />
+          <SecretCards secrets={filtered} onDelete={handleDelete} onUpdated={refresh} />
         )}
       </motion.div>
 

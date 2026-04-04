@@ -16,8 +16,9 @@ import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
+import { AgentTopology } from "@/components/agents/agent-topology";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
 import { Textarea } from "@/components/kit/textarea";
 import { Label } from "@/components/kit/label";
@@ -44,6 +45,7 @@ export default function AgentDetailPage() {
   const agentNs = searchParams.get("namespace") || undefined;
   const initialPending = searchParams.get("pending") || undefined;
 
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "info" ? "info" : "chat");
   const [agent, setAgent] = useState<AgentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const showLoading = useDelayedLoading(loading);
@@ -322,7 +324,18 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="chat" className="flex flex-1 flex-col overflow-hidden">
+      <Tabs
+        defaultValue="chat"
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val);
+          const params = new URLSearchParams(window.location.search);
+          if (val === "chat") { params.delete("tab"); } else { params.set("tab", val); }
+          const qs = params.toString();
+          window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+        }}
+        className="flex flex-1 flex-col overflow-hidden"
+      >
         <div className="shrink-0 border-b border-[var(--color-border)] px-6">
           <TabsList>
             <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -366,6 +379,9 @@ export default function AgentDetailPage() {
 
             {/* Settings */}
             <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+
+            {/* Topology */}
+            <AgentTopology agentName={agent.name} agentNs={agentNs} />
 
             {/* Agent info */}
             <motion.div
@@ -468,6 +484,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [agentSkills, setAgentSkills] = useState<string[]>(agent.skills ?? []);
   const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
+  const [agentConnectors, setAgentConnectors] = useState<string[]>(agent.connectors ?? []);
+  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -490,13 +508,21 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     listSecrets(agentNs || undefined, showAllSecrets).then((res) => {
       setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
     }).catch(() => {});
+    listConnectors().then((res) => {
+      setAvailableConnectors((res.connectors ?? []).map((c) => ({
+        name: c.name,
+        namespace: c.namespace,
+        ref: c.namespace === (agentNs || "default") ? c.name : `${c.namespace}/${c.name}`,
+      })));
+    }).catch(() => {});
   }, [agentNs, showAllSecrets]);
 
   const agentLifecycle = agent.lifecycle || "default";
   const memoriesChanged = JSON.stringify(agentMemories.sort()) !== JSON.stringify((agent.memories ?? []).sort());
   const skillsChanged = JSON.stringify(agentSkills.sort()) !== JSON.stringify((agent.skills ?? []).sort());
+  const connectorsChanged = JSON.stringify(agentConnectors.sort()) !== JSON.stringify((agent.connectors ?? []).sort());
   const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged;
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -509,6 +535,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (secretsChanged) patch.secretRefs = agentSecretRefs;
       if (memoriesChanged) patch.memories = agentMemories;
       if (skillsChanged) patch.skills = agentSkills;
+      if (connectorsChanged) patch.connectors = agentConnectors;
       const updated = await patchAgent(agent.name, patch, agentNs);
       setSaved(true);
       onSaved(updated);
@@ -682,6 +709,37 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           })}
           {availableSkills.length === 0 && (
             <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Connectors</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {availableConnectors.map((c) => {
+            const attached = agentConnectors.includes(c.ref);
+            const isCrossNs = c.ref.includes("/");
+            return (
+              <button
+                key={c.ref}
+                type="button"
+                onClick={() => setAgentConnectors(prev =>
+                  attached ? prev.filter(n => n !== c.ref) : [...prev, c.ref]
+                )}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                  attached
+                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                }`}
+              >
+                {attached && <Check className="inline size-2.5 mr-1" />}
+                {c.name}
+                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{c.namespace}</span>}
+              </button>
+            );
+          })}
+          {availableConnectors.length === 0 && (
+            <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
           )}
         </div>
       </div>

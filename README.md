@@ -44,7 +44,7 @@
 | [komputer-api](komputer-api/) | Go | REST + WebSocket API for creating agents, listing status, and streaming real-time events |
 | [komputer-agent](komputer-agent/) | Python | The agent runtime — runs Claude with bash/web tools in a persistent workspace |
 | [komputer-cli](komputer-cli/) | Go | Beautiful CLI for interacting with the platform |
-| [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing agents, offices, schedules, memories, skills, and costs |
+| [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing agents, offices, schedules, memories, skills, connectors, and costs |
 
 
 ## Documentation
@@ -250,6 +250,27 @@ spec:
     - python-expert
 ```
 
+**KomputerConnector** — A named MCP (Model Context Protocol) server connection. Connectors give agents access to external tools like GitHub, Slack, Linear, and any custom MCP endpoint:
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerConnector
+metadata:
+  name: github
+spec:
+  service: github
+  url: "https://api.githubcopilot.com/mcp/"
+  authSecretKeyRef:
+    name: github-credentials
+    key: token
+```
+
+Attach to an agent in its spec:
+```yaml
+spec:
+  connectors:
+    - github
+```
+
 ## CLI Usage
 
 ```bash
@@ -270,6 +291,7 @@ komputer delete <name> [name...]    # Delete one or more agents
 --secret KEY=VALUE                  # Pass secrets (repeatable)
 --memory <name>                     # Attach a KomputerMemory (repeatable)
 --skill <name>                      # Attach a KomputerSkill (repeatable)
+--connector <name>                  # Attach a KomputerConnector (repeatable)
 ```
 
 ### Secrets
