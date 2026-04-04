@@ -431,6 +431,21 @@ func truncate(s string, max int) string {
 	return s
 }
 
+// ─── JSON output ─────────────────────────────────────────────────────────────
+
+func printJSON(v any) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(v)
+}
+
+func dieJSON(msg string, httpStatus int) {
+	enc := json.NewEncoder(os.Stderr)
+	enc.SetIndent("", "  ")
+	enc.Encode(map[string]any{"error": msg, "status": httpStatus})
+	os.Exit(1)
+}
+
 // ─── Commands ────────────────────────────────────────────────────────────────
 
 func main() {
@@ -441,6 +456,7 @@ func main() {
 
 	root.PersistentFlags().String("api", "", "API endpoint URL (overrides login config)")
 	root.PersistentFlags().StringP("namespace", "n", "", "Kubernetes namespace (default: server default)")
+	root.PersistentFlags().Bool("json", false, "Output raw JSON instead of formatted text")
 
 	// ── login ────────────────────────────────────────────────────────────
 	root.AddCommand(&cobra.Command{
@@ -448,10 +464,18 @@ func main() {
 		Short: "Save API endpoint to ~/.komputer-ai/config.json",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			endpoint := strings.TrimRight(args[0], "/")
 			if err := saveConfig(&Config{APIEndpoint: endpoint}); err != nil {
+				if jsonMode {
+					dieJSON("Failed to save config: "+err.Error(), 500)
+				}
 				fmt.Println(errorStyle.Render("Failed to save config: " + err.Error()))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]string{"endpoint": endpoint, "config": configPath()})
+				return
 			}
 			fmt.Println(successStyle.Render("✔ Logged in"))
 			fmt.Printf("  %s %s\n", labelStyle.Render("Endpoint:"), valueStyle.Render(endpoint))
@@ -465,19 +489,31 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all agents",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", ep+"/api/v1/agents"+nsQuery(cmd), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var resp AgentListResponse
 			json.Unmarshal(data, &resp)
+
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 
 			if len(resp.Agents) == 0 {
 				fmt.Println(dimStyle.Render("No agents found."))
@@ -557,6 +593,7 @@ func main() {
 		Short: "Create a new agent or send a task to an existing one",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			model, _ := cmd.Flags().GetString("model")
 			templateRef, _ := cmd.Flags().GetString("template")
@@ -599,6 +636,9 @@ func main() {
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
@@ -606,17 +646,28 @@ func main() {
 			if status == 409 {
 				var errResp ErrorResponse
 				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
 				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
 				os.Exit(1)
 			}
 
 			if status != 200 && status != 201 && status != 202 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var agent AgentResponse
 			json.Unmarshal(data, &agent)
+
+			if jsonMode {
+				printJSON(agent)
+				return
+			}
 
 			if status == 201 {
 				fmt.Println(successStyle.Render("✔ Agent created"))
@@ -642,6 +693,7 @@ func main() {
 		Short: "Get details of a specific agent and its recent events",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			agentName := args[0]
 			limit, _ := cmd.Flags().GetInt("events")
@@ -649,37 +701,52 @@ func main() {
 			// Fetch agent details
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(agentName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", agentName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", agentName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var agent AgentResponse
 			json.Unmarshal(data, &agent)
-			printAgent(agent)
 
 			// Fetch recent events
 			eventsData, eventsStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s/events?limit=%d%s", ep, url.PathEscape(agentName), limit, nsQueryAmp(cmd)), nil)
-			if err != nil || eventsStatus != 200 {
-				return // silently skip events if unavailable
+			var events []AgentEvent
+			if err == nil && eventsStatus == 200 {
+				var eventsResp struct {
+					Events []AgentEvent `json:"events"`
+				}
+				json.Unmarshal(eventsData, &eventsResp)
+				events = eventsResp.Events
 			}
 
-			var eventsResp struct {
-				Events []AgentEvent `json:"events"`
+			if jsonMode {
+				printJSON(map[string]any{"agent": agent, "events": events})
+				return
 			}
-			json.Unmarshal(eventsData, &eventsResp)
 
-			if len(eventsResp.Events) > 0 {
-				fmt.Println(labelStyle.Render(fmt.Sprintf("  Recent Events (%d)", len(eventsResp.Events))))
+			printAgent(agent)
+
+			if len(events) > 0 {
+				fmt.Println(labelStyle.Render(fmt.Sprintf("  Recent Events (%d)", len(events))))
 				fmt.Println(dimStyle.Render("  " + strings.Repeat("─", 60)))
-				for _, e := range eventsResp.Events {
+				for _, e := range events {
 					if formatted := formatEvent(e); formatted != "" {
 						fmt.Println(formatted)
 						fmt.Println()
@@ -698,26 +765,59 @@ func main() {
 		Short:   "Delete one or more agents and all their resources",
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			hasError := false
+			type deleteResult struct {
+				Name    string `json:"name"`
+				Deleted bool   `json:"deleted"`
+				Error   string `json:"error,omitempty"`
+			}
+			var results []deleteResult
 			for _, name := range args {
 				data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(name), nsQuery(cmd)), nil)
 				if err != nil {
+					if jsonMode {
+						results = append(results, deleteResult{Name: name, Deleted: false, Error: err.Error()})
+						hasError = true
+						continue
+					}
 					fmt.Println(errorStyle.Render(fmt.Sprintf("Failed to delete %q: %s", name, err.Error())))
 					hasError = true
 					continue
 				}
 				if status == 404 {
+					if jsonMode {
+						results = append(results, deleteResult{Name: name, Deleted: false, Error: "not found"})
+						hasError = true
+						continue
+					}
 					fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", name)))
 					hasError = true
 					continue
 				}
 				if status != 200 {
+					if jsonMode {
+						results = append(results, deleteResult{Name: name, Deleted: false, Error: fmt.Sprintf("API error (%d): %s", status, string(data))})
+						hasError = true
+						continue
+					}
 					fmt.Println(errorStyle.Render(fmt.Sprintf("Failed to delete %q (%d): %s", name, status, string(data))))
 					hasError = true
 					continue
 				}
+				if jsonMode {
+					results = append(results, deleteResult{Name: name, Deleted: true})
+					continue
+				}
 				fmt.Println(successStyle.Render(fmt.Sprintf("✔ Agent %q deleted", name)))
+			}
+			if jsonMode {
+				printJSON(results)
+				if hasError {
+					os.Exit(1)
+				}
+				return
 			}
 			if hasError {
 				os.Exit(1)
@@ -731,25 +831,42 @@ func main() {
 		Short: "Cancel the running task on an agent",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/cancel%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status == 409 {
 				var errResp ErrorResponse
 				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
 				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": args[0], "cancelled": true})
+				return
 			}
 			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Cancelling task on %q", args[0])))
 		},
@@ -761,6 +878,7 @@ func main() {
 		Short: "Update settings on an existing agent (model, lifecycle, secrets)",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			body := map[string]interface{}{}
 
@@ -789,26 +907,42 @@ func main() {
 			}
 
 			if len(body) == 0 {
+				if jsonMode {
+					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, or --skill flags.", 400)
+				}
 				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, or --skill flags."))
 				os.Exit(1)
 			}
 
 			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var agent AgentResponse
 			json.Unmarshal(data, &agent)
+			if jsonMode {
+				printJSON(agent)
+				return
+			}
 			fmt.Println(successStyle.Render("✔ Settings updated"))
 			printAgent(agent)
 		},
@@ -1493,19 +1627,31 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all offices",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", ep+"/api/v1/offices"+nsQuery(cmd), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var resp OfficeListResponse
 			json.Unmarshal(data, &resp)
+
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 
 			if len(resp.Offices) == 0 {
 				fmt.Println(dimStyle.Render("No offices found."))
@@ -1580,19 +1726,29 @@ func main() {
 		Short: "Get office details and members",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			officeName := args[0]
 
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/offices/%s%s", ep, url.PathEscape(officeName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Office %q not found", officeName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Office %q not found", officeName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
@@ -1684,19 +1840,24 @@ func main() {
 			// Recent events
 			eventsLimit, _ := cmd.Flags().GetInt("events")
 			eventsData, eventsStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/offices/%s/events?limit=%d%s", ep, url.PathEscape(officeName), eventsLimit, nsQueryAmp(cmd)), nil)
-			if err != nil || eventsStatus != 200 {
+			var events []AgentEvent
+			if err == nil && eventsStatus == 200 {
+				var eventsResp struct {
+					Events []AgentEvent `json:"events"`
+				}
+				json.Unmarshal(eventsData, &eventsResp)
+				events = eventsResp.Events
+			}
+
+			if jsonMode {
+				printJSON(map[string]any{"office": office, "events": events})
 				return
 			}
 
-			var eventsResp struct {
-				Events []AgentEvent `json:"events"`
-			}
-			json.Unmarshal(eventsData, &eventsResp)
-
-			if len(eventsResp.Events) > 0 {
-				fmt.Println(labelStyle.Render(fmt.Sprintf("  Recent Events (%d)", len(eventsResp.Events))))
+			if len(events) > 0 {
+				fmt.Println(labelStyle.Render(fmt.Sprintf("  Recent Events (%d)", len(events))))
 				fmt.Println(dimStyle.Render("  " + strings.Repeat("─", 60)))
-				for _, e := range eventsResp.Events {
+				for _, e := range events {
 					if formatted := formatEvent(e); formatted != "" {
 						prefix := titleStyle.Render(fmt.Sprintf("[%s]", e.AgentName))
 						fmt.Printf("%s %s\n\n", prefix, formatted)
@@ -1789,21 +1950,35 @@ func main() {
 		Short:   "Delete an office and all its agents",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			officeName := args[0]
 
 			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/offices/%s%s", ep, url.PathEscape(officeName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Office %q not found", officeName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Office %q not found", officeName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": officeName, "deleted": true})
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Office %q deleted", officeName)))
 		},
@@ -1823,19 +1998,31 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all schedules",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", ep+"/api/v1/schedules"+nsQuery(cmd), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var resp ScheduleListResponse
 			json.Unmarshal(data, &resp)
+
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 
 			if len(resp.Schedules) == 0 {
 				fmt.Println(dimStyle.Render("No schedules found."))
@@ -1923,25 +2110,40 @@ func main() {
 		Short: "Get schedule details",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Schedule %q not found", scheduleName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Schedule %q not found", scheduleName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var sched ScheduleResponse
 			json.Unmarshal(data, &sched)
+
+			if jsonMode {
+				printJSON(sched)
+				return
+			}
 
 			// Schedule header
 			fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", sched.Name)))
@@ -2004,9 +2206,13 @@ func main() {
 		Short: "Create a new schedule",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			cron, _ := cmd.Flags().GetString("cron")
 			if cron == "" {
+				if jsonMode {
+					dieJSON("--cron flag is required", 400)
+				}
 				fmt.Println(errorStyle.Render("--cron flag is required"))
 				os.Exit(1)
 			}
@@ -2052,22 +2258,36 @@ func main() {
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/schedules", body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 409 {
 				var errResp ErrorResponse
 				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
 				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
 				os.Exit(1)
 			}
 			if status != 200 && status != 201 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var sched ScheduleResponse
 			json.Unmarshal(data, &sched)
+
+			if jsonMode {
+				printJSON(sched)
+				return
+			}
 
 			fmt.Println(successStyle.Render("✔ Schedule created"))
 
@@ -2104,21 +2324,35 @@ func main() {
 		Short:   "Delete a schedule and its managed agents",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
 			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Schedule %q not found", scheduleName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Schedule %q not found", scheduleName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": scheduleName, "deleted": true})
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Schedule %q deleted", scheduleName)))
 		},
@@ -2138,18 +2372,29 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all memories",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/memories%s", ep, nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 			var resp MemoryListResponse
 			json.Unmarshal(data, &resp)
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 			if len(resp.Memories) == 0 {
 				fmt.Println(dimStyle.Render("No memories found."))
 				return
@@ -2180,22 +2425,36 @@ func main() {
 		Short: "Get memory details",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/memories/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Memory %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Memory %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 			var m MemoryResponse
 			json.Unmarshal(data, &m)
+			if jsonMode {
+				printJSON(m)
+				return
+			}
 			fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", m.Name)))
 			fmt.Println()
 			if m.Description != "" {
@@ -2217,10 +2476,14 @@ func main() {
 		Short: "Create a new memory",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			content, _ := cmd.Flags().GetString("content")
 			description, _ := cmd.Flags().GetString("description")
 			if content == "" {
+				if jsonMode {
+					dieJSON("--content is required", 400)
+				}
 				fmt.Println(errorStyle.Render("--content is required"))
 				os.Exit(1)
 			}
@@ -2236,12 +2499,24 @@ func main() {
 			}
 			data, status, err := apiRequest("POST", ep+"/api/v1/memories", body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 201 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			var m MemoryResponse
+			json.Unmarshal(data, &m)
+			if jsonMode {
+				printJSON(m)
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Memory %q created", args[0])))
 		},
@@ -2256,6 +2531,7 @@ func main() {
 		Short: "Edit a memory's content or description",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			body := map[string]interface{}{}
 			if content, _ := cmd.Flags().GetString("content"); content != "" {
@@ -2265,21 +2541,39 @@ func main() {
 				body["description"] = description
 			}
 			if len(body) == 0 {
+				if jsonMode {
+					dieJSON("No changes provided. Use --content or --description flags.", 400)
+				}
 				fmt.Println(errorStyle.Render("No changes provided. Use --content or --description flags."))
 				os.Exit(1)
 			}
 			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/memories/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Memory %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Memory %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			var m MemoryResponse
+			json.Unmarshal(data, &m)
+			if jsonMode {
+				printJSON(m)
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Memory %q updated", args[0])))
 		},
@@ -2295,15 +2589,26 @@ func main() {
 		Short:   "Delete a memory",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/memories/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": args[0], "deleted": true})
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Memory %q deleted", args[0])))
 		},
@@ -2323,18 +2628,29 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all skills",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/skills%s", ep, nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 			var resp SkillListResponse
 			json.Unmarshal(data, &resp)
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 			if len(resp.Skills) == 0 {
 				fmt.Println(dimStyle.Render("No skills found."))
 				return
@@ -2365,22 +2681,36 @@ func main() {
 		Short: "Get skill details",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Skill %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Skill %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 			var s SkillResponse
 			json.Unmarshal(data, &s)
+			if jsonMode {
+				printJSON(s)
+				return
+			}
 			fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", s.Name)))
 			fmt.Println()
 			if s.Description != "" {
@@ -2402,10 +2732,14 @@ func main() {
 		Short: "Create a new skill",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			content, _ := cmd.Flags().GetString("content")
 			description, _ := cmd.Flags().GetString("description")
 			if content == "" {
+				if jsonMode {
+					dieJSON("--content is required", 400)
+				}
 				fmt.Println(errorStyle.Render("--content is required"))
 				os.Exit(1)
 			}
@@ -2421,12 +2755,24 @@ func main() {
 			}
 			data, status, err := apiRequest("POST", ep+"/api/v1/skills", body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 201 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			var s SkillResponse
+			json.Unmarshal(data, &s)
+			if jsonMode {
+				printJSON(s)
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q created", args[0])))
 		},
@@ -2441,6 +2787,7 @@ func main() {
 		Short: "Edit a skill's content or description",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			body := map[string]interface{}{}
 			if content, _ := cmd.Flags().GetString("content"); content != "" {
@@ -2450,21 +2797,39 @@ func main() {
 				body["description"] = description
 			}
 			if len(body) == 0 {
+				if jsonMode {
+					dieJSON("No changes provided. Use --content or --description flags.", 400)
+				}
 				fmt.Println(errorStyle.Render("No changes provided. Use --content or --description flags."))
 				os.Exit(1)
 			}
 			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Skill %q not found", args[0]), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Skill %q not found", args[0])))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			var s SkillResponse
+			json.Unmarshal(data, &s)
+			if jsonMode {
+				printJSON(s)
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q updated", args[0])))
 		},
@@ -2480,15 +2845,26 @@ func main() {
 		Short:   "Delete a skill",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/skills/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": args[0], "deleted": true})
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Skill %q deleted", args[0])))
 		},
