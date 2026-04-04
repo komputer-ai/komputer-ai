@@ -30,6 +30,17 @@ type PatchSkillRequest struct {
 	Content     *string `json:"content,omitempty"`
 }
 
+// createSkill creates a new skill resource.
+// @Summary Create skill
+// @Description Creates a new KomputerSkill CR with script content that can be attached to agents.
+// @Tags skills
+// @Accept json
+// @Produce json
+// @Param request body CreateSkillRequest true "Skill creation request"
+// @Success 201 {object} SkillResponse "Skill created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /skills [post]
 func createSkill(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateSkillRequest
@@ -61,6 +72,17 @@ func createSkill(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getSkill returns details for a single skill.
+// @Summary Get skill details
+// @Description Returns the content, description, and attached agent count for a single skill.
+// @Tags skills
+// @Produce json
+// @Param name path string true "Skill name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} SkillResponse "Skill details"
+// @Failure 404 {object} map[string]string "Skill not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /skills/{name} [get]
 func getSkill(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -83,6 +105,15 @@ func getSkill(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// listSkills returns all skills in a namespace.
+// @Summary List skills
+// @Description Returns all skills with content and attached agent counts in the specified namespace.
+// @Tags skills
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]interface{} "List of skills"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /skills [get]
 func listSkills(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
@@ -108,6 +139,19 @@ func listSkills(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// patchSkill updates description or content on an existing skill.
+// @Summary Patch skill
+// @Description Updates the description or script content of an existing skill.
+// @Tags skills
+// @Accept json
+// @Produce json
+// @Param name path string true "Skill name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body PatchSkillRequest true "Fields to update"
+// @Success 200 {object} SkillResponse "Updated skill"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /skills/{name} [patch]
 func patchSkill(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -143,6 +187,16 @@ func patchSkill(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteSkill deletes a skill by name.
+// @Summary Delete skill
+// @Description Deletes the skill CR.
+// @Tags skills
+// @Produce json
+// @Param name path string true "Skill name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Skill deleted"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /skills/{name} [delete]
 func deleteSkill(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")

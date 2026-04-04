@@ -491,6 +491,19 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// patchAgent updates fields on an existing agent.
+// @Summary Patch agent
+// @Description Updates model, lifecycle, instructions, secretRefs, memories, skills, or connectors on an existing agent.
+// @Tags agents
+// @Accept json
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body PatchAgentRequest true "Fields to update"
+// @Success 200 {object} AgentResponse "Updated agent"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name} [patch]
 func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")

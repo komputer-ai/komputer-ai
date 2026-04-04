@@ -75,6 +75,15 @@ func officeToResponse(o komputerv1alpha1.KomputerOffice, includeMembers bool) Of
 	return resp
 }
 
+// listOffices returns all offices in a namespace.
+// @Summary List offices
+// @Description Returns all offices with their current status in the specified namespace.
+// @Tags offices
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} OfficeListResponse "List of offices"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /offices [get]
 func listOffices(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
@@ -91,6 +100,17 @@ func listOffices(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getOffice returns details for a single office including all member agents.
+// @Summary Get office details
+// @Description Returns the current status and member list for a single office.
+// @Tags offices
+// @Produce json
+// @Param name path string true "Office name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} OfficeResponse "Office details"
+// @Failure 404 {object} map[string]string "Office not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /offices/{name} [get]
 func getOffice(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -108,6 +128,17 @@ func getOffice(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteOffice deletes an office and cleans up all member agent event streams.
+// @Summary Delete office
+// @Description Deletes the office CR and cleans up Redis event streams for all member agents.
+// @Tags offices
+// @Produce json
+// @Param name path string true "Office name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Office deleted"
+// @Failure 404 {object} map[string]string "Office not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /offices/{name} [delete]
 func deleteOffice(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -150,6 +181,19 @@ func deleteOffice(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	}
 }
 
+// getOfficeEvents returns merged events from all member agents in the office.
+// @Summary Get office events
+// @Description Returns merged events from all member agent Redis streams, sorted chronologically.
+// @Tags offices
+// @Produce json
+// @Param name path string true "Office name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param limit query int false "Max events to return (1-200)" default(50)
+// @Success 200 {object} map[string]interface{} "Office events"
+// @Failure 400 {object} map[string]string "Invalid limit parameter"
+// @Failure 404 {object} map[string]string "Office not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /offices/{name}/events [get]
 func getOfficeEvents(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")

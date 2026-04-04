@@ -43,6 +43,17 @@ type mcpTool struct {
 	Description string `json:"description"`
 }
 
+// createConnector creates a new MCP connector resource.
+// @Summary Create connector
+// @Description Creates a new KomputerConnector CR pointing to an MCP server that can be attached to agents.
+// @Tags connectors
+// @Accept json
+// @Produce json
+// @Param request body CreateConnectorRequest true "Connector creation request"
+// @Success 201 {object} ConnectorResponse "Connector created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors [post]
 func createConnector(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateConnectorRequest
@@ -67,6 +78,15 @@ func createConnector(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// listConnectors returns all connectors in a namespace.
+// @Summary List connectors
+// @Description Returns all connectors with attached agent counts in the specified namespace.
+// @Tags connectors
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]interface{} "List of connectors"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors [get]
 func listConnectors(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace")
@@ -92,6 +112,17 @@ func listConnectors(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getConnector returns details for a single connector.
+// @Summary Get connector details
+// @Description Returns the URL, service, type, and auth config for a single connector.
+// @Tags connectors
+// @Produce json
+// @Param name path string true "Connector name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} ConnectorResponse "Connector details"
+// @Failure 404 {object} map[string]string "Connector not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors/{name} [get]
 func getConnector(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -105,6 +136,18 @@ func getConnector(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// listConnectorTools fetches the available tools from the connector's MCP server.
+// @Summary List connector tools
+// @Description Calls the MCP server's tools/list endpoint and returns the available tools.
+// @Tags connectors
+// @Produce json
+// @Param name path string true "Connector name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]interface{} "List of MCP tools"
+// @Failure 404 {object} map[string]string "Connector not found"
+// @Failure 502 {object} map[string]string "Failed to reach MCP server"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors/{name}/tools [get]
 func listConnectorTools(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -226,6 +269,16 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 	return tools, nil
 }
 
+// deleteConnector deletes a connector by name.
+// @Summary Delete connector
+// @Description Deletes the connector CR.
+// @Tags connectors
+// @Produce json
+// @Param name path string true "Connector name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Connector deleted"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors/{name} [delete]
 func deleteConnector(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
