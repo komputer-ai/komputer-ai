@@ -1,10 +1,11 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TopologyGraph } from "@/components/topology/topology-graph";
 
-export default function TopologyPage() {
+function TopologyContent() {
   const searchParams = useSearchParams();
 
   return (
@@ -18,5 +19,13 @@ export default function TopologyPage() {
         <TopologyGraph key={searchParams.toString()} />
       </motion.div>
     </div>
+  );
+}
+
+export default function TopologyPage() {
+  return (
+    <Suspense>
+      <TopologyContent />
+    </Suspense>
   );
 }
