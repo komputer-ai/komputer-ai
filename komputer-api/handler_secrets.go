@@ -29,6 +29,21 @@ type CreateSecretRequest struct {
 	Namespace string            `json:"namespace"`
 }
 
+type UpdateSecretRequest struct {
+	Data      map[string]string `json:"data" binding:"required"`
+	Namespace string            `json:"namespace"`
+}
+
+// listSecrets returns all Kubernetes secrets in a namespace.
+// @Summary List secrets
+// @Description Returns all secrets with key names (not values) and attached agent counts in the specified namespace.
+// @Tags secrets
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Param all query boolean false "Include all secrets, not just managed ones"
+// @Success 200 {object} SecretListResponse "List of secrets"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /secrets [get]
 func listSecrets(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
@@ -69,6 +84,17 @@ func listSecrets(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// createManagedSecret creates a new managed Kubernetes secret.
+// @Summary Create managed secret
+// @Description Creates a new Kubernetes secret managed by komputer.ai that can be attached to agents.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param request body CreateSecretRequest true "Secret creation request"
+// @Success 201 {object} SecretResponse "Secret created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /secrets [post]
 func createManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateSecretRequest
@@ -104,6 +130,16 @@ func createManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteManagedSecret deletes a managed secret by name.
+// @Summary Delete managed secret
+// @Description Deletes a managed Kubernetes secret.
+// @Tags secrets
+// @Produce json
+// @Param name path string true "Secret name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Secret deleted"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /secrets/{name} [delete]
 func deleteManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -116,14 +152,24 @@ func deleteManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// updateManagedSecret updates the data in a managed secret.
+// @Summary Update managed secret
+// @Description Replaces the key-value pairs in a managed Kubernetes secret.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param name path string true "Secret name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body UpdateSecretRequest true "Updated secret data"
+// @Success 200 {object} map[string]string "Secret updated"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /secrets/{name} [patch]
 func updateManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		ns := resolveNamespace(c, k8s)
-		var req struct {
-			Data      map[string]string `json:"data" binding:"required"`
-			Namespace string            `json:"namespace"`
-		}
+		var req UpdateSecretRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return

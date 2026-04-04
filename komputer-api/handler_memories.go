@@ -29,6 +29,17 @@ type PatchMemoryRequest struct {
 	Description *string `json:"description,omitempty"`
 }
 
+// createMemory creates a new memory resource.
+// @Summary Create memory
+// @Description Creates a new KomputerMemory CR that can be attached to agents as persistent context.
+// @Tags memories
+// @Accept json
+// @Produce json
+// @Param request body CreateMemoryRequest true "Memory creation request"
+// @Success 201 {object} MemoryResponse "Memory created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /memories [post]
 func createMemory(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateMemoryRequest
@@ -59,6 +70,17 @@ func createMemory(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getMemory returns details for a single memory.
+// @Summary Get memory details
+// @Description Returns the content and attached agent count for a single memory.
+// @Tags memories
+// @Produce json
+// @Param name path string true "Memory name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} MemoryResponse "Memory details"
+// @Failure 404 {object} map[string]string "Memory not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /memories/{name} [get]
 func getMemory(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -80,6 +102,15 @@ func getMemory(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// listMemories returns all memories in a namespace.
+// @Summary List memories
+// @Description Returns all memories with content and attached agent counts in the specified namespace.
+// @Tags memories
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]interface{} "List of memories"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /memories [get]
 func listMemories(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
@@ -104,6 +135,19 @@ func listMemories(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// patchMemory updates content or description on an existing memory.
+// @Summary Patch memory
+// @Description Updates the content or description of an existing memory.
+// @Tags memories
+// @Accept json
+// @Produce json
+// @Param name path string true "Memory name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body PatchMemoryRequest true "Fields to update"
+// @Success 200 {object} MemoryResponse "Updated memory"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /memories/{name} [patch]
 func patchMemory(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -138,6 +182,16 @@ func patchMemory(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteMemory deletes a memory by name.
+// @Summary Delete memory
+// @Description Deletes the memory CR.
+// @Tags memories
+// @Produce json
+// @Param name path string true "Memory name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Memory deleted"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /memories/{name} [delete]
 func deleteMemory(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")

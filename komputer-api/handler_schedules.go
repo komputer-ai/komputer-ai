@@ -94,6 +94,17 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 	return resp
 }
 
+// createSchedule creates a new cron schedule that fires agents on a recurring basis.
+// @Summary Create schedule
+// @Description Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
+// @Tags schedules
+// @Accept json
+// @Produce json
+// @Param request body CreateScheduleRequest true "Schedule creation request"
+// @Success 201 {object} ScheduleResponse "Schedule created"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules [post]
 func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateScheduleRequest
@@ -128,6 +139,15 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// listSchedules returns all schedules in a namespace.
+// @Summary List schedules
+// @Description Returns all schedules with their current status and run history in the specified namespace.
+// @Tags schedules
+// @Produce json
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} ScheduleListResponse "List of schedules"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules [get]
 func listSchedules(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ns := c.Query("namespace") // empty = all namespaces
@@ -144,6 +164,17 @@ func listSchedules(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// getSchedule returns details for a single schedule.
+// @Summary Get schedule details
+// @Description Returns the current status and run history for a single schedule.
+// @Tags schedules
+// @Produce json
+// @Param name path string true "Schedule name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} ScheduleResponse "Schedule details"
+// @Failure 404 {object} map[string]string "Schedule not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules/{name} [get]
 func getSchedule(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -161,6 +192,17 @@ func getSchedule(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// deleteSchedule deletes a schedule by name.
+// @Summary Delete schedule
+// @Description Deletes the schedule CR. Does not delete any agents that were created by the schedule.
+// @Tags schedules
+// @Produce json
+// @Param name path string true "Schedule name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} map[string]string "Schedule deleted"
+// @Failure 404 {object} map[string]string "Schedule not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules/{name} [delete]
 func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
@@ -178,6 +220,19 @@ func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// patchSchedule updates the cron expression for a schedule.
+// @Summary Patch schedule
+// @Description Updates the cron expression for an existing schedule.
+// @Tags schedules
+// @Accept json
+// @Produce json
+// @Param name path string true "Schedule name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body PatchScheduleRequest true "Fields to update"
+// @Success 200 {object} ScheduleResponse "Updated schedule"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules/{name} [patch]
 func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
