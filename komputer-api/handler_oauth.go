@@ -123,7 +123,7 @@ func oauthAuthorize(k8s *K8sClient) gin.HandlerFunc {
 			CreatedAt:     time.Now(),
 		})
 
-		callbackURL := os.Getenv("OAUTH_CALLBACK_URL")
+		callbackURL := resolveCallbackURL(c)
 
 		params := url.Values{}
 		params.Set("client_id", creds.ClientID)
@@ -177,7 +177,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		callbackURL := os.Getenv("OAUTH_CALLBACK_URL")
+		callbackURL := resolveCallbackURL(c)
 
 		// Read OAuth client credentials from connector's secret.
 		ctx := c.Request.Context()
@@ -430,6 +430,23 @@ func getConnectorOAuthCreds(ctx context.Context, k8s *K8sClient, ns, connectorNa
 	}
 	clientSecret, _ := k8s.GetSecretValue(ctx, ns, secretName, "client_secret")
 	return oauthClientCredentials{ClientID: clientID, ClientSecret: clientSecret}, nil
+}
+
+// resolveCallbackURL returns the OAuth callback URL.
+// Uses OAUTH_CALLBACK_URL env var if set, otherwise derives from the incoming request.
+func resolveCallbackURL(c *gin.Context) string {
+	if env := os.Getenv("OAUTH_CALLBACK_URL"); env != "" {
+		return env
+	}
+	scheme := "https"
+	if c.Request.TLS == nil {
+		if fwd := c.GetHeader("X-Forwarded-Proto"); fwd != "" {
+			scheme = fwd
+		} else {
+			scheme = "http"
+		}
+	}
+	return scheme + "://" + c.Request.Host + "/api/v1/oauth/callback"
 }
 
 // oauthSuccessHTML returns an HTML page that signals success to the popup opener.
