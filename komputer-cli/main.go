@@ -1998,19 +1998,31 @@ func main() {
 		Aliases: []string{"ls"},
 		Short:   "List all schedules",
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			data, status, err := apiRequest("GET", ep+"/api/v1/schedules"+nsQuery(cmd), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var resp ScheduleListResponse
 			json.Unmarshal(data, &resp)
+
+			if jsonMode {
+				printJSON(resp)
+				return
+			}
 
 			if len(resp.Schedules) == 0 {
 				fmt.Println(dimStyle.Render("No schedules found."))
@@ -2098,25 +2110,40 @@ func main() {
 		Short: "Get schedule details",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
 			data, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Schedule %q not found", scheduleName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Schedule %q not found", scheduleName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var sched ScheduleResponse
 			json.Unmarshal(data, &sched)
+
+			if jsonMode {
+				printJSON(sched)
+				return
+			}
 
 			// Schedule header
 			fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", sched.Name)))
@@ -2179,9 +2206,13 @@ func main() {
 		Short: "Create a new schedule",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			cron, _ := cmd.Flags().GetString("cron")
 			if cron == "" {
+				if jsonMode {
+					dieJSON("--cron flag is required", 400)
+				}
 				fmt.Println(errorStyle.Render("--cron flag is required"))
 				os.Exit(1)
 			}
@@ -2227,22 +2258,36 @@ func main() {
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/schedules", body)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 409 {
 				var errResp ErrorResponse
 				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
 				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
 				os.Exit(1)
 			}
 			if status != 200 && status != 201 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
 			}
 
 			var sched ScheduleResponse
 			json.Unmarshal(data, &sched)
+
+			if jsonMode {
+				printJSON(sched)
+				return
+			}
 
 			fmt.Println(successStyle.Render("✔ Schedule created"))
 
@@ -2279,21 +2324,35 @@ func main() {
 		Short:   "Delete a schedule and its managed agents",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
 			data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
 			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
 				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
 				os.Exit(1)
 			}
 			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Schedule %q not found", scheduleName), 404)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("Schedule %q not found", scheduleName)))
 				os.Exit(1)
 			}
 			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
 				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
 				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": scheduleName, "deleted": true})
+				return
 			}
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Schedule %q deleted", scheduleName)))
 		},
