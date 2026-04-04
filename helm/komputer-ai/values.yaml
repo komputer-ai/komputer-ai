@@ -56,6 +56,14 @@ api:
     # - secretName: komputer-tls
     #   hosts:
     #     - komputer.example.com
+  oauth:
+    google:
+      clientId: ""
+      clientSecret: ""
+    notion:
+      clientId: ""
+      clientSecret: ""
+    callbackUrl: ""
 
 ui:
   enabled: true

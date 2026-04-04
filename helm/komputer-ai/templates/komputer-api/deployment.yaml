@@ -37,6 +37,22 @@ spec:
           value: {{ include "komputer.redisAddress" . }}
         - name: REDIS_STREAM_PREFIX
           value: {{ .Values.config.redis.streamPrefix }}
+        {{- if .Values.api.oauth.callbackUrl }}
+        - name: OAUTH_CALLBACK_URL
+          value: {{ .Values.api.oauth.callbackUrl | quote }}
+        {{- end }}
+        {{- if .Values.api.oauth.google.clientId }}
+        - name: OAUTH_GOOGLE_CLIENT_ID
+          value: {{ .Values.api.oauth.google.clientId | quote }}
+        - name: OAUTH_GOOGLE_CLIENT_SECRET
+          value: {{ .Values.api.oauth.google.clientSecret | quote }}
+        {{- end }}
+        {{- if .Values.api.oauth.notion.clientId }}
+        - name: OAUTH_NOTION_CLIENT_ID
+          value: {{ .Values.api.oauth.notion.clientId | quote }}
+        - name: OAUTH_NOTION_CLIENT_SECRET
+          value: {{ .Values.api.oauth.notion.clientSecret | quote }}
+        {{- end }}
         ports:
         - containerPort: 8080
           name: http
