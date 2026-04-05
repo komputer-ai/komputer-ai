@@ -64,7 +64,7 @@ export default function AgentDetailPage() {
   // Fetch event history on mount
   useEffect(() => {
     if (!agentName) return;
-    getAgentEvents(agentName, 50, agentNs)
+    getAgentEvents(agentName, 50, agentNs, undefined, 'session')
       .then((data: unknown) => {
         const arr = parseEventsResponse(data);
         setHistoryEvents(arr);
@@ -80,7 +80,7 @@ export default function AgentDetailPage() {
     if (!oldestTimestamp) return;
     setLoadingOlder(true);
     try {
-      const data = await getAgentEvents(agentName, 50, agentNs, oldestTimestamp);
+      const data = await getAgentEvents(agentName, 50, agentNs, oldestTimestamp, 'session');
       const older = parseEventsResponse(data);
       if (older.length === 0) {
         setHasMoreEvents(false);
