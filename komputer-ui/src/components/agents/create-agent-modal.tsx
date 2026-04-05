@@ -186,7 +186,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         if (!nextOpen) resetForm();
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <DialogHeader>
             <DialogTitle>Create Agent</DialogTitle>
