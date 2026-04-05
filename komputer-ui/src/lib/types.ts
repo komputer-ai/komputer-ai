@@ -131,6 +131,8 @@ export interface ConnectorResponse {
   type: string;
   authSecretName?: string;
   authSecretKey?: string;
+  authType?: string;
+  oauthStatus?: string; // "pending" | "connected"
   attachedAgents: number;
   agentNames?: string[];
   createdAt: string;
@@ -146,8 +148,11 @@ export interface CreateConnectorRequest {
   displayName?: string;
   url: string;
   type?: string;
+  authType?: string;
   authSecretName?: string;
   authSecretKey?: string;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
   namespace?: string;
 }
 
@@ -223,4 +228,23 @@ export interface CreateSecretRequest {
   name: string;
   data: Record<string, string>;
   namespace?: string;
+}
+
+export interface ConnectorTemplate {
+  service: string;
+  displayName: string;
+  description: string;
+  url: string;
+  authType: "token" | "oauth" | "none";
+  authLabel: string;
+  authPlaceholder: string;
+  guideSteps: string[];
+  color: string;
+  logoUrl: string;
+  manifest?: string;
+  manifestAfterStep?: number;
+}
+
+export interface ConnectorTemplateListResponse {
+  templates: ConnectorTemplate[];
 }

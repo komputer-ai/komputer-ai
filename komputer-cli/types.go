@@ -103,3 +103,47 @@ type SkillResponse struct {
 type SkillListResponse struct {
 	Skills []SkillResponse `json:"skills"`
 }
+
+type ConnectorResponse struct {
+	Name           string   `json:"name"`
+	Namespace      string   `json:"namespace"`
+	Service        string   `json:"service"`
+	DisplayName    string   `json:"displayName"`
+	URL            string   `json:"url"`
+	Type           string   `json:"type"`
+	AuthType       string   `json:"authType"`
+	OAuthStatus    string   `json:"oauthStatus"`
+	AuthSecretName string   `json:"authSecretName,omitempty"`
+	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
+	AttachedAgents int      `json:"attachedAgents"`
+	AgentNames     []string `json:"agentNames,omitempty"`
+	CreatedAt      string   `json:"createdAt"`
+}
+
+type ConnectorListResponse struct {
+	Connectors []ConnectorResponse `json:"connectors"`
+}
+
+type ConnectorToolResponse struct {
+	Tools []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	} `json:"tools"`
+}
+
+type ConnectorTemplateResponse struct {
+	Service         string   `json:"service"`
+	DisplayName     string   `json:"displayName"`
+	Description     string   `json:"description"`
+	URL             string   `json:"url"`
+	AuthType        string   `json:"authType"`
+	AuthLabel       string   `json:"authLabel"`
+	AuthPlaceholder string   `json:"authPlaceholder"`
+	GuideSteps      []string `json:"guideSteps"`
+	Color           string   `json:"color"`
+	LogoUrl         string   `json:"logoUrl"`
+}
+
+type ConnectorTemplateListResponse struct {
+	Templates []ConnectorTemplateResponse `json:"templates"`
+}

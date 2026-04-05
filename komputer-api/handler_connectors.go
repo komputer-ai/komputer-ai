@@ -14,14 +14,17 @@ import (
 )
 
 type CreateConnectorRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	Service        string  `json:"service" binding:"required"`
-	DisplayName    string  `json:"displayName"`
-	URL            string  `json:"url" binding:"required"`
-	Type           string  `json:"type"`
-	AuthSecretName *string `json:"authSecretName,omitempty"`
-	AuthSecretKey  *string `json:"authSecretKey,omitempty"`
-	Namespace      string  `json:"namespace"`
+	Name              string  `json:"name" binding:"required"`
+	Service           string  `json:"service" binding:"required"`
+	DisplayName       string  `json:"displayName"`
+	URL               string  `json:"url" binding:"required"`
+	Type              string  `json:"type"`
+	AuthType          string  `json:"authType,omitempty"`          // "token" or "oauth"
+	AuthSecretName    *string `json:"authSecretName,omitempty"`
+	AuthSecretKey     *string `json:"authSecretKey,omitempty"`
+	OAuthClientID     string  `json:"oauthClientId,omitempty"`     // OAuth client ID (stored in secret)
+	OAuthClientSecret string  `json:"oauthClientSecret,omitempty"` // OAuth client secret (stored in secret)
+	Namespace         string  `json:"namespace"`
 }
 
 type ConnectorResponse struct {
@@ -31,6 +34,8 @@ type ConnectorResponse struct {
 	DisplayName    string   `json:"displayName"`
 	URL            string   `json:"url"`
 	Type           string   `json:"type"`
+	AuthType       string   `json:"authType,omitempty"`
+	OAuthStatus    string   `json:"oauthStatus,omitempty"` // "pending", "connected", ""
 	AuthSecretName string   `json:"authSecretName,omitempty"`
 	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
 	AttachedAgents int      `json:"attachedAgents"`
@@ -69,7 +74,7 @@ func createConnector(k8s *K8sClient) gin.HandlerFunc {
 		if connType == "" {
 			connType = "remote"
 		}
-		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthSecretName, req.AuthSecretKey)
+		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthType, req.AuthSecretName, req.AuthSecretKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create connector: " + err.Error()})
 			return
@@ -169,7 +174,17 @@ func listConnectorTools(k8s *K8sClient) gin.HandlerFunc {
 		if conn.Spec.AuthSecretKeyRef != nil {
 			token, err := k8s.GetSecretValue(c.Request.Context(), conn.Namespace, conn.Spec.AuthSecretKeyRef.Name, conn.Spec.AuthSecretKeyRef.Key)
 			if err == nil && token != "" {
-				authHeader = "Bearer " + token
+				if conn.Spec.AuthType == "oauth" {
+					// Secret value is a JSON blob: {"access_token": "...", ...}
+					var oauthData struct {
+						AccessToken string `json:"access_token"`
+					}
+					if jsonErr := json.Unmarshal([]byte(token), &oauthData); jsonErr == nil && oauthData.AccessToken != "" {
+						authHeader = "Bearer " + oauthData.AccessToken
+					}
+				} else {
+					authHeader = "Bearer " + token
+				}
 			}
 		}
 
@@ -186,52 +201,105 @@ func listConnectorTools(k8s *K8sClient) gin.HandlerFunc {
 }
 
 func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "tools/list",
-		"params":  map[string]interface{}{},
-	}
-	body, _ := json.Marshal(payload)
+	client := &http.Client{Timeout: 15 * time.Second}
 
-	req, err := http.NewRequest("POST", serverURL, strings.NewReader(string(body)))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json, text/event-stream")
-	if authHeader != "" {
-		req.Header.Set("Authorization", authHeader)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Handle SSE response (text/event-stream)
-	contentType := resp.Header.Get("Content-Type")
-	log.Printf("MCP tools/list response: status=%d content-type=%q url=%s", resp.StatusCode, contentType, serverURL)
-	fullBody, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return nil, fmt.Errorf("failed to read MCP response body: %w", readErr)
-	}
-	var rawBody []byte
-	if strings.Contains(contentType, "text/event-stream") {
-		// Extract the JSON payload from the first "data: {...}" SSE line
-		log.Printf("MCP SSE raw body (first 512 bytes): %s", truncate(string(fullBody), 512))
-		for _, line := range strings.Split(string(fullBody), "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "data:") {
-				rawBody = []byte(strings.TrimSpace(strings.TrimPrefix(line, "data:")))
-				break
-			}
+	// Helper to make an MCP JSON-RPC request and return the raw JSON body.
+	mcpRequest := func(method string, id int, sessionID string) ([]byte, string, http.Header, error) {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"jsonrpc": "2.0",
+			"id":      id,
+			"method":  method,
+			"params":  map[string]interface{}{},
+		})
+		if method == "initialize" {
+			payload, _ = json.Marshal(map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"method":  method,
+				"params": map[string]interface{}{
+					"protocolVersion": "2025-03-26",
+					"capabilities":    map[string]interface{}{},
+					"clientInfo":      map[string]interface{}{"name": "komputer", "version": "1.0"},
+				},
+			})
 		}
-	} else {
-		rawBody = fullBody
-		log.Printf("MCP JSON raw body (first 512 bytes): %s", truncate(string(rawBody), 512))
+		req, err := http.NewRequest("POST", serverURL, strings.NewReader(string(payload)))
+		if err != nil {
+			return nil, "", nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		if authHeader != "" {
+			req.Header.Set("Authorization", authHeader)
+		}
+		if sessionID != "" {
+			req.Header.Set("Mcp-Session-Id", sessionID)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		defer resp.Body.Close()
+
+		contentType := resp.Header.Get("Content-Type")
+		fullBody, _ := io.ReadAll(resp.Body)
+
+		// Extract JSON from SSE if needed.
+		var rawBody []byte
+		if strings.Contains(contentType, "text/event-stream") {
+			for _, line := range strings.Split(string(fullBody), "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "data:") {
+					rawBody = []byte(strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+					break
+				}
+			}
+		} else {
+			rawBody = fullBody
+		}
+		return rawBody, contentType, resp.Header, nil
+	}
+
+	// Step 1: Try tools/list directly (works for servers that don't require sessions).
+	rawBody, contentType, respHeaders, err := mcpRequest("tools/list", 1, "")
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("MCP tools/list response: content-type=%q url=%s", contentType, serverURL)
+
+	// Check if server requires a session (Mcp-Session-Id header).
+	needsSession := false
+	if rawBody != nil {
+		var errCheck struct {
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(rawBody, &errCheck) == nil && errCheck.Error != nil &&
+			strings.Contains(errCheck.Error.Message, "Session-Id") {
+			needsSession = true
+		}
+	}
+
+	if needsSession {
+		// Step 2: Initialize to get a session ID.
+		initBody, _, initHeaders, initErr := mcpRequest("initialize", 1, "")
+		if initErr != nil {
+			return nil, fmt.Errorf("MCP initialize failed: %w", initErr)
+		}
+		sessionID := initHeaders.Get("Mcp-Session-Id")
+		if sessionID == "" {
+			return nil, fmt.Errorf("MCP server did not return Mcp-Session-Id after initialize")
+		}
+		log.Printf("MCP session established: %s (init response: %s)", sessionID, truncate(string(initBody), 200))
+		_ = respHeaders // unused now
+
+		// Step 3: tools/list with session.
+		rawBody, _, _, err = mcpRequest("tools/list", 2, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("MCP tools/list with session failed: %w", err)
+		}
 	}
 
 	var rpcResp struct {
@@ -299,6 +367,7 @@ func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []
 		DisplayName:    conn.Spec.DisplayName,
 		URL:            conn.Spec.URL,
 		Type:           conn.Spec.Type,
+		AuthType:       conn.Spec.AuthType,
 		AttachedAgents: len(agentNames),
 		AgentNames:     agentNames,
 		CreatedAt:      conn.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -306,6 +375,13 @@ func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []
 	if conn.Spec.AuthSecretKeyRef != nil {
 		resp.AuthSecretName = conn.Spec.AuthSecretKeyRef.Name
 		resp.AuthSecretKey = conn.Spec.AuthSecretKeyRef.Key
+	}
+	if conn.Spec.AuthType == "oauth" {
+		if conn.Spec.AuthSecretKeyRef != nil {
+			resp.OAuthStatus = "connected"
+		} else {
+			resp.OAuthStatus = "pending"
+		}
 	}
 	return resp
 }

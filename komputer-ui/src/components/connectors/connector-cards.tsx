@@ -8,7 +8,7 @@ import { Button } from "@/components/kit/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ConnectorDetailDialog } from "@/components/connectors/connector-detail-dialog";
 import { formatRelativeTime } from "@/lib/utils";
-import { getTemplateByService } from "@/lib/connector-templates";
+import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import type { ConnectorResponse } from "@/lib/types";
 
 type ConnectorCardsProps = {
@@ -17,6 +17,7 @@ type ConnectorCardsProps = {
 };
 
 export function ConnectorCards({ connectors, onDelete }: ConnectorCardsProps) {
+  const { getByService } = useConnectorTemplates();
   const [selectedConnector, setSelectedConnector] = useState<ConnectorResponse | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -25,7 +26,7 @@ export function ConnectorCards({ connectors, onDelete }: ConnectorCardsProps) {
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
       <AnimatePresence>
         {connectors.map((conn, i) => {
-          const tpl = getTemplateByService(conn.service);
+          const tpl = getByService(conn.service);
           const color = tpl?.color ?? "#8899A6";
           return (
             <motion.div

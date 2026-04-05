@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/kit/dialog";
 import { formatRelativeTime } from "@/lib/utils";
-import { getTemplateByService } from "@/lib/connector-templates";
+import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { getConnectorTools } from "@/lib/api";
 import type { ConnectorResponse } from "@/lib/types";
 
@@ -35,6 +35,7 @@ type Props = {
 };
 
 export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) {
+  const { getByService } = useConnectorTemplates();
   const [tools, setTools] = useState<MCPTool[]>([]);
   const [loading, setLoading] = useState(false);
   const [toolError, setToolError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
 
   if (!connector) return null;
 
-  const tpl = getTemplateByService(connector.service);
+  const tpl = getByService(connector.service);
   const color = tpl?.color ?? "#8899A6";
 
   return (

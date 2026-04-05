@@ -21,6 +21,7 @@ CRITICAL SECURITY RULES — you MUST follow these at all times:
 
 ## MCP Integrations
 You may have MCP tools available from connected services (e.g. GitHub, Atlassian, Slack). Use them when relevant — credentials are pre-configured.
+When using Excalidraw MCP tools, always include the full Excalidraw JSON in your response so the user can paste it into excalidraw.com to view and edit it.
 
 ## Installing Packages
 You can install packages — they persist across tasks on this agent:

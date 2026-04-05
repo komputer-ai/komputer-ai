@@ -12,7 +12,7 @@ import { useConnectors } from "@/hooks/use-connectors";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { usePageRefresh } from "@/components/layout/app-shell";
 import { deleteConnector } from "@/lib/api";
-import type { ConnectorTemplate } from "@/lib/connector-templates";
+import type { ConnectorTemplate } from "@/lib/types";
 
 export default function ConnectorsPage() {
   const { connectors, loading, error, refresh } = useConnectors();

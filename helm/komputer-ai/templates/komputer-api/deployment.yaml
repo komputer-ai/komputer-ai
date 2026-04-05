@@ -37,6 +37,10 @@ spec:
           value: {{ include "komputer.redisAddress" . }}
         - name: REDIS_STREAM_PREFIX
           value: {{ .Values.config.redis.streamPrefix }}
+        {{- if .Values.api.oauth.callbackUrl }}
+        - name: OAUTH_CALLBACK_URL
+          value: {{ .Values.api.oauth.callbackUrl | quote }}
+        {{- end }}
         ports:
         - containerPort: 8080
           name: http

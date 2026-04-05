@@ -19,6 +19,7 @@ func main() {
 	registerScheduleCommands(root)
 	registerMemoryCommands(root)
 	registerSkillCommands(root)
+	registerConnectorCommands(root)
 
 	root.Execute()
 }

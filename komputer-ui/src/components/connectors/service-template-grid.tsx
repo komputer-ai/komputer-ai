@@ -1,16 +1,23 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CONNECTOR_TEMPLATES, type ConnectorTemplate } from "@/lib/connector-templates";
+import { useConnectorTemplates } from "@/hooks/use-connector-templates";
+import type { ConnectorTemplate } from "@/lib/types";
 
 type ServiceTemplateGridProps = {
   onSelect: (template: ConnectorTemplate) => void;
 };
 
 export function ServiceTemplateGrid({ onSelect }: ServiceTemplateGridProps) {
+  const { templates, loading } = useConnectorTemplates();
+
+  if (loading) {
+    return <div className="py-12 text-sm text-[var(--color-text-muted)]">Loading...</div>;
+  }
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      {CONNECTOR_TEMPLATES.map((tpl, i) => (
+      {templates.map((tpl, i) => (
         <motion.button
           key={tpl.service}
           type="button"

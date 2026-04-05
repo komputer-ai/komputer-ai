@@ -37,6 +37,11 @@ type KomputerConnectorSpec struct {
 	// AuthSecretKeyRef references a K8s Secret key containing the auth token.
 	// +optional
 	AuthSecretKeyRef *corev1.SecretKeySelector `json:"authSecretKeyRef,omitempty"`
+	// AuthType is the authentication method: "token" (default, static Bearer token) or "oauth".
+	// +kubebuilder:validation:Enum=token;oauth
+	// +kubebuilder:default=token
+	// +optional
+	AuthType string `json:"authType,omitempty"`
 }
 
 // KomputerConnectorStatus defines the observed state of KomputerConnector.

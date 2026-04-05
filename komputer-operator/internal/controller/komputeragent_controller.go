@@ -668,6 +668,7 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			Type     string `json:"type"`
 			URL      string `json:"url"`
 			TokenEnv string `json:"tokenEnv,omitempty"` // env var name holding the Bearer token
+			AuthType string `json:"authType,omitempty"` // "token" or "oauth"
 		}
 		mcpServers := make(map[string]mcpServerEntry)
 		for _, connRef := range agent.Spec.Connectors {
@@ -683,7 +684,7 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 				continue
 			}
 			sanitized := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(connName))
-			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL}
+			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL, AuthType: conn.Spec.AuthType}
 			// Mount auth secret as env var and reference it.
 			if conn.Spec.AuthSecretKeyRef != nil {
 				tokenEnvName := "CONNECTOR_" + sanitized + "_TOKEN"

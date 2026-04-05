@@ -56,6 +56,10 @@ api:
     # - secretName: komputer-tls
     #   hosts:
     #     - komputer.example.com
+  oauth:
+    # OAuth callback URL — must be publicly accessible for provider redirects.
+    # Example: https://app.komputer.ai/api/v1/oauth/callback
+    callbackUrl: ""
 
 ui:
   enabled: true

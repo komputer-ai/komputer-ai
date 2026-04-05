@@ -94,7 +94,12 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/connectors/:name/tools", listConnectorTools(k8s))
 		v1.DELETE("/connectors/:name", deleteConnector(k8s))
 
+		v1.GET("/connector-templates", listConnectorTemplates())
 		v1.GET("/templates", listTemplates(k8s))
 		v1.GET("/namespaces", listNamespaces(k8s))
+
+		v1.POST("/oauth/authorize", oauthAuthorize(k8s))
+		v1.GET("/oauth/callback", oauthCallback(k8s))
+		v1.POST("/oauth/refresh", oauthRefresh(k8s))
 	}
 }
