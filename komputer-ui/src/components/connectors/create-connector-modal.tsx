@@ -170,8 +170,6 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
   function validateOAuth(): string | null {
     if (!name.trim()) return "Name is required.";
     if (!NAME_PATTERN.test(name)) return "Name must be lowercase letters, numbers, and hyphens only.";
-    if (!oauthClientId.trim()) return "Client ID is required.";
-    if (!oauthClientSecret.trim()) return "Client Secret is required.";
     return null;
   }
 
@@ -394,13 +392,13 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                       </div>
                     )}
 
-                    {isOAuth && (
+                    {isOAuth && oauthClientId && (
                       <>
                         <div className="flex flex-col gap-2">
                           <Label htmlFor="conn-client-id">Client ID</Label>
                           <Input
                             id="conn-client-id"
-                            placeholder="OAuth Client ID"
+                            placeholder="OAuth Client ID (optional — auto-registered if supported)"
                             value={oauthClientId}
                             onChange={(e) => setOauthClientId(e.target.value)}
                             autoComplete="off"

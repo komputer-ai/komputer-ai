@@ -216,10 +216,8 @@ var connectorTemplates = []ConnectorTemplateResponse{
 		AuthLabel:       "OAuth Credentials",
 		AuthPlaceholder: "",
 		GuideSteps: []string{
-			"Go to notion.so/profile/integrations/public and click \"New integration\"",
-			"Set the type to \"Public\" and fill in the redirect URI (e.g. https://your-domain/api/v1/oauth/callback)",
-			"Under Capabilities, select the permissions your agents need (read content, update content, etc.)",
-			"Copy the OAuth Client ID and Client Secret into the fields below, then click Connect",
+			"Click Connect below to authorize access to your Notion workspace.",
+			"Select the workspace and pages you want to share with your agents.",
 		},
 		Color:   "#E5E7EB",
 		LogoUrl: "https://cdn.simpleicons.org/notion/white",

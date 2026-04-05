@@ -25,6 +25,7 @@ type oauthDiscovery struct {
 	Issuer                string   `json:"issuer"`
 	AuthorizationEndpoint string   `json:"authorization_endpoint"`
 	TokenEndpoint         string   `json:"token_endpoint"`
+	RegistrationEndpoint  string   `json:"registration_endpoint"`
 	CodeChallengeMethods  []string `json:"code_challenge_methods_supported"`
 }
 
@@ -79,9 +80,6 @@ var oauthQuirksMap = map[string]*oauthQuirks{
 		Scopes:      []string{"https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/calendar"},
 		ExtraParams: map[string]string{"access_type": "offline", "prompt": "consent"},
 	},
-	"notion": {
-		UseBasicAuth: true,
-	},
 }
 
 // getQuirks resolves aliases and returns the quirks for a service.
@@ -95,6 +93,43 @@ func getQuirks(service string) *oauthQuirks {
 		return q
 	}
 	return &oauthQuirks{}
+}
+
+// registerOAuthClient performs dynamic client registration (RFC 7591) with an MCP OAuth server.
+func registerOAuthClient(registrationEndpoint, clientName, redirectURI string) (clientID, clientSecret string, err error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"client_name":                  clientName,
+		"redirect_uris":               []string{redirectURI},
+		"grant_types":                  []string{"authorization_code", "refresh_token"},
+		"response_types":              []string{"code"},
+		"token_endpoint_auth_method":  "client_secret_post",
+	})
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(registrationEndpoint, "application/json", strings.NewReader(string(body)))
+	if err != nil {
+		return "", "", fmt.Errorf("registration request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return "", "", fmt.Errorf("registration returned %d: %s", resp.StatusCode, truncate(string(respBody), 256))
+	}
+
+	var result struct {
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", "", fmt.Errorf("failed to parse registration response: %w", err)
+	}
+	if result.ClientID == "" {
+		return "", "", fmt.Errorf("registration returned empty client_id")
+	}
+
+	log.Printf("OAuth dynamic registration: endpoint=%s client_id=%s", registrationEndpoint, result.ClientID)
+	return result.ClientID, result.ClientSecret, nil
 }
 
 // oauthClientCredentials holds per-connector OAuth client credentials read from K8s Secret.
@@ -138,8 +173,8 @@ func oauthAuthorize(k8s *K8sClient) gin.HandlerFunc {
 			Namespace         string `json:"namespace"`
 			DisplayName       string `json:"displayName"`
 			URL               string `json:"url"`
-			OAuthClientID     string `json:"oauthClientId" binding:"required"`
-			OAuthClientSecret string `json:"oauthClientSecret" binding:"required"`
+			OAuthClientID     string `json:"oauthClientId"`
+			OAuthClientSecret string `json:"oauthClientSecret"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
@@ -163,6 +198,23 @@ func oauthAuthorize(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		callbackURL := resolveCallbackURL(c)
+
+		// If no client credentials provided and server supports dynamic registration, auto-register.
+		if req.OAuthClientID == "" && disc.RegistrationEndpoint != "" {
+			clientID, clientSecret, regErr := registerOAuthClient(disc.RegistrationEndpoint, "komputer-"+req.ConnectorName, callbackURL)
+			if regErr != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": "OAuth client registration failed: " + regErr.Error()})
+				return
+			}
+			req.OAuthClientID = clientID
+			req.OAuthClientSecret = clientSecret
+		}
+		if req.OAuthClientID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "OAuth client credentials required — this provider does not support auto-registration"})
+			return
+		}
+
 		state, err := generateOAuthState()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate state"})
@@ -180,7 +232,6 @@ func oauthAuthorize(k8s *K8sClient) gin.HandlerFunc {
 			CreatedAt:         time.Now(),
 		})
 
-		callbackURL := resolveCallbackURL(c)
 		quirks := getQuirks(req.Service)
 
 		params := url.Values{}
