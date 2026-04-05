@@ -1101,8 +1101,18 @@ func (k *K8sClient) ResolveConnectorMCPConfigs(ctx context.Context, agentNs stri
 		if conn.Spec.AuthSecretKeyRef != nil {
 			secret := &corev1.Secret{}
 			if err := k.client.Get(ctx, types.NamespacedName{Name: conn.Spec.AuthSecretKeyRef.Name, Namespace: connNs}, secret); err == nil {
-				if token, ok := secret.Data[conn.Spec.AuthSecretKeyRef.Key]; ok {
-					entry["headers"] = map[string]string{"Authorization": "Bearer " + string(token)}
+				if raw, ok := secret.Data[conn.Spec.AuthSecretKeyRef.Key]; ok {
+					tokenStr := string(raw)
+					// For OAuth connectors, the secret value is a JSON blob — extract access_token.
+					if conn.Spec.AuthType == "oauth" {
+						var oauthData struct {
+							AccessToken string `json:"access_token"`
+						}
+						if jsonErr := json.Unmarshal(raw, &oauthData); jsonErr == nil && oauthData.AccessToken != "" {
+							tokenStr = oauthData.AccessToken
+						}
+					}
+					entry["headers"] = map[string]string{"Authorization": "Bearer " + tokenStr}
 				}
 			}
 		}
