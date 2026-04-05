@@ -186,7 +186,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
         if (!nextOpen) resetForm();
       }}
     >
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <DialogHeader>
             <DialogTitle>Create Agent</DialogTitle>
@@ -196,18 +196,19 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
           </DialogHeader>
 
           <div ref={scrollRef} className="mt-4 flex flex-col gap-4 overflow-y-auto flex-1 pr-1">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="agent-name">Name</Label>
-              <Input
-                id="agent-name"
-                placeholder="my-agent"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="off"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="agent-name">Name</Label>
+                <Input
+                  id="agent-name"
+                  placeholder="my-agent"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <NamespaceSelector value={namespace} onChange={setNamespace} />
             </div>
-
-            <NamespaceSelector value={namespace} onChange={setNamespace} />
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="agent-instructions">Instructions</Label>
@@ -220,36 +221,37 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Model</Label>
-              <Select value={model} onValueChange={(v) => v && setModel(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Lifecycle</Label>
-              <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LIFECYCLES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>
-                      {l.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Model</Label>
+                <Select value={model} onValueChange={(v) => v && setModel(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODELS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Lifecycle</Label>
+                <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LIFECYCLES.map((l) => (
+                      <SelectItem key={l.value} value={l.value}>
+                        {l.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
