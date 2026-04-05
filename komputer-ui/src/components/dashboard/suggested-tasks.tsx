@@ -85,15 +85,15 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
     },
   },
   {
-    id: "migration-script",
-    title: "Write a Migration Script",
+    id: "install-skill",
+    title: "Install a Skill from skills.sh",
     description:
-      "Write a data migration script with validation and rollback logic.",
+      "Fetch a skill from a skills.sh link and install it for your agents.",
     icon: FileCode,
     template: {
-      name: "migration-script",
+      name: "install-skill",
       instructions:
-        "Write a Python migration script to transform data from <DESCRIBE_OLD_FORMAT> to <DESCRIBE_NEW_FORMAT>.\n\nRequirements:\n- Read from the source, validate each record, and write to the target format\n- Include a dry-run mode that reports what would change without applying\n- Add rollback logic to revert if something goes wrong mid-migration\n- Test with sample data and log progress\n\nSave the script and sample data to /workspace.",
+        "Install the skill from this link: <PASTE_SKILLS_SH_LINK_HERE>\n\nFetch the skill content, create it as a KomputerSkill, and attach it to this agent so it's available immediately.",
       model: "claude-sonnet-4-6",
       lifecycle: "AutoDelete",
     },
