@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
+	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -177,7 +180,7 @@ func registerConnectorCommands(root *cobra.Command) {
 	// ── connector create ────────────────────────────────────────────────
 	connCreateCmd := &cobra.Command{
 		Use:   "create <name>",
-		Short: "Create a new connector",
+		Short: "Create a new connector (token-based or OAuth via browser)",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			jsonMode, _ := cmd.Flags().GetBool("json")
@@ -186,6 +189,8 @@ func registerConnectorCommands(root *cobra.Command) {
 			connURL, _ := cmd.Flags().GetString("url")
 			token, _ := cmd.Flags().GetString("token")
 			displayName, _ := cmd.Flags().GetString("display-name")
+			clientID, _ := cmd.Flags().GetString("client-id")
+			clientSecret, _ := cmd.Flags().GetString("client-secret")
 			ns, _ := cmd.Flags().GetString("namespace")
 
 			if service == "" {
@@ -196,7 +201,28 @@ func registerConnectorCommands(root *cobra.Command) {
 				fmt.Println(errorStyle.Render(msg))
 				os.Exit(1)
 			}
-			if connURL == "" {
+
+			// Look up the template to determine auth type and default URL.
+			var tmpl *ConnectorTemplateResponse
+			tData, tStatus, tErr := apiRequest("GET", ep+"/api/v1/connector-templates", nil)
+			if tErr == nil && tStatus == 200 {
+				var tResp ConnectorTemplateListResponse
+				json.Unmarshal(tData, &tResp)
+				for i := range tResp.Templates {
+					if tResp.Templates[i].Service == service {
+						tmpl = &tResp.Templates[i]
+						break
+					}
+				}
+			}
+
+			isOAuth := tmpl != nil && tmpl.AuthType == "oauth"
+
+			// For OAuth services, use template URL if --url not provided.
+			if connURL == "" && tmpl != nil && tmpl.URL != "" && tmpl.URL != "__custom__" {
+				connURL = tmpl.URL
+			}
+			if connURL == "" && !isOAuth {
 				msg := "--url is required"
 				if jsonMode {
 					dieJSON(msg, 400)
@@ -205,6 +231,90 @@ func registerConnectorCommands(root *cobra.Command) {
 				os.Exit(1)
 			}
 
+			// OAuth flow — call authorize endpoint, open browser, wait for completion.
+			if isOAuth {
+				if displayName == "" && tmpl != nil {
+					displayName = tmpl.DisplayName
+				}
+
+				authBody := map[string]interface{}{
+					"service":        service,
+					"connector_name": args[0],
+					"url":            connURL,
+				}
+				if displayName != "" {
+					authBody["displayName"] = displayName
+				}
+				if ns != "" {
+					authBody["namespace"] = ns
+				}
+				if clientID != "" {
+					authBody["oauthClientId"] = clientID
+					authBody["oauthClientSecret"] = clientSecret
+				}
+
+				data, status, err := apiRequest("POST", ep+"/api/v1/oauth/authorize", authBody)
+				if err != nil {
+					if jsonMode {
+						dieJSON("Request failed: "+err.Error(), 0)
+					}
+					fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+					os.Exit(1)
+				}
+				if status != 200 {
+					if jsonMode {
+						dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+					}
+					fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+					os.Exit(1)
+				}
+
+				var authResp struct {
+					AuthorizeUrl string `json:"authorizeUrl"`
+				}
+				json.Unmarshal(data, &authResp)
+
+				// Open browser.
+				fmt.Println(dimStyle.Render("  Opening browser for OAuth authorization..."))
+				fmt.Println(dimStyle.Render("  " + authResp.AuthorizeUrl))
+				openBrowser(authResp.AuthorizeUrl)
+
+				// Poll for connector to appear (created by the callback).
+				spinner := NewSpinner("Waiting for authorization...")
+				var conn ConnectorResponse
+				authorized := false
+				for i := 0; i < 120; i++ { // 2 minute timeout
+					time.Sleep(1 * time.Second)
+					spinner.SetMessage(fmt.Sprintf("Waiting for authorization... (%ds)", i+1))
+					cData, cStatus, cErr := apiRequest("GET", fmt.Sprintf("%s/api/v1/connectors/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
+					if cErr == nil && cStatus == 200 {
+						json.Unmarshal(cData, &conn)
+						if conn.OAuthStatus == "connected" {
+							authorized = true
+							break
+						}
+					}
+				}
+				spinner.Stop()
+
+				if !authorized {
+					if jsonMode {
+						dieJSON("OAuth authorization timed out", 408)
+					}
+					fmt.Println(errorStyle.Render("OAuth authorization timed out. The connector may still be created if you complete the flow in the browser."))
+					os.Exit(1)
+				}
+
+				if jsonMode {
+					printJSON(conn)
+					return
+				}
+				fmt.Println(successStyle.Render(fmt.Sprintf("✔ Connector %q connected via OAuth", args[0])))
+				printConnector(conn)
+				return
+			}
+
+			// Token flow — same as before.
 			body := map[string]interface{}{
 				"name":     args[0],
 				"service":  service,
@@ -218,7 +328,6 @@ func registerConnectorCommands(root *cobra.Command) {
 				body["namespace"] = ns
 			}
 
-			// If a token is provided, create a K8s secret first, then reference it
 			if token != "" {
 				secretName := args[0] + "-credentials"
 				secretBody := map[string]interface{}{
@@ -271,10 +380,12 @@ func registerConnectorCommands(root *cobra.Command) {
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Connector %q created", args[0])))
 		},
 	}
-	connCreateCmd.Flags().String("service", "", "Service type (e.g. github, slack, linear) (required)")
-	connCreateCmd.Flags().String("url", "", "MCP server URL (required)")
-	connCreateCmd.Flags().String("token", "", "Auth token — creates a secret named {name}-credentials automatically")
+	connCreateCmd.Flags().String("service", "", "Service type (e.g. github, slack, notion) (required)")
+	connCreateCmd.Flags().String("url", "", "MCP server URL (auto-filled for known services)")
+	connCreateCmd.Flags().String("token", "", "Auth token — creates a secret automatically (token-based connectors)")
 	connCreateCmd.Flags().String("display-name", "", "Display name")
+	connCreateCmd.Flags().String("client-id", "", "OAuth client ID (optional — auto-registered if supported)")
+	connCreateCmd.Flags().String("client-secret", "", "OAuth client secret")
 	connCmd.AddCommand(connCreateCmd)
 
 	// ── connector delete ────────────────────────────────────────────────
@@ -426,6 +537,21 @@ func registerConnectorCommands(root *cobra.Command) {
 	})
 
 	root.AddCommand(connCmd)
+}
+
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	}
+	if cmd != nil {
+		cmd.Start()
+	}
 }
 
 func printConnector(c ConnectorResponse) {
