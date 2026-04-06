@@ -197,6 +197,9 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
+	// Snapshot the original status BEFORE any modifications so MergeFrom picks up all diffs.
+	original := office.DeepCopy()
+
 	// Update manager status from live agent, or preserve last known.
 	if a, ok := liveAgents[office.Spec.Manager]; ok {
 		office.Status.Manager = komputerv1alpha1.OfficeMemberStatus{
@@ -251,7 +254,6 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// 8. Update status (preserve CreatedAt from initial creation)
 	// Use Patch instead of Update to avoid optimistic concurrency conflicts
 	// when the API worker modifies the same object between our Get and Update.
-	original := office.DeepCopy()
 	office.Status.Phase = phase
 	office.Status.Members = members
 	office.Status.TotalAgents = totalAgents
