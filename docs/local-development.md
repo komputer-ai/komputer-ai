@@ -66,8 +66,10 @@ In a second terminal:
 
 ```bash
 cd komputer-api
-REDIS_ADDRESS=localhost:6379 go run .
+LOCAL=true REDIS_ADDRESS=localhost:6379 go run .
 ```
+
+> **⚠️ Important:** `LOCAL=true` is required for local development. It disables direct HTTP calls to agent pods (which fail due to pod networking from outside the cluster) and uses `kubectl exec` as a fallback instead. Without it, features like agent history, file downloads, and session reads will time out.
 
 The API starts on `http://localhost:8080`. The Swagger UI is available at `http://localhost:8080/swagger/index.html`.
 
