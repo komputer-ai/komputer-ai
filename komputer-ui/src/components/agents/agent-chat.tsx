@@ -240,8 +240,8 @@ function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; cont
       {/* Bar sits 8px above the border edge */}
       <div className="absolute bottom-0 left-0 right-0 h-[5px] bg-[var(--color-border)] transition-[height] duration-150 group-hover:h-[12px]">
         <div
-          className="h-full transition-[width,box-shadow] duration-150 ease-out group-hover:shadow-[0_-12px_24px_2px_var(--glow)]"
-          style={{ width: `${pct}%`, backgroundColor: color, "--glow": `color-mix(in srgb, ${color} 40%, transparent)` } as React.CSSProperties}
+          className="h-full transition-[width] duration-150 ease-out"
+          style={{ width: `${pct}%`, backgroundColor: color } as React.CSSProperties}
         />
       </div>
       <div className="pointer-events-none absolute bottom-full left-1/2 mb-4 -translate-x-1/2 z-20 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] text-[var(--color-text-secondary)] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
@@ -1073,7 +1073,7 @@ export function AgentChat({
         <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} />
         <div className="border-t border-[var(--color-border)]" />
         <div className="flex items-center gap-2 p-4">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <textarea
               ref={textareaRef}
               value={input}
@@ -1081,7 +1081,7 @@ export function AgentChat({
               onKeyDown={handleKeyDown}
               placeholder={cancelling ? "Cancelling..." : isWorking ? "Agent is working..." : "Send a message..."}
               rows={1}
-              className="field-sizing-content max-h-24 min-h-10 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none"
+              className="field-sizing-content max-h-24 min-h-10 w-full resize-none break-all overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-brand-blue)] focus:outline-none"
             />
           </div>
           {isWorking || cancelling ? (
