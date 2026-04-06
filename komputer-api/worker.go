@@ -467,10 +467,10 @@ func GetAgentEventsBefore(ctx context.Context, rdb *redis.Client, agentName stri
 	}
 
 	// When filtering by `before` we need to fetch more than `limit` items because
-	// some will be filtered out. Fetch the entire list (bounded at ~200).
+	// some will be filtered out. Fetch the full list when paginating.
 	fetchCount := limit
 	if hasBefore {
-		fetchCount = 200
+		fetchCount = 0 // 0 = fetch all (LRANGE 0 -1)
 	}
 
 	// LRANGE with negative indices gets the last N items.

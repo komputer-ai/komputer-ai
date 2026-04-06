@@ -94,6 +94,17 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
         }
         break;
       }
+      case "user_message": {
+        const content = (event.payload.content ?? "").trim();
+        if (content) {
+          messages.push({
+            kind: "user",
+            text: content,
+            timestamp: event.timestamp,
+          });
+        }
+        break;
+      }
       case "text": {
         const content = event.payload.content ?? event.payload.text ?? "";
         if (content) {
@@ -915,12 +926,20 @@ export function AgentChat({
               </div>
             )}
             <AnimatePresence initial={false}>
-            {messages.map((msg, i) => {
-              // Stable key: for user messages use kind+text (no timestamp/index)
-              // so the element survives when source switches from pending to server.
-              const key = msg.kind === "user"
-                ? `user-${msg.text.slice(0, 80)}`
-                : `${msg.kind}-${msg.timestamp}-${i}`;
+            {(() => {
+              // Count occurrences of each user text so same-content messages get unique but stable keys.
+              const userTextCount: Record<string, number> = {};
+              return messages.map((msg, i) => {
+              const key = (() => {
+                if (msg.kind === "user") {
+                  // Stable key survives pending→server handoff (no timestamp).
+                  // Counter suffix handles duplicate content like "check now".
+                  const slug = msg.text.slice(0, 80);
+                  const n = (userTextCount[slug] = (userTextCount[slug] ?? 0) + 1);
+                  return `user-${slug}-${n}`;
+                }
+                return `${msg.kind}-${msg.timestamp}-${i}`;
+              })();
               switch (msg.kind) {
                 case "user":
                   return (
@@ -995,7 +1014,8 @@ export function AgentChat({
                     />
                   );
               }
-            })}
+            });
+            })()}
             </AnimatePresence>
             <AnimatePresence>
             {showThinking && (

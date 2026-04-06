@@ -64,7 +64,7 @@ export default function AgentDetailPage() {
   // Fetch event history on mount
   useEffect(() => {
     if (!agentName) return;
-    getAgentEvents(agentName, 50, agentNs, undefined, 'session')
+    getAgentEvents(agentName, 50, agentNs)
       .then((data: unknown) => {
         const arr = parseEventsResponse(data);
         setHistoryEvents(arr);
@@ -80,7 +80,7 @@ export default function AgentDetailPage() {
     if (!oldestTimestamp) return;
     setLoadingOlder(true);
     try {
-      const data = await getAgentEvents(agentName, 50, agentNs, oldestTimestamp, 'session');
+      const data = await getAgentEvents(agentName, 50, agentNs, oldestTimestamp);
       const older = parseEventsResponse(data);
       if (older.length === 0) {
         setHasMoreEvents(false);
@@ -95,13 +95,15 @@ export default function AgentDetailPage() {
     }
   }, [agentName, agentNs, historyEvents, loadingOlder, hasMoreEvents, parseEventsResponse]);
 
-  // Merge history + WS events, deduplicating by full fingerprint
+  // Merge history + WS events, dedup by timestamp+type, sorted by time.
+  // History events take precedence (listed first), so WS duplicates are dropped.
   const events = useMemo(() => {
-    const all = [...historyEvents, ...wsEvents];
     const seen = new Set<string>();
-    return all
+    return [...historyEvents, ...wsEvents]
       .filter((e) => {
-        const key = `${e.timestamp}:${e.type}:${e.payload?.content ?? e.payload?.text ?? e.payload?.message ?? e.payload?.instructions ?? ""}`;
+        // Normalize user message types so task_started (WS) dedupes against user_message (history).
+        const normType = e.type === "task_started" ? "user_message" : e.type;
+        const key = `${e.timestamp}:${normType}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

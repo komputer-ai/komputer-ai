@@ -152,13 +152,16 @@ def _interrupt_agent():
 
 
 @app.get("/history")
-async def get_history(limit: int = 50):
+async def get_history(limit: int = 50, session_id: str = None):
     """Read messages from the Claude session JSONL file and return as agent events."""
     import json as _json
     from pathlib import Path
-    from agent import _load_session_id
+    import os
 
-    session_id = _load_session_id()
+    # Use provided session_id (from API/CR status) or fall back to local file.
+    if not session_id:
+        from agent import _load_session_id
+        session_id = _load_session_id()
     if not session_id:
         return {"events": []}
 
@@ -203,12 +206,21 @@ async def get_history(limit: int = 50):
                             block.get("text", "") for block in content
                             if isinstance(block, dict) and block.get("type") == "text"
                         )
-                    if text:
-                        events.append({
-                            "type": "user_message",
-                            "timestamp": timestamp,
-                            "payload": {"content": text},
-                        })
+                    text = text.strip()
+                    # Skip IDE context messages (file open, selection, etc.)
+                    if not text or text.startswith("<ide_") or text.startswith("<system-reminder"):
+                        continue
+                    # Strip system prompt prefix (joined by \n\n).
+                    parts = text.split("\n\n")
+                    if len(parts) > 1:
+                        text = parts[-1].strip()
+                    if not text or text.startswith("<ide_") or text.startswith("<system-reminder"):
+                        continue
+                    events.append({
+                        "type": "user_message",
+                        "timestamp": timestamp,
+                        "payload": {"content": text},
+                    })
                 elif role == "assistant":
                     # Assistant message — content is a list of blocks
                     if isinstance(content, list):

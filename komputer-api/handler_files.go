@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,9 +47,9 @@ func downloadAgentFile(k8s *K8sClient) gin.HandlerFunc {
 		filename := filepath.Base(filePath)
 		fullPath := agentFilesDir + "/" + filePath
 
-		// Try HTTP proxy first (works when pod IP is reachable).
+		// Try HTTP proxy first (works when pod IP is reachable, skipped in LOCAL mode).
 		podIP, _ := k8s.GetAgentPodIP(c.Request.Context(), ns, podName)
-		if podIP != "" {
+		if podIP != "" && os.Getenv("LOCAL") != "true" {
 			agentURL := fmt.Sprintf("http://%s:8000/download/%s", podIP, filePath)
 			data, contentType, proxyFilename, proxyErr := proxyFileFromAgent(c.Request.Context(), agentURL)
 			if proxyErr == nil {

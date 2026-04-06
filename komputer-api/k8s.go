@@ -424,7 +424,11 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, 
 }
 
 // postToAgent makes a direct HTTP POST to an agent pod. Returns error if unreachable.
+// When LOCAL=true, skips HTTP entirely to force exec fallback (avoids slow pod networking).
 func (k *K8sClient) postToAgent(ctx context.Context, podIP, path, body string) error {
+	if os.Getenv("LOCAL") == "true" {
+		return fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
+	}
 	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -646,8 +650,39 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// getFromAgent makes a direct HTTP GET to an agent pod and returns the response body.
+func (k *K8sClient) getFromAgent(ctx context.Context, podIP, path string) ([]byte, error) {
+	if os.Getenv("LOCAL") == "true" {
+		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
+	}
+	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+	return respBody, nil
+}
+
 // postToAgentWithResponse makes a direct HTTP POST to an agent pod and returns the response body.
 func (k *K8sClient) postToAgentWithResponse(ctx context.Context, podIP, path, body string) ([]byte, error) {
+	if os.Getenv("LOCAL") == "true" {
+		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
+	}
 	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)

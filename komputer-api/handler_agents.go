@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -438,66 +438,35 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 			limit = parsed
 		}
 
-		// Feature flag: source=session fetches history from the agent's Claude session file
-		// instead of Redis. This gives richer history including tool calls and thinking.
-		if c.Query("source") == "session" {
-			ns := resolveNamespace(c, k8s)
-			agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
-			if err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
-				return
-			}
-			podName := agent.Status.PodName
-			if podName == "" {
-				c.JSON(http.StatusOK, gin.H{"agent": name, "events": []interface{}{}, "source": "session"})
-				return
-			}
-			podIP, _ := k8s.GetAgentPodIP(c.Request.Context(), ns, podName)
-			if podIP == "" {
-				c.JSON(http.StatusOK, gin.H{"agent": name, "events": []interface{}{}, "source": "session"})
-				return
-			}
-
-			// Fetch history from agent's /history endpoint.
-			agentURL := fmt.Sprintf("http://%s:8000/history?limit=%d", podIP, limit)
-			ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-			defer cancel()
-
-			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, agentURL, nil)
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				// Fallback to Redis if agent unreachable
-				log.Printf("session history fetch failed for %s, falling back to redis: %v", name, err)
-				events, _ := GetAgentEventsBefore(c.Request.Context(), worker.Rdb, name, limit, "", worker.StreamPrefix)
-				c.JSON(http.StatusOK, gin.H{"agent": name, "events": events, "source": "redis"})
-				return
-			}
-			defer resp.Body.Close()
-
-			body, _ := io.ReadAll(resp.Body)
-			var result map[string]interface{}
-			json.Unmarshal(body, &result)
-
-			// Pass through the agent's response, adding agent name
-			events, _ := result["events"].([]interface{})
-			if events == nil {
-				events = []interface{}{}
-			}
-			// Add agentName to each event
-			for _, e := range events {
-				if ev, ok := e.(map[string]interface{}); ok {
-					ev["agentName"] = name
-				}
-			}
-			c.JSON(http.StatusOK, gin.H{"agent": name, "events": events, "source": "session"})
-			return
-		}
-
 		before := c.Query("before") // RFC-3339 cursor for pagination
+
 		events, err := GetAgentEventsBefore(c.Request.Context(), worker.Rdb, name, limit, before, worker.StreamPrefix)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get agent events: " + err.Error()})
-			return
+			events = nil
+		}
+
+		// Hybrid: if Redis is empty (wiped) and agent has a session, backfill from JSONL.
+		if len(events) == 0 && before == "" {
+			ns := resolveNamespace(c, k8s)
+			agent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
+			if getErr == nil && agent.Status.PodName != "" && agent.Status.SessionID != "" {
+				// Fetch ALL events (no limit) so we backfill the full history.
+				allSessionEvents := fetchSessionEvents(c.Request.Context(), k8s, ns, agent.Status.PodName, agent.Status.SessionID, name, 0)
+				if len(allSessionEvents) > 0 {
+					// Backfill synchronously so pagination works on the next request.
+					backfillRedisHistory(worker.Rdb, name, allSessionEvents)
+					// Serve only the requested limit.
+					if int64(len(allSessionEvents)) > limit {
+						events = allSessionEvents[int64(len(allSessionEvents))-limit:]
+					} else {
+						events = allSessionEvents
+					}
+				}
+			}
+		}
+
+		if events == nil {
+			events = []AgentEvent{}
 		}
 		c.JSON(http.StatusOK, gin.H{"agent": name, "events": events})
 	}
@@ -699,4 +668,300 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 		})
 	}
+}
+
+// parseSessionJSONL converts raw Claude session JSONL bytes into AgentEvent structs.
+// fetchSessionEvents reads Claude session JSONL from the agent pod and parses it into AgentEvents.
+// Uses HTTP to agent pod, falls back to exec (instant in LOCAL mode).
+func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64) []AgentEvent {
+	var raw []byte
+
+	// Try HTTP first (skipped instantly in LOCAL mode).
+	podIP, _ := k8s.GetAgentPodIP(ctx, ns, podName)
+	if podIP != "" {
+		historyPath := fmt.Sprintf("/history?limit=%d&session_id=%s", limit, sessionID)
+		respBody, err := k8s.getFromAgent(ctx, podIP, historyPath)
+		if err == nil {
+			// Parse agent's /history response and convert to AgentEvent.
+			var result struct {
+				Events []struct {
+					Type      string                 `json:"type"`
+					Timestamp string                 `json:"timestamp"`
+					Payload   map[string]interface{} `json:"payload"`
+				} `json:"events"`
+			}
+			if json.Unmarshal(respBody, &result) == nil {
+				var events []AgentEvent
+				for _, e := range result.Events {
+					events = append(events, AgentEvent{
+						AgentName: agentName,
+						Type:      e.Type,
+						Timestamp: e.Timestamp,
+						Payload:   e.Payload,
+					})
+				}
+				if limit > 0 && int64(len(events)) > limit {
+					events = events[int64(len(events))-limit:]
+				}
+				return events
+			}
+		}
+	}
+
+	// Exec fallback: cat the JSONL file directly.
+	sessionFilePath := fmt.Sprintf("/workspace/.claude/projects/-workspace/%s.jsonl", sessionID)
+	var err error
+	raw, err = k8s.execInPodWithOutput(ctx, ns, podName, "cat", sessionFilePath)
+	if err != nil {
+		log.Printf("session JSONL read failed for %s: %v", agentName, err)
+		return nil
+	}
+
+	return parseSessionJSONL(raw, agentName, limit)
+}
+
+// backfillRedisHistory writes session events into Redis history so subsequent requests are fast.
+func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEvent) {
+	ctx := context.Background()
+	historyKey := fmt.Sprintf("komputer-history:%s", agentName)
+
+	for _, event := range events {
+		raw, err := json.Marshal(event)
+		if err != nil {
+			continue
+		}
+		rdb.RPush(ctx, historyKey, raw)
+	}
+	log.Printf("backfilled %d events from session to Redis for %s", len(events), agentName)
+}
+
+// parseSessionJSONL converts raw Claude session JSONL bytes into AgentEvent structs.
+func parseSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent {
+	var events []AgentEvent
+
+	// Track tool_use blocks by ID so we can merge output from tool_result entries.
+	type toolUseInfo struct {
+		name      string
+		input     interface{}
+		timestamp string
+		index     int // position in events slice
+	}
+	pendingTools := map[string]*toolUseInfo{}
+
+	// Track per-turn stats for task_completed events.
+	var lastAssistantTimestamp string
+	var turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation float64
+	var turnAssistantMessages int
+	firstTurn := true
+
+	emitTaskCompleted := func() {
+		if lastAssistantTimestamp == "" {
+			return
+		}
+		payload := map[string]interface{}{
+			"num_turns": turnAssistantMessages,
+			"usage": map[string]interface{}{
+				"input_tokens":                  int64(turnInputTokens),
+				"output_tokens":                 int64(turnOutputTokens),
+				"cache_read_input_tokens":       int64(turnCacheRead),
+				"cache_creation_input_tokens":   int64(turnCacheCreation),
+			},
+		}
+		events = append(events, AgentEvent{
+			AgentName: agentName,
+			Type:      "task_completed",
+			Timestamp: lastAssistantTimestamp,
+			Payload:   payload,
+		})
+		// Reset accumulators.
+		lastAssistantTimestamp = ""
+		turnInputTokens = 0
+		turnOutputTokens = 0
+		turnCacheRead = 0
+		turnCacheCreation = 0
+		turnAssistantMessages = 0
+	}
+
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+
+		// Detect turn boundaries via queue-operation enqueue.
+		entryType, _ := entry["type"].(string)
+		if entryType == "queue-operation" {
+			op, _ := entry["operation"].(string)
+			if op == "enqueue" && !firstTurn {
+				emitTaskCompleted()
+			}
+			firstTurn = false
+			continue
+		}
+
+		msg, _ := entry["message"].(map[string]interface{})
+		if msg == nil {
+			continue
+		}
+		role, _ := msg["role"].(string)
+		timestamp, _ := entry["timestamp"].(string)
+
+		if role == "user" {
+			// User messages contain either text (actual user input) or tool_result blocks.
+			content := msg["content"]
+			var text string
+			switch v := content.(type) {
+			case string:
+				text = v
+			case []interface{}:
+				for _, block := range v {
+					b, ok := block.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					btype, _ := b["type"].(string)
+					if btype == "text" {
+						if t, ok := b["text"].(string); ok {
+							text += t + " "
+						}
+					} else if btype == "tool_result" {
+						// Merge output into the matching tool_call event.
+						toolUseID, _ := b["tool_use_id"].(string)
+						output := ""
+						if c, ok := b["content"].(string); ok {
+							output = c
+						} else if c, ok := b["content"].([]interface{}); ok && len(c) > 0 {
+							if first, ok := c[0].(map[string]interface{}); ok {
+								output, _ = first["text"].(string)
+							}
+						}
+						if len(output) > 500 {
+							output = output[:500] + "..."
+						}
+						if info, ok := pendingTools[toolUseID]; ok {
+							// Wrap in structured format matching real-time agent events.
+							events[info.index].Payload["output"] = map[string]interface{}{
+								"stdout": output,
+								"stderr": "",
+							}
+							events[info.index].Type = "tool_result"
+							delete(pendingTools, toolUseID)
+						}
+					}
+				}
+			}
+			text = strings.TrimSpace(text)
+			if text == "" {
+				continue
+			}
+			// Skip IDE context messages (file open, selection, etc.) — not real user input.
+			if strings.HasPrefix(text, "<ide_") || strings.HasPrefix(text, "<system-reminder") {
+				continue
+			}
+			// The agent prepends the system prompt to user messages joined by "\n\n".
+			// Extract only the user's actual instruction (the last section).
+			if parts := strings.Split(text, "\n\n"); len(parts) > 1 {
+				text = strings.TrimSpace(parts[len(parts)-1])
+			}
+			// After stripping, skip if it now looks like IDE/system context.
+			if text == "" || strings.HasPrefix(text, "<ide_") || strings.HasPrefix(text, "<system-reminder") {
+				continue
+			}
+			events = append(events, AgentEvent{
+				AgentName: agentName,
+				Type:      "user_message",
+				Timestamp: timestamp,
+				Payload:   map[string]interface{}{"content": text},
+			})
+		} else if role == "assistant" {
+			lastAssistantTimestamp = timestamp
+			turnAssistantMessages++
+			// Accumulate usage from assistant message.
+			if usage, ok := msg["usage"].(map[string]interface{}); ok {
+				if v, ok := usage["input_tokens"].(float64); ok {
+					turnInputTokens += v
+				}
+				if v, ok := usage["output_tokens"].(float64); ok {
+					turnOutputTokens += v
+				}
+				if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+					turnCacheRead += v
+				}
+				if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+					turnCacheCreation += v
+				}
+			}
+			content, _ := msg["content"].([]interface{})
+			if content == nil {
+				if s, ok := msg["content"].(string); ok && s != "" {
+					events = append(events, AgentEvent{
+						AgentName: agentName,
+						Type:      "text",
+						Timestamp: timestamp,
+						Payload:   map[string]interface{}{"content": s},
+					})
+				}
+				continue
+			}
+			for _, block := range content {
+				b, ok := block.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				btype, _ := b["type"].(string)
+				switch btype {
+				case "text":
+					text, _ := b["text"].(string)
+					if text != "" {
+						events = append(events, AgentEvent{
+							AgentName: agentName,
+							Type:      "text",
+							Timestamp: timestamp,
+							Payload:   map[string]interface{}{"content": text},
+						})
+					}
+				case "thinking":
+					thinking, _ := b["thinking"].(string)
+					if thinking != "" {
+						events = append(events, AgentEvent{
+							AgentName: agentName,
+							Type:      "thinking",
+							Timestamp: timestamp,
+							Payload:   map[string]interface{}{"content": thinking},
+						})
+					}
+				case "tool_use":
+					toolID, _ := b["id"].(string)
+					toolName, _ := b["name"].(string)
+					idx := len(events)
+					events = append(events, AgentEvent{
+						AgentName: agentName,
+						Type:      "tool_result", // will have output merged from tool_result entry
+						Timestamp: timestamp,
+						Payload: map[string]interface{}{
+							"tool":  toolName,
+							"name":  toolName,
+							"input": b["input"],
+						},
+					})
+					if toolID != "" {
+						pendingTools[toolID] = &toolUseInfo{name: toolName, input: b["input"], timestamp: timestamp, index: idx}
+					}
+				}
+			}
+		}
+	}
+
+	// Emit task_completed for the final turn.
+	emitTaskCompleted()
+
+	// Return last N events.
+	if limit > 0 && int64(len(events)) > limit {
+		events = events[int64(len(events))-limit:]
+	}
+	return events
 }
