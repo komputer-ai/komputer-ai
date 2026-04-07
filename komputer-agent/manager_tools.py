@@ -175,6 +175,22 @@ async def get_agent_events(args):
 
 
 @tool(
+    name="cancel_agent",
+    description="Cancel a sub-agent's running task. Stops the current task but keeps the agent alive — you can send it a new task afterwards with create_agent using the same name. Use when a sub-agent is stuck, taking too long, or you want to redirect it.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "The sub-agent name (as passed to create_agent)"},
+        },
+        "required": ["name"],
+    },
+)
+async def cancel_agent(args):
+    full_name = _sanitize_name(args["name"])
+    return await _request("POST", f"/api/v1/agents/{full_name}/cancel")
+
+
+@tool(
     name="delete_agent",
     description="Delete a sub-agent and clean up its resources. Use after collecting its results.",
     input_schema={
@@ -376,5 +392,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill],
     )
