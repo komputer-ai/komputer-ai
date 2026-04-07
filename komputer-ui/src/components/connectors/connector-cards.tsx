@@ -44,7 +44,7 @@ export function ConnectorCards({ connectors, onDelete }: ConnectorCardsProps) {
                 <div className="flex h-full flex-col p-3">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-7 h-7 rounded-md shrink-0">
-                      {tpl ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-4 h-4" /> : <Plug className="w-3.5 h-3.5" style={{ color }} />}
+                      {tpl && tpl.logoUrl ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-4 h-4" /> : <Plug className="w-3.5 h-3.5" style={{ color }} />}
                     </div>
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight">

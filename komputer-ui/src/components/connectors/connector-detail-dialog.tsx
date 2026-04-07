@@ -62,7 +62,7 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0">
-              {tpl
+              {tpl && tpl.logoUrl
                 ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-5 h-5" />
                 : <Plug className="w-4 h-4" style={{ color }} />
               }

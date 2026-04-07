@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Plug } from "lucide-react";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import type { ConnectorTemplate } from "@/lib/types";
 
@@ -29,7 +30,10 @@ export function ServiceTemplateGrid({ onSelect }: ServiceTemplateGridProps) {
           className="group relative flex flex-col items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-all duration-200 hover:border-[var(--color-border-hover)] hover:shadow-[0_0_24px_rgba(139,92,246,0.08)] cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--color-border)]"
         >
           <div className="flex items-center justify-center w-12 h-12 rounded-xl transition-transform duration-200 group-hover:scale-110">
-            <img src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
+            {tpl.logoUrl
+              ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
+              : <Plug className="w-7 h-7 text-[var(--color-text-muted)]" />
+            }
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold text-[var(--color-text)]">{tpl.displayName}</p>
