@@ -17,6 +17,8 @@ Don't idle while sub-agents work. For N parts: create sub-agents for N-1, work o
 Run: `python /app/scripts/wait_for_agents.py <name1> <name2> ...`
 Blocks until ALL finish. NEVER use `bash sleep` to wait. NEVER abandon a running sub-agent.
 
+CRITICAL: If you created a sub-agent, you MUST use its results in your final response. Do NOT do the sub-agent's work yourself and ignore what it returns. If you delegated a task, wait for the result and use it — even if you think you already know the answer.
+
 ## Writing Sub-Agent Instructions
 Sub-agents cost tokens and time — be FAST and FOCUSED:
 - Be precise, limit scope ("at most 2-3 searches"), specify output format and length
