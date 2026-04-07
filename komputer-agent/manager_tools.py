@@ -76,20 +76,10 @@ async def create_agent(args):
         payload["systemPrompt"] = args["systemPrompt"]
 
     # Identify this agent as the office manager so the operator can create/join an Office.
+    # The API inherits connectors and the operator inherits secrets from the manager automatically.
     manager_name = os.environ.get("KOMPUTER_AGENT_NAME", "")
     if manager_name:
         payload["officeManager"] = manager_name
-
-    # Inherit connectors from this manager so sub-agents have the same MCP tools.
-    mcp_env = os.environ.get("KOMPUTER_MCP_SERVERS", "")
-    if mcp_env:
-        try:
-            import json as _json
-            connector_names = list(_json.loads(mcp_env).keys())
-            if connector_names:
-                payload["connectors"] = connector_names
-        except Exception:
-            pass
 
     return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
 

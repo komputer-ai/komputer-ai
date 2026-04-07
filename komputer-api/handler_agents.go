@@ -259,7 +259,24 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, req.Connectors, req.Lifecycle, req.OfficeManager)
+		// Inherit connectors from office manager so sub-agents get the same MCP tools.
+		connectors := req.Connectors
+		if req.OfficeManager != "" {
+			manager, mgrErr := k8s.GetAgent(c.Request.Context(), ns, req.OfficeManager)
+			if mgrErr == nil && len(manager.Spec.Connectors) > 0 {
+				seen := make(map[string]bool, len(connectors))
+				for _, c := range connectors {
+					seen[c] = true
+				}
+				for _, c := range manager.Spec.Connectors {
+					if !seen[c] {
+						connectors = append(connectors, c)
+					}
+				}
+			}
+		}
+
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, connectors, req.Lifecycle, req.OfficeManager)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
