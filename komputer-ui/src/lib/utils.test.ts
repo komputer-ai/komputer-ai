@@ -69,7 +69,7 @@ describe('cronToHuman', () => {
   });
 
   it('returns raw cron for unrecognized pattern', () => {
-    const cron = '15 14 1 * *';
+    const cron = '15 14 5 * *';
     expect(cronToHuman(cron)).toBe(cron);
   });
 
