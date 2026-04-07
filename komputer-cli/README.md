@@ -165,8 +165,8 @@ komputer rm my-agent
 ### Agents
 ```
 komputer login <endpoint>           Save API endpoint
-komputer create <name> <prompt>     Create agent or send task [--model, --template, --lifecycle]
-komputer run <name> <prompt>        Create + stream output    [--model, --lifecycle]
+komputer create <name> <prompt>     Create agent or send task [--model, --template, --lifecycle, --system-prompt]
+komputer run <name> <prompt>        Create + stream output    [--model, --lifecycle, --system-prompt]
 komputer chat <name>                Interactive conversation   [--model, --lifecycle]
 komputer list                       List all agents           (alias: ls)
 komputer get <name>                 Get agent details
@@ -352,6 +352,7 @@ name=$(komputer create my-agent "Do something" --json | jq -r '.name')
 | `--memory <name>` | Attach a KomputerMemory by name (repeatable, on create/run/config) |
 | `--skill <name>` | Attach a KomputerSkill by name (repeatable, on create/run/config) |
 | `--lifecycle <mode>` | Agent lifecycle: `Sleep` or `AutoDelete` (on create/run/chat) |
+| `--system-prompt <text>` | Custom system prompt for the agent (on create/run/config) |
 | `--help` | Help for any command |
 
 ## Project Structure

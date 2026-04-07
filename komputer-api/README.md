@@ -49,6 +49,7 @@ Create a new agent or send a task to an existing one (upsert by name).
 |-------|------|----------|---------|-------------|
 | `name` | string | yes | — | Agent identifier (lowercase, hyphens, max 63 chars) |
 | `instructions` | string | yes | — | Task prompt for Claude |
+| `systemPrompt` | string | no | — | Custom system prompt prepended before the built-in role prompt |
 | `model` | string | no | `claude-sonnet-4-6` | Claude model to use |
 | `templateRef` | string | no | `default` | Pod template name |
 | `role` | string | no | `manager` | `manager` (gets orchestration tools) or `worker` |

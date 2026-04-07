@@ -83,6 +83,7 @@ Content-Type: application/json
 |-------|----------|-------------|
 | `name` | yes | Agent identifier (lowercase, hyphens, max 63 chars) |
 | `instructions` | yes | The task prompt for Claude |
+| `systemPrompt` | no | Custom system prompt prepended before the built-in role prompt |
 | `model` | no | Claude model (default: `claude-sonnet-4-6`) |
 | `templateRef` | no | Pod template to use (default: `default`) |
 | `role` | no | `manager` (can orchestrate sub-agents) or `worker` (default: `manager`) |

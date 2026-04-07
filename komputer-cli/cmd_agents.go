@@ -192,6 +192,9 @@ func registerAgentCommands(root *cobra.Command) {
 			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
 				body["skills"] = skillFlags
 			}
+			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
+				body["systemPrompt"] = sp
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -244,6 +247,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	createCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
 	root.AddCommand(createCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────
@@ -464,12 +468,15 @@ func registerAgentCommands(root *cobra.Command) {
 			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
 				body["skills"] = skillFlags
 			}
+			if sp, _ := cmd.Flags().GetString("system-prompt"); cmd.Flags().Changed("system-prompt") {
+				body["systemPrompt"] = sp
+			}
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, or --skill flags.", 400)
+					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, or --system-prompt flags.", 400)
 				}
-				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, or --skill flags."))
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, or --system-prompt flags."))
 				os.Exit(1)
 			}
 
@@ -511,6 +518,7 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	configCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	root.AddCommand(configCmd)
 
 	// ── watch ────────────────────────────────────────────────────────────

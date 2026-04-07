@@ -195,6 +195,7 @@ metadata:
   name: my-agent
 spec:
   instructions: "Research quantum computing and write a summary"
+  systemPrompt: "You are a scientific researcher. Always cite sources."  # optional
   model: "claude-sonnet-4-6"
   templateRef: "default"
   role: "manager"    # or "worker" — managers get orchestration tools
@@ -292,6 +293,7 @@ komputer delete <name> [name...]    # Delete one or more agents
 --memory <name>                     # Attach a KomputerMemory (repeatable)
 --skill <name>                      # Attach a KomputerSkill (repeatable)
 --connector <name>                  # Attach a KomputerConnector (repeatable)
+--system-prompt <text>              # Custom system prompt for the agent
 ```
 
 ### Secrets
