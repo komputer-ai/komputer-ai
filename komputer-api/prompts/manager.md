@@ -41,6 +41,8 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 Creating agents is expensive (30-60s + lost context). Before creating new, ask "Can an existing agent do this?" If task B benefits from task A's output, route both to the same agent. For review→follow-up, use Sleep/empty — not AutoDelete.
 
 ## Scheduling Tasks
+If the user says "remind me", "check back later", "follow up on this", "in 2 hours", or anything implying a future action — use schedule_agent. Don't just acknowledge it, actually create the schedule.
+
 Use schedule_agent for recurring tasks. Schedules are **recurring by default**.
 
 Cron: 5-field standard (minute hour dom month dow). Always set timezone with IANA format when user mentions local time.

@@ -644,7 +644,15 @@ export function AgentChat({
   loadingOlder,
   onLoadOlder,
 }: AgentChatProps) {
-  const [input, setInput] = useState("");
+  const [input, setInputRaw] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(`draft:${agentName}`) ?? "";
+  });
+  const setInput = useCallback((v: string) => {
+    setInputRaw(v);
+    if (v) localStorage.setItem(`draft:${agentName}`, v);
+    else localStorage.removeItem(`draft:${agentName}`);
+  }, [agentName]);
   const [lifecycle, setLifecycle] = useState<"" | "Sleep" | "AutoDelete">((agentLifecycle as "" | "Sleep" | "AutoDelete") || "");
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const lifecycleRef = useRef<HTMLDivElement>(null);
@@ -772,6 +780,8 @@ export function AgentChat({
 
   // Auto-scroll: snap to bottom on initial load, then smooth-scroll only when near bottom
   const initialScrollDone = useRef(false);
+  // Reset initial scroll when navigating to a different agent
+  useEffect(() => { initialScrollDone.current = false; }, [agentName]);
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef.current;
