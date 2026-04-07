@@ -173,14 +173,34 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     from prompts import build_prompt
     full_prompt = build_prompt(instructions)
 
+    # Create a fresh queue for this session and register it in shared state
+    # so server.py can push steer messages from the FastAPI thread.
+    session_steer_queue: asyncio.Queue = asyncio.Queue()
+    state.steer_queue = session_steer_queue
+
+    async def message_generator():
+        """Yield the initial task, then yield each follow-up steer message in order.
+
+        Blocks on the queue between turns.  A None sentinel (put after the
+        receive_response loop finishes) causes the generator to return cleanly.
+        """
+        yield {"type": "user", "message": {"role": "user", "content": full_prompt}}
+        while True:
+            msg = await session_steer_queue.get()
+            if msg is None:
+                # Sentinel — session is complete, stop the generator.
+                return
+            yield {"type": "user", "message": {"role": "user", "content": msg}}
+
     result = None
 
     async with ClaudeSDKClient(options=options) as client:
         # Register the client so signal handlers can interrupt it.
         state.set_active_client(client)
 
-        await client.query(full_prompt)
-
+        # Streaming input mode: pass the async generator so the SDK can pull
+        # follow-up messages on demand without restarting the session.
+        await client.query(message_generator())
 
         last_usage = None  # Track last assistant message's usage for context size
         async for message in client.receive_response():
@@ -201,6 +221,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             elif isinstance(message, ResultMessage):
                 result = message
 
+        # Signal the generator to exit cleanly now that the session is done.
+        session_steer_queue.put_nowait(None)
+
         if result:
             # Persist session ID for future tasks
             _save_session_id(result.session_id)
@@ -214,6 +237,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 "last_usage": last_usage,
                 "context_window": _fetch_context_window(model),
             })
+
+    # Clear the queue reference so server.py won't try to push to a dead queue.
+    state.steer_queue = None
 
     return result
 
