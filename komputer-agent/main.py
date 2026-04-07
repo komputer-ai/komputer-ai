@@ -102,6 +102,8 @@ def main():
     signal.signal(signal.SIGINT, _handle_signal)
 
     # Run initial task in a non-daemon thread (allows graceful shutdown).
+    # The steer_queue is created inside run_agent and stored in state, so
+    # follow-up messages posted to /task while this is running will be queued.
     def run_initial_task():
         state.active_loop = asyncio.new_event_loop()
         with state.busy:
@@ -117,6 +119,7 @@ def main():
             finally:
                 state.set_active_client(None)
                 state.active_loop = None
+                state.steer_queue = None  # Ensure no stale queue reference remains.
 
     thread = None
     if instructions:
