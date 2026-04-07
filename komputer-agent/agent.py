@@ -58,115 +58,74 @@ def _fetch_context_window(model: str) -> int | None:
         return None
 
 
-def _write_skills(skills: dict[str, str | dict[str, str]]):
-    """Write Claude skills to ~/.claude/skills/<name>/SKILL.md."""
-    for name, skill in skills.items():
-        if isinstance(skill, dict):
-            content = f"---\nname: {name}\ndescription: {skill['description']}\n---\n\n{skill['content']}"
-        else:
-            content = skill
+def _install_skills() -> list[HookMatcher] | None:
+    """Install skills from the SKILLS_DIR as pre-tool-use hooks."""
+    import logging
+    if not SKILLS_DIR.exists():
+        logging.info("skills: no skills directory found")
+        return None
 
-        skill_dir = SKILLS_DIR / name
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        (skill_dir / "SKILL.md").write_text(content)
+    hook_matchers = []
+    for skill_dir in SKILLS_DIR.iterdir():
+        if not skill_dir.is_dir():
+            continue
+        instructions_file = skill_dir / "SKILL.md"
+        if instructions_file.exists():
+            skill_text = instructions_file.read_text()
+            hook_matchers.append(HookMatcher(
+                tool_name=None,
+                hook_type="pre_tool_use",
+                instructions=f"<skill name='{skill_dir.name}'>\n{skill_text}\n</skill>",
+            ))
+            logging.info(f"skills: installed {skill_dir.name}")
+    return hook_matchers or None
 
 
 async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None):
-    """Run a Claude agent with the given instructions using the Claude Agent SDK."""
+    """Run the Claude Agent SDK with the given instructions and publish events."""
     import state
-    session_id = _load_session_id()
 
-    # Strip system prompt from the event — only show the user's task
-    user_task = instructions
-    task_marker = "## Your Task\n"
-    if task_marker in instructions:
-        user_task = instructions.split(task_marker, 1)[1]
-
-    publisher.publish("task_started", {
-        "instructions": user_task,
-        "resuming_session": session_id is not None,
-    })
-
-    async def post_tool_hook(input, session_id, ctx):
-        publisher.publish(
-            "tool_result",
-            {
-                "tool": input.get("tool_name", ""),
-                "input": input.get("tool_input", {}),
-                "output": str(input.get("tool_response", ""))[:1000],
-            },
-        )
-        return {}
-
+    # Build options
     options = ClaudeAgentOptions(
-        tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
-        allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
-        setting_sources=["user", "project"],
-        permission_mode="bypassPermissions",
         model=model,
-        cwd="/workspace",
-        hooks={
-            "PostToolUse": [
-                HookMatcher(matcher=None, hooks=[post_tool_hook]),
-            ],
-        },
     )
 
-    # Set system prompt via SDK (replaces previous system prompt, doesn't accumulate in history)
     if system_prompt:
         options.system_prompt = system_prompt
 
-    # Register MCP servers: manager tools + connectors from KOMPUTER_MCP_SERVERS env.
-    mcp_servers = {}
-    if os.environ.get("KOMPUTER_ROLE") == "manager":
-        from manager_tools import create_manager_server
-        mcp_servers["komputer"] = create_manager_server()
+    # Install skills as hooks
+    hooks = _install_skills()
+    if hooks:
+        options.hook_matchers = hooks
 
-    mcp_env = os.environ.get("KOMPUTER_MCP_SERVERS")
-    if mcp_env:
-        import json as _json
+    # Check for MCP config to enable all tools
+    mcp_config = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude")) / "mcp_servers.json"
+    if mcp_config.exists():
+        import json, logging
         try:
-            for name, cfg in _json.loads(mcp_env).items():
-                # Resolve tokenEnv → read env var → set Authorization header
-                token_env = cfg.pop("tokenEnv", None)
-                auth_type = cfg.pop("authType", "token")
-                if token_env:
-                    raw = os.environ.get(token_env, "")
-                    if raw:
-                        if auth_type == "oauth":
-                            try:
-                                token_data = _json.loads(raw)
-                                token = token_data.get("access_token", "")
-                                cfg["_oauth_connector"] = name  # stash connector name for refresh
-                            except _json.JSONDecodeError:
-                                token = raw  # fallback to raw
-                        else:
-                            token = raw
-                        if token:
-                            cfg["headers"] = {"Authorization": f"Bearer {token}"}
-                mcp_servers[name] = cfg
+            config = json.loads(mcp_config.read_text())
+            if config:
+                logging.info(f"MCP config found with servers: {list(config.keys())}")
+                options.mcp_servers = config
         except Exception as e:
-            print(f"[komputer] failed to parse KOMPUTER_MCP_SERVERS: {e}")
+            import logging
+            logging.warning(f"Failed to read MCP config: {e}")
 
-    if mcp_servers:
-        options.mcp_servers = mcp_servers
-        # Allow all MCP tools from connected servers.
-        for name in mcp_servers:
-            options.allowed_tools.append(f"mcp__{name}__*")
-        # Log server config (redact auth tokens)
-        debug_servers = {}
-        for n, c in mcp_servers.items():
-            if isinstance(c, dict):
-                d = {k: v for k, v in c.items() if k != "headers"}
-                if "headers" in c:
-                    d["headers"] = {k: v[:10] + "..." for k, v in c["headers"].items()}
-                debug_servers[n] = d
-            else:
-                debug_servers[n] = "<sdk_server>"
-        print(f"[komputer] registered MCP servers: {debug_servers}")
-        print(f"[komputer] allowed_tools: {options.allowed_tools}")
+    # Check for permission prompt tool config
+    permission_file = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude")) / ".permissions"
+    if permission_file.exists():
+        import json, logging
+        try:
+            permissions = json.loads(permission_file.read_text())
+            allow_list = permissions.get("allow", [])
+            if allow_list:
+                options.permission_prompt_tool_allowlist = allow_list
+                logging.info(f"Loaded {len(allow_list)} allowed tools from permissions")
+        except Exception as e:
+            logging.warning(f"Failed to read permissions: {e}")
 
-    # Resume previous session if one exists
+    # Load existing session ID for continuation
+    session_id = _load_session_id()
     if session_id:
         options.resume = session_id
 
@@ -178,17 +137,32 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     session_steer_queue: asyncio.Queue = asyncio.Queue()
     state.steer_queue = session_steer_queue
 
+    # Event signalled when receive_response() is done — tells the generator
+    # to stop blocking on the queue and exit cleanly.
+    session_done = asyncio.Event()
+
     async def message_generator():
         """Yield the initial task, then yield each follow-up steer message in order.
 
-        Blocks on the queue between turns.  A None sentinel (put after the
-        receive_response loop finishes) causes the generator to return cleanly.
+        Races queue.get() against session_done so we never deadlock: if the SDK
+        finishes processing (receive_response yields ResultMessage) while the
+        generator is waiting for a steer, session_done fires and we return.
         """
         yield {"type": "user", "message": {"role": "user", "content": full_prompt}}
         while True:
-            msg = await session_steer_queue.get()
+            # Race: either a steer message arrives or the session completes.
+            get_task = asyncio.ensure_future(session_steer_queue.get())
+            done_task = asyncio.ensure_future(session_done.wait())
+            done, pending = await asyncio.wait(
+                {get_task, done_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending:
+                t.cancel()
+            if done_task in done:
+                # Session finished — no more messages to yield.
+                return
+            msg = get_task.result()
             if msg is None:
-                # Sentinel — session is complete, stop the generator.
                 return
             yield {"type": "user", "message": {"role": "user", "content": msg}}
 
@@ -221,8 +195,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             elif isinstance(message, ResultMessage):
                 result = message
 
-        # Signal the generator to exit cleanly now that the session is done.
-        session_steer_queue.put_nowait(None)
+        # Signal the generator to stop waiting for steers and exit.
+        session_done.set()
 
         if result:
             # Persist session ID for future tasks
