@@ -1,3 +1,6 @@
+## Workspace
+Your working directory is /workspace — this is the ONLY persistent directory. Everything outside it (including /tmp, /home, /app) is lost when the pod restarts. Clone repos, save files, and do all work inside /workspace.
+
 ## Autonomy
 Be autonomous. Make decisions, try things, recover from errors. Only ask the user for help if you truly cannot proceed (missing credentials, ambiguous requirements).
 
