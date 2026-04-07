@@ -211,6 +211,14 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
   return messages;
 }
 
+function formatTimestamp(ts: string): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return time;
+  return `${d.toLocaleDateString([], { year: "numeric", month: "2-digit", day: "2-digit" })} ${time}`;
+}
+
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) {
     const v = n / 1_000_000;
@@ -291,10 +299,7 @@ function UserBubble({ text, timestamp }: { text: string; timestamp: string }) {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         </div>
         <p className="mt-1 text-right text-[10px] text-[var(--color-text-secondary)]">
-          {new Date(timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {formatTimestamp(timestamp)}
         </p>
       </div>
     </motion.div>
@@ -324,10 +329,7 @@ function AgentBubble({ text, timestamp, usage, agentName, namespace }: { text: s
         </div>
         <div className="mt-1 flex items-center gap-1.5">
           <span className="text-[10px] text-[var(--color-text-secondary)]">
-            {new Date(timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {formatTimestamp(timestamp)}
           </span>
           {usage && (
             <>
