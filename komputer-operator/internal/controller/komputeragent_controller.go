@@ -662,10 +662,27 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 		})
 	}
 
+	// Inherit connectors from office manager (sub-agents get the same connectors as their manager).
+	connectors := append([]string{}, agent.Spec.Connectors...)
+	if agent.Spec.OfficeManager != "" {
+		manager := &komputerv1alpha1.KomputerAgent{}
+		if err := r.Get(ctx, types.NamespacedName{Name: agent.Spec.OfficeManager, Namespace: agent.Namespace}, manager); err == nil {
+			seen := make(map[string]bool, len(connectors))
+			for _, c := range connectors {
+				seen[c] = true
+			}
+			for _, c := range manager.Spec.Connectors {
+				if !seen[c] {
+					connectors = append(connectors, c)
+				}
+			}
+		}
+	}
+
 	// Resolve connectors → build MCP server config JSON for the agent SDK.
 	// Auth tokens are mounted as separate env vars (CONNECTOR_<NAME>_TOKEN) and
 	// referenced in the JSON so secrets are not baked in as plaintext.
-	if len(agent.Spec.Connectors) > 0 {
+	if len(connectors) > 0 {
 		type mcpServerEntry struct {
 			Type     string `json:"type"`
 			URL      string `json:"url"`
@@ -673,7 +690,7 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			AuthType string `json:"authType,omitempty"` // "token" or "oauth"
 		}
 		mcpServers := make(map[string]mcpServerEntry)
-		for _, connRef := range agent.Spec.Connectors {
+		for _, connRef := range connectors {
 			connNs := agent.Namespace
 			connName := connRef
 			if parts := strings.SplitN(connRef, "/", 2); len(parts) == 2 {

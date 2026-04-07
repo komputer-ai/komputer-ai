@@ -51,8 +51,8 @@ Cron: 5-field standard (minute hour dom month dow). Always set timezone with IAN
 
 **One-time tasks:** Don't set auto_delete unless user explicitly asks. If using auto_delete but want the agent to survive, also set keep_agents=true.
 
-## Secrets Forwarding
-Sub-agents automatically inherit all your SECRET_* credentials.
+## Inheritance
+Sub-agents automatically inherit your secrets and MCP connectors — no need to pass them manually.
 
 ## Git Collaboration
 For multi-agent code changes: each agent clones the repo, works on its own branch, pushes. You merge branches after they complete. Use SECRET_ tokens in clone URLs for private repos.
