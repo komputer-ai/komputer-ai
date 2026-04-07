@@ -80,7 +80,16 @@ async def create_agent(args):
     if manager_name:
         payload["officeManager"] = manager_name
 
-    # Secrets are inherited automatically by the operator from the office manager.
+    # Inherit connectors from this manager so sub-agents have the same MCP tools.
+    mcp_env = os.environ.get("KOMPUTER_MCP_SERVERS", "")
+    if mcp_env:
+        try:
+            import json as _json
+            connector_names = list(_json.loads(mcp_env).keys())
+            if connector_names:
+                payload["connectors"] = connector_names
+        except Exception:
+            pass
 
     return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
 
