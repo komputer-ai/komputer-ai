@@ -318,10 +318,7 @@ function AgentBubble({ text, timestamp, usage, agentName, namespace }: { text: s
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
     >
-      <div className="relative max-w-[80%] rounded-xl rounded-bl-sm border-l-2 border-[var(--color-brand-blue)] bg-[var(--color-surface)] px-4 py-2.5 transition-[background-color,border-color] duration-150 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-brand-blue-light)]">
-        <div className="absolute -right-8 top-1 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
-          <CopyButton text={text} />
-        </div>
+      <div className="relative max-w-[80%] rounded-xl px-4 py-2.5 transition-colors duration-150 hover:bg-[var(--color-surface)]">
         <div className="prose-chat text-sm text-[var(--color-text)]">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
         </div>
@@ -338,6 +335,9 @@ function AgentBubble({ text, timestamp, usage, agentName, namespace }: { text: s
               <TokenBadge usage={usage} />
             </>
           )}
+          <span className="opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
+            <CopyButton text={text} />
+          </span>
         </div>
       </div>
     </motion.div>

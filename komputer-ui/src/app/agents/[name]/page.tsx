@@ -239,93 +239,7 @@ export default function AgentDetailPage() {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex h-full flex-col"
     >
-      {/* Agent info bar */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-3">
-        <span className="text-sm text-[var(--color-text-muted)]">Status:</span>
-        <StatusBadge status={agent.status} />
-        {agent.taskStatus && (
-          <>
-            <span className="text-sm text-[var(--color-text-muted)]">Task:</span>
-            <StatusBadge status={agent.taskStatus} size="sm" />
-          </>
-        )}
-        <span className="text-sm text-[var(--color-text-muted)]">Model:</span>
-        <Badge variant="outline" className="text-xs font-mono">
-          {agent.model}
-        </Badge>
-        <span className="text-sm text-[var(--color-text-muted)]">Namespace:</span>
-        <Tooltip content="Namespace" side="bottom">
-          <span className="cursor-default text-sm text-[var(--color-text-secondary)]">
-            {agent.namespace}
-          </span>
-        </Tooltip>
-        {agent.lifecycle && (
-          <Badge variant="secondary" className="text-xs">
-            {agent.lifecycle}
-          </Badge>
-        )}
-
-        <div className="ml-auto flex items-center gap-3">
-          {/* Costs */}
-          <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-            <span>Last:</span>
-            <CostBadge cost={agent.lastTaskCostUSD} />
-            <span>Total:</span>
-            <CostBadge cost={agent.totalCostUSD} />
-            {agent.totalTokens != null && agent.totalTokens > 0 && (
-              <>
-                <span className="text-[var(--color-border)]">·</span>
-                <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                  {fmtTokens(agent.totalTokens)}{" "}
-                  total tokens
-                </span>
-              </>
-            )}
-          </div>
-
-          <span className="text-[var(--color-border)]">|</span>
-
-          <RelativeTime timestamp={agent.createdAt} />
-
-          <span className="text-[var(--color-border)]">|</span>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1.5">
-            {agent.status === "Sleeping" ? (
-              <Button variant="secondary" size="sm" onClick={handleWake}>
-                <Zap className="size-3" data-icon="inline-start" />
-                Wake
-              </Button>
-            ) : (
-              <>
-                {agent.taskStatus === "InProgress" && (
-                  <Button variant="secondary" size="sm" onClick={handleCancel}>
-                    <Ban className="size-3" data-icon="inline-start" />
-                    Cancel
-                  </Button>
-                )}
-                <Button variant="secondary" size="sm" onClick={handleSleep} disabled={sleeping}>
-                  <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
-                  {sleeping ? "Sleeping…" : "Sleep"}
-                </Button>
-              </>
-            )}
-            <ConfirmDialog
-              title="Delete Agent"
-              description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
-              onConfirm={handleDelete}
-              trigger={
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="size-3" data-icon="inline-start" />
-                  Delete
-                </Button>
-              }
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
+      {/* Unified header */}
       <Tabs
         defaultValue="chat"
         value={activeTab}
@@ -338,11 +252,92 @@ export default function AgentDetailPage() {
         }}
         className="flex flex-1 flex-col overflow-hidden"
       >
-        <div className="shrink-0 border-b border-[var(--color-border)] px-6">
-          <TabsList>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="info">Settings</TabsTrigger>
-          </TabsList>
+        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-6">
+          <div className="flex items-center gap-4 h-11">
+            {/* Left: status + model + tabs */}
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
+              <StatusBadge status={agent.status} />
+              {agent.taskStatus && (
+                <>
+                  <span className="text-[11px] text-[var(--color-text-muted)]">Task</span>
+                  <StatusBadge status={agent.taskStatus} size="sm" />
+                </>
+              )}
+              <Badge variant="outline" className="text-xs font-mono">
+                {agent.model}
+              </Badge>
+              {agent.lifecycle && (
+                <Badge variant="secondary" className="text-xs">
+                  {agent.lifecycle}
+                </Badge>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-[var(--color-border)]" />
+
+            <TabsList>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="info">Settings</TabsTrigger>
+            </TabsList>
+
+            {/* Right: costs + actions */}
+            <div className="ml-auto flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <span>Last</span>
+                <CostBadge cost={agent.lastTaskCostUSD} />
+                <span>Total</span>
+                <CostBadge cost={agent.totalCostUSD} />
+                {agent.totalTokens != null && agent.totalTokens > 0 && (
+                  <>
+                    <span className="text-[var(--color-border)]">·</span>
+                    <span className="font-mono text-xs">
+                      {fmtTokens(agent.totalTokens)} tokens
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <div className="h-4 w-px bg-[var(--color-border)]" />
+
+              <RelativeTime timestamp={agent.createdAt} />
+
+              <div className="h-4 w-px bg-[var(--color-border)]" />
+
+              <div className="flex items-center gap-1.5">
+                {agent.status === "Sleeping" ? (
+                  <Button variant="secondary" size="sm" onClick={handleWake}>
+                    <Zap className="size-3" data-icon="inline-start" />
+                    Wake
+                  </Button>
+                ) : (
+                  <>
+                    {agent.taskStatus === "InProgress" && (
+                      <Button variant="secondary" size="sm" onClick={handleCancel}>
+                        <Ban className="size-3" data-icon="inline-start" />
+                        Cancel
+                      </Button>
+                    )}
+                    <Button variant="secondary" size="sm" onClick={handleSleep} disabled={sleeping}>
+                      <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
+                      {sleeping ? "Sleeping…" : "Sleep"}
+                    </Button>
+                  </>
+                )}
+                <ConfirmDialog
+                  title="Delete Agent"
+                  description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
+                  onConfirm={handleDelete}
+                  trigger={
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="size-3" data-icon="inline-start" />
+                      Delete
+                    </Button>
+                  }
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <TabsContent value="chat" className="flex-1 overflow-hidden flex">
