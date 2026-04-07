@@ -1,20 +1,25 @@
 FROM python:3.12-slim
 
-# Install system dependencies
+# Install system dependencies (no Node.js — Claude Code is bundled in the SDK)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       curl ca-certificates git jq unzip sudo && \
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI and Google Workspace CLI
-RUN npm install -g @anthropic-ai/claude-code @googleworkspace/cli
+# Install Google Workspace CLI binary from GitHub releases (no npm/node needed)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then TRIPLE="x86_64-unknown-linux-gnu"; \
+    elif [ "$ARCH" = "arm64" ]; then TRIPLE="aarch64-unknown-linux-gnu"; \
+    else echo "Unsupported arch: $ARCH" && exit 1; fi && \
+    curl -fsSL "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-${TRIPLE}.tar.gz" | \
+    tar -xzf - -C /usr/local/bin ./gws && \
+    chmod +x /usr/local/bin/gws
 
 # Install Python dependencies
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge 2>/dev/null; rm -rf /root/.cache/pip
 
 COPY . .
 
@@ -30,7 +35,7 @@ WORKDIR /workspace
 
 # Route package installs to the persistent workspace so they survive pod restarts.
 # pip: installs to /workspace/.local (via --user default)
-# npm: global installs to /workspace/.npm-global
+# npm: global installs to /workspace/.npm-global (if agent installs node later)
 # PATH: includes both so installed binaries are found
 ENV PYTHONUNBUFFERED=1 \
     PIP_USER=1 \
