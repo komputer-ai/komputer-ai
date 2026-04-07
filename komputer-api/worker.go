@@ -163,6 +163,19 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 							sessionID, _ = event.Payload["session_id"].(string)
 							costUSD, _ = event.Payload["cost_usd"].(float64)
 							totalTokens = extractTotalTokens(event.Payload)
+							// Use last_usage (single API call) for context size, not accumulated usage.
+							// Use last_usage (single API call) for context size, not accumulated usage.
+							if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
+								var ctx int64
+								for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+									if v, ok := lastUsage[key].(float64); ok {
+										ctx += int64(v)
+									}
+								}
+								if ctx > 0 {
+									totalTokens = ctx
+								}
+							}
 							if cw, ok := event.Payload["context_window"].(float64); ok {
 								contextWindow = int64(cw)
 							}
@@ -350,6 +363,18 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 						sessionID, _ = event.Payload["session_id"].(string)
 						costUSD, _ = event.Payload["cost_usd"].(float64)
 						totalTokens = extractTotalTokens(event.Payload)
+						// Use last_usage (single API call) for context size, not accumulated usage.
+						if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
+							var ctx int64
+							for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+								if v, ok := lastUsage[key].(float64); ok {
+									ctx += int64(v)
+								}
+							}
+							if ctx > 0 {
+								totalTokens = ctx
+							}
+						}
 						if cw, ok := event.Payload["context_window"].(float64); ok {
 							contextWindow = int64(cw)
 						}

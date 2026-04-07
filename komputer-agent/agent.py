@@ -182,9 +182,11 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         await client.query(full_prompt)
 
 
+        last_usage = None  # Track last assistant message's usage for context size
         async for message in client.receive_response():
             if isinstance(message, AssistantMessage):
                 usage = message.usage  # dict | None, keys: input_tokens, output_tokens, cache_*
+                last_usage = usage
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         publisher.publish("text", {"content": block.text, "usage": usage})
@@ -209,6 +211,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 "stop_reason": result.stop_reason,
                 "session_id": result.session_id,
                 "usage": result.usage,
+                "last_usage": last_usage,
                 "context_window": _fetch_context_window(model),
             })
 

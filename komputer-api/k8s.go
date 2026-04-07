@@ -1256,7 +1256,7 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 		agent.Status.TotalCostUSD = fmt.Sprintf("%.4f", total)
 	}
 	if totalTokens > 0 {
-		agent.Status.TotalTokens += totalTokens
+		agent.Status.TotalTokens = totalTokens
 	}
 	if contextWindow > 0 {
 		agent.Status.ModelContextWindow = contextWindow

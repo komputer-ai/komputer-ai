@@ -70,6 +70,7 @@ type ChatMessage =
       duration?: string;
       turns?: number;
       inputTokens?: number;
+      contextTokens?: number;
       outputTokens?: number;
       cacheReadTokens?: number;
       cacheCreationTokens?: number;
@@ -174,6 +175,8 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
         const duration = typeof durationMs === "number" ? `${(durationMs / 1000).toFixed(1)}s` : durationMs;
         const cost = typeof costRaw === "number" ? costRaw.toFixed(4) : costRaw;
         const usage = event.payload.usage as TokenUsage | undefined;
+        // last_usage is from the final API call — represents actual context size (for the context bar).
+        const lastUsage = (event.payload.last_usage as TokenUsage | undefined) ?? usage;
         messages.push({
           kind: "completed",
           costUSD: cost,
@@ -181,6 +184,9 @@ function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
           turns: event.payload.turns ?? event.payload.num_turns,
           inputTokens: usage
             ? (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+            : undefined,
+          contextTokens: lastUsage
+            ? (lastUsage.input_tokens ?? 0) + (lastUsage.cache_read_input_tokens ?? 0) + (lastUsage.cache_creation_input_tokens ?? 0)
             : undefined,
           outputTokens: usage?.output_tokens,
           cacheReadTokens: usage?.cache_read_input_tokens,
@@ -727,7 +733,8 @@ export function AgentChat({
   const lastInputTokens = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
-      if (m.kind === "completed" && m.inputTokens != null) return m.inputTokens;
+      if (m.kind === "completed" && (m.contextTokens ?? m.inputTokens) != null)
+        return m.contextTokens ?? m.inputTokens;
     }
     return undefined;
   })();
@@ -1072,7 +1079,7 @@ export function AgentChat({
       <div className="shrink-0 bg-[var(--color-bg)]">
         <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} />
         <div className="border-t border-[var(--color-border)]" />
-        <div className="flex items-center gap-2 p-4">
+        <div className="flex gap-2 p-4">
           <div className="flex-1 min-w-0">
             <textarea
               ref={textareaRef}
@@ -1095,7 +1102,7 @@ export function AgentChat({
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="flex size-9 items-center justify-center rounded-xl bg-red-500 text-white transition-opacity hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex size-10 items-center justify-center rounded-xl bg-red-500 text-white transition-opacity hover:opacity-80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Square className="size-3.5 fill-current" />
               </button>
@@ -1105,7 +1112,7 @@ export function AgentChat({
               type="button"
               onClick={handleSend}
               disabled={!input.trim()}
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-blue)] text-white transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-blue)] text-white transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ArrowUp className="size-4" />
             </button>
@@ -1122,7 +1129,7 @@ export function AgentChat({
                 color: lifecycle === "" ? "var(--color-text-secondary)" : lifecycle === "Sleep" ? "#facc15" : "#f87171",
               }}
               transition={{ duration: 0.3 }}
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl border hover:opacity-80 cursor-pointer"
+              className="flex size-10 shrink-0 items-center justify-center rounded-xl border hover:opacity-80 cursor-pointer"
               title={`Lifecycle: ${lifecycle || "Default (keep running)"}`}
             >
               <Settings2 className="size-4" />
@@ -1134,7 +1141,7 @@ export function AgentChat({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: 4 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-12 right-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-raised)] shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+                  className="absolute bottom-14 right-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-raised)] shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
                 >
                   <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] text-center">Lifecycle Mode</p>
                   <div className="flex gap-2 p-2 pt-0">
