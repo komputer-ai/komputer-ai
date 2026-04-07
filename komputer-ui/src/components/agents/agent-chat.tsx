@@ -362,6 +362,66 @@ function ThinkingBubble({ text }: { text: string }) {
   );
 }
 
+function EditDiff({ oldStr, newStr }: { oldStr: string; newStr: string }) {
+  const oldLines = oldStr.split("\n");
+  const newLines = newStr.split("\n");
+  const maxLines = Math.max(oldLines.length, newLines.length);
+
+  // Build per-line diff status
+  const leftLines: { text: string; status: "removed" | "changed" | "same" }[] = [];
+  const rightLines: { text: string; status: "added" | "changed" | "same" }[] = [];
+
+  for (let i = 0; i < maxLines; i++) {
+    const o = i < oldLines.length ? oldLines[i] : undefined;
+    const n = i < newLines.length ? newLines[i] : undefined;
+    if (o !== undefined && n !== undefined) {
+      if (o === n) {
+        leftLines.push({ text: o, status: "same" });
+        rightLines.push({ text: n, status: "same" });
+      } else {
+        leftLines.push({ text: o, status: "changed" });
+        rightLines.push({ text: n, status: "changed" });
+      }
+    } else if (o !== undefined) {
+      leftLines.push({ text: o, status: "removed" });
+      rightLines.push({ text: "", status: "same" });
+    } else if (n !== undefined) {
+      leftLines.push({ text: "", status: "same" });
+      rightLines.push({ text: n, status: "added" });
+    }
+  }
+
+  const renderLine = (line: { text: string; status: string }, i: number, side: "old" | "new") => {
+    const isChanged = line.status === "removed" || line.status === "changed" || line.status === "added";
+    const bg = !isChanged ? "" : side === "old" ? "bg-red-500/8" : "bg-green-500/8";
+    const numBg = !isChanged ? "" : side === "old" ? "bg-red-500/5" : "bg-green-500/5";
+    const textColor = !isChanged ? "text-[var(--color-text-muted)]" : side === "old" ? "text-red-300/80" : "text-green-300/80";
+    const marker = !isChanged ? " " : side === "old" ? "-" : "+";
+    const markerColor = !isChanged ? "text-transparent" : side === "old" ? "text-red-400/60" : "text-green-400/60";
+
+    return (
+      <div key={i} className={`flex border-b border-[var(--color-border)]/30 last:border-b-0 ${bg}`}>
+        <span className={`select-none w-7 shrink-0 text-right pr-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]/50 ${numBg}`}>{line.text !== "" ? i + 1 : ""}</span>
+        <span className={`select-none w-5 shrink-0 text-center py-0.5 ${markerColor}`}>{marker}</span>
+        <span className={`py-0.5 pr-2 whitespace-pre-wrap break-words min-w-0 ${textColor}`}>{line.text || " "}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="rounded-md border border-[var(--color-border)] overflow-hidden">
+      <div className="grid grid-cols-2 divide-x divide-[var(--color-border)] font-mono text-xs">
+        <div className="min-w-0">
+          {leftLines.map((line, i) => renderLine(line, i, "old"))}
+        </div>
+        <div className="min-w-0">
+          {rightLines.map((line, i) => renderLine(line, i, "new"))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ToolCard({
   toolName,
   description,
@@ -415,29 +475,38 @@ function ToolCard({
             className="overflow-hidden"
           >
             <div className="border-t border-[var(--color-border)] px-3 py-2">
-              {input != null && (
-                <div className="mb-2">
-                  <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
-                    Input
-                  </p>
-                  <pre className="overflow-x-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
-                    {typeof input === "string"
-                      ? input
-                      : JSON.stringify(input, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {output != null && (
-                <div>
-                  <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
-                    Output
-                  </p>
-                  <pre className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
-                    {typeof output === "string"
-                      ? output
-                      : JSON.stringify(output, null, 2)}
-                  </pre>
-                </div>
+              {toolName === "Edit" && input != null && typeof input === "object" && (input as Record<string, unknown>).old_string != null ? (
+                <EditDiff
+                  oldStr={String((input as Record<string, unknown>).old_string ?? "")}
+                  newStr={String((input as Record<string, unknown>).new_string ?? "")}
+                />
+              ) : (
+                <>
+                  {input != null && (
+                    <div className="mb-2">
+                      <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
+                        Input
+                      </p>
+                      <pre className="overflow-x-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
+                        {typeof input === "string"
+                          ? input
+                          : JSON.stringify(input, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {output != null && (
+                    <div>
+                      <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
+                        Output
+                      </p>
+                      <pre className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
+                        {typeof output === "string"
+                          ? output
+                          : JSON.stringify(output, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </motion.div>

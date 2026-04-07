@@ -356,8 +356,25 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
         result.push({ name: m.name, instructions: "" });
       }
     }
-    return result;
-  }, [eventAgents, officeMembers]);
+    const isActive = (name: string) => {
+      const phase = agentStatuses[name];
+      const task = memberStatuses[name];
+      return phase === "Running" || phase === "Pending" || task === "InProgress";
+    };
+    const isDead = (name: string) => {
+      const phase = agentStatuses[name];
+      return phase === "Failed" || phase === "Succeeded" || (existingAgents !== null && !existingAgents.has(name));
+    };
+    return result.sort((a, b) => {
+      const aActive = isActive(a.name);
+      const bActive = isActive(b.name);
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      const aDead = isDead(a.name);
+      const bDead = isDead(b.name);
+      if (aDead !== bDead) return aDead ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [eventAgents, officeMembers, agentStatuses, memberStatuses, existingAgents]);
 
   // Poll every 5s only when there are sub-agents
   useEffect(() => {
