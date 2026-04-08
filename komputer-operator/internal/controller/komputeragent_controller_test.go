@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"encoding/json"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -183,28 +182,24 @@ var _ = Describe("KomputerAgent Controller", func() {
 				mountPaths[mount.MountPath] = true
 			}
 			Expect(mountPaths["/workspace"]).To(BeTrue())
-			Expect(mountPaths["/etc/komputer"]).To(BeTrue())
 		})
 
-		It("should create a ConfigMap with config.json", func() {
-			cm := &corev1.ConfigMap{}
+		It("should inject redis config as env vars", func() {
+			pod := &corev1.Pod{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{
-					Name:      "test-agent-pod-config",
+					Name:      "test-agent-pod",
 					Namespace: "default",
-				}, cm)
+				}, pod)
 			}, timeout, interval).Should(Succeed())
 
-			Expect(cm.Data).To(HaveKey("config.json"))
-
-			var config map[string]interface{}
-			err := json.Unmarshal([]byte(cm.Data["config.json"]), &config)
-			Expect(err).NotTo(HaveOccurred())
-
-			redis, ok := config["redis"].(map[string]interface{})
-			Expect(ok).To(BeTrue())
-			Expect(redis["address"]).To(Equal("redis:6379"))
-			Expect(redis["queue"]).To(Equal("komputer-events"))
+			container := pod.Spec.Containers[0]
+			envMap := make(map[string]string)
+			for _, env := range container.Env {
+				envMap[env.Name] = env.Value
+			}
+			Expect(envMap["KOMPUTER_REDIS_ADDRESS"]).To(Equal("redis:6379"))
+			Expect(envMap["KOMPUTER_REDIS_STREAM_PREFIX"]).To(Equal("komputer-events"))
 		})
 	})
 })
