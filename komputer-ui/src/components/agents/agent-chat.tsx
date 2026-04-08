@@ -723,7 +723,7 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
 
         const msgTime = new Date(msg.timestamp).getTime();
         const isHighlighted = fromTime != null && toTime != null && msgTime >= fromTime && msgTime <= toTime;
-        const highlightClass = isHighlighted ? "bg-[var(--color-brand-blue-glow)] rounded-lg" : "";
+        const highlightClass = isHighlighted ? "border-l-2 border-amber-400/50 pl-2" : "";
         const highlightAttr = isHighlighted ? { "data-task-highlight": "" } : {};
 
         switch (msg.kind) {

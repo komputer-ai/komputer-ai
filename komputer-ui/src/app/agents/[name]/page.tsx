@@ -66,11 +66,13 @@ export default function AgentDetailPage() {
   // Fetch event history on mount
   useEffect(() => {
     if (!agentName) return;
-    getAgentEvents(agentName, 50, agentNs, undefined, undefined, taskFrom)
+    const limit = taskFrom ? 200 : 50;
+    getAgentEvents(agentName, limit, agentNs, undefined, undefined, taskFrom)
       .then((data: unknown) => {
         const arr = parseEventsResponse(data);
         setHistoryEvents(arr);
-        if (arr.length < 50) setHasMoreEvents(false);
+        // When viewing a task, always allow loading more in both directions.
+        if (!taskFrom && arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
   }, [agentName, agentNs, parseEventsResponse, taskFrom]);

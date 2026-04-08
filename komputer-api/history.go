@@ -152,10 +152,12 @@ func GetAgentEventsAround(ctx context.Context, rdb *redis.Client, agentName stri
 		}
 	}
 
-	// lo is the index of the first event >= around. Center the window on it.
-	half := limit / 2
-	start := lo - half
-	end := lo + half
+	// lo is the index of the first event >= around.
+	// Bias toward events after the target (tasks have more content after the start).
+	before := limit / 4
+	after := limit - before
+	start := lo - before
+	end := lo + after
 	if start < 0 {
 		start = 0
 	}
