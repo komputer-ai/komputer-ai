@@ -211,7 +211,6 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                         if (task.completedAt) params.set("taskTo", task.completedAt);
                         router.push(`/agents/${selectedAgent}?${params.toString()}`);
                       }}
-                      title="Click to see task messages"
                       className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)] ${
                         isMostExpensive
                           ? "border border-amber-500/20 bg-amber-500/5"
@@ -221,10 +220,12 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                       <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
                         #{task.index + 1}
                       </span>
-                      <span className="flex-1 min-w-0 truncate text-[var(--color-text)]" title={task.instruction}>
-                        {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
-                        {task.instruction || "—"}
-                      </span>
+                      <Tooltip content="Click to see task messages" side="top">
+                        <span className="flex-1 min-w-0 truncate text-[var(--color-text)]">
+                          {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
+                          {task.instruction || "—"}
+                        </span>
+                      </Tooltip>
                       {isMostExpensive && (
                         <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
                           <Flame className="size-2.5" />
