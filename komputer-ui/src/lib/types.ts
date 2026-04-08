@@ -77,7 +77,7 @@ export interface ScheduleListResponse {
 export interface AgentEvent {
   agentName: string;
   namespace?: string;
-  type: 'task_started' | 'user_message' | 'thinking' | 'tool_call' | 'tool_result' | 'text' | 'task_completed' | 'task_cancelled' | 'error';
+  type: 'task_started' | 'user_message' | 'thinking' | 'tool_call' | 'tool_result' | 'text' | 'task_completed' | 'task_cancelled' | 'compaction' | 'error';
   timestamp: string;
   payload: Record<string, any>;
 }

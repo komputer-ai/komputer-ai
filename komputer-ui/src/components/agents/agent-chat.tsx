@@ -84,7 +84,8 @@ type ChatMessage =
       timestamp: string;
     }
   | { kind: "error"; message: string; timestamp: string }
-  | { kind: "cancelled"; timestamp: string };
+  | { kind: "cancelled"; timestamp: string }
+  | { kind: "compaction"; timestamp: string };
 
 export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
@@ -204,6 +205,9 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
       }
       case "task_cancelled":
         messages.push({ kind: "cancelled", timestamp: event.timestamp });
+        break;
+      case "compaction":
+        messages.push({ kind: "compaction", timestamp: event.timestamp });
         break;
       case "error":
         messages.push({
@@ -697,6 +701,16 @@ function CancelledDivider() {
   );
 }
 
+function CompactionDivider() {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex-1 border-t border-purple-400/20" />
+      <span className="text-xs font-medium text-purple-400">Context compacted</span>
+      <div className="flex-1 border-t border-purple-400/20" />
+    </div>
+  );
+}
+
 function ErrorBar({ message }: { message: string }) {
   return (
     <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
@@ -769,6 +783,8 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
         return <CompletedDivider key={key} costUSD={msg.costUSD} duration={msg.duration} turns={msg.turns} inputTokens={msg.inputTokens} outputTokens={msg.outputTokens} cacheReadTokens={msg.cacheReadTokens} cacheCreationTokens={msg.cacheCreationTokens} />;
       case "cancelled":
         return <CancelledDivider key={key} />;
+      case "compaction":
+        return <CompactionDivider key={key} />;
       case "error":
         return <ErrorBar key={key} message={msg.message} />;
     }
