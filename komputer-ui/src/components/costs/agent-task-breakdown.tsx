@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, RefreshCw } from "lucide-react";
+import { Tooltip } from "@/components/kit/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/kit/card";
 import {
   Select,
@@ -42,12 +43,11 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
     .filter((a) => parseFloat(a.totalCostUSD || "0") > 0)
     .sort((a, b) => parseFloat(b.totalCostUSD || "0") - parseFloat(a.totalCostUSD || "0"));
 
-  const handleSelect = async (name: string) => {
-    setSelectedAgent(name);
+  const fetchBreakdown = async (name: string, refresh = false) => {
     setError(null);
     setLoading(true);
     try {
-      const data = await getAgentCostBreakdown(name);
+      const data = await getAgentCostBreakdown(name, undefined, refresh);
       setBreakdown(data);
     } catch {
       setError("Failed to load cost breakdown");
@@ -55,6 +55,11 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelect = async (name: string) => {
+    setSelectedAgent(name);
+    await fetchBreakdown(name);
   };
 
   const toggleSort = (key: SortKey) => {
@@ -91,19 +96,34 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select an agent..." />
             </SelectTrigger>
-            <SelectContent>
-              {agentsWithCost.map((a) => (
-                <SelectItem key={a.name} value={a.name}>
-                  <span className="flex items-center justify-between gap-3 w-full">
-                    <span className="truncate">{a.name}</span>
-                    <span className="shrink-0 font-mono text-[10px] text-[var(--color-text-muted)]">
-                      ${parseFloat(a.totalCostUSD || "0").toFixed(4)}
+            <SelectContent className="min-w-[280px]">
+              {agentsWithCost.map((a) => {
+                const cost = parseFloat(a.totalCostUSD || "0");
+                return (
+                  <SelectItem key={a.name} value={a.name}>
+                    <span className="inline-flex items-center gap-2 w-full">
+                      <span className="truncate">{a.name}</span>
+                      <span className="font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                        ${cost.toFixed(4)}
+                      </span>
                     </span>
-                  </span>
-                </SelectItem>
-              ))}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
+          {selectedAgent && (
+            <Tooltip content="Reprocess events (clears cache)" side="bottom">
+              <button
+                type="button"
+                onClick={() => fetchBreakdown(selectedAgent, true)}
+                disabled={loading}
+                className="flex size-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </Tooltip>
+          )}
         </div>
       </CardHeader>
       <CardContent>

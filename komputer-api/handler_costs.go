@@ -131,12 +131,14 @@ func getAgentCostBreakdown(worker *RedisWorker) gin.HandlerFunc {
 		cacheKey := fmt.Sprintf("komputer-cost:%s", name)
 		ctx := c.Request.Context()
 
-		// Check cache first
-		if cached, err := worker.Rdb.Get(ctx, cacheKey).Result(); err == nil {
-			var resp CostBreakdownResponse
-			if json.Unmarshal([]byte(cached), &resp) == nil {
-				c.JSON(http.StatusOK, resp)
-				return
+		// Check cache first (skip if ?refresh=true)
+		if c.Query("refresh") != "true" {
+			if cached, err := worker.Rdb.Get(ctx, cacheKey).Result(); err == nil {
+				var resp CostBreakdownResponse
+				if json.Unmarshal([]byte(cached), &resp) == nil {
+					c.JSON(http.StatusOK, resp)
+					return
+				}
 			}
 		}
 
