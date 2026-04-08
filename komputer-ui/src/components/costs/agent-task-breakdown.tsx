@@ -217,11 +217,9 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                           : ""
                       }`}
                     >
-                      <Tooltip content="Click to see task messages" side="left">
-                        <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
-                          #{task.index + 1}
-                        </span>
-                      </Tooltip>
+                      <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
+                        #{task.index + 1}
+                      </span>
                       <span className="flex-1 min-w-0 truncate text-[var(--color-text)]">
                         {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
                         {task.instruction || "—"}
