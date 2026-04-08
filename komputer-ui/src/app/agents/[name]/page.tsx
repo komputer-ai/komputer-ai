@@ -44,9 +44,13 @@ export default function AgentDetailPage() {
   const agentName = params.name;
   const agentNs = searchParams.get("namespace") || undefined;
   const initialPending = searchParams.get("pending") || undefined;
-  const taskFrom = searchParams.get("taskFrom") || undefined;
-  const taskTo = searchParams.get("taskTo") || undefined;
-  const taskEvents = parseInt(searchParams.get("taskEvents") || "0", 10) || 0;
+  // Capture task params on first mount only — refs prevent re-fetching when URL is cleaned up.
+  const taskFromRef = useRef(searchParams.get("taskFrom") || undefined);
+  const taskToRef = useRef(searchParams.get("taskTo") || undefined);
+  const taskEventsRef = useRef(parseInt(searchParams.get("taskEvents") || "0", 10) || 0);
+  const taskFrom = taskFromRef.current;
+  const taskTo = taskToRef.current;
+  const taskEvents = taskEventsRef.current;
 
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "info" ? "info" : "chat");
   const [agent, setAgent] = useState<AgentResponse | null>(null);
@@ -76,7 +80,8 @@ export default function AgentDetailPage() {
         if (!taskFrom && arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
-  }, [agentName, agentNs, parseEventsResponse, taskFrom, taskEvents]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentName, agentNs, parseEventsResponse]);
 
   // Load older events (called when user scrolls to top)
   const historyEventsRef = useRef(historyEvents);

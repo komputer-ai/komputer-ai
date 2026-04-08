@@ -714,17 +714,21 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
   const [highlightVisible, setHighlightVisible] = useState(!!highlightFrom);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Once the user has seen the task (scrolled past it), fade the border after 2s.
-  const highlightRef = useCallback((node: HTMLDivElement | null) => {
+  // Fade the border 2s after the user scrolls past the BOTTOM of the highlighted block.
+  // We observe a sentinel div placed at the end of the highlight wrapper.
+  const highlightEndRef = useCallback((node: HTMLDivElement | null) => {
     if (!node || fadeTimerRef.current) return;
     const container = node.closest("[data-messages]")?.parentElement;
     if (!container) return;
+    let wasVisible = false;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0].isIntersecting && !fadeTimerRef.current) {
+        const visible = entries[0].isIntersecting;
+        // Wait until the bottom sentinel has been seen, then scrolled past.
+        if (visible) wasVisible = true;
+        if (wasVisible && !visible && !fadeTimerRef.current) {
           fadeTimerRef.current = setTimeout(() => {
             setHighlightVisible(false);
-            // Clean up task params from URL so refresh goes to normal chat.
             const url = new URL(window.location.href);
             if (url.searchParams.has("taskFrom")) {
               url.searchParams.delete("taskFrom");
@@ -787,11 +791,11 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
     elements.push(
       <div
         key={`hl-${highlightBuf[0].idx}`}
-        ref={highlightRef}
         data-task-highlight=""
         className={`rounded-lg p-2 flex flex-col gap-3 transition-all duration-500 ${highlightVisible ? "border-2 border-amber-400/30" : "border-2 border-transparent"}`}
       >
         {highlightBuf.map(({ msg, idx }) => renderMsg(msg, idx))}
+        <div ref={highlightEndRef} className="h-0" />
       </div>
     );
     highlightBuf = [];
