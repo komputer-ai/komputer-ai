@@ -217,15 +217,15 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                           : ""
                       }`}
                     >
-                      <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
-                        #{task.index + 1}
-                      </span>
-                      <Tooltip content="Click to see task messages" side="top">
-                        <span className="flex-1 min-w-0 truncate text-[var(--color-text)]">
-                          {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
-                          {task.instruction || "—"}
+                      <Tooltip content="Click to see task messages" side="left">
+                        <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
+                          #{task.index + 1}
                         </span>
                       </Tooltip>
+                      <span className="flex-1 min-w-0 truncate text-[var(--color-text)]">
+                        {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
+                        {task.instruction || "—"}
+                      </span>
                       {isMostExpensive && (
                         <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
                           <Flame className="size-2.5" />
