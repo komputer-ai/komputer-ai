@@ -46,6 +46,7 @@ export default function AgentDetailPage() {
   const initialPending = searchParams.get("pending") || undefined;
   const taskFrom = searchParams.get("taskFrom") || undefined;
   const taskTo = searchParams.get("taskTo") || undefined;
+  const taskEvents = parseInt(searchParams.get("taskEvents") || "0", 10) || 0;
 
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "info" ? "info" : "chat");
   const [agent, setAgent] = useState<AgentResponse | null>(null);
@@ -66,16 +67,16 @@ export default function AgentDetailPage() {
   // Fetch event history on mount
   useEffect(() => {
     if (!agentName) return;
-    const limit = taskFrom ? 100 : 50;
+    // When navigating from cost breakdown, fetch task events + 10 buffer on each side.
+    const limit = taskFrom ? Math.max(taskEvents + 20, 50) : 50;
     getAgentEvents(agentName, limit, agentNs, undefined, undefined, taskFrom)
       .then((data: unknown) => {
         const arr = parseEventsResponse(data);
         setHistoryEvents(arr);
-        // When viewing a task, always allow loading more in both directions.
         if (!taskFrom && arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
-  }, [agentName, agentNs, parseEventsResponse, taskFrom]);
+  }, [agentName, agentNs, parseEventsResponse, taskFrom, taskEvents]);
 
   // Load older events (called when user scrolls to top)
   const historyEventsRef = useRef(historyEvents);
@@ -114,6 +115,34 @@ export default function AgentDetailPage() {
     } finally {
       loadingOlderRef.current = false;
       setLoadingOlder(false);
+    }
+  }, [agentName, agentNs, parseEventsResponse]);
+
+  const [hasNewerEvents, setHasNewerEvents] = useState(!!taskFrom);
+  const [loadingNewer, setLoadingNewer] = useState(false);
+  const loadingNewerRef = useRef(false);
+
+  const loadNewerEvents = useCallback(async () => {
+    if (!agentName || loadingNewerRef.current) return;
+    const evts = historyEventsRef.current;
+    const newestTimestamp = evts.length > 0 ? evts[evts.length - 1].timestamp : undefined;
+    if (!newestTimestamp) return;
+    loadingNewerRef.current = true;
+    setLoadingNewer(true);
+    try {
+      const data = await getAgentEvents(agentName, 50, agentNs, undefined, undefined, undefined, newestTimestamp);
+      const newer = parseEventsResponse(data);
+      if (newer.length === 0) {
+        setHasNewerEvents(false);
+      } else {
+        setHistoryEvents((prev) => [...prev, ...newer]);
+        if (newer.length < 50) setHasNewerEvents(false);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      loadingNewerRef.current = false;
+      setLoadingNewer(false);
     }
   }, [agentName, agentNs, parseEventsResponse]);
 
@@ -379,6 +408,9 @@ export default function AgentDetailPage() {
             scrollSnapshotRef={scrollSnapshotRef}
             highlightTaskFrom={taskFrom}
             highlightTaskTo={taskTo}
+            hasNewerEvents={hasNewerEvents}
+            loadingNewer={loadingNewer}
+            onLoadNewer={loadNewerEvents}
           />
           <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
         </TabsContent>

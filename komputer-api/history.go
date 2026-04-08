@@ -111,6 +111,71 @@ func GetAgentEventsBefore(ctx context.Context, rdb *redis.Client, agentName stri
 	return events, nil
 }
 
+// GetAgentEventsAfter returns up to `limit` events strictly after a timestamp.
+func GetAgentEventsAfter(ctx context.Context, rdb *redis.Client, agentName string, limit int64, after string, streamPrefix string) ([]AgentEvent, error) {
+	historyKey := fmt.Sprintf("komputer-history:%s", agentName)
+
+	afterTime, err := time.Parse(time.RFC3339Nano, after)
+	if err != nil {
+		return nil, fmt.Errorf("invalid after timestamp: %w", err)
+	}
+
+	total, err := rdb.LLen(ctx, historyKey).Result()
+	if err != nil || total == 0 {
+		return []AgentEvent{}, nil
+	}
+
+	// Binary search for the first event > after.
+	lo, hi := int64(0), total
+	for lo < hi {
+		mid := (lo + hi) / 2
+		raw, err := rdb.LIndex(ctx, historyKey, mid).Result()
+		if err != nil {
+			lo = mid + 1
+			continue
+		}
+		var ev AgentEvent
+		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
+			lo = mid + 1
+			continue
+		}
+		evTime, err := time.Parse(time.RFC3339Nano, ev.Timestamp)
+		if err != nil {
+			lo = mid + 1
+			continue
+		}
+		if !evTime.After(afterTime) {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+
+	// lo is the first event strictly after afterTime.
+	end := lo + limit - 1
+	if end >= total {
+		end = total - 1
+	}
+	if lo > end {
+		return []AgentEvent{}, nil
+	}
+
+	vals, err := rdb.LRange(ctx, historyKey, lo, end).Result()
+	if err != nil {
+		return nil, fmt.Errorf("lrange: %w", err)
+	}
+
+	events := make([]AgentEvent, 0, len(vals))
+	for _, raw := range vals {
+		var ev AgentEvent
+		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
+			continue
+		}
+		events = append(events, ev)
+	}
+	return events, nil
+}
+
 // GetAgentEventsAround returns events centered on a timestamp.
 // Uses binary search to find the target, then fetches limit/2 before and limit/2 after.
 func GetAgentEventsAround(ctx context.Context, rdb *redis.Client, agentName string, limit int64, around string, streamPrefix string) ([]AgentEvent, error) {

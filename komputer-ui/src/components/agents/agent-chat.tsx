@@ -43,6 +43,9 @@ type AgentChatProps = {
   scrollSnapshotRef?: React.RefObject<number | null>;
   highlightTaskFrom?: string;
   highlightTaskTo?: string;
+  hasNewerEvents?: boolean;
+  loadingNewer?: boolean;
+  onLoadNewer?: () => void;
 };
 
 // --- Message types derived from events ---
@@ -723,8 +726,19 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
 
         const msgTime = new Date(msg.timestamp).getTime();
         const isHighlighted = fromTime != null && toTime != null && msgTime >= fromTime && msgTime <= toTime;
-        const highlightClass = isHighlighted ? "ring-1 ring-amber-400/40 rounded-lg" : "";
         const highlightAttr = isHighlighted ? { "data-task-highlight": "" } : {};
+        // First/last highlighted messages get top/bottom borders for a single group border effect.
+        const isFirstHighlight = isHighlighted && (i === 0 || (() => {
+          const prevTime = new Date(messages[i - 1].timestamp).getTime();
+          return !(fromTime != null && toTime != null && prevTime >= fromTime && prevTime <= toTime);
+        })());
+        const isLastHighlight = isHighlighted && (i === messages.length - 1 || (() => {
+          const nextTime = new Date(messages[i + 1].timestamp).getTime();
+          return !(fromTime != null && toTime != null && nextTime >= fromTime && nextTime <= toTime);
+        })());
+        const highlightClass = isHighlighted
+          ? `border-l-2 border-r-2 border-amber-400/30 px-2 ${isFirstHighlight ? "border-t-2 rounded-t-lg pt-2" : ""} ${isLastHighlight ? "border-b-2 rounded-b-lg pb-2" : ""}`
+          : "";
 
         switch (msg.kind) {
           case "user":
@@ -773,6 +787,9 @@ export function AgentChat({
   scrollSnapshotRef,
   highlightTaskFrom,
   highlightTaskTo,
+  hasNewerEvents,
+  loadingNewer,
+  onLoadNewer,
 }: AgentChatProps) {
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -814,6 +831,7 @@ export function AgentChat({
       : []
   );
   const bottomRef = useRef<HTMLDivElement>(null);
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -972,6 +990,31 @@ export function AgentChat({
     return () => observer.disconnect();
   }, [observerReady, agentName]);
 
+  // Observer for loading newer events (bottom sentinel).
+  const onLoadNewerRef = useRef(onLoadNewer);
+  onLoadNewerRef.current = onLoadNewer;
+  const hasNewerRef = useRef(hasNewerEvents);
+  hasNewerRef.current = hasNewerEvents;
+  const loadingNewerRef = useRef(loadingNewer);
+  loadingNewerRef.current = loadingNewer;
+
+  useEffect(() => {
+    if (!observerReady || !hasNewerEvents) return;
+    const sentinel = bottomSentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel || !container) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNewerRef.current && !loadingNewerRef.current && onLoadNewerRef.current) {
+          onLoadNewerRef.current();
+        }
+      },
+      { root: container, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [observerReady, hasNewerEvents, agentName]);
+
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text) return;
@@ -1120,6 +1163,14 @@ export function AgentChat({
               </motion.div>
             )}
             </AnimatePresence>
+            {hasNewerEvents && (
+              <div ref={bottomSentinelRef} className="h-1 shrink-0" />
+            )}
+            {loadingNewer && (
+              <div className="flex justify-center py-2">
+                <span className="text-xs text-[var(--color-text-muted)]">Loading...</span>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
         )}

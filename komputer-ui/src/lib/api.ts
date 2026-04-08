@@ -64,8 +64,8 @@ export const deleteAgent = (name: string, ns?: string) =>
 export const cancelAgent = (name: string, ns?: string) =>
   request<void>(`/agents/${name}/cancel${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
-export const getAgentEvents = (name: string, limit = 50, ns?: string, before?: string, source?: 'session' | 'redis', around?: string) =>
-  request<AgentEvent[]>(`/agents/${name}/events?limit=${limit}${ns ? `&namespace=${ns}` : ''}${before ? `&before=${encodeURIComponent(before)}` : ''}${source ? `&source=${source}` : ''}${around ? `&around=${encodeURIComponent(around)}` : ''}`);
+export const getAgentEvents = (name: string, limit = 50, ns?: string, before?: string, source?: 'session' | 'redis', around?: string, after?: string) =>
+  request<AgentEvent[]>(`/agents/${name}/events?limit=${limit}${ns ? `&namespace=${ns}` : ''}${before ? `&before=${encodeURIComponent(before)}` : ''}${source ? `&source=${source}` : ''}${around ? `&around=${encodeURIComponent(around)}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`);
 
 export const getAgentCostBreakdown = (name: string, ns?: string, refresh?: boolean) => {
   const params = new URLSearchParams();

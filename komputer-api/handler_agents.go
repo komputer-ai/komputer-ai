@@ -457,12 +457,15 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		before := c.Query("before") // RFC-3339 cursor for pagination
+		after := c.Query("after")   // RFC-3339 cursor — return events strictly after this timestamp
 		around := c.Query("around") // RFC-3339 timestamp to center results on
 
 		var events []AgentEvent
 		var err error
 		if around != "" {
 			events, err = GetAgentEventsAround(c.Request.Context(), worker.Rdb, name, limit, around, worker.StreamPrefix)
+		} else if after != "" {
+			events, err = GetAgentEventsAfter(c.Request.Context(), worker.Rdb, name, limit, after, worker.StreamPrefix)
 		} else {
 			events, err = GetAgentEventsBefore(c.Request.Context(), worker.Rdb, name, limit, before, worker.StreamPrefix)
 		}
