@@ -102,11 +102,9 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                   const cost = parseFloat(a.totalCostUSD || "0");
                   return (
                     <SelectItem key={a.name} value={a.name}>
-                      <span className="inline-flex items-center gap-2 w-full">
-                        <span className="truncate">{a.name}</span>
-                        <span className="font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
-                          ${cost.toFixed(4)}
-                        </span>
+                      <span className="truncate">{a.name}</span>
+                      <span className="ml-auto pl-3 shrink-0 font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                        ${cost.toFixed(4)}
                       </span>
                     </SelectItem>
                   );
