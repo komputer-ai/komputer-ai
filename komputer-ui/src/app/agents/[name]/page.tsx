@@ -76,6 +76,10 @@ export default function AgentDetailPage() {
         if (!taskFrom && arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
+    // Clear task params from URL so refresh goes to normal chat.
+    if (taskFrom) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, [agentName, agentNs, parseEventsResponse, taskFrom, taskEvents]);
 
   // Load older events (called when user scrolls to top)
