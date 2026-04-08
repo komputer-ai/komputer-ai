@@ -38,7 +38,9 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("index");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const agentsWithCost = agents.filter((a) => parseFloat(a.totalCostUSD || "0") > 0);
+  const agentsWithCost = agents
+    .filter((a) => parseFloat(a.totalCostUSD || "0") > 0)
+    .sort((a, b) => parseFloat(b.totalCostUSD || "0") - parseFloat(a.totalCostUSD || "0"));
 
   const handleSelect = async (name: string) => {
     setSelectedAgent(name);
@@ -92,7 +94,12 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
             <SelectContent>
               {agentsWithCost.map((a) => (
                 <SelectItem key={a.name} value={a.name}>
-                  {a.name}
+                  <span className="flex items-center justify-between gap-3 w-full">
+                    <span className="truncate">{a.name}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-[var(--color-text-muted)]">
+                      ${parseFloat(a.totalCostUSD || "0").toFixed(4)}
+                    </span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -162,8 +169,8 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
               ))}
             </div>
 
-            {/* Task list */}
-            <div className="space-y-1.5">
+            {/* Task list — max 10 visible, scroll for the rest */}
+            <div className="space-y-1.5 max-h-[440px] overflow-y-auto">
               {sortedTasks.map((task) => (
                 <motion.div
                   key={task.index}
