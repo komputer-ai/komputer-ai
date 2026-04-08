@@ -299,7 +299,7 @@ jobs:
         run: |
           cd komputer-operator
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-          setup-envtest use --bin-dir ./bin/k8s
+          echo "KUBEBUILDER_ASSETS=$(setup-envtest use -p path)" >> "$GITHUB_ENV"
 
       - name: Test Operator
         if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
