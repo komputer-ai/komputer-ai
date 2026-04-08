@@ -722,7 +722,17 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0].isIntersecting && !fadeTimerRef.current) {
-          fadeTimerRef.current = setTimeout(() => setHighlightVisible(false), 2000);
+          fadeTimerRef.current = setTimeout(() => {
+            setHighlightVisible(false);
+            // Clean up task params from URL so refresh goes to normal chat.
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("taskFrom")) {
+              url.searchParams.delete("taskFrom");
+              url.searchParams.delete("taskTo");
+              url.searchParams.delete("taskEvents");
+              window.history.replaceState(null, "", url.pathname + (url.search || ""));
+            }
+          }, 2000);
           observer.disconnect();
         }
       },

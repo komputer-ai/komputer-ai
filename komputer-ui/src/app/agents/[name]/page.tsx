@@ -76,12 +76,6 @@ export default function AgentDetailPage() {
         if (!taskFrom && arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
-    // Clear task params from URL after a delay so refresh goes to normal chat.
-    if (taskFrom) {
-      setTimeout(() => {
-        window.history.replaceState(null, "", window.location.pathname);
-      }, 3000);
-    }
   }, [agentName, agentNs, parseEventsResponse, taskFrom, taskEvents]);
 
   // Load older events (called when user scrolls to top)
