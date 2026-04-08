@@ -127,6 +127,7 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 	var turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation float64
 	var turnAssistantMessages int
 	var pendingCancel *AgentEvent // deferred cancel — emitted only if not followed by a steer
+	var lastToolWasSkill bool      // true if the last assistant tool_use was "Skill" — next user message is skill content, skip it
 	firstTurn := true
 
 	emitTaskCompleted := func() {
@@ -238,6 +239,12 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 			}
 
 			// --- Convert or filter JSONL-specific user messages ---
+
+			// Skip skill content injected as user message after a Skill tool_use.
+			if lastToolWasSkill {
+				lastToolWasSkill = false
+				continue
+			}
 
 			// Interruptions: defer decision — if next user message follows immediately
 			// (steer), skip the cancel. If a new turn starts or file ends, emit cancel.
@@ -359,6 +366,9 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 				case "tool_use":
 					toolID, _ := b["id"].(string)
 					toolName, _ := b["name"].(string)
+					if toolName == "Skill" {
+						lastToolWasSkill = true
+					}
 					idx := len(events)
 					events = append(events, AgentEvent{
 						AgentName: agentName,
