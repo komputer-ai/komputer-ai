@@ -99,7 +99,7 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select an agent..." />
               </SelectTrigger>
-              <SelectContent className="min-w-[280px]">
+              <SelectContent className="min-w-[280px] right-0 left-auto">
                 {agentsWithCost.map((a) => {
                   const cost = parseFloat(a.totalCostUSD || "0");
                   return (
