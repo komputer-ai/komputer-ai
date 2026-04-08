@@ -804,7 +804,7 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
       <div
         key={`hl-${highlightBuf[0].idx}`}
         data-task-highlight=""
-        className={`rounded-lg py-1 flex flex-col gap-3 transition-all duration-500 ${highlightVisible ? "border-2 border-amber-400/30" : "border-2 border-transparent"}`}
+        className={`rounded-lg px-3 py-2 flex flex-col gap-3 transition-all duration-500 ${highlightVisible ? "border-2 border-amber-400/30" : "border-2 border-transparent"}`}
       >
         {highlightBuf.map(({ msg, idx }) => renderMsg(msg, idx))}
         <div ref={highlightEndRef} className="h-0" />

@@ -172,12 +172,20 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 		if entryType == "queue-operation" {
 			op, _ := entry["operation"].(string)
 			if op == "enqueue" && !firstTurn {
-				// Flush pending cancel before the new turn — it was a real cancel, not a steer.
 				if pendingCancel != nil {
+					// Task was cancelled — emit cancel instead of task_completed.
 					events = append(events, *pendingCancel)
 					pendingCancel = nil
+					// Reset turn accumulators without emitting task_completed.
+					lastAssistantTimestamp = ""
+					turnInputTokens = 0
+					turnOutputTokens = 0
+					turnCacheRead = 0
+					turnCacheCreation = 0
+					turnAssistantMessages = 0
+				} else {
+					emitTaskCompleted()
 				}
-				emitTaskCompleted()
 			}
 			firstTurn = false
 			continue
