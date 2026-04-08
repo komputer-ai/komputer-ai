@@ -139,11 +139,10 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 	pendingTools := map[string]*toolUseInfo{}
 
 	// Track per-turn stats for task_completed events.
-	// For cost: use last message's input/cache tokens (context is re-sent each call)
-	// but accumulate output tokens (each call generates new output).
+	// Cost is calculated per API call and summed (each call has its own billing).
 	var lastAssistantTimestamp string
-	var lastInputTokens, lastCacheRead, lastCacheCreation float64 // from the most recent API call
-	var turnOutputTokens float64                                   // accumulated across all calls
+	var turnCostUSD float64          // accumulated cost across all API calls in the turn
+	var turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation float64 // for display
 	var turnAssistantMessages int
 	var pendingCancel *AgentEvent // deferred cancel — emitted only if not followed by a steer
 	var lastToolWasSkill bool      // true if the last assistant tool_use was "Skill" — next user message is skill content, skip it
@@ -153,15 +152,14 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		if lastAssistantTimestamp == "" {
 			return
 		}
-		costUSD := estimateCostUSD(model, lastInputTokens, turnOutputTokens, lastCacheRead, lastCacheCreation)
 		payload := map[string]interface{}{
 			"num_turns": turnAssistantMessages,
-			"cost_usd":  costUSD,
+			"cost_usd":  turnCostUSD,
 			"usage": map[string]interface{}{
-				"input_tokens":                int64(lastInputTokens),
+				"input_tokens":                int64(turnInputTokens),
 				"output_tokens":               int64(turnOutputTokens),
-				"cache_read_input_tokens":     int64(lastCacheRead),
-				"cache_creation_input_tokens": int64(lastCacheCreation),
+				"cache_read_input_tokens":     int64(turnCacheRead),
+				"cache_creation_input_tokens": int64(turnCacheCreation),
 			},
 		}
 		events = append(events, AgentEvent{
@@ -171,10 +169,11 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 			Payload:   payload,
 		})
 		lastAssistantTimestamp = ""
-		lastInputTokens = 0
+		turnCostUSD = 0
+		turnInputTokens = 0
 		turnOutputTokens = 0
-		lastCacheRead = 0
-		lastCacheCreation = 0
+		turnCacheRead = 0
+		turnCacheCreation = 0
 		turnAssistantMessages = 0
 	}
 
@@ -199,10 +198,11 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 					pendingCancel = nil
 					// Reset turn accumulators without emitting task_completed.
 					lastAssistantTimestamp = ""
-					lastInputTokens = 0
+					turnCostUSD = 0
+					turnInputTokens = 0
 					turnOutputTokens = 0
-					lastCacheRead = 0
-					lastCacheCreation = 0
+					turnCacheRead = 0
+					turnCacheCreation = 0
 					turnAssistantMessages = 0
 				} else {
 					emitTaskCompleted()
@@ -329,21 +329,26 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		} else if role == "assistant" {
 			lastAssistantTimestamp = timestamp
 			turnAssistantMessages++
-			// Track usage: overwrite input/cache (last call has final context),
-			// accumulate output (each call generates new tokens).
+			// Calculate cost per API call and sum. Each call is billed independently.
 			if usage, ok := msg["usage"].(map[string]interface{}); ok {
+				var inp, out, cr, cc float64
 				if v, ok := usage["input_tokens"].(float64); ok {
-					lastInputTokens = v
+					inp = v
+					turnInputTokens += v
 				}
 				if v, ok := usage["output_tokens"].(float64); ok {
+					out = v
 					turnOutputTokens += v
 				}
 				if v, ok := usage["cache_read_input_tokens"].(float64); ok {
-					lastCacheRead = v
+					cr = v
+					turnCacheRead += v
 				}
 				if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
-					lastCacheCreation = v
+					cc = v
+					turnCacheCreation += v
 				}
+				turnCostUSD += estimateCostUSD(model, inp, out, cr, cc)
 			}
 			content, _ := msg["content"].([]interface{})
 			if content == nil {
