@@ -23,7 +23,7 @@ import (
 
 // fetchSessionEvents reads Claude session JSONL from the agent pod and parses
 // it into AgentEvents. Uses HTTP to agent pod, falls back to exec (instant in LOCAL mode).
-func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64) []AgentEvent {
+func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64, model string) []AgentEvent {
 	var raw []byte
 
 	// Try HTTP first (skipped instantly in LOCAL mode).
@@ -66,7 +66,7 @@ func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessio
 		return nil
 	}
 
-	return convertSessionJSONL(raw, agentName, limit)
+	return convertSessionJSONL(raw, agentName, limit, model)
 }
 
 // backfillRedisHistory writes converted session events into Redis history
@@ -110,7 +110,23 @@ func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEve
 //   - Background task notifications ("*(Background task completed") → skipped
 //   - System prompt prefix stripped from first user message per turn
 // ---------------------------------------------------------------------------
-func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent {
+// estimateCostUSD calculates dollar cost from token counts and model pricing.
+func estimateCostUSD(model string, inputTokens, outputTokens, cacheRead, cacheCreate float64) float64 {
+	// Pricing per 1M tokens (as of 2026-04)
+	var inputRate, outputRate, cacheReadRate, cacheCreateRate float64
+	switch {
+	case strings.Contains(model, "opus"):
+		inputRate, outputRate, cacheReadRate, cacheCreateRate = 15.0, 75.0, 1.50, 18.75
+	case strings.Contains(model, "haiku"):
+		inputRate, outputRate, cacheReadRate, cacheCreateRate = 0.80, 4.0, 0.08, 1.0
+	default: // sonnet
+		inputRate, outputRate, cacheReadRate, cacheCreateRate = 3.0, 15.0, 0.30, 3.75
+	}
+	return (inputTokens*inputRate + outputTokens*outputRate +
+		cacheRead*cacheReadRate + cacheCreate*cacheCreateRate) / 1_000_000
+}
+
+func convertSessionJSONL(raw []byte, agentName string, limit int64, model string) []AgentEvent {
 	var events []AgentEvent
 
 	// Track tool_use blocks by ID so we can merge output from tool_result entries.
@@ -134,8 +150,10 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 		if lastAssistantTimestamp == "" {
 			return
 		}
+		costUSD := estimateCostUSD(model, turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation)
 		payload := map[string]interface{}{
 			"num_turns": turnAssistantMessages,
+			"cost_usd":  costUSD,
 			"usage": map[string]interface{}{
 				"input_tokens":                int64(turnInputTokens),
 				"output_tokens":               int64(turnOutputTokens),

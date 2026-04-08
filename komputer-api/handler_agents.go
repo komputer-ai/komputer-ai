@@ -476,7 +476,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 			agent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
 			if getErr == nil && agent.Status.PodName != "" && agent.Status.SessionID != "" {
 				// Fetch ALL events (no limit) so we backfill the full history.
-				allSessionEvents := fetchSessionEvents(c.Request.Context(), k8s, ns, agent.Status.PodName, agent.Status.SessionID, name, 0)
+				allSessionEvents := fetchSessionEvents(c.Request.Context(), k8s, ns, agent.Status.PodName, agent.Status.SessionID, name, 0, agent.Spec.Model)
 				if len(allSessionEvents) > 0 {
 					// Backfill synchronously so pagination works on the next request.
 					backfillRedisHistory(worker.Rdb, name, allSessionEvents)
