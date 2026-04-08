@@ -41,7 +41,8 @@ type AgentChatProps = {
   onLoadOlder?: () => void;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
   scrollSnapshotRef?: React.RefObject<number | null>;
-  scrollToTimestamp?: string;
+  highlightTaskFrom?: string;
+  highlightTaskTo?: string;
 };
 
 // --- Message types derived from events ---
@@ -703,8 +704,11 @@ function ErrorBar({ message }: { message: string }) {
 
 // --- Memoized message list — skips re-render when only input state changes ---
 
-export const MessageList = React.memo(function MessageList({ messages, agentName, agentNamespace }: { messages: ChatMessage[]; agentName?: string; agentNamespace?: string }) {
+export const MessageList = React.memo(function MessageList({ messages, agentName, agentNamespace, highlightFrom, highlightTo }: { messages: ChatMessage[]; agentName?: string; agentNamespace?: string; highlightFrom?: string; highlightTo?: string }) {
   const userTextCount: Record<string, number> = {};
+  const fromTime = highlightFrom ? new Date(highlightFrom).getTime() : null;
+  const toTime = highlightTo ? new Date(highlightTo).getTime() : null;
+
   return (
     <>
       {messages.map((msg, i) => {
@@ -716,27 +720,35 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
           }
           return `${msg.kind}-${msg.timestamp}-${i}`;
         })();
+
+        const msgTime = new Date(msg.timestamp).getTime();
+        const isHighlighted = fromTime != null && toTime != null && msgTime >= fromTime && msgTime <= toTime;
+        const highlightClass = isHighlighted ? "bg-[var(--color-brand-blue-glow)] rounded-lg" : "";
+        const highlightAttr = isHighlighted ? { "data-task-highlight": "" } : {};
+
         switch (msg.kind) {
           case "user":
-            return <div key={key} data-timestamp={msg.timestamp}><UserBubble text={msg.text} timestamp={msg.timestamp} /></div>;
+            return <div key={key} className={highlightClass} {...highlightAttr}><UserBubble text={msg.text} timestamp={msg.timestamp} /></div>;
           case "text":
-            return <AgentBubble key={key} text={msg.text} timestamp={msg.timestamp} usage={msg.usage} agentName={agentName} namespace={agentNamespace} />;
+            return <div key={key} className={highlightClass} {...highlightAttr}><AgentBubble text={msg.text} timestamp={msg.timestamp} usage={msg.usage} agentName={agentName} namespace={agentNamespace} /></div>;
           case "thinking":
-            return <ThinkingBubble key={key} text={msg.text} />;
+            return <div key={key} className={highlightClass} {...highlightAttr}><ThinkingBubble text={msg.text} /></div>;
           case "tool":
             return (
-              <motion.div key={key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>
-                {msg.toolName === "Skill"
-                  ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} />
-                  : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} />}
-              </motion.div>
+              <div key={key} className={highlightClass} {...highlightAttr}>
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>
+                  {msg.toolName === "Skill"
+                    ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} />
+                    : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} />}
+                </motion.div>
+              </div>
             );
           case "completed":
-            return <CompletedDivider key={key} costUSD={msg.costUSD} duration={msg.duration} turns={msg.turns} inputTokens={msg.inputTokens} outputTokens={msg.outputTokens} cacheReadTokens={msg.cacheReadTokens} cacheCreationTokens={msg.cacheCreationTokens} />;
+            return <div key={key} className={highlightClass} {...highlightAttr}><CompletedDivider costUSD={msg.costUSD} duration={msg.duration} turns={msg.turns} inputTokens={msg.inputTokens} outputTokens={msg.outputTokens} cacheReadTokens={msg.cacheReadTokens} cacheCreationTokens={msg.cacheCreationTokens} /></div>;
           case "cancelled":
-            return <CancelledDivider key={key} />;
+            return <div key={key} className={highlightClass} {...highlightAttr}><CancelledDivider /></div>;
           case "error":
-            return <ErrorBar key={key} message={msg.message} />;
+            return <div key={key} className={highlightClass} {...highlightAttr}><ErrorBar message={msg.message} /></div>;
         }
       })}
     </>
@@ -759,7 +771,8 @@ export function AgentChat({
   onLoadOlder,
   scrollContainerRef: parentScrollRef,
   scrollSnapshotRef,
-  scrollToTimestamp,
+  highlightTaskFrom,
+  highlightTaskTo,
 }: AgentChatProps) {
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -900,14 +913,12 @@ export function AgentChat({
 
     if (!initialScrollDone.current) {
       initialScrollDone.current = true;
-      if (scrollToTimestamp) {
-        // Find and scroll to the target message, highlight it briefly.
+      if (highlightTaskFrom) {
+        // Scroll to the first highlighted message.
         requestAnimationFrame(() => {
-          const msgEl = container.querySelector(`[data-timestamp="${scrollToTimestamp}"]`) as HTMLElement | null;
-          if (msgEl) {
-            msgEl.scrollIntoView({ behavior: "smooth", block: "center" });
-            msgEl.classList.add("ring-2", "ring-[var(--color-brand-blue)]", "rounded-lg");
-            setTimeout(() => msgEl.classList.remove("ring-2", "ring-[var(--color-brand-blue)]", "rounded-lg"), 3000);
+          const firstHighlight = container.querySelector("[data-task-highlight]") as HTMLElement | null;
+          if (firstHighlight) {
+            firstHighlight.scrollIntoView({ behavior: "smooth", block: "start" });
           }
         });
       } else {
@@ -929,24 +940,31 @@ export function AgentChat({
     }
   }, [messages.length]);
 
-  // IntersectionObserver to trigger loading older events when sentinel is visible
-  // Only attach after the initial scroll to bottom is done, to avoid immediately loading all pages.
+  // IntersectionObserver to trigger loading older events when sentinel is visible.
+  // Uses refs for all guards so the observer identity is stable (no cascade re-creates).
+  const onLoadOlderRef = useRef(onLoadOlder);
+  onLoadOlderRef.current = onLoadOlder;
+  const hasMoreRef = useRef(hasMoreEvents);
+  hasMoreRef.current = hasMoreEvents;
+  const loadingOlderRef = useRef(loadingOlder);
+  loadingOlderRef.current = loadingOlder;
+
   useEffect(() => {
     if (!initialScrollDone.current) return;
     const sentinel = sentinelRef.current;
     const container = scrollContainerRef.current;
-    if (!sentinel || !container || !onLoadOlder) return;
+    if (!sentinel || !container) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMoreEvents && !loadingOlder) {
-          onLoadOlder();
+        if (entries[0].isIntersecting && hasMoreRef.current && !loadingOlderRef.current && onLoadOlderRef.current) {
+          onLoadOlderRef.current();
         }
       },
       { root: container, threshold: 0.1 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMoreEvents, loadingOlder, onLoadOlder]);
+  }, [agentName]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -1065,7 +1083,7 @@ export function AgentChat({
                 </div>
               </div>
             )}
-            <MessageList messages={messages} agentName={agentName} agentNamespace={agentNamespace} />
+            <MessageList messages={messages} agentName={agentName} agentNamespace={agentNamespace} highlightFrom={highlightTaskFrom} highlightTo={highlightTaskTo} />
             <AnimatePresence>
             {showThinking && (
               <motion.div

@@ -44,7 +44,8 @@ export default function AgentDetailPage() {
   const agentName = params.name;
   const agentNs = searchParams.get("namespace") || undefined;
   const initialPending = searchParams.get("pending") || undefined;
-  const scrollToTimestamp = searchParams.get("scrollTo") || undefined;
+  const taskFrom = searchParams.get("taskFrom") || undefined;
+  const taskTo = searchParams.get("taskTo") || undefined;
 
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "info" ? "info" : "chat");
   const [agent, setAgent] = useState<AgentResponse | null>(null);
@@ -65,14 +66,14 @@ export default function AgentDetailPage() {
   // Fetch event history on mount
   useEffect(() => {
     if (!agentName) return;
-    getAgentEvents(agentName, 50, agentNs, undefined, undefined, scrollToTimestamp)
+    getAgentEvents(agentName, 50, agentNs, undefined, undefined, taskFrom)
       .then((data: unknown) => {
         const arr = parseEventsResponse(data);
         setHistoryEvents(arr);
         if (arr.length < 50) setHasMoreEvents(false);
       })
       .catch(() => {});
-  }, [agentName, agentNs, parseEventsResponse, scrollToTimestamp]);
+  }, [agentName, agentNs, parseEventsResponse, taskFrom]);
 
   // Load older events (called when user scrolls to top)
   const historyEventsRef = useRef(historyEvents);
@@ -374,7 +375,8 @@ export default function AgentDetailPage() {
             onLoadOlder={loadOlderEvents}
             scrollContainerRef={scrollContainerRef}
             scrollSnapshotRef={scrollSnapshotRef}
-            scrollToTimestamp={scrollToTimestamp}
+            highlightTaskFrom={taskFrom}
+            highlightTaskTo={taskTo}
           />
           <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
         </TabsContent>

@@ -199,7 +199,12 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                   key={task.index}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  onClick={() => router.push(`/agents/${selectedAgent}?scrollTo=${encodeURIComponent(task.startedAt)}`)}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set("taskFrom", task.startedAt);
+                    if (task.completedAt) params.set("taskTo", task.completedAt);
+                    router.push(`/agents/${selectedAgent}?${params.toString()}`);
+                  }}
                   title="Click to see task messages"
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)] ${
                     mostExpensiveTask?.index === task.index
