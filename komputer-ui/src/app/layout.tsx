@@ -14,7 +14,6 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Komputer.AI",
   description: "Distributed Claude agent platform",
 };
 

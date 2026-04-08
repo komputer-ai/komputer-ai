@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AgentEvent } from "@/lib/types";
-import { createAgent, cancelAgent } from "@/lib/api";
+import { createAgent, cancelAgent, patchAgent } from "@/lib/api";
 import { getConfig } from "@/lib/config";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
@@ -722,7 +722,11 @@ export function AgentChat({
     if (v) localStorage.setItem(`draft:${agentName}`, v);
     else localStorage.removeItem(`draft:${agentName}`);
   }, [agentName]);
-  const [lifecycle, setLifecycle] = useState<"" | "Sleep" | "AutoDelete">((agentLifecycle as "" | "Sleep" | "AutoDelete") || "");
+  const [lifecycle, setLifecycleRaw] = useState<"" | "Sleep" | "AutoDelete">((agentLifecycle as "" | "Sleep" | "AutoDelete") || "");
+  const setLifecycle = useCallback((lc: "" | "Sleep" | "AutoDelete") => {
+    setLifecycleRaw(lc);
+    patchAgent(agentName, { lifecycle: lc }, agentNamespace).catch(() => {});
+  }, [agentName, agentNamespace]);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const lifecycleRef = useRef<HTMLDivElement>(null);
 

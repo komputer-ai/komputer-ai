@@ -109,9 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return { href: parentPath, label: parentTitle };
   }, [pathname]);
 
-  useEffect(() => {
-    document.title = title ? `${title} · Komputer.AI` : "Komputer.AI";
-  }, [title]);
+  const fullTitle = title ? `${title} · Komputer.AI` : "Komputer.AI";
 
   const [refreshFn, setRefreshFn] = useState<(() => void) | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -182,6 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <CreateAgentModalContext.Provider value={{ openWithTemplate }}>
+      <title>{fullTitle}</title>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-12 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] shrink-0">
