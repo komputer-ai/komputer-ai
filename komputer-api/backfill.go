@@ -126,6 +126,7 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 	var lastAssistantTimestamp string
 	var turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation float64
 	var turnAssistantMessages int
+	var pendingCancel *AgentEvent // deferred cancel — emitted only if not followed by a steer
 	firstTurn := true
 
 	emitTaskCompleted := func() {
@@ -170,6 +171,11 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 		if entryType == "queue-operation" {
 			op, _ := entry["operation"].(string)
 			if op == "enqueue" && !firstTurn {
+				// Flush pending cancel before the new turn — it was a real cancel, not a steer.
+				if pendingCancel != nil {
+					events = append(events, *pendingCancel)
+					pendingCancel = nil
+				}
 				emitTaskCompleted()
 			}
 			firstTurn = false
@@ -233,15 +239,20 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 
 			// --- Convert or filter JSONL-specific user messages ---
 
-			// Interruptions → task_cancelled
+			// Interruptions: defer decision — if next user message follows immediately
+			// (steer), skip the cancel. If a new turn starts or file ends, emit cancel.
 			if strings.HasPrefix(text, "[Request interrupted by user") {
-				events = append(events, AgentEvent{
+				pendingCancel = &AgentEvent{
 					AgentName: agentName,
 					Type:      "task_cancelled",
 					Timestamp: timestamp,
 					Payload:   map[string]interface{}{"reason": "Cancelled by user"},
-				})
+				}
 				continue
+			}
+			// A real user message after an interrupt means it was a steer — drop the cancel.
+			if pendingCancel != nil {
+				pendingCancel = nil
 			}
 			// Compaction summaries → compaction indicator
 			if strings.HasPrefix(text, "This session is being continued from a previous conversation") {
@@ -367,6 +378,11 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64) []AgentEvent
 		}
 	}
 
+	// Flush pending cancel at end of file — it was a real cancel.
+	if pendingCancel != nil {
+		events = append(events, *pendingCancel)
+		pendingCancel = nil
+	}
 	// Emit task_completed for the final turn.
 	emitTaskCompleted()
 
