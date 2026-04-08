@@ -265,6 +265,7 @@ export interface TaskBreakdown {
   cacheReadTokens: number;
   cacheCreateTokens: number;
   steer?: boolean;
+  events: AgentEvent[];
 }
 
 export interface CostBreakdownResponse {

@@ -10,18 +10,19 @@ import (
 )
 
 type TaskBreakdown struct {
-	Index             int     `json:"index"`
-	StartedAt         string  `json:"startedAt"`
-	CompletedAt       string  `json:"completedAt,omitempty"`
-	Instruction       string  `json:"instruction"`
-	CostUSD           float64 `json:"costUSD"`
-	DurationMs        int64   `json:"durationMs"`
-	Turns             int     `json:"turns"`
-	InputTokens       int64   `json:"inputTokens"`
-	OutputTokens      int64   `json:"outputTokens"`
-	CacheReadTokens   int64   `json:"cacheReadTokens"`
-	CacheCreateTokens int64   `json:"cacheCreateTokens"`
-	Steer             bool    `json:"steer,omitempty"`
+	Index             int          `json:"index"`
+	StartedAt         string       `json:"startedAt"`
+	CompletedAt       string       `json:"completedAt,omitempty"`
+	Instruction       string       `json:"instruction"`
+	CostUSD           float64      `json:"costUSD"`
+	DurationMs        int64        `json:"durationMs"`
+	Turns             int          `json:"turns"`
+	InputTokens       int64        `json:"inputTokens"`
+	OutputTokens      int64        `json:"outputTokens"`
+	CacheReadTokens   int64        `json:"cacheReadTokens"`
+	CacheCreateTokens int64        `json:"cacheCreateTokens"`
+	Steer             bool         `json:"steer,omitempty"`
+	Events            []AgentEvent `json:"events"`
 }
 
 type CostBreakdownResponse struct {
@@ -38,6 +39,11 @@ func buildCostBreakdown(events []AgentEvent) CostBreakdownResponse {
 	idx := 0
 
 	for _, ev := range events {
+		// Collect events for the current task.
+		if current != nil {
+			current.Events = append(current.Events, ev)
+		}
+
 		switch ev.Type {
 		case "task_started":
 			instruction, _ := ev.Payload["instructions"].(string)
@@ -55,6 +61,7 @@ func buildCostBreakdown(events []AgentEvent) CostBreakdownResponse {
 				StartedAt:   ev.Timestamp,
 				Instruction: instruction,
 				Steer:       steer,
+				Events:      []AgentEvent{ev},
 			}
 			idx++
 
@@ -69,6 +76,7 @@ func buildCostBreakdown(events []AgentEvent) CostBreakdownResponse {
 					Index:       idx,
 					StartedAt:   ev.Timestamp,
 					Instruction: content,
+					Events:      []AgentEvent{ev},
 				}
 				idx++
 			}

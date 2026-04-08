@@ -81,7 +81,7 @@ type ChatMessage =
   | { kind: "error"; message: string; timestamp: string }
   | { kind: "cancelled"; timestamp: string };
 
-function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
+export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   for (const event of events) {
     switch (event.type) {
@@ -702,7 +702,7 @@ function ErrorBar({ message }: { message: string }) {
 
 // --- Memoized message list — skips re-render when only input state changes ---
 
-const MessageList = React.memo(function MessageList({ messages, agentName, agentNamespace }: { messages: ChatMessage[]; agentName?: string; agentNamespace?: string }) {
+export const MessageList = React.memo(function MessageList({ messages, agentName, agentNamespace }: { messages: ChatMessage[]; agentName?: string; agentNamespace?: string }) {
   const userTextCount: Record<string, number> = {};
   return (
     <>

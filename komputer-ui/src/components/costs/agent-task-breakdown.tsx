@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowUpDown, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUpDown, RefreshCw, ChevronRight } from "lucide-react";
 import { Tooltip } from "@/components/kit/tooltip";
+import { MessageList, eventsToChatMessages } from "@/components/agents/agent-chat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/kit/card";
 import {
   Select,
@@ -38,6 +39,7 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("index");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedTask, setExpandedTask] = useState<number | null>(null);
 
   const agentsWithCost = agents
     .filter((a) => parseFloat(a.totalCostUSD || "0") > 0)
@@ -112,7 +114,7 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
               </SelectContent>
             </Select>
             {selectedAgent && (
-              <Tooltip content="Reprocess events (clears cache)" side="bottom">
+              <Tooltip content="Reprocess events (clears cache)" side="left">
                 <button
                   type="button"
                   onClick={() => fetchBreakdown(selectedAgent, true)}
@@ -190,48 +192,62 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
             </div>
 
             {/* Task list — max 10 visible, scroll for the rest */}
-            <div className="space-y-1.5 max-h-[440px] overflow-y-auto">
-              {sortedTasks.map((task) => (
-                <motion.div
-                  key={task.index}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors hover:bg-[var(--color-surface-hover)] ${
-                    mostExpensiveTask?.index === task.index
-                      ? "border border-amber-500/20 bg-amber-500/5"
-                      : ""
-                  }`}
-                >
-                  <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
-                    #{task.index + 1}
-                  </span>
-                  <span
-                    className="flex-1 min-w-0 truncate text-[var(--color-text)]"
-                    title={task.instruction}
-                  >
-                    {task.steer && (
-                      <span className="mr-1.5 text-[var(--color-brand-violet)]">
-                        steer
+            <div className="space-y-1 max-h-[440px] overflow-y-auto">
+              {sortedTasks.map((task) => {
+                const isExpanded = expandedTask === task.index;
+                return (
+                  <div key={task.index}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTask(isExpanded ? null : task.index)}
+                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors cursor-pointer text-left hover:bg-[var(--color-surface-hover)] ${
+                        mostExpensiveTask?.index === task.index
+                          ? "border border-amber-500/20 bg-amber-500/5"
+                          : ""
+                      } ${isExpanded ? "bg-[var(--color-surface-hover)]" : ""}`}
+                    >
+                      <ChevronRight className={`size-3 shrink-0 text-[var(--color-text-muted)] transition-transform duration-150 ${isExpanded ? "rotate-90" : ""}`} />
+                      <span className="w-6 text-right font-mono text-[var(--color-text-muted)]">
+                        #{task.index + 1}
                       </span>
-                    )}
-                    {task.instruction || "—"}
-                  </span>
-                  <span className="shrink-0 font-mono text-[var(--color-brand-blue)] w-20 text-right">
-                    ${task.costUSD.toFixed(4)}
-                  </span>
-                  <span className="shrink-0 w-16 text-right text-[var(--color-text-secondary)]">
-                    {task.durationMs > 0 ? formatDuration(task.durationMs) : "—"}
-                  </span>
-                  <span className="shrink-0 w-16 text-right font-mono text-[var(--color-text-muted)]">
-                    {task.inputTokens > 0
-                      ? formatTokens(task.inputTokens + task.outputTokens)
-                      : "—"}
-                  </span>
-                  <span className="shrink-0 w-12 text-right text-[var(--color-text-muted)]">
-                    {task.turns > 0 ? `${task.turns}t` : "—"}
-                  </span>
-                </motion.div>
-              ))}
+                      <span className="flex-1 min-w-0 truncate text-[var(--color-text)]" title={task.instruction}>
+                        {task.steer && <span className="mr-1.5 text-[var(--color-brand-violet)]">steer</span>}
+                        {task.instruction || "—"}
+                      </span>
+                      <span className="shrink-0 font-mono text-[var(--color-brand-blue)] w-20 text-right">
+                        ${task.costUSD.toFixed(4)}
+                      </span>
+                      <span className="shrink-0 w-16 text-right text-[var(--color-text-secondary)]">
+                        {task.durationMs > 0 ? formatDuration(task.durationMs) : "—"}
+                      </span>
+                      <span className="shrink-0 w-16 text-right font-mono text-[var(--color-text-muted)]">
+                        {task.inputTokens > 0 ? formatTokens(task.inputTokens + task.outputTokens) : "—"}
+                      </span>
+                      <span className="shrink-0 w-12 text-right text-[var(--color-text-muted)]">
+                        {task.turns > 0 ? `${task.turns}t` : "—"}
+                      </span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isExpanded && task.events && task.events.length > 0 && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-l-2 border-[var(--color-border)] ml-6 pl-4 py-3 space-y-3">
+                            <MessageList
+                              messages={eventsToChatMessages(task.events)}
+                              agentName={selectedAgent}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : null}
