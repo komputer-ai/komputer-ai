@@ -41,6 +41,7 @@ type AgentChatProps = {
   onLoadOlder?: () => void;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
   scrollSnapshotRef?: React.RefObject<number | null>;
+  scrollToTimestamp?: string;
 };
 
 // --- Message types derived from events ---
@@ -717,7 +718,7 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
         })();
         switch (msg.kind) {
           case "user":
-            return <UserBubble key={key} text={msg.text} timestamp={msg.timestamp} />;
+            return <div key={key} data-timestamp={msg.timestamp}><UserBubble text={msg.text} timestamp={msg.timestamp} /></div>;
           case "text":
             return <AgentBubble key={key} text={msg.text} timestamp={msg.timestamp} usage={msg.usage} agentName={agentName} namespace={agentNamespace} />;
           case "thinking":
@@ -758,6 +759,7 @@ export function AgentChat({
   onLoadOlder,
   scrollContainerRef: parentScrollRef,
   scrollSnapshotRef,
+  scrollToTimestamp,
 }: AgentChatProps) {
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -897,9 +899,21 @@ export function AgentChat({
     prevMsgCountRef.current = messages.length;
 
     if (!initialScrollDone.current) {
-      // First render with messages — snap to bottom instantly (no smooth)
-      bottomRef.current?.scrollIntoView();
       initialScrollDone.current = true;
+      if (scrollToTimestamp) {
+        // Find and scroll to the target message, highlight it briefly.
+        requestAnimationFrame(() => {
+          const msgEl = container.querySelector(`[data-timestamp="${scrollToTimestamp}"]`) as HTMLElement | null;
+          if (msgEl) {
+            msgEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            msgEl.classList.add("ring-2", "ring-[var(--color-brand-blue)]", "rounded-lg");
+            setTimeout(() => msgEl.classList.remove("ring-2", "ring-[var(--color-brand-blue)]", "rounded-lg"), 3000);
+          }
+        });
+      } else {
+        // Normal: snap to bottom
+        bottomRef.current?.scrollIntoView();
+      }
       return;
     }
 
