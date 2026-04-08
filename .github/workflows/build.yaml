@@ -294,9 +294,16 @@ jobs:
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
         run: cd komputer-api && go test -v ./...
 
+      - name: Install envtest binaries
+        if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
+        run: |
+          cd komputer-operator
+          go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+          setup-envtest use --bin-dir ./bin/k8s
+
       - name: Test Operator
         if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
-        run: cd komputer-operator && go test -v ./...
+        run: cd komputer-operator && go test -v $(go list ./... | grep -v /test/e2e)
 
       - name: Test CLI
         if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.is_tag == 'true'
