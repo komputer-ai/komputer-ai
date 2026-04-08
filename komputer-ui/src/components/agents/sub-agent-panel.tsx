@@ -299,25 +299,33 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
     getOffice(officeName, namespace)
       .then((office) => {
         const members = (office.members || []).filter((m) => m.name !== agentName);
-        setOfficeMembers(members.map((m) => ({ name: m.name, role: m.role })));
+        const newMembers = members.map((m) => ({ name: m.name, role: m.role }));
+        setOfficeMembers((prev) => {
+          const key = (a: { name: string }[]) => a.map((m) => m.name).sort().join(",");
+          return key(prev) === key(newMembers) ? prev : newMembers;
+        });
         const statuses: Record<string, string> = {};
         for (const m of members) {
           if (m.taskStatus) statuses[m.name] = m.taskStatus;
         }
-        setMemberStatuses(statuses);
+        setMemberStatuses((prev) => JSON.stringify(prev) === JSON.stringify(statuses) ? prev : statuses);
       })
       .catch(() => {});
     listAgents(namespace)
       .then((res) => {
         const agents = res.agents || [];
-        setExistingAgents(new Set(agents.map((a) => a.name)));
+        const names = agents.map((a) => a.name).sort();
+        setExistingAgents((prev) => {
+          const prevArr = prev ? [...prev].sort() : [];
+          return prevArr.join(",") === names.join(",") ? prev : new Set(names);
+        });
         const statuses: Record<string, string> = {};
         for (const a of agents) {
           statuses[a.name] = a.status;
         }
-        setAgentStatuses(statuses);
+        setAgentStatuses((prev) => JSON.stringify(prev) === JSON.stringify(statuses) ? prev : statuses);
       })
-      .catch(() => setExistingAgents(new Set()));
+      .catch(() => setExistingAgents((prev) => prev ?? new Set()));
   }, [agentName, namespace]);
 
   // Initial fetch
