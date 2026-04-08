@@ -92,38 +92,40 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
           <CardTitle className="text-sm font-medium text-[var(--color-text)]">
             Task Breakdown
           </CardTitle>
-          <Select value={selectedAgent} onValueChange={handleSelect}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select an agent..." />
-            </SelectTrigger>
-            <SelectContent className="min-w-[280px]">
-              {agentsWithCost.map((a) => {
-                const cost = parseFloat(a.totalCostUSD || "0");
-                return (
-                  <SelectItem key={a.name} value={a.name}>
-                    <span className="inline-flex items-center gap-2 w-full">
-                      <span className="truncate">{a.name}</span>
-                      <span className="font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
-                        ${cost.toFixed(4)}
+          <div className="flex items-center gap-2">
+            <Select value={selectedAgent} onValueChange={handleSelect}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select an agent..." />
+              </SelectTrigger>
+              <SelectContent className="min-w-[280px]">
+                {agentsWithCost.map((a) => {
+                  const cost = parseFloat(a.totalCostUSD || "0");
+                  return (
+                    <SelectItem key={a.name} value={a.name}>
+                      <span className="inline-flex items-center gap-2 w-full">
+                        <span className="truncate">{a.name}</span>
+                        <span className="font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
+                          ${cost.toFixed(4)}
+                        </span>
                       </span>
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-          {selectedAgent && (
-            <Tooltip content="Reprocess events (clears cache)" side="bottom">
-              <button
-                type="button"
-                onClick={() => fetchBreakdown(selectedAgent, true)}
-                disabled={loading}
-                className="flex size-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-              </button>
-            </Tooltip>
-          )}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {selectedAgent && (
+              <Tooltip content="Reprocess events (clears cache)" side="bottom">
+                <button
+                  type="button"
+                  onClick={() => fetchBreakdown(selectedAgent, true)}
+                  disabled={loading}
+                  className="flex size-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
