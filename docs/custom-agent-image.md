@@ -1,6 +1,6 @@
 # Custom Agent Images
 
-The default agent image (`komputer-agent`) ships with Python 3.12, Node.js 22, git, curl, jq, and the Claude Code CLI. Agents have sudo access and can install anything at runtime — `apt-get`, `pip`, `npm`, `cargo`, `go install`, downloading binaries, compiling from source, or any other method available on a Debian-based system. Package installs via `pip` and `npm` persist across tasks thanks to the workspace PVC.
+The default agent image (`komputer-agent`) ships with Python 3.12, git, curl, jq, the Claude Agent SDK (which bundles the Claude Code CLI as a native binary), and the Google Workspace CLI. Agents have sudo access and can install anything at runtime — `apt-get`, `pip`, `npm`, `cargo`, `go install`, downloading binaries, compiling from source, or any other method available on a Debian-based system. Package installs via `pip` and `npm` persist across tasks thanks to the workspace PVC.
 
 Only `pip` and `npm` installs are persisted to the workspace PVC. System-level installs (`apt-get`, `cargo install`, downloaded binaries outside `/workspace`, etc.) live on the container filesystem and are **lost when the pod restarts**. If your agents consistently need specific tools or system packages across tasks, you should bake them into a custom agent image rather than relying on runtime installs.
 
@@ -65,15 +65,19 @@ Agents can reference this template with `templateRef: "custom"`.
 |-------|----------|
 | OS | Debian (python:3.12-slim) |
 | System tools | git, curl, jq, unzip, sudo |
-| Node.js | 22.x + Claude Code CLI (`@anthropic-ai/claude-code`) |
+| Claude Code CLI | Bundled as a native binary inside the Claude Agent SDK (no Node.js required) |
+| Google Workspace CLI | Standalone Rust binary (`gws`) for Google services |
 | Python | 3.12 + agent runtime (FastAPI, Claude Agent SDK, Redis client) |
 | User | `komputer` (non-root, passwordless sudo) |
 | Entrypoint | `python /app/main.py` |
+| Image size | ~550MB |
 
 Runtime package installs by agents persist to the workspace PVC:
 - `pip install` goes to `/workspace/.local`
-- `npm install -g` goes to `/workspace/.npm-global`
+- `npm install -g` goes to `/workspace/.npm-global` (if agents install Node.js at runtime)
 - Both are on `PATH` automatically
+
+> **Note:** Node.js is not pre-installed in the base image. Agents can install it at runtime via `sudo apt-get install -y nodejs` if needed for a task. The Claude Code CLI does not require Node.js — it's bundled as a native binary.
 
 ## Using a completely different base image
 
@@ -84,8 +88,7 @@ If you need a different Linux distribution (e.g., Ubuntu, Alpine, RHEL), you can
 When building a custom image (whether extending the base or rebuilding from scratch), keep these requirements in mind:
 
 - **Non-root user** — The Claude CLI requires a non-root user with `--dangerously-skip-permissions`. The base image creates a `komputer` user for this. If you change the user, make sure it's non-root with sudo access.
-- **Claude Code CLI** — Must be installed globally via npm (`@anthropic-ai/claude-code`). Without it, the agent cannot run.
+- **Claude Agent SDK** — Must be installed via pip (`claude-agent-sdk`). The SDK bundles the Claude Code CLI as a native binary — no separate installation needed.
 - **Entrypoint** — Must be `python /app/main.py`. The agent runtime (FastAPI server, event publisher, Claude SDK integration) lives in `/app/`. Do not override the entrypoint unless you know what you're doing.
 - **Workspace at `/workspace`** — The operator mounts the persistent volume here. Agents work in this directory.
 - **Python packages** — `requirements.txt` must be installed (FastAPI, Claude Agent SDK, Redis client, etc.)
-- **Node.js 22+** — Required for the Claude Code CLI
