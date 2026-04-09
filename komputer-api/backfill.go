@@ -23,7 +23,7 @@ import (
 
 // fetchSessionEvents reads Claude session JSONL from the agent pod and parses
 // it into AgentEvents. Uses HTTP to agent pod, falls back to exec (instant in LOCAL mode).
-func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64, model string) []AgentEvent {
+func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64, model string, totalCostUSD float64) []AgentEvent {
 	var raw []byte
 
 	// Try HTTP first (skipped instantly in LOCAL mode).
@@ -66,7 +66,7 @@ func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessio
 		return nil
 	}
 
-	return convertSessionJSONL(raw, agentName, limit, model)
+	return convertSessionJSONL(raw, agentName, limit, model, totalCostUSD)
 }
 
 // backfillRedisHistory writes converted session events into Redis history
@@ -138,7 +138,7 @@ func estimateCostUSD(model string, inputTokens, outputTokens, cacheRead, cacheCr
 		cacheRead*cacheReadRate + cacheCreate*cacheCreateRate) / 1_000_000
 }
 
-func convertSessionJSONL(raw []byte, agentName string, limit int64, model string) []AgentEvent {
+func convertSessionJSONL(raw []byte, agentName string, limit int64, model string, totalCostUSD float64) []AgentEvent {
 	var events []AgentEvent
 
 	// Track tool_use blocks by ID so we can merge output from tool_result entries.
@@ -466,6 +466,29 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 	}
 	// Emit task_completed for the final turn.
 	emitTaskCompleted()
+
+	// Scale estimated costs proportionally to match the CR's actual total.
+	// The estimation from token counts is approximate; the CR total is authoritative.
+	if totalCostUSD > 0 {
+		var estimatedTotal float64
+		for _, ev := range events {
+			if ev.Type == "task_completed" {
+				if c, ok := ev.Payload["cost_usd"].(float64); ok {
+					estimatedTotal += c
+				}
+			}
+		}
+		if estimatedTotal > 0 {
+			scale := totalCostUSD / estimatedTotal
+			for i := range events {
+				if events[i].Type == "task_completed" {
+					if c, ok := events[i].Payload["cost_usd"].(float64); ok {
+						events[i].Payload["cost_usd"] = c * scale
+					}
+				}
+			}
+		}
+	}
 
 	// Return last N events.
 	if limit > 0 && int64(len(events)) > limit {
