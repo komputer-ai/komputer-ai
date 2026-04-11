@@ -371,7 +371,7 @@ jobs:
   regenerate-sdk:
     name: Regenerate SDK
     needs: [changes, test]
-    if: needs.changes.outputs.is_tag == 'true' && needs.changes.outputs.api == 'true' && needs.test.result == 'success'
+    if: needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
