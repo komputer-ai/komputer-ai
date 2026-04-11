@@ -32,10 +32,10 @@ class KomputerClient:
         self._api_client = api_client
 
     def close(self):
-        self._api_client.close()
+        self._api_client.__exit__(None, None, None)
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
-        self.close()
+        self._api_client.__exit__(*args)
