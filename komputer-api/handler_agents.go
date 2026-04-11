@@ -82,6 +82,7 @@ type PatchAgentRequest struct {
 }
 
 // createOrTriggerAgent creates a new agent or sends a task to an existing one.
+// @ID createAgent
 // @Summary Create agent or send task
 // @Description Creates a new agent or sends a task to an existing idle agent (upsert by name).
 // @Description If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
@@ -298,6 +299,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteAgent deletes an agent and cleans up all its resources.
+// @ID deleteAgent
 // @Summary Delete agent
 // @Description Deletes the agent CR, pod, PVC, secrets, and Redis event stream.
 // @Tags agents
@@ -330,6 +332,7 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 }
 
 // cancelAgentTask cancels the running task on an agent.
+// @ID cancelAgentTask
 // @Summary Cancel agent task
 // @Description Gracefully cancels the currently running task. The agent pod stays alive for future tasks.
 // @Tags agents
@@ -378,6 +381,7 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getAgent returns details for a single agent.
+// @ID getAgent
 // @Summary Get agent details
 // @Description Returns the current status and metadata for a single agent.
 // @Tags agents
@@ -426,6 +430,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getAgentEvents returns the event history for an agent from Redis.
+// @ID getAgentEvents
 // @Summary Get agent events
 // @Description Returns recent events from the agent's Redis stream in chronological order.
 // @Tags agents
@@ -502,6 +507,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listAgents returns all agents in a namespace.
+// @ID listAgents
 // @Summary List agents
 // @Description Returns all agents with their current status in the specified namespace.
 // @Tags agents
@@ -549,6 +555,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // patchAgent updates fields on an existing agent.
+// @ID patchAgent
 // @Summary Patch agent
 // @Description Updates model, lifecycle, instructions, secretRefs, memories, skills, or connectors on an existing agent.
 // @Tags agents

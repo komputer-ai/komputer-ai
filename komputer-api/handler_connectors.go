@@ -49,6 +49,7 @@ type mcpTool struct {
 }
 
 // createConnector creates a new MCP connector resource.
+// @ID createConnector
 // @Summary Create connector
 // @Description Creates a new KomputerConnector CR pointing to an MCP server that can be attached to agents.
 // @Tags connectors
@@ -84,6 +85,7 @@ func createConnector(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listConnectors returns all connectors in a namespace.
+// @ID listConnectors
 // @Summary List connectors
 // @Description Returns all connectors with attached agent counts in the specified namespace.
 // @Tags connectors
@@ -118,6 +120,7 @@ func listConnectors(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getConnector returns details for a single connector.
+// @ID getConnector
 // @Summary Get connector details
 // @Description Returns the URL, service, type, and auth config for a single connector.
 // @Tags connectors
@@ -142,6 +145,7 @@ func getConnector(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listConnectorTools fetches the available tools from the connector's MCP server.
+// @ID listConnectorTools
 // @Summary List connector tools
 // @Description Calls the MCP server's tools/list endpoint and returns the available tools.
 // @Tags connectors
@@ -338,6 +342,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 }
 
 // deleteConnector deletes a connector by name.
+// @ID deleteConnector
 // @Summary Delete connector
 // @Description Deletes the connector CR.
 // @Tags connectors

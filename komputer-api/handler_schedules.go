@@ -95,6 +95,7 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 }
 
 // createSchedule creates a new cron schedule that fires agents on a recurring basis.
+// @ID createSchedule
 // @Summary Create schedule
 // @Description Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
 // @Tags schedules
@@ -140,6 +141,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listSchedules returns all schedules in a namespace.
+// @ID listSchedules
 // @Summary List schedules
 // @Description Returns all schedules with their current status and run history in the specified namespace.
 // @Tags schedules
@@ -165,6 +167,7 @@ func listSchedules(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getSchedule returns details for a single schedule.
+// @ID getSchedule
 // @Summary Get schedule details
 // @Description Returns the current status and run history for a single schedule.
 // @Tags schedules
@@ -193,6 +196,7 @@ func getSchedule(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteSchedule deletes a schedule by name.
+// @ID deleteSchedule
 // @Summary Delete schedule
 // @Description Deletes the schedule CR. Does not delete any agents that were created by the schedule.
 // @Tags schedules
@@ -221,6 +225,7 @@ func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // patchSchedule updates the cron expression for a schedule.
+// @ID patchSchedule
 // @Summary Patch schedule
 // @Description Updates the cron expression for an existing schedule.
 // @Tags schedules

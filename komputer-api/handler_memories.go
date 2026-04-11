@@ -30,6 +30,7 @@ type PatchMemoryRequest struct {
 }
 
 // createMemory creates a new memory resource.
+// @ID createMemory
 // @Summary Create memory
 // @Description Creates a new KomputerMemory CR that can be attached to agents as persistent context.
 // @Tags memories
@@ -71,6 +72,7 @@ func createMemory(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getMemory returns details for a single memory.
+// @ID getMemory
 // @Summary Get memory details
 // @Description Returns the content and attached agent count for a single memory.
 // @Tags memories
@@ -103,6 +105,7 @@ func getMemory(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listMemories returns all memories in a namespace.
+// @ID listMemories
 // @Summary List memories
 // @Description Returns all memories with content and attached agent counts in the specified namespace.
 // @Tags memories
@@ -136,6 +139,7 @@ func listMemories(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // patchMemory updates content or description on an existing memory.
+// @ID patchMemory
 // @Summary Patch memory
 // @Description Updates the content or description of an existing memory.
 // @Tags memories
@@ -183,6 +187,7 @@ func patchMemory(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteMemory deletes a memory by name.
+// @ID deleteMemory
 // @Summary Delete memory
 // @Description Deletes the memory CR.
 // @Tags memories

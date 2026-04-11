@@ -35,6 +35,7 @@ type UpdateSecretRequest struct {
 }
 
 // listSecrets returns all Kubernetes secrets in a namespace.
+// @ID listSecrets
 // @Summary List secrets
 // @Description Returns all secrets with key names (not values) and attached agent counts in the specified namespace.
 // @Tags secrets
@@ -85,6 +86,7 @@ func listSecrets(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // createManagedSecret creates a new managed Kubernetes secret.
+// @ID createSecret
 // @Summary Create managed secret
 // @Description Creates a new Kubernetes secret managed by komputer.ai that can be attached to agents.
 // @Tags secrets
@@ -131,6 +133,7 @@ func createManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteManagedSecret deletes a managed secret by name.
+// @ID deleteSecret
 // @Summary Delete managed secret
 // @Description Deletes a managed Kubernetes secret.
 // @Tags secrets
@@ -153,6 +156,7 @@ func deleteManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // updateManagedSecret updates the data in a managed secret.
+// @ID updateSecret
 // @Summary Update managed secret
 // @Description Replaces the key-value pairs in a managed Kubernetes secret.
 // @Tags secrets

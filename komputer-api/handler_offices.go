@@ -76,6 +76,7 @@ func officeToResponse(o komputerv1alpha1.KomputerOffice, includeMembers bool) Of
 }
 
 // listOffices returns all offices in a namespace.
+// @ID listOffices
 // @Summary List offices
 // @Description Returns all offices with their current status in the specified namespace.
 // @Tags offices
@@ -101,6 +102,7 @@ func listOffices(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getOffice returns details for a single office including all member agents.
+// @ID getOffice
 // @Summary Get office details
 // @Description Returns the current status and member list for a single office.
 // @Tags offices
@@ -129,6 +131,7 @@ func getOffice(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteOffice deletes an office and cleans up all member agent event streams.
+// @ID deleteOffice
 // @Summary Delete office
 // @Description Deletes the office CR and cleans up Redis event streams for all member agents.
 // @Tags offices
@@ -182,6 +185,7 @@ func deleteOffice(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 }
 
 // getOfficeEvents returns merged events from all member agents in the office.
+// @ID getOfficeEvents
 // @Summary Get office events
 // @Description Returns merged events from all member agent Redis streams, sorted chronologically.
 // @Tags offices

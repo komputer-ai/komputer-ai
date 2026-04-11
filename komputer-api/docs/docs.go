@@ -25,6 +25,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "List agents",
+                "operationId": "listAgents",
                 "parameters": [
                     {
                         "type": "string",
@@ -63,6 +64,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Create agent or send task",
+                "operationId": "createAgent",
                 "parameters": [
                     {
                         "description": "Agent creation request",
@@ -127,6 +129,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent details",
+                "operationId": "getAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -178,6 +181,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Delete agent",
+                "operationId": "deleteAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -235,6 +239,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Patch agent",
+                "operationId": "patchAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -297,6 +302,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Cancel agent task",
+                "operationId": "cancelAgentTask",
                 "parameters": [
                     {
                         "type": "string",
@@ -362,6 +368,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent events",
+                "operationId": "getAgentEvents",
                 "parameters": [
                     {
                         "type": "string",
@@ -442,6 +449,7 @@ const docTemplate = `{
                     "connectors"
                 ],
                 "summary": "List connectors",
+                "operationId": "listConnectors",
                 "parameters": [
                     {
                         "type": "string",
@@ -481,6 +489,7 @@ const docTemplate = `{
                     "connectors"
                 ],
                 "summary": "Create connector",
+                "operationId": "createConnector",
                 "parameters": [
                     {
                         "description": "Connector creation request",
@@ -530,6 +539,7 @@ const docTemplate = `{
                     "connectors"
                 ],
                 "summary": "Get connector details",
+                "operationId": "getConnector",
                 "parameters": [
                     {
                         "type": "string",
@@ -581,6 +591,7 @@ const docTemplate = `{
                     "connectors"
                 ],
                 "summary": "Delete connector",
+                "operationId": "deleteConnector",
                 "parameters": [
                     {
                         "type": "string",
@@ -628,6 +639,7 @@ const docTemplate = `{
                     "connectors"
                 ],
                 "summary": "List connector tools",
+                "operationId": "listConnectorTools",
                 "parameters": [
                     {
                         "type": "string",
@@ -691,6 +703,7 @@ const docTemplate = `{
                     "memories"
                 ],
                 "summary": "List memories",
+                "operationId": "listMemories",
                 "parameters": [
                     {
                         "type": "string",
@@ -730,6 +743,7 @@ const docTemplate = `{
                     "memories"
                 ],
                 "summary": "Create memory",
+                "operationId": "createMemory",
                 "parameters": [
                     {
                         "description": "Memory creation request",
@@ -779,6 +793,7 @@ const docTemplate = `{
                     "memories"
                 ],
                 "summary": "Get memory details",
+                "operationId": "getMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -830,6 +845,7 @@ const docTemplate = `{
                     "memories"
                 ],
                 "summary": "Delete memory",
+                "operationId": "deleteMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -878,6 +894,7 @@ const docTemplate = `{
                     "memories"
                 ],
                 "summary": "Patch memory",
+                "operationId": "patchMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -970,6 +987,7 @@ const docTemplate = `{
                     "offices"
                 ],
                 "summary": "List offices",
+                "operationId": "listOffices",
                 "parameters": [
                     {
                         "type": "string",
@@ -1007,6 +1025,7 @@ const docTemplate = `{
                     "offices"
                 ],
                 "summary": "Get office details",
+                "operationId": "getOffice",
                 "parameters": [
                     {
                         "type": "string",
@@ -1058,6 +1077,7 @@ const docTemplate = `{
                     "offices"
                 ],
                 "summary": "Delete office",
+                "operationId": "deleteOffice",
                 "parameters": [
                     {
                         "type": "string",
@@ -1114,6 +1134,7 @@ const docTemplate = `{
                     "offices"
                 ],
                 "summary": "Get office events",
+                "operationId": "getOfficeEvents",
                 "parameters": [
                     {
                         "type": "string",
@@ -1184,6 +1205,7 @@ const docTemplate = `{
                     "schedules"
                 ],
                 "summary": "List schedules",
+                "operationId": "listSchedules",
                 "parameters": [
                     {
                         "type": "string",
@@ -1222,6 +1244,7 @@ const docTemplate = `{
                     "schedules"
                 ],
                 "summary": "Create schedule",
+                "operationId": "createSchedule",
                 "parameters": [
                     {
                         "description": "Schedule creation request",
@@ -1271,6 +1294,7 @@ const docTemplate = `{
                     "schedules"
                 ],
                 "summary": "Get schedule details",
+                "operationId": "getSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1322,6 +1346,7 @@ const docTemplate = `{
                     "schedules"
                 ],
                 "summary": "Delete schedule",
+                "operationId": "deleteSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1379,6 +1404,7 @@ const docTemplate = `{
                     "schedules"
                 ],
                 "summary": "Patch schedule",
+                "operationId": "patchSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1441,6 +1467,7 @@ const docTemplate = `{
                     "secrets"
                 ],
                 "summary": "List secrets",
+                "operationId": "listSecrets",
                 "parameters": [
                     {
                         "type": "string",
@@ -1485,6 +1512,7 @@ const docTemplate = `{
                     "secrets"
                 ],
                 "summary": "Create managed secret",
+                "operationId": "createSecret",
                 "parameters": [
                     {
                         "description": "Secret creation request",
@@ -1534,6 +1562,7 @@ const docTemplate = `{
                     "secrets"
                 ],
                 "summary": "Delete managed secret",
+                "operationId": "deleteSecret",
                 "parameters": [
                     {
                         "type": "string",
@@ -1582,6 +1611,7 @@ const docTemplate = `{
                     "secrets"
                 ],
                 "summary": "Update managed secret",
+                "operationId": "updateSecret",
                 "parameters": [
                     {
                         "type": "string",
@@ -1647,6 +1677,7 @@ const docTemplate = `{
                     "skills"
                 ],
                 "summary": "List skills",
+                "operationId": "listSkills",
                 "parameters": [
                     {
                         "type": "string",
@@ -1686,6 +1717,7 @@ const docTemplate = `{
                     "skills"
                 ],
                 "summary": "Create skill",
+                "operationId": "createSkill",
                 "parameters": [
                     {
                         "description": "Skill creation request",
@@ -1735,6 +1767,7 @@ const docTemplate = `{
                     "skills"
                 ],
                 "summary": "Get skill details",
+                "operationId": "getSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1786,6 +1819,7 @@ const docTemplate = `{
                     "skills"
                 ],
                 "summary": "Delete skill",
+                "operationId": "deleteSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1834,6 +1868,7 @@ const docTemplate = `{
                     "skills"
                 ],
                 "summary": "Patch skill",
+                "operationId": "patchSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1896,6 +1931,7 @@ const docTemplate = `{
                     "templates"
                 ],
                 "summary": "List agent templates",
+                "operationId": "listTemplates",
                 "parameters": [
                     {
                         "type": "string",

@@ -1,0 +1,2285 @@
+openapi: 3.0.1
+info:
+  contact: {}
+  description: |-
+    API-first platform for running persistent Claude AI agents on Kubernetes.
+    Designed to be driven by external systems — create agents, send tasks, and stream real-time results via REST + WebSocket.
+  title: komputer.ai API
+  version: "1.0"
+servers:
+- url: //localhost:8080/api/v1
+paths:
+  /agents:
+    get:
+      description: Returns all agents with their current status in the specified namespace.
+      operationId: listAgents
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AgentListResponse"
+          description: List of agents
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List agents
+      tags:
+      - agents
+    post:
+      description: |-
+        Creates a new agent or sends a task to an existing idle agent (upsert by name).
+        If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
+      operationId: createAgent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateAgentRequest"
+        description: Agent creation request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AgentResponse"
+          description: Task forwarded to existing agent
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AgentResponse"
+          description: Agent created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent is busy or has no running pod
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create agent or send task
+      tags:
+      - agents
+      x-codegen-request-body-name: request
+  /agents/{name}:
+    delete:
+      description: "Deletes the agent CR, pod, PVC, secrets, and Redis event stream."
+      operationId: deleteAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete agent
+      tags:
+      - agents
+    get:
+      description: Returns the current status and metadata for a single agent.
+      operationId: getAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AgentResponse"
+          description: Agent details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get agent details
+      tags:
+      - agents
+    patch:
+      description: "Updates model, lifecycle, instructions, secretRefs, memories,\
+        \ skills, or connectors on an existing agent."
+      operationId: patchAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PatchAgentRequest"
+        description: Fields to update
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AgentResponse"
+          description: Updated agent
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Patch agent
+      tags:
+      - agents
+      x-codegen-request-body-name: request
+  /agents/{name}/cancel:
+    post:
+      description: Gracefully cancels the currently running task. The agent pod stays
+        alive for future tasks.
+      operationId: cancelAgentTask
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Task cancelling
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent has no running pod
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Cancel agent task
+      tags:
+      - agents
+  /agents/{name}/events:
+    get:
+      description: Returns recent events from the agent's Redis stream in chronological
+        order.
+      operationId: getAgentEvents
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      - description: Max events to return (1-200)
+        in: query
+        name: limit
+        schema:
+          default: 50
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Agent events
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Invalid limit parameter
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get agent events
+      tags:
+      - agents
+  /agents/{name}/ws:
+    get:
+      description: "Upgrades to a WebSocket connection to stream real-time agent events.\
+        \ Events include task_started, thinking, tool_call, tool_result, text, task_completed,\
+        \ task_cancelled, and error."
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      summary: Stream agent events (WebSocket)
+      tags:
+      - agents
+  /connectors:
+    get:
+      description: Returns all connectors with attached agent counts in the specified
+        namespace.
+      operationId: listConnectors
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of connectors
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List connectors
+      tags:
+      - connectors
+    post:
+      description: Creates a new KomputerConnector CR pointing to an MCP server that
+        can be attached to agents.
+      operationId: createConnector
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateConnectorRequest"
+        description: Connector creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ConnectorResponse"
+          description: Connector created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create connector
+      tags:
+      - connectors
+      x-codegen-request-body-name: request
+  /connectors/{name}:
+    delete:
+      description: Deletes the connector CR.
+      operationId: deleteConnector
+      parameters:
+      - description: Connector name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Connector deleted
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete connector
+      tags:
+      - connectors
+    get:
+      description: "Returns the URL, service, type, and auth config for a single connector."
+      operationId: getConnector
+      parameters:
+      - description: Connector name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ConnectorResponse"
+          description: Connector details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Connector not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get connector details
+      tags:
+      - connectors
+  /connectors/{name}/tools:
+    get:
+      description: Calls the MCP server's tools/list endpoint and returns the available
+        tools.
+      operationId: listConnectorTools
+      parameters:
+      - description: Connector name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of MCP tools
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Connector not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+        "502":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Failed to reach MCP server
+      summary: List connector tools
+      tags:
+      - connectors
+  /memories:
+    get:
+      description: Returns all memories with content and attached agent counts in
+        the specified namespace.
+      operationId: listMemories
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of memories
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List memories
+      tags:
+      - memories
+    post:
+      description: Creates a new KomputerMemory CR that can be attached to agents
+        as persistent context.
+      operationId: createMemory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateMemoryRequest"
+        description: Memory creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.MemoryResponse"
+          description: Memory created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create memory
+      tags:
+      - memories
+      x-codegen-request-body-name: request
+  /memories/{name}:
+    delete:
+      description: Deletes the memory CR.
+      operationId: deleteMemory
+      parameters:
+      - description: Memory name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Memory deleted
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete memory
+      tags:
+      - memories
+    get:
+      description: Returns the content and attached agent count for a single memory.
+      operationId: getMemory
+      parameters:
+      - description: Memory name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.MemoryResponse"
+          description: Memory details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Memory not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get memory details
+      tags:
+      - memories
+    patch:
+      description: Updates the content or description of an existing memory.
+      operationId: patchMemory
+      parameters:
+      - description: Memory name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PatchMemoryRequest"
+        description: Fields to update
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.MemoryResponse"
+          description: Updated memory
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Patch memory
+      tags:
+      - memories
+      x-codegen-request-body-name: request
+  /namespaces:
+    get:
+      description: Returns all Kubernetes namespaces the API has access to.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of namespaces
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List namespaces
+      tags:
+      - templates
+  /offices:
+    get:
+      description: Returns all offices with their current status in the specified
+        namespace.
+      operationId: listOffices
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.OfficeListResponse"
+          description: List of offices
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List offices
+      tags:
+      - offices
+  /offices/{name}:
+    delete:
+      description: Deletes the office CR and cleans up Redis event streams for all
+        member agents.
+      operationId: deleteOffice
+      parameters:
+      - description: Office name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Office deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Office not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete office
+      tags:
+      - offices
+    get:
+      description: Returns the current status and member list for a single office.
+      operationId: getOffice
+      parameters:
+      - description: Office name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.OfficeResponse"
+          description: Office details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Office not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get office details
+      tags:
+      - offices
+  /offices/{name}/events:
+    get:
+      description: "Returns merged events from all member agent Redis streams, sorted\
+        \ chronologically."
+      operationId: getOfficeEvents
+      parameters:
+      - description: Office name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      - description: Max events to return (1-200)
+        in: query
+        name: limit
+        schema:
+          default: 50
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Office events
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Invalid limit parameter
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Office not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get office events
+      tags:
+      - offices
+  /schedules:
+    get:
+      description: Returns all schedules with their current status and run history
+        in the specified namespace.
+      operationId: listSchedules
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ScheduleListResponse"
+          description: List of schedules
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List schedules
+      tags:
+      - schedules
+    post:
+      description: Creates a new KomputerSchedule CR that triggers agent tasks on
+        a cron schedule.
+      operationId: createSchedule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateScheduleRequest"
+        description: Schedule creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ScheduleResponse"
+          description: Schedule created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create schedule
+      tags:
+      - schedules
+      x-codegen-request-body-name: request
+  /schedules/{name}:
+    delete:
+      description: Deletes the schedule CR. Does not delete any agents that were created
+        by the schedule.
+      operationId: deleteSchedule
+      parameters:
+      - description: Schedule name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Schedule deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Schedule not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete schedule
+      tags:
+      - schedules
+    get:
+      description: Returns the current status and run history for a single schedule.
+      operationId: getSchedule
+      parameters:
+      - description: Schedule name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ScheduleResponse"
+          description: Schedule details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Schedule not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get schedule details
+      tags:
+      - schedules
+    patch:
+      description: Updates the cron expression for an existing schedule.
+      operationId: patchSchedule
+      parameters:
+      - description: Schedule name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PatchScheduleRequest"
+        description: Fields to update
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ScheduleResponse"
+          description: Updated schedule
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Patch schedule
+      tags:
+      - schedules
+      x-codegen-request-body-name: request
+  /secrets:
+    get:
+      description: Returns all secrets with key names (not values) and attached agent
+        counts in the specified namespace.
+      operationId: listSecrets
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      - description: "Include all secrets, not just managed ones"
+        in: query
+        name: all
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.SecretListResponse"
+          description: List of secrets
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List secrets
+      tags:
+      - secrets
+    post:
+      description: Creates a new Kubernetes secret managed by komputer.ai that can
+        be attached to agents.
+      operationId: createSecret
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateSecretRequest"
+        description: Secret creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.SecretResponse"
+          description: Secret created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create managed secret
+      tags:
+      - secrets
+      x-codegen-request-body-name: request
+  /secrets/{name}:
+    delete:
+      description: Deletes a managed Kubernetes secret.
+      operationId: deleteSecret
+      parameters:
+      - description: Secret name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Secret deleted
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete managed secret
+      tags:
+      - secrets
+    patch:
+      description: Replaces the key-value pairs in a managed Kubernetes secret.
+      operationId: updateSecret
+      parameters:
+      - description: Secret name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.UpdateSecretRequest"
+        description: Updated secret data
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Secret updated
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Update managed secret
+      tags:
+      - secrets
+      x-codegen-request-body-name: request
+  /skills:
+    get:
+      description: Returns all skills with content and attached agent counts in the
+        specified namespace.
+      operationId: listSkills
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of skills
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List skills
+      tags:
+      - skills
+    post:
+      description: Creates a new KomputerSkill CR with script content that can be
+        attached to agents.
+      operationId: createSkill
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.CreateSkillRequest"
+        description: Skill creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.SkillResponse"
+          description: Skill created
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create skill
+      tags:
+      - skills
+      x-codegen-request-body-name: request
+  /skills/{name}:
+    delete:
+      description: Deletes the skill CR.
+      operationId: deleteSkill
+      parameters:
+      - description: Skill name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Skill deleted
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete skill
+      tags:
+      - skills
+    get:
+      description: "Returns the content, description, and attached agent count for\
+        \ a single skill."
+      operationId: getSkill
+      parameters:
+      - description: Skill name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.SkillResponse"
+          description: Skill details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Skill not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get skill details
+      tags:
+      - skills
+    patch:
+      description: Updates the description or script content of an existing skill.
+      operationId: patchSkill
+      parameters:
+      - description: Skill name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PatchSkillRequest"
+        description: Fields to update
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.SkillResponse"
+          description: Updated skill
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Patch skill
+      tags:
+      - skills
+      x-codegen-request-body-name: request
+  /templates:
+    get:
+      description: Returns all agent templates (both namespace-scoped and cluster-scoped)
+        available in the specified namespace.
+      operationId: listTemplates
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of templates
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List agent templates
+      tags:
+      - templates
+components:
+  schemas:
+    main.AgentListResponse:
+      example:
+        agents:
+        - instructions: instructions
+          connectors:
+          - connectors
+          - connectors
+          totalCostUSD: totalCostUSD
+          secrets:
+          - secrets
+          - secrets
+          totalTokens: 6
+          lifecycle: lifecycle
+          skills:
+          - skills
+          - skills
+          createdAt: createdAt
+          systemPrompt: systemPrompt
+          memories:
+          - memories
+          - memories
+          name: name
+          namespace: namespace
+          modelContextWindow: 0
+          model: model
+          lastTaskCostUSD: lastTaskCostUSD
+          lastTaskMessage: lastTaskMessage
+          taskStatus: taskStatus
+          status: status
+        - instructions: instructions
+          connectors:
+          - connectors
+          - connectors
+          totalCostUSD: totalCostUSD
+          secrets:
+          - secrets
+          - secrets
+          totalTokens: 6
+          lifecycle: lifecycle
+          skills:
+          - skills
+          - skills
+          createdAt: createdAt
+          systemPrompt: systemPrompt
+          memories:
+          - memories
+          - memories
+          name: name
+          namespace: namespace
+          modelContextWindow: 0
+          model: model
+          lastTaskCostUSD: lastTaskCostUSD
+          lastTaskMessage: lastTaskMessage
+          taskStatus: taskStatus
+          status: status
+      properties:
+        agents:
+          items:
+            $ref: "#/components/schemas/main.AgentResponse"
+          type: array
+      type: object
+    main.AgentResponse:
+      example:
+        instructions: instructions
+        connectors:
+        - connectors
+        - connectors
+        totalCostUSD: totalCostUSD
+        secrets:
+        - secrets
+        - secrets
+        totalTokens: 6
+        lifecycle: lifecycle
+        skills:
+        - skills
+        - skills
+        createdAt: createdAt
+        systemPrompt: systemPrompt
+        memories:
+        - memories
+        - memories
+        name: name
+        namespace: namespace
+        modelContextWindow: 0
+        model: model
+        lastTaskCostUSD: lastTaskCostUSD
+        lastTaskMessage: lastTaskMessage
+        taskStatus: taskStatus
+        status: status
+      properties:
+        connectors:
+          description: KomputerConnector names attached to this agent
+          items:
+            type: string
+          type: array
+        createdAt:
+          type: string
+        instructions:
+          description: User task (spec.instructions)
+          type: string
+        lastTaskCostUSD:
+          type: string
+        lastTaskMessage:
+          type: string
+        lifecycle:
+          type: string
+        memories:
+          description: KomputerMemory names attached to this agent
+          items:
+            type: string
+          type: array
+        model:
+          type: string
+        modelContextWindow:
+          type: integer
+        name:
+          type: string
+        namespace:
+          type: string
+        secrets:
+          description: Key names from K8s Secrets (not values)
+          items:
+            type: string
+          type: array
+        skills:
+          description: KomputerSkill names attached to this agent
+          items:
+            type: string
+          type: array
+        status:
+          type: string
+        systemPrompt:
+          description: Custom system prompt (spec.systemPrompt)
+          type: string
+        taskStatus:
+          type: string
+        totalCostUSD:
+          type: string
+        totalTokens:
+          type: integer
+      type: object
+    main.ConnectorResponse:
+      example:
+        displayName: displayName
+        agentNames:
+        - agentNames
+        - agentNames
+        type: type
+        authSecretKey: authSecretKey
+        oauthStatus: oauthStatus
+        url: url
+        createdAt: createdAt
+        service: service
+        name: name
+        namespace: namespace
+        attachedAgents: 0
+        authType: authType
+        authSecretName: authSecretName
+      properties:
+        agentNames:
+          items:
+            type: string
+          type: array
+        attachedAgents:
+          type: integer
+        authSecretKey:
+          type: string
+        authSecretName:
+          type: string
+        authType:
+          type: string
+        createdAt:
+          type: string
+        displayName:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        oauthStatus:
+          description: "\"pending\", \"connected\", \"\""
+          type: string
+        service:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+      type: object
+    main.CreateAgentRequest:
+      properties:
+        connectors:
+          description: optional KomputerConnector names to attach
+          items:
+            type: string
+          type: array
+        instructions:
+          type: string
+        lifecycle:
+          description: "\"\", \"Sleep\", or \"AutoDelete\""
+          type: string
+        memories:
+          description: optional KomputerMemory names to attach
+          items:
+            type: string
+          type: array
+        model:
+          type: string
+        name:
+          type: string
+        namespace:
+          description: "optional, defaults to server default"
+          type: string
+        officeManager:
+          description: set by manager MCP tool
+          type: string
+        role:
+          description: '"manager" or "" (default manager)'
+          type: string
+        secretRefs:
+          description: names of existing K8s Secrets to attach
+          items:
+            type: string
+          type: array
+        skills:
+          description: optional KomputerSkill names to attach
+          items:
+            type: string
+          type: array
+        systemPrompt:
+          description: optional custom system prompt
+          type: string
+        templateRef:
+          type: string
+      required:
+      - instructions
+      - name
+      type: object
+    main.CreateConnectorRequest:
+      properties:
+        authSecretKey:
+          type: string
+        authSecretName:
+          type: string
+        authType:
+          description: '"token" or "oauth"'
+          type: string
+        displayName:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        oauthClientId:
+          description: OAuth client ID (stored in secret)
+          type: string
+        oauthClientSecret:
+          description: OAuth client secret (stored in secret)
+          type: string
+        service:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+      required:
+      - name
+      - service
+      - url
+      type: object
+    main.CreateMemoryRequest:
+      properties:
+        content:
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+      required:
+      - content
+      - name
+      type: object
+    main.CreateScheduleAgentSpec:
+      properties:
+        lifecycle:
+          type: string
+        model:
+          type: string
+        role:
+          type: string
+        secretRefs:
+          items:
+            type: string
+          type: array
+        templateRef:
+          type: string
+      type: object
+    main.CreateScheduleRequest:
+      properties:
+        agent:
+          $ref: "#/components/schemas/main.CreateScheduleAgentSpec"
+        agentName:
+          type: string
+        autoDelete:
+          type: boolean
+        instructions:
+          type: string
+        keepAgents:
+          type: boolean
+        name:
+          type: string
+        namespace:
+          type: string
+        schedule:
+          type: string
+        timezone:
+          type: string
+      required:
+      - instructions
+      - name
+      - schedule
+      type: object
+    main.CreateSecretRequest:
+      properties:
+        data:
+          additionalProperties:
+            type: string
+          type: object
+        name:
+          type: string
+        namespace:
+          type: string
+      required:
+      - data
+      - name
+      type: object
+    main.CreateSkillRequest:
+      properties:
+        content:
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+      required:
+      - content
+      - description
+      - name
+      type: object
+    main.MemoryResponse:
+      example:
+        createdAt: createdAt
+        agentNames:
+        - agentNames
+        - agentNames
+        name: name
+        namespace: namespace
+        description: description
+        attachedAgents: 0
+        content: content
+      properties:
+        agentNames:
+          items:
+            type: string
+          type: array
+        attachedAgents:
+          type: integer
+        content:
+          type: string
+        createdAt:
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+      type: object
+    main.OfficeListResponse:
+      example:
+        offices:
+        - completedAgents: 6
+          phase: phase
+          createdAt: createdAt
+          manager: manager
+          totalAgents: 1
+          members:
+          - role: role
+            name: name
+            lastTaskCostUSD: lastTaskCostUSD
+            taskStatus: taskStatus
+          - role: role
+            name: name
+            lastTaskCostUSD: lastTaskCostUSD
+            taskStatus: taskStatus
+          totalCostUSD: totalCostUSD
+          name: name
+          namespace: namespace
+          activeAgents: 0
+          totalTokens: 5
+        - completedAgents: 6
+          phase: phase
+          createdAt: createdAt
+          manager: manager
+          totalAgents: 1
+          members:
+          - role: role
+            name: name
+            lastTaskCostUSD: lastTaskCostUSD
+            taskStatus: taskStatus
+          - role: role
+            name: name
+            lastTaskCostUSD: lastTaskCostUSD
+            taskStatus: taskStatus
+          totalCostUSD: totalCostUSD
+          name: name
+          namespace: namespace
+          activeAgents: 0
+          totalTokens: 5
+      properties:
+        offices:
+          items:
+            $ref: "#/components/schemas/main.OfficeResponse"
+          type: array
+      type: object
+    main.OfficeMemberResponse:
+      example:
+        role: role
+        name: name
+        lastTaskCostUSD: lastTaskCostUSD
+        taskStatus: taskStatus
+      properties:
+        lastTaskCostUSD:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        taskStatus:
+          type: string
+      type: object
+    main.OfficeResponse:
+      example:
+        completedAgents: 6
+        phase: phase
+        createdAt: createdAt
+        manager: manager
+        totalAgents: 1
+        members:
+        - role: role
+          name: name
+          lastTaskCostUSD: lastTaskCostUSD
+          taskStatus: taskStatus
+        - role: role
+          name: name
+          lastTaskCostUSD: lastTaskCostUSD
+          taskStatus: taskStatus
+        totalCostUSD: totalCostUSD
+        name: name
+        namespace: namespace
+        activeAgents: 0
+        totalTokens: 5
+      properties:
+        activeAgents:
+          type: integer
+        completedAgents:
+          type: integer
+        createdAt:
+          type: string
+        manager:
+          type: string
+        members:
+          items:
+            $ref: "#/components/schemas/main.OfficeMemberResponse"
+          type: array
+        name:
+          type: string
+        namespace:
+          type: string
+        phase:
+          type: string
+        totalAgents:
+          type: integer
+        totalCostUSD:
+          type: string
+        totalTokens:
+          type: integer
+      type: object
+    main.PatchAgentRequest:
+      properties:
+        connectors:
+          description: connector names to attach
+          items:
+            type: string
+          type: array
+        instructions:
+          type: string
+        lifecycle:
+          type: string
+        memories:
+          description: memory names to attach
+          items:
+            type: string
+          type: array
+        model:
+          type: string
+        secretRefs:
+          description: full replacement list of K8s secret names
+          items:
+            type: string
+          type: array
+        skills:
+          description: skill names to attach
+          items:
+            type: string
+          type: array
+        systemPrompt:
+          description: custom system prompt
+          type: string
+        templateRef:
+          type: string
+      type: object
+    main.PatchMemoryRequest:
+      properties:
+        content:
+          type: string
+        description:
+          type: string
+      type: object
+    main.PatchScheduleRequest:
+      properties:
+        schedule:
+          type: string
+      type: object
+    main.PatchSkillRequest:
+      properties:
+        content:
+          type: string
+        description:
+          type: string
+      type: object
+    main.ScheduleListResponse:
+      example:
+        schedules:
+        - phase: phase
+          successfulRuns: 5
+          timezone: timezone
+          totalCostUSD: totalCostUSD
+          lastRunStatus: lastRunStatus
+          agentName: agentName
+          failedRuns: 0
+          lastRunCostUSD: lastRunCostUSD
+          totalTokens: 5
+          lastRunTokens: 6
+          createdAt: createdAt
+          schedule: schedule
+          lastRunTime: lastRunTime
+          nextRunTime: nextRunTime
+          autoDelete: true
+          name: name
+          namespace: namespace
+          keepAgents: true
+          runCount: 1
+        - phase: phase
+          successfulRuns: 5
+          timezone: timezone
+          totalCostUSD: totalCostUSD
+          lastRunStatus: lastRunStatus
+          agentName: agentName
+          failedRuns: 0
+          lastRunCostUSD: lastRunCostUSD
+          totalTokens: 5
+          lastRunTokens: 6
+          createdAt: createdAt
+          schedule: schedule
+          lastRunTime: lastRunTime
+          nextRunTime: nextRunTime
+          autoDelete: true
+          name: name
+          namespace: namespace
+          keepAgents: true
+          runCount: 1
+      properties:
+        schedules:
+          items:
+            $ref: "#/components/schemas/main.ScheduleResponse"
+          type: array
+      type: object
+    main.ScheduleResponse:
+      example:
+        phase: phase
+        successfulRuns: 5
+        timezone: timezone
+        totalCostUSD: totalCostUSD
+        lastRunStatus: lastRunStatus
+        agentName: agentName
+        failedRuns: 0
+        lastRunCostUSD: lastRunCostUSD
+        totalTokens: 5
+        lastRunTokens: 6
+        createdAt: createdAt
+        schedule: schedule
+        lastRunTime: lastRunTime
+        nextRunTime: nextRunTime
+        autoDelete: true
+        name: name
+        namespace: namespace
+        keepAgents: true
+        runCount: 1
+      properties:
+        agentName:
+          type: string
+        autoDelete:
+          type: boolean
+        createdAt:
+          type: string
+        failedRuns:
+          type: integer
+        keepAgents:
+          type: boolean
+        lastRunCostUSD:
+          type: string
+        lastRunStatus:
+          type: string
+        lastRunTime:
+          type: string
+        lastRunTokens:
+          type: integer
+        name:
+          type: string
+        namespace:
+          type: string
+        nextRunTime:
+          type: string
+        phase:
+          type: string
+        runCount:
+          type: integer
+        schedule:
+          type: string
+        successfulRuns:
+          type: integer
+        timezone:
+          type: string
+        totalCostUSD:
+          type: string
+        totalTokens:
+          type: integer
+      type: object
+    main.SecretListResponse:
+      example:
+        secrets:
+        - createdAt: createdAt
+          keys:
+          - keys
+          - keys
+          managed: true
+          agentNames:
+          - agentNames
+          - agentNames
+          name: name
+          namespace: namespace
+          agentName: agentName
+          attachedAgents: 0
+        - createdAt: createdAt
+          keys:
+          - keys
+          - keys
+          managed: true
+          agentNames:
+          - agentNames
+          - agentNames
+          name: name
+          namespace: namespace
+          agentName: agentName
+          attachedAgents: 0
+      properties:
+        secrets:
+          items:
+            $ref: "#/components/schemas/main.SecretResponse"
+          type: array
+      type: object
+    main.SecretResponse:
+      example:
+        createdAt: createdAt
+        keys:
+        - keys
+        - keys
+        managed: true
+        agentNames:
+        - agentNames
+        - agentNames
+        name: name
+        namespace: namespace
+        agentName: agentName
+        attachedAgents: 0
+      properties:
+        agentName:
+          type: string
+        agentNames:
+          items:
+            type: string
+          type: array
+        attachedAgents:
+          type: integer
+        createdAt:
+          type: string
+        keys:
+          items:
+            type: string
+          type: array
+        managed:
+          type: boolean
+        name:
+          type: string
+        namespace:
+          type: string
+      type: object
+    main.SkillResponse:
+      example:
+        createdAt: createdAt
+        isDefault: true
+        agentNames:
+        - agentNames
+        - agentNames
+        name: name
+        namespace: namespace
+        description: description
+        attachedAgents: 0
+        content: content
+      properties:
+        agentNames:
+          items:
+            type: string
+          type: array
+        attachedAgents:
+          type: integer
+        content:
+          type: string
+        createdAt:
+          type: string
+        description:
+          type: string
+        isDefault:
+          type: boolean
+        name:
+          type: string
+        namespace:
+          type: string
+      type: object
+    main.UpdateSecretRequest:
+      properties:
+        data:
+          additionalProperties:
+            type: string
+          type: object
+        namespace:
+          type: string
+      required:
+      - data
+      type: object
+x-original-swagger-version: "2.0"

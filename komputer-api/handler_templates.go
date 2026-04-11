@@ -13,6 +13,7 @@ type TemplateResponse struct {
 }
 
 // listTemplates returns available agent templates in the namespace and cluster.
+// @ID listTemplates
 // @Summary List agent templates
 // @Description Returns all agent templates (both namespace-scoped and cluster-scoped) available in the specified namespace.
 // @Tags templates

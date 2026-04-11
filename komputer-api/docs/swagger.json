@@ -19,6 +19,7 @@
                     "agents"
                 ],
                 "summary": "List agents",
+                "operationId": "listAgents",
                 "parameters": [
                     {
                         "type": "string",
@@ -57,6 +58,7 @@
                     "agents"
                 ],
                 "summary": "Create agent or send task",
+                "operationId": "createAgent",
                 "parameters": [
                     {
                         "description": "Agent creation request",
@@ -121,6 +123,7 @@
                     "agents"
                 ],
                 "summary": "Get agent details",
+                "operationId": "getAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -172,6 +175,7 @@
                     "agents"
                 ],
                 "summary": "Delete agent",
+                "operationId": "deleteAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -229,6 +233,7 @@
                     "agents"
                 ],
                 "summary": "Patch agent",
+                "operationId": "patchAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -291,6 +296,7 @@
                     "agents"
                 ],
                 "summary": "Cancel agent task",
+                "operationId": "cancelAgentTask",
                 "parameters": [
                     {
                         "type": "string",
@@ -356,6 +362,7 @@
                     "agents"
                 ],
                 "summary": "Get agent events",
+                "operationId": "getAgentEvents",
                 "parameters": [
                     {
                         "type": "string",
@@ -436,6 +443,7 @@
                     "connectors"
                 ],
                 "summary": "List connectors",
+                "operationId": "listConnectors",
                 "parameters": [
                     {
                         "type": "string",
@@ -475,6 +483,7 @@
                     "connectors"
                 ],
                 "summary": "Create connector",
+                "operationId": "createConnector",
                 "parameters": [
                     {
                         "description": "Connector creation request",
@@ -524,6 +533,7 @@
                     "connectors"
                 ],
                 "summary": "Get connector details",
+                "operationId": "getConnector",
                 "parameters": [
                     {
                         "type": "string",
@@ -575,6 +585,7 @@
                     "connectors"
                 ],
                 "summary": "Delete connector",
+                "operationId": "deleteConnector",
                 "parameters": [
                     {
                         "type": "string",
@@ -622,6 +633,7 @@
                     "connectors"
                 ],
                 "summary": "List connector tools",
+                "operationId": "listConnectorTools",
                 "parameters": [
                     {
                         "type": "string",
@@ -685,6 +697,7 @@
                     "memories"
                 ],
                 "summary": "List memories",
+                "operationId": "listMemories",
                 "parameters": [
                     {
                         "type": "string",
@@ -724,6 +737,7 @@
                     "memories"
                 ],
                 "summary": "Create memory",
+                "operationId": "createMemory",
                 "parameters": [
                     {
                         "description": "Memory creation request",
@@ -773,6 +787,7 @@
                     "memories"
                 ],
                 "summary": "Get memory details",
+                "operationId": "getMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -824,6 +839,7 @@
                     "memories"
                 ],
                 "summary": "Delete memory",
+                "operationId": "deleteMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -872,6 +888,7 @@
                     "memories"
                 ],
                 "summary": "Patch memory",
+                "operationId": "patchMemory",
                 "parameters": [
                     {
                         "type": "string",
@@ -964,6 +981,7 @@
                     "offices"
                 ],
                 "summary": "List offices",
+                "operationId": "listOffices",
                 "parameters": [
                     {
                         "type": "string",
@@ -1001,6 +1019,7 @@
                     "offices"
                 ],
                 "summary": "Get office details",
+                "operationId": "getOffice",
                 "parameters": [
                     {
                         "type": "string",
@@ -1052,6 +1071,7 @@
                     "offices"
                 ],
                 "summary": "Delete office",
+                "operationId": "deleteOffice",
                 "parameters": [
                     {
                         "type": "string",
@@ -1108,6 +1128,7 @@
                     "offices"
                 ],
                 "summary": "Get office events",
+                "operationId": "getOfficeEvents",
                 "parameters": [
                     {
                         "type": "string",
@@ -1178,6 +1199,7 @@
                     "schedules"
                 ],
                 "summary": "List schedules",
+                "operationId": "listSchedules",
                 "parameters": [
                     {
                         "type": "string",
@@ -1216,6 +1238,7 @@
                     "schedules"
                 ],
                 "summary": "Create schedule",
+                "operationId": "createSchedule",
                 "parameters": [
                     {
                         "description": "Schedule creation request",
@@ -1265,6 +1288,7 @@
                     "schedules"
                 ],
                 "summary": "Get schedule details",
+                "operationId": "getSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1316,6 +1340,7 @@
                     "schedules"
                 ],
                 "summary": "Delete schedule",
+                "operationId": "deleteSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1373,6 +1398,7 @@
                     "schedules"
                 ],
                 "summary": "Patch schedule",
+                "operationId": "patchSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -1435,6 +1461,7 @@
                     "secrets"
                 ],
                 "summary": "List secrets",
+                "operationId": "listSecrets",
                 "parameters": [
                     {
                         "type": "string",
@@ -1479,6 +1506,7 @@
                     "secrets"
                 ],
                 "summary": "Create managed secret",
+                "operationId": "createSecret",
                 "parameters": [
                     {
                         "description": "Secret creation request",
@@ -1528,6 +1556,7 @@
                     "secrets"
                 ],
                 "summary": "Delete managed secret",
+                "operationId": "deleteSecret",
                 "parameters": [
                     {
                         "type": "string",
@@ -1576,6 +1605,7 @@
                     "secrets"
                 ],
                 "summary": "Update managed secret",
+                "operationId": "updateSecret",
                 "parameters": [
                     {
                         "type": "string",
@@ -1641,6 +1671,7 @@
                     "skills"
                 ],
                 "summary": "List skills",
+                "operationId": "listSkills",
                 "parameters": [
                     {
                         "type": "string",
@@ -1680,6 +1711,7 @@
                     "skills"
                 ],
                 "summary": "Create skill",
+                "operationId": "createSkill",
                 "parameters": [
                     {
                         "description": "Skill creation request",
@@ -1729,6 +1761,7 @@
                     "skills"
                 ],
                 "summary": "Get skill details",
+                "operationId": "getSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1780,6 +1813,7 @@
                     "skills"
                 ],
                 "summary": "Delete skill",
+                "operationId": "deleteSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1828,6 +1862,7 @@
                     "skills"
                 ],
                 "summary": "Patch skill",
+                "operationId": "patchSkill",
                 "parameters": [
                     {
                         "type": "string",
@@ -1890,6 +1925,7 @@
                     "templates"
                 ],
                 "summary": "List agent templates",
+                "operationId": "listTemplates",
                 "parameters": [
                     {
                         "type": "string",

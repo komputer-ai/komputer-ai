@@ -31,6 +31,7 @@ type PatchSkillRequest struct {
 }
 
 // createSkill creates a new skill resource.
+// @ID createSkill
 // @Summary Create skill
 // @Description Creates a new KomputerSkill CR with script content that can be attached to agents.
 // @Tags skills
@@ -73,6 +74,7 @@ func createSkill(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // getSkill returns details for a single skill.
+// @ID getSkill
 // @Summary Get skill details
 // @Description Returns the content, description, and attached agent count for a single skill.
 // @Tags skills
@@ -106,6 +108,7 @@ func getSkill(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listSkills returns all skills in a namespace.
+// @ID listSkills
 // @Summary List skills
 // @Description Returns all skills with content and attached agent counts in the specified namespace.
 // @Tags skills
@@ -140,6 +143,7 @@ func listSkills(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // patchSkill updates description or content on an existing skill.
+// @ID patchSkill
 // @Summary Patch skill
 // @Description Updates the description or script content of an existing skill.
 // @Tags skills
@@ -188,6 +192,7 @@ func patchSkill(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // deleteSkill deletes a skill by name.
+// @ID deleteSkill
 // @Summary Delete skill
 // @Description Deletes the skill CR.
 // @Tags skills
