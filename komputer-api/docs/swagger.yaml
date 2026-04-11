@@ -17,7 +17,7 @@ definitions:
       createdAt:
         type: string
       instructions:
-        description: User task extracted from spec.instructions
+        description: User task (spec.instructions)
         type: string
       lastTaskCostUSD:
         type: string
@@ -50,6 +50,9 @@ definitions:
         type: array
       status:
         type: string
+      systemPrompt:
+        description: Custom system prompt (spec.systemPrompt)
+        type: string
       taskStatus:
         type: string
       totalCostUSD:
@@ -69,6 +72,8 @@ definitions:
         type: string
       authSecretName:
         type: string
+      authType:
+        type: string
       createdAt:
         type: string
       displayName:
@@ -76,6 +81,9 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      oauthStatus:
+        description: '"pending", "connected", ""'
         type: string
       service:
         type: string
@@ -124,6 +132,9 @@ definitions:
         items:
           type: string
         type: array
+      systemPrompt:
+        description: optional custom system prompt
+        type: string
       templateRef:
         type: string
     required:
@@ -136,11 +147,20 @@ definitions:
         type: string
       authSecretName:
         type: string
+      authType:
+        description: '"token" or "oauth"'
+        type: string
       displayName:
         type: string
       name:
         type: string
       namespace:
+        type: string
+      oauthClientId:
+        description: OAuth client ID (stored in secret)
+        type: string
+      oauthClientSecret:
+        description: OAuth client secret (stored in secret)
         type: string
       service:
         type: string
@@ -328,6 +348,9 @@ definitions:
         items:
           type: string
         type: array
+      systemPrompt:
+        description: custom system prompt
+        type: string
       templateRef:
         type: string
     type: object

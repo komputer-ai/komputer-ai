@@ -1951,7 +1951,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "instructions": {
-                    "description": "User task extracted from spec.instructions",
+                    "description": "User task (spec.instructions)",
                     "type": "string"
                 },
                 "lastTaskCostUSD": {
@@ -1999,6 +1999,10 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "systemPrompt": {
+                    "description": "Custom system prompt (spec.systemPrompt)",
+                    "type": "string"
+                },
                 "taskStatus": {
                     "type": "string"
                 },
@@ -2028,6 +2032,9 @@ const docTemplate = `{
                 "authSecretName": {
                     "type": "string"
                 },
+                "authType": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -2038,6 +2045,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "oauthStatus": {
+                    "description": "\"pending\", \"connected\", \"\"",
                     "type": "string"
                 },
                 "service": {
@@ -2111,6 +2122,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "systemPrompt": {
+                    "description": "optional custom system prompt",
+                    "type": "string"
+                },
                 "templateRef": {
                     "type": "string"
                 }
@@ -2130,6 +2145,10 @@ const docTemplate = `{
                 "authSecretName": {
                     "type": "string"
                 },
+                "authType": {
+                    "description": "\"token\" or \"oauth\"",
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -2137,6 +2156,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "oauthClientId": {
+                    "description": "OAuth client ID (stored in secret)",
+                    "type": "string"
+                },
+                "oauthClientSecret": {
+                    "description": "OAuth client secret (stored in secret)",
                     "type": "string"
                 },
                 "service": {
@@ -2411,6 +2438,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "systemPrompt": {
+                    "description": "custom system prompt",
+                    "type": "string"
                 },
                 "templateRef": {
                     "type": "string"

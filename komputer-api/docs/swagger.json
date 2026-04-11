@@ -1945,7 +1945,7 @@
                     "type": "string"
                 },
                 "instructions": {
-                    "description": "User task extracted from spec.instructions",
+                    "description": "User task (spec.instructions)",
                     "type": "string"
                 },
                 "lastTaskCostUSD": {
@@ -1993,6 +1993,10 @@
                 "status": {
                     "type": "string"
                 },
+                "systemPrompt": {
+                    "description": "Custom system prompt (spec.systemPrompt)",
+                    "type": "string"
+                },
                 "taskStatus": {
                     "type": "string"
                 },
@@ -2022,6 +2026,9 @@
                 "authSecretName": {
                     "type": "string"
                 },
+                "authType": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -2032,6 +2039,10 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "oauthStatus": {
+                    "description": "\"pending\", \"connected\", \"\"",
                     "type": "string"
                 },
                 "service": {
@@ -2105,6 +2116,10 @@
                         "type": "string"
                     }
                 },
+                "systemPrompt": {
+                    "description": "optional custom system prompt",
+                    "type": "string"
+                },
                 "templateRef": {
                     "type": "string"
                 }
@@ -2124,6 +2139,10 @@
                 "authSecretName": {
                     "type": "string"
                 },
+                "authType": {
+                    "description": "\"token\" or \"oauth\"",
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -2131,6 +2150,14 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "oauthClientId": {
+                    "description": "OAuth client ID (stored in secret)",
+                    "type": "string"
+                },
+                "oauthClientSecret": {
+                    "description": "OAuth client secret (stored in secret)",
                     "type": "string"
                 },
                 "service": {
@@ -2405,6 +2432,10 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "systemPrompt": {
+                    "description": "custom system prompt",
+                    "type": "string"
                 },
                 "templateRef": {
                     "type": "string"
