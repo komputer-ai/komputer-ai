@@ -1,6 +1,5 @@
-"""Tests for the KomputerClient convenience wrapper and API class structure."""
+"""Tests for the KomputerClient wrapper and kwargs convenience methods."""
 
-from komputer_ai import Configuration, ApiClient
 from komputer_ai.client import KomputerClient
 from komputer_ai.api.agents_api import AgentsApi
 from komputer_ai.api.offices_api import OfficesApi
@@ -9,7 +8,6 @@ from komputer_ai.api.memories_api import MemoriesApi
 from komputer_ai.api.skills_api import SkillsApi
 from komputer_ai.api.secrets_api import SecretsApi
 from komputer_ai.api.connectors_api import ConnectorsApi
-from komputer_ai.api.templates_api import TemplatesApi
 
 
 class TestKomputerClient:
@@ -26,7 +24,6 @@ class TestKomputerClient:
 
     def test_base_url_trailing_slash(self):
         client = KomputerClient("http://localhost:8080/")
-        # Should not double-slash the URL
         assert client._api_client.configuration.host == "http://localhost:8080/api/v1"
         client.close()
 
@@ -40,150 +37,120 @@ class TestKomputerClient:
         client.close()
 
 
-class TestAgentsApiMethods:
-    """Verify all expected CRUD methods exist on AgentsApi."""
+class TestKwargsMethodsExist:
+    """Verify all kwargs convenience methods exist on KomputerClient."""
 
     def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = AgentsApi(ApiClient(config))
+        self.client = KomputerClient("http://localhost:8080")
 
+    def teardown_method(self):
+        self.client.close()
+
+    # Agents
     def test_has_create_agent(self):
-        assert callable(self.api.create_agent)
+        assert callable(self.client.create_agent)
 
     def test_has_list_agents(self):
-        assert callable(self.api.list_agents)
+        assert callable(self.client.list_agents)
 
     def test_has_get_agent(self):
-        assert callable(self.api.get_agent)
-
-    def test_has_delete_agent(self):
-        assert callable(self.api.delete_agent)
+        assert callable(self.client.get_agent)
 
     def test_has_patch_agent(self):
-        assert callable(self.api.patch_agent)
+        assert callable(self.client.patch_agent)
 
-    def test_has_cancel_agent_task(self):
-        assert callable(self.api.cancel_agent_task)
+    def test_has_delete_agent(self):
+        assert callable(self.client.delete_agent)
+
+    def test_has_cancel_agent(self):
+        assert callable(self.client.cancel_agent_task)
 
     def test_has_get_agent_events(self):
-        assert callable(self.api.get_agent_events)
+        assert callable(self.client.get_agent_events)
 
+    def test_has_watch_agent(self):
+        assert callable(self.client.watch_agent)
 
-class TestSchedulesApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = SchedulesApi(ApiClient(config))
-
-    def test_has_create_schedule(self):
-        assert callable(self.api.create_schedule)
-
-    def test_has_list_schedules(self):
-        assert callable(self.api.list_schedules)
-
-    def test_has_get_schedule(self):
-        assert callable(self.api.get_schedule)
-
-    def test_has_delete_schedule(self):
-        assert callable(self.api.delete_schedule)
-
-    def test_has_patch_schedule(self):
-        assert callable(self.api.patch_schedule)
-
-
-class TestMemoriesApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = MemoriesApi(ApiClient(config))
-
+    # Memories
     def test_has_create_memory(self):
-        assert callable(self.api.create_memory)
+        assert callable(self.client.create_memory)
 
     def test_has_list_memories(self):
-        assert callable(self.api.list_memories)
+        assert callable(self.client.list_memories)
 
     def test_has_get_memory(self):
-        assert callable(self.api.get_memory)
-
-    def test_has_delete_memory(self):
-        assert callable(self.api.delete_memory)
+        assert callable(self.client.get_memory)
 
     def test_has_patch_memory(self):
-        assert callable(self.api.patch_memory)
+        assert callable(self.client.patch_memory)
 
+    def test_has_delete_memory(self):
+        assert callable(self.client.delete_memory)
 
-class TestSkillsApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = SkillsApi(ApiClient(config))
-
+    # Skills
     def test_has_create_skill(self):
-        assert callable(self.api.create_skill)
+        assert callable(self.client.create_skill)
 
     def test_has_list_skills(self):
-        assert callable(self.api.list_skills)
+        assert callable(self.client.list_skills)
 
     def test_has_get_skill(self):
-        assert callable(self.api.get_skill)
-
-    def test_has_delete_skill(self):
-        assert callable(self.api.delete_skill)
+        assert callable(self.client.get_skill)
 
     def test_has_patch_skill(self):
-        assert callable(self.api.patch_skill)
+        assert callable(self.client.patch_skill)
 
+    def test_has_delete_skill(self):
+        assert callable(self.client.delete_skill)
 
-class TestSecretsApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = SecretsApi(ApiClient(config))
+    # Schedules
+    def test_has_create_schedule(self):
+        assert callable(self.client.create_schedule)
 
+    def test_has_list_schedules(self):
+        assert callable(self.client.list_schedules)
+
+    def test_has_get_schedule(self):
+        assert callable(self.client.get_schedule)
+
+    def test_has_patch_schedule(self):
+        assert callable(self.client.patch_schedule)
+
+    def test_has_delete_schedule(self):
+        assert callable(self.client.delete_schedule)
+
+    # Secrets
     def test_has_create_secret(self):
-        assert callable(self.api.create_secret)
+        assert callable(self.client.create_secret)
 
     def test_has_list_secrets(self):
-        assert callable(self.api.list_secrets)
-
-    def test_has_delete_secret(self):
-        assert callable(self.api.delete_secret)
+        assert callable(self.client.list_secrets)
 
     def test_has_update_secret(self):
-        assert callable(self.api.update_secret)
+        assert callable(self.client.update_secret)
 
+    def test_has_delete_secret(self):
+        assert callable(self.client.delete_secret)
 
-class TestConnectorsApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = ConnectorsApi(ApiClient(config))
-
+    # Connectors
     def test_has_create_connector(self):
-        assert callable(self.api.create_connector)
+        assert callable(self.client.create_connector)
 
     def test_has_list_connectors(self):
-        assert callable(self.api.list_connectors)
+        assert callable(self.client.list_connectors)
 
     def test_has_get_connector(self):
-        assert callable(self.api.get_connector)
+        assert callable(self.client.get_connector)
 
     def test_has_delete_connector(self):
-        assert callable(self.api.delete_connector)
+        assert callable(self.client.delete_connector)
 
-    def test_has_list_connector_tools(self):
-        assert callable(self.api.list_connector_tools)
-
-
-class TestOfficesApiMethods:
-    def setup_method(self):
-        config = Configuration(host="http://localhost:8080/api/v1")
-        self.api = OfficesApi(ApiClient(config))
-
+    # Offices
     def test_has_list_offices(self):
-        assert callable(self.api.list_offices)
+        assert callable(self.client.list_offices)
 
     def test_has_get_office(self):
-        assert callable(self.api.get_office)
+        assert callable(self.client.get_office)
 
     def test_has_delete_office(self):
-        assert callable(self.api.delete_office)
-
-    def test_has_get_office_events(self):
-        assert callable(self.api.get_office_events)
+        assert callable(self.client.delete_office)

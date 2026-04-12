@@ -10,7 +10,7 @@ SPEC_SWAGGER := $(API_DIR)/docs/swagger.json
 SPEC_OPENAPI := openapi.yaml
 GENERATOR := npx @openapitools/openapi-generator-cli
 
-.PHONY: all spec python go typescript clean swagger test test-integration
+.PHONY: all spec python client go typescript clean swagger test test-integration
 
 all: python
 
@@ -32,7 +32,6 @@ spec: swagger
 
 # Step 3: Generate Python SDK
 python: spec
-	@if [ -f python/komputer_ai/client.py ]; then cp python/komputer_ai/client.py /tmp/_komputer_client.py; fi
 	rm -rf python/komputer_ai python/docs python/test
 	$(GENERATOR) generate \
 		-i $(SPEC_OPENAPI) \
@@ -41,8 +40,12 @@ python: spec
 		--package-name komputer_ai \
 		--skip-validate-spec \
 		--additional-properties=projectName=komputer-ai,packageVersion=0.1.0
-	@if [ -f /tmp/_komputer_client.py ]; then cp /tmp/_komputer_client.py python/komputer_ai/client.py && rm /tmp/_komputer_client.py; fi
+	python generate_client.py
 	@echo "Python SDK generated in python/"
+
+# Regenerate just the kwargs client wrapper (no spec/SDK regeneration)
+client:
+	python generate_client.py
 
 # Placeholder targets for future SDKs
 go: spec

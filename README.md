@@ -155,16 +155,15 @@ pip install komputer-ai    # or: cd komputer-sdk/python && pip install -e .
 
 ```python
 from komputer_ai.client import KomputerClient
-from komputer_ai.models import CreateAgentRequest
 
 client = KomputerClient("http://localhost:8080")
 
 # Create an agent and give it a task
-client.agents.create_agent(CreateAgentRequest(
+client.create_agent(
     name="my-agent",
     instructions="Analyze our Kubernetes cluster and suggest cost optimizations",
     model="claude-sonnet-4-6",
-))
+)
 
 # Stream events as the agent works
 for event in client.watch_agent("my-agent"):
