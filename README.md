@@ -60,6 +60,7 @@
 | [komputer-agent](komputer-agent/) | Python | The agent runtime — runs Claude with bash/web tools in a persistent workspace |
 | [komputer-cli](komputer-cli/) | Go | Beautiful CLI for interacting with the platform |
 | [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing agents, offices, schedules, memories, skills, connectors, and costs |
+| [komputer-sdk](komputer-sdk/) | Python | Auto-generated SDK for the REST API + WebSocket streaming |
 
 
 ## Documentation
@@ -310,6 +311,38 @@ komputer delete <name> [name...]    # Delete one or more agents
 --connector <name>                  # Attach a KomputerConnector (repeatable)
 --system-prompt <text>              # Custom system prompt for the agent
 ```
+
+## Python SDK
+
+```bash
+pip install komputer-ai    # or: cd komputer-sdk/python && pip install -e .
+```
+
+```python
+from komputer_ai.client import KomputerClient
+from komputer_ai.models import CreateAgentRequest
+
+client = KomputerClient("http://localhost:8080")
+
+# Create an agent and give it a task
+client.agents.create_agent(CreateAgentRequest(
+    name="my-agent",
+    instructions="Analyze our Kubernetes cluster and suggest cost optimizations",
+    model="claude-sonnet-4-6",
+))
+
+# Stream events as the agent works
+for event in client.watch_agent("my-agent"):
+    if event.type == "text":
+        print(event.payload.get("content", ""))
+    elif event.type == "tool_use":
+        print(f"  -> using {event.payload.get('name')}")
+    elif event.type == "task_completed":
+        print(f"\nDone — cost: ${event.payload.get('cost_usd')}")
+        break
+```
+
+Full SDK reference in [komputer-sdk/](komputer-sdk/).
 
 ### Secrets
 
