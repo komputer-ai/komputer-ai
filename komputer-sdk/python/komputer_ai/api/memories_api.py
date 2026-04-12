@@ -18,9 +18,9 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_create_memory_request import MainCreateMemoryRequest
-from komputer_ai.models.main_memory_response import MainMemoryResponse
-from komputer_ai.models.main_patch_memory_request import MainPatchMemoryRequest
+from komputer_ai.models.create_memory_request import CreateMemoryRequest
+from komputer_ai.models.memory_response import MemoryResponse
+from komputer_ai.models.patch_memory_request import PatchMemoryRequest
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -43,7 +43,7 @@ class MemoriesApi:
     @validate_call
     def create_memory(
         self,
-        request: Annotated[MainCreateMemoryRequest, Field(description="Memory creation request")],
+        request: Annotated[CreateMemoryRequest, Field(description="Memory creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -56,13 +56,13 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainMemoryResponse:
+    ) -> MemoryResponse:
         """Create memory
 
         Creates a new KomputerMemory CR that can be attached to agents as persistent context.
 
         :param request: Memory creation request (required)
-        :type request: MainCreateMemoryRequest
+        :type request: CreateMemoryRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -94,7 +94,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainMemoryResponse",
+            '201': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -112,7 +112,7 @@ class MemoriesApi:
     @validate_call
     def create_memory_with_http_info(
         self,
-        request: Annotated[MainCreateMemoryRequest, Field(description="Memory creation request")],
+        request: Annotated[CreateMemoryRequest, Field(description="Memory creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -125,13 +125,13 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainMemoryResponse]:
+    ) -> ApiResponse[MemoryResponse]:
         """Create memory
 
         Creates a new KomputerMemory CR that can be attached to agents as persistent context.
 
         :param request: Memory creation request (required)
-        :type request: MainCreateMemoryRequest
+        :type request: CreateMemoryRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -163,7 +163,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainMemoryResponse",
+            '201': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -181,7 +181,7 @@ class MemoriesApi:
     @validate_call
     def create_memory_without_preload_content(
         self,
-        request: Annotated[MainCreateMemoryRequest, Field(description="Memory creation request")],
+        request: Annotated[CreateMemoryRequest, Field(description="Memory creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -200,7 +200,7 @@ class MemoriesApi:
         Creates a new KomputerMemory CR that can be attached to agents as persistent context.
 
         :param request: Memory creation request (required)
-        :type request: MainCreateMemoryRequest
+        :type request: CreateMemoryRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -232,7 +232,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainMemoryResponse",
+            '201': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -616,7 +616,7 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainMemoryResponse:
+    ) -> MemoryResponse:
         """Get memory details
 
         Returns the content and attached agent count for a single memory.
@@ -657,7 +657,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -689,7 +689,7 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainMemoryResponse]:
+    ) -> ApiResponse[MemoryResponse]:
         """Get memory details
 
         Returns the content and attached agent count for a single memory.
@@ -730,7 +730,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -803,7 +803,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1151,7 +1151,7 @@ class MemoriesApi:
     def patch_memory(
         self,
         name: Annotated[StrictStr, Field(description="Memory name")],
-        request: Annotated[MainPatchMemoryRequest, Field(description="Fields to update")],
+        request: Annotated[PatchMemoryRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1165,7 +1165,7 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainMemoryResponse:
+    ) -> MemoryResponse:
         """Patch memory
 
         Updates the content or description of an existing memory.
@@ -1173,7 +1173,7 @@ class MemoriesApi:
         :param name: Memory name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchMemoryRequest
+        :type request: PatchMemoryRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1209,7 +1209,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1228,7 +1228,7 @@ class MemoriesApi:
     def patch_memory_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Memory name")],
-        request: Annotated[MainPatchMemoryRequest, Field(description="Fields to update")],
+        request: Annotated[PatchMemoryRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1242,7 +1242,7 @@ class MemoriesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainMemoryResponse]:
+    ) -> ApiResponse[MemoryResponse]:
         """Patch memory
 
         Updates the content or description of an existing memory.
@@ -1250,7 +1250,7 @@ class MemoriesApi:
         :param name: Memory name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchMemoryRequest
+        :type request: PatchMemoryRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1286,7 +1286,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1305,7 +1305,7 @@ class MemoriesApi:
     def patch_memory_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Memory name")],
-        request: Annotated[MainPatchMemoryRequest, Field(description="Fields to update")],
+        request: Annotated[PatchMemoryRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1327,7 +1327,7 @@ class MemoriesApi:
         :param name: Memory name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchMemoryRequest
+        :type request: PatchMemoryRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1363,7 +1363,7 @@ class MemoriesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainMemoryResponse",
+            '200': "MemoryResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }

@@ -3,30 +3,30 @@
 import pytest
 
 from komputer_ai.models import (
-    MainAgentListResponse,
-    MainAgentResponse,
-    MainConnectorResponse,
-    MainCreateAgentRequest,
-    MainCreateConnectorRequest,
-    MainCreateMemoryRequest,
-    MainCreateScheduleAgentSpec,
-    MainCreateScheduleRequest,
-    MainCreateSecretRequest,
-    MainCreateSkillRequest,
-    MainMemoryResponse,
-    MainOfficeListResponse,
-    MainOfficeMemberResponse,
-    MainOfficeResponse,
-    MainPatchAgentRequest,
-    MainPatchMemoryRequest,
-    MainPatchScheduleRequest,
-    MainPatchSkillRequest,
-    MainScheduleListResponse,
-    MainScheduleResponse,
-    MainSecretListResponse,
-    MainSecretResponse,
-    MainSkillResponse,
-    MainUpdateSecretRequest,
+    AgentListResponse,
+    AgentResponse,
+    ConnectorResponse,
+    CreateAgentRequest,
+    CreateConnectorRequest,
+    CreateMemoryRequest,
+    CreateScheduleAgentSpec,
+    CreateScheduleRequest,
+    CreateSecretRequest,
+    CreateSkillRequest,
+    MemoryResponse,
+    OfficeListResponse,
+    OfficeMemberResponse,
+    OfficeResponse,
+    PatchAgentRequest,
+    PatchMemoryRequest,
+    PatchScheduleRequest,
+    PatchSkillRequest,
+    ScheduleListResponse,
+    ScheduleResponse,
+    SecretListResponse,
+    SecretResponse,
+    SkillResponse,
+    UpdateSecretRequest,
 )
 
 
@@ -35,12 +35,12 @@ from komputer_ai.models import (
 
 class TestCreateAgentRequest:
     def test_required_fields(self):
-        req = MainCreateAgentRequest(name="my-agent", instructions="do stuff")
+        req = CreateAgentRequest(name="my-agent", instructions="do stuff")
         assert req.name == "my-agent"
         assert req.instructions == "do stuff"
 
     def test_all_fields(self):
-        req = MainCreateAgentRequest(
+        req = CreateAgentRequest(
             name="my-agent",
             instructions="do stuff",
             model="claude-sonnet-4-6",
@@ -63,14 +63,14 @@ class TestCreateAgentRequest:
         assert d["systemPrompt"] == "You are a helpful assistant."
 
     def test_json_round_trip(self):
-        req = MainCreateAgentRequest(
+        req = CreateAgentRequest(
             name="test-agent",
             instructions="run tests",
             model="claude-sonnet-4-6",
             skills=["skill-a"],
         )
         json_str = req.to_json()
-        restored = MainCreateAgentRequest.from_json(json_str)
+        restored = CreateAgentRequest.from_json(json_str)
         assert restored.name == req.name
         assert restored.instructions == req.instructions
         assert restored.model == req.model
@@ -79,7 +79,7 @@ class TestCreateAgentRequest:
 
 class TestAgentResponse:
     def test_basic_fields(self):
-        resp = MainAgentResponse(
+        resp = AgentResponse(
             name="agent-1",
             namespace="default",
             model="claude-sonnet-4-6",
@@ -90,7 +90,7 @@ class TestAgentResponse:
         assert resp.status == "Running"
 
     def test_optional_fields(self):
-        resp = MainAgentResponse(
+        resp = AgentResponse(
             name="agent-1",
             namespace="default",
             model="claude-sonnet-4-6",
@@ -115,7 +115,7 @@ class TestAgentResponse:
         assert d["secrets"] == ["API_KEY"]
 
     def test_json_round_trip(self):
-        resp = MainAgentResponse(
+        resp = AgentResponse(
             name="agent-1",
             namespace="default",
             model="claude-sonnet-4-6",
@@ -123,34 +123,34 @@ class TestAgentResponse:
             total_tokens=1000,
             created_at="2025-01-01T00:00:00Z",
         )
-        restored = MainAgentResponse.from_json(resp.to_json())
+        restored = AgentResponse.from_json(resp.to_json())
         assert restored.name == resp.name
         assert restored.total_tokens == resp.total_tokens
 
 
 class TestAgentListResponse:
     def test_with_agents(self):
-        agent = MainAgentResponse(
+        agent = AgentResponse(
             name="a1", namespace="default", model="m", status="Running", created_at="t"
         )
-        lst = MainAgentListResponse(agents=[agent])
+        lst = AgentListResponse(agents=[agent])
         assert len(lst.agents) == 1
         assert lst.agents[0].name == "a1"
 
     def test_empty_list(self):
-        lst = MainAgentListResponse(agents=[])
+        lst = AgentListResponse(agents=[])
         assert lst.agents == []
 
 
 class TestPatchAgentRequest:
     def test_partial_update(self):
-        req = MainPatchAgentRequest(model="claude-sonnet-4-6", lifecycle="AutoDelete")
+        req = PatchAgentRequest(model="claude-sonnet-4-6", lifecycle="AutoDelete")
         d = req.to_dict()
         assert d["model"] == "claude-sonnet-4-6"
         assert d["lifecycle"] == "AutoDelete"
 
     def test_empty_patch(self):
-        req = MainPatchAgentRequest()
+        req = PatchAgentRequest()
         d = req.to_dict()
         # All fields should be absent (omitempty)
         assert "model" not in d or d.get("model") is None
@@ -161,22 +161,22 @@ class TestPatchAgentRequest:
 
 class TestCreateMemoryRequest:
     def test_required_fields(self):
-        req = MainCreateMemoryRequest(name="context", content="important info")
+        req = CreateMemoryRequest(name="context", content="important info")
         assert req.name == "context"
         assert req.content == "important info"
 
     def test_json_round_trip(self):
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name="ctx", content="data", description="desc", namespace="prod"
         )
-        restored = MainCreateMemoryRequest.from_json(req.to_json())
+        restored = CreateMemoryRequest.from_json(req.to_json())
         assert restored.name == req.name
         assert restored.description == req.description
 
 
 class TestMemoryResponse:
     def test_fields(self):
-        resp = MainMemoryResponse(
+        resp = MemoryResponse(
             name="mem-1",
             namespace="default",
             content="stored content",
@@ -194,23 +194,23 @@ class TestMemoryResponse:
 
 class TestCreateSkillRequest:
     def test_required_fields(self):
-        req = MainCreateSkillRequest(
+        req = CreateSkillRequest(
             name="deploy", description="deploy to prod", content="#!/bin/bash\necho deploy"
         )
         assert req.name == "deploy"
         assert req.description == "deploy to prod"
 
     def test_json_round_trip(self):
-        req = MainCreateSkillRequest(
+        req = CreateSkillRequest(
             name="s", description="d", content="c", namespace="ns"
         )
-        restored = MainCreateSkillRequest.from_json(req.to_json())
+        restored = CreateSkillRequest.from_json(req.to_json())
         assert restored.content == "c"
 
 
 class TestSkillResponse:
     def test_fields(self):
-        resp = MainSkillResponse(
+        resp = SkillResponse(
             name="skill-1",
             namespace="default",
             description="desc",
@@ -228,7 +228,7 @@ class TestSkillResponse:
 
 class TestCreateScheduleRequest:
     def test_required_fields(self):
-        req = MainCreateScheduleRequest(
+        req = CreateScheduleRequest(
             name="daily-check",
             schedule="0 9 * * *",
             instructions="check health",
@@ -237,10 +237,10 @@ class TestCreateScheduleRequest:
         assert req.schedule == "0 9 * * *"
 
     def test_with_agent_spec(self):
-        agent_spec = MainCreateScheduleAgentSpec(
+        agent_spec = CreateScheduleAgentSpec(
             model="claude-sonnet-4-6", lifecycle="AutoDelete"
         )
-        req = MainCreateScheduleRequest(
+        req = CreateScheduleRequest(
             name="sched",
             schedule="*/5 * * * *",
             instructions="ping",
@@ -254,7 +254,7 @@ class TestCreateScheduleRequest:
 
 class TestScheduleResponse:
     def test_fields(self):
-        resp = MainScheduleResponse(
+        resp = ScheduleResponse(
             name="sched-1",
             namespace="default",
             schedule="0 9 * * *",
@@ -274,7 +274,7 @@ class TestScheduleResponse:
 
 class TestCreateSecretRequest:
     def test_required_fields(self):
-        req = MainCreateSecretRequest(
+        req = CreateSecretRequest(
             name="api-keys", data={"API_KEY": "sk-123", "TOKEN": "tok-456"}
         )
         assert req.name == "api-keys"
@@ -283,7 +283,7 @@ class TestCreateSecretRequest:
 
 class TestSecretResponse:
     def test_fields(self):
-        resp = MainSecretResponse(
+        resp = SecretResponse(
             name="secret-1",
             namespace="default",
             keys=["API_KEY", "TOKEN"],
@@ -301,7 +301,7 @@ class TestSecretResponse:
 
 class TestCreateConnectorRequest:
     def test_required_fields(self):
-        req = MainCreateConnectorRequest(
+        req = CreateConnectorRequest(
             name="slack-conn",
             service="slack",
             url="https://mcp.slack.com",
@@ -309,7 +309,7 @@ class TestCreateConnectorRequest:
         assert req.service == "slack"
 
     def test_with_auth(self):
-        req = MainCreateConnectorRequest(
+        req = CreateConnectorRequest(
             name="gh-conn",
             service="github",
             url="https://mcp.github.com",
@@ -324,7 +324,7 @@ class TestCreateConnectorRequest:
 
 class TestConnectorResponse:
     def test_fields(self):
-        resp = MainConnectorResponse(
+        resp = ConnectorResponse(
             name="conn-1",
             namespace="default",
             service="slack",
@@ -342,10 +342,10 @@ class TestConnectorResponse:
 
 class TestOfficeResponse:
     def test_fields(self):
-        member = MainOfficeMemberResponse(
+        member = OfficeMemberResponse(
             name="worker-1", role="worker", task_status="completed"
         )
-        resp = MainOfficeResponse(
+        resp = OfficeResponse(
             name="office-1",
             namespace="default",
             manager="manager-1",
@@ -364,8 +364,8 @@ class TestOfficeResponse:
 
 class TestOfficeListResponse:
     def test_with_offices(self):
-        office = MainOfficeResponse(
+        office = OfficeResponse(
             name="o1", namespace="default", created_at="t"
         )
-        lst = MainOfficeListResponse(offices=[office])
+        lst = OfficeListResponse(offices=[office])
         assert len(lst.offices) == 1

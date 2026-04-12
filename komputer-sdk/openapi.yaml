@@ -24,7 +24,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AgentListResponse"
+                $ref: "#/components/schemas/AgentListResponse"
           description: List of agents
         "500":
           content:
@@ -46,7 +46,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateAgentRequest"
+              $ref: "#/components/schemas/CreateAgentRequest"
         description: Agent creation request
         required: true
       responses:
@@ -54,13 +54,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AgentResponse"
+                $ref: "#/components/schemas/AgentResponse"
           description: Task forwarded to existing agent
         "201":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AgentResponse"
+                $ref: "#/components/schemas/AgentResponse"
           description: Agent created
         "400":
           content:
@@ -154,7 +154,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AgentResponse"
+                $ref: "#/components/schemas/AgentResponse"
           description: Agent details
         "404":
           content:
@@ -195,7 +195,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PatchAgentRequest"
+              $ref: "#/components/schemas/PatchAgentRequest"
         description: Fields to update
         required: true
       responses:
@@ -203,7 +203,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AgentResponse"
+                $ref: "#/components/schemas/AgentResponse"
           description: Updated agent
         "400":
           content:
@@ -381,7 +381,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateConnectorRequest"
+              $ref: "#/components/schemas/CreateConnectorRequest"
         description: Connector creation request
         required: true
       responses:
@@ -389,7 +389,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ConnectorResponse"
+                $ref: "#/components/schemas/ConnectorResponse"
           description: Connector created
         "400":
           content:
@@ -467,7 +467,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ConnectorResponse"
+                $ref: "#/components/schemas/ConnectorResponse"
           description: Connector details
         "404":
           content:
@@ -578,7 +578,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateMemoryRequest"
+              $ref: "#/components/schemas/CreateMemoryRequest"
         description: Memory creation request
         required: true
       responses:
@@ -586,7 +586,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.MemoryResponse"
+                $ref: "#/components/schemas/MemoryResponse"
           description: Memory created
         "400":
           content:
@@ -664,7 +664,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.MemoryResponse"
+                $ref: "#/components/schemas/MemoryResponse"
           description: Memory details
         "404":
           content:
@@ -704,7 +704,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PatchMemoryRequest"
+              $ref: "#/components/schemas/PatchMemoryRequest"
         description: Fields to update
         required: true
       responses:
@@ -712,7 +712,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.MemoryResponse"
+                $ref: "#/components/schemas/MemoryResponse"
           description: Updated memory
         "400":
           content:
@@ -772,7 +772,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.OfficeListResponse"
+                $ref: "#/components/schemas/OfficeListResponse"
           description: List of offices
         "500":
           content:
@@ -850,7 +850,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.OfficeResponse"
+                $ref: "#/components/schemas/OfficeResponse"
           description: Office details
         "404":
           content:
@@ -945,7 +945,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ScheduleListResponse"
+                $ref: "#/components/schemas/ScheduleListResponse"
           description: List of schedules
         "500":
           content:
@@ -966,7 +966,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateScheduleRequest"
+              $ref: "#/components/schemas/CreateScheduleRequest"
         description: Schedule creation request
         required: true
       responses:
@@ -974,7 +974,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ScheduleResponse"
+                $ref: "#/components/schemas/ScheduleResponse"
           description: Schedule created
         "400":
           content:
@@ -1061,7 +1061,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ScheduleResponse"
+                $ref: "#/components/schemas/ScheduleResponse"
           description: Schedule details
         "404":
           content:
@@ -1101,7 +1101,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PatchScheduleRequest"
+              $ref: "#/components/schemas/PatchScheduleRequest"
         description: Fields to update
         required: true
       responses:
@@ -1109,7 +1109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ScheduleResponse"
+                $ref: "#/components/schemas/ScheduleResponse"
           description: Updated schedule
         "400":
           content:
@@ -1152,7 +1152,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.SecretListResponse"
+                $ref: "#/components/schemas/SecretListResponse"
           description: List of secrets
         "500":
           content:
@@ -1173,7 +1173,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateSecretRequest"
+              $ref: "#/components/schemas/CreateSecretRequest"
         description: Secret creation request
         required: true
       responses:
@@ -1181,7 +1181,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.SecretResponse"
+                $ref: "#/components/schemas/SecretResponse"
           description: Secret created
         "400":
           content:
@@ -1258,7 +1258,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.UpdateSecretRequest"
+              $ref: "#/components/schemas/UpdateSecretRequest"
         description: Updated secret data
         required: true
       responses:
@@ -1328,7 +1328,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CreateSkillRequest"
+              $ref: "#/components/schemas/CreateSkillRequest"
         description: Skill creation request
         required: true
       responses:
@@ -1336,7 +1336,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.SkillResponse"
+                $ref: "#/components/schemas/SkillResponse"
           description: Skill created
         "400":
           content:
@@ -1415,7 +1415,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.SkillResponse"
+                $ref: "#/components/schemas/SkillResponse"
           description: Skill details
         "404":
           content:
@@ -1455,7 +1455,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PatchSkillRequest"
+              $ref: "#/components/schemas/PatchSkillRequest"
         description: Fields to update
         required: true
       responses:
@@ -1463,7 +1463,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.SkillResponse"
+                $ref: "#/components/schemas/SkillResponse"
           description: Updated skill
         "400":
           content:
@@ -1517,7 +1517,7 @@ paths:
       - templates
 components:
   schemas:
-    main.AgentListResponse:
+    AgentListResponse:
       example:
         agents:
         - instructions: instructions
@@ -1575,10 +1575,10 @@ components:
       properties:
         agents:
           items:
-            $ref: "#/components/schemas/main.AgentResponse"
+            $ref: "#/components/schemas/AgentResponse"
           type: array
       type: object
-    main.AgentResponse:
+    AgentResponse:
       example:
         instructions: instructions
         connectors:
@@ -1658,7 +1658,7 @@ components:
         totalTokens:
           type: integer
       type: object
-    main.ConnectorResponse:
+    ConnectorResponse:
       example:
         displayName: displayName
         agentNames:
@@ -1706,7 +1706,7 @@ components:
         url:
           type: string
       type: object
-    main.CreateAgentRequest:
+    CreateAgentRequest:
       properties:
         connectors:
           description: optional KomputerConnector names to attach
@@ -1755,7 +1755,7 @@ components:
       - instructions
       - name
       type: object
-    main.CreateConnectorRequest:
+    CreateConnectorRequest:
       properties:
         authSecretKey:
           type: string
@@ -1787,7 +1787,7 @@ components:
       - service
       - url
       type: object
-    main.CreateMemoryRequest:
+    CreateMemoryRequest:
       properties:
         content:
           type: string
@@ -1801,7 +1801,7 @@ components:
       - content
       - name
       type: object
-    main.CreateScheduleAgentSpec:
+    CreateScheduleAgentSpec:
       properties:
         lifecycle:
           type: string
@@ -1816,10 +1816,10 @@ components:
         templateRef:
           type: string
       type: object
-    main.CreateScheduleRequest:
+    CreateScheduleRequest:
       properties:
         agent:
-          $ref: "#/components/schemas/main.CreateScheduleAgentSpec"
+          $ref: "#/components/schemas/CreateScheduleAgentSpec"
         agentName:
           type: string
         autoDelete:
@@ -1841,7 +1841,7 @@ components:
       - name
       - schedule
       type: object
-    main.CreateSecretRequest:
+    CreateSecretRequest:
       properties:
         data:
           additionalProperties:
@@ -1855,7 +1855,7 @@ components:
       - data
       - name
       type: object
-    main.CreateSkillRequest:
+    CreateSkillRequest:
       properties:
         content:
           type: string
@@ -1870,7 +1870,7 @@ components:
       - description
       - name
       type: object
-    main.MemoryResponse:
+    MemoryResponse:
       example:
         createdAt: createdAt
         agentNames:
@@ -1899,7 +1899,7 @@ components:
         namespace:
           type: string
       type: object
-    main.OfficeListResponse:
+    OfficeListResponse:
       example:
         offices:
         - completedAgents: 6
@@ -1943,10 +1943,10 @@ components:
       properties:
         offices:
           items:
-            $ref: "#/components/schemas/main.OfficeResponse"
+            $ref: "#/components/schemas/OfficeResponse"
           type: array
       type: object
-    main.OfficeMemberResponse:
+    OfficeMemberResponse:
       example:
         role: role
         name: name
@@ -1962,7 +1962,7 @@ components:
         taskStatus:
           type: string
       type: object
-    main.OfficeResponse:
+    OfficeResponse:
       example:
         completedAgents: 6
         phase: phase
@@ -1994,7 +1994,7 @@ components:
           type: string
         members:
           items:
-            $ref: "#/components/schemas/main.OfficeMemberResponse"
+            $ref: "#/components/schemas/OfficeMemberResponse"
           type: array
         name:
           type: string
@@ -2009,7 +2009,7 @@ components:
         totalTokens:
           type: integer
       type: object
-    main.PatchAgentRequest:
+    PatchAgentRequest:
       properties:
         connectors:
           description: connector names to attach
@@ -2043,26 +2043,26 @@ components:
         templateRef:
           type: string
       type: object
-    main.PatchMemoryRequest:
+    PatchMemoryRequest:
       properties:
         content:
           type: string
         description:
           type: string
       type: object
-    main.PatchScheduleRequest:
+    PatchScheduleRequest:
       properties:
         schedule:
           type: string
       type: object
-    main.PatchSkillRequest:
+    PatchSkillRequest:
       properties:
         content:
           type: string
         description:
           type: string
       type: object
-    main.ScheduleListResponse:
+    ScheduleListResponse:
       example:
         schedules:
         - phase: phase
@@ -2106,10 +2106,10 @@ components:
       properties:
         schedules:
           items:
-            $ref: "#/components/schemas/main.ScheduleResponse"
+            $ref: "#/components/schemas/ScheduleResponse"
           type: array
       type: object
-    main.ScheduleResponse:
+    ScheduleResponse:
       example:
         phase: phase
         successfulRuns: 5
@@ -2170,7 +2170,7 @@ components:
         totalTokens:
           type: integer
       type: object
-    main.SecretListResponse:
+    SecretListResponse:
       example:
         secrets:
         - createdAt: createdAt
@@ -2200,10 +2200,10 @@ components:
       properties:
         secrets:
           items:
-            $ref: "#/components/schemas/main.SecretResponse"
+            $ref: "#/components/schemas/SecretResponse"
           type: array
       type: object
-    main.SecretResponse:
+    SecretResponse:
       example:
         createdAt: createdAt
         keys:
@@ -2239,7 +2239,7 @@ components:
         namespace:
           type: string
       type: object
-    main.SkillResponse:
+    SkillResponse:
       example:
         createdAt: createdAt
         isDefault: true
@@ -2271,7 +2271,7 @@ components:
         namespace:
           type: string
       type: object
-    main.UpdateSecretRequest:
+    UpdateSecretRequest:
       properties:
         data:
           additionalProperties:

@@ -18,10 +18,10 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictInt, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_agent_list_response import MainAgentListResponse
-from komputer_ai.models.main_agent_response import MainAgentResponse
-from komputer_ai.models.main_create_agent_request import MainCreateAgentRequest
-from komputer_ai.models.main_patch_agent_request import MainPatchAgentRequest
+from komputer_ai.models.agent_list_response import AgentListResponse
+from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.models.create_agent_request import CreateAgentRequest
+from komputer_ai.models.patch_agent_request import PatchAgentRequest
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -580,7 +580,7 @@ class AgentsApi:
     @validate_call
     def create_agent(
         self,
-        request: Annotated[MainCreateAgentRequest, Field(description="Agent creation request")],
+        request: Annotated[CreateAgentRequest, Field(description="Agent creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -593,13 +593,13 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainAgentResponse:
+    ) -> AgentResponse:
         """Create agent or send task
 
         Creates a new agent or sends a task to an existing idle agent (upsert by name). If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
 
         :param request: Agent creation request (required)
-        :type request: MainCreateAgentRequest
+        :type request: CreateAgentRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -631,8 +631,8 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
-            '201': "MainAgentResponse",
+            '200': "AgentResponse",
+            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",
@@ -651,7 +651,7 @@ class AgentsApi:
     @validate_call
     def create_agent_with_http_info(
         self,
-        request: Annotated[MainCreateAgentRequest, Field(description="Agent creation request")],
+        request: Annotated[CreateAgentRequest, Field(description="Agent creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -664,13 +664,13 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainAgentResponse]:
+    ) -> ApiResponse[AgentResponse]:
         """Create agent or send task
 
         Creates a new agent or sends a task to an existing idle agent (upsert by name). If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
 
         :param request: Agent creation request (required)
-        :type request: MainCreateAgentRequest
+        :type request: CreateAgentRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -702,8 +702,8 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
-            '201': "MainAgentResponse",
+            '200': "AgentResponse",
+            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",
@@ -722,7 +722,7 @@ class AgentsApi:
     @validate_call
     def create_agent_without_preload_content(
         self,
-        request: Annotated[MainCreateAgentRequest, Field(description="Agent creation request")],
+        request: Annotated[CreateAgentRequest, Field(description="Agent creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -741,7 +741,7 @@ class AgentsApi:
         Creates a new agent or sends a task to an existing idle agent (upsert by name). If the agent doesn't exist, it is created. If it exists and is idle, the task is forwarded.
 
         :param request: Agent creation request (required)
-        :type request: MainCreateAgentRequest
+        :type request: CreateAgentRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -773,8 +773,8 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
-            '201': "MainAgentResponse",
+            '200': "AgentResponse",
+            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",
@@ -1162,7 +1162,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainAgentResponse:
+    ) -> AgentResponse:
         """Get agent details
 
         Returns the current status and metadata for a single agent.
@@ -1203,7 +1203,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1235,7 +1235,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainAgentResponse]:
+    ) -> ApiResponse[AgentResponse]:
         """Get agent details
 
         Returns the current status and metadata for a single agent.
@@ -1276,7 +1276,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1349,7 +1349,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1744,7 +1744,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainAgentListResponse:
+    ) -> AgentListResponse:
         """List agents
 
         Returns all agents with their current status in the specified namespace.
@@ -1782,7 +1782,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentListResponse",
+            '200': "AgentListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1812,7 +1812,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainAgentListResponse]:
+    ) -> ApiResponse[AgentListResponse]:
         """List agents
 
         Returns all agents with their current status in the specified namespace.
@@ -1850,7 +1850,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentListResponse",
+            '200': "AgentListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1918,7 +1918,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentListResponse",
+            '200': "AgentListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1997,7 +1997,7 @@ class AgentsApi:
     def patch_agent(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
-        request: Annotated[MainPatchAgentRequest, Field(description="Fields to update")],
+        request: Annotated[PatchAgentRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -2011,7 +2011,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainAgentResponse:
+    ) -> AgentResponse:
         """Patch agent
 
         Updates model, lifecycle, instructions, secretRefs, memories, skills, or connectors on an existing agent.
@@ -2019,7 +2019,7 @@ class AgentsApi:
         :param name: Agent name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchAgentRequest
+        :type request: PatchAgentRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -2055,7 +2055,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -2074,7 +2074,7 @@ class AgentsApi:
     def patch_agent_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
-        request: Annotated[MainPatchAgentRequest, Field(description="Fields to update")],
+        request: Annotated[PatchAgentRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -2088,7 +2088,7 @@ class AgentsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainAgentResponse]:
+    ) -> ApiResponse[AgentResponse]:
         """Patch agent
 
         Updates model, lifecycle, instructions, secretRefs, memories, skills, or connectors on an existing agent.
@@ -2096,7 +2096,7 @@ class AgentsApi:
         :param name: Agent name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchAgentRequest
+        :type request: PatchAgentRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -2132,7 +2132,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -2151,7 +2151,7 @@ class AgentsApi:
     def patch_agent_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
-        request: Annotated[MainPatchAgentRequest, Field(description="Fields to update")],
+        request: Annotated[PatchAgentRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -2173,7 +2173,7 @@ class AgentsApi:
         :param name: Agent name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchAgentRequest
+        :type request: PatchAgentRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -2209,7 +2209,7 @@ class AgentsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainAgentResponse",
+            '200': "AgentResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }

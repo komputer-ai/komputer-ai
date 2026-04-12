@@ -18,9 +18,9 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_create_skill_request import MainCreateSkillRequest
-from komputer_ai.models.main_patch_skill_request import MainPatchSkillRequest
-from komputer_ai.models.main_skill_response import MainSkillResponse
+from komputer_ai.models.create_skill_request import CreateSkillRequest
+from komputer_ai.models.patch_skill_request import PatchSkillRequest
+from komputer_ai.models.skill_response import SkillResponse
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -43,7 +43,7 @@ class SkillsApi:
     @validate_call
     def create_skill(
         self,
-        request: Annotated[MainCreateSkillRequest, Field(description="Skill creation request")],
+        request: Annotated[CreateSkillRequest, Field(description="Skill creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -56,13 +56,13 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainSkillResponse:
+    ) -> SkillResponse:
         """Create skill
 
         Creates a new KomputerSkill CR with script content that can be attached to agents.
 
         :param request: Skill creation request (required)
-        :type request: MainCreateSkillRequest
+        :type request: CreateSkillRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -94,7 +94,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSkillResponse",
+            '201': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -112,7 +112,7 @@ class SkillsApi:
     @validate_call
     def create_skill_with_http_info(
         self,
-        request: Annotated[MainCreateSkillRequest, Field(description="Skill creation request")],
+        request: Annotated[CreateSkillRequest, Field(description="Skill creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -125,13 +125,13 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainSkillResponse]:
+    ) -> ApiResponse[SkillResponse]:
         """Create skill
 
         Creates a new KomputerSkill CR with script content that can be attached to agents.
 
         :param request: Skill creation request (required)
-        :type request: MainCreateSkillRequest
+        :type request: CreateSkillRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -163,7 +163,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSkillResponse",
+            '201': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -181,7 +181,7 @@ class SkillsApi:
     @validate_call
     def create_skill_without_preload_content(
         self,
-        request: Annotated[MainCreateSkillRequest, Field(description="Skill creation request")],
+        request: Annotated[CreateSkillRequest, Field(description="Skill creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -200,7 +200,7 @@ class SkillsApi:
         Creates a new KomputerSkill CR with script content that can be attached to agents.
 
         :param request: Skill creation request (required)
-        :type request: MainCreateSkillRequest
+        :type request: CreateSkillRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -232,7 +232,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSkillResponse",
+            '201': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -616,7 +616,7 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainSkillResponse:
+    ) -> SkillResponse:
         """Get skill details
 
         Returns the content, description, and attached agent count for a single skill.
@@ -657,7 +657,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -689,7 +689,7 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainSkillResponse]:
+    ) -> ApiResponse[SkillResponse]:
         """Get skill details
 
         Returns the content, description, and attached agent count for a single skill.
@@ -730,7 +730,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -803,7 +803,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1151,7 +1151,7 @@ class SkillsApi:
     def patch_skill(
         self,
         name: Annotated[StrictStr, Field(description="Skill name")],
-        request: Annotated[MainPatchSkillRequest, Field(description="Fields to update")],
+        request: Annotated[PatchSkillRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1165,7 +1165,7 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainSkillResponse:
+    ) -> SkillResponse:
         """Patch skill
 
         Updates the description or script content of an existing skill.
@@ -1173,7 +1173,7 @@ class SkillsApi:
         :param name: Skill name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchSkillRequest
+        :type request: PatchSkillRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1209,7 +1209,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1228,7 +1228,7 @@ class SkillsApi:
     def patch_skill_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Skill name")],
-        request: Annotated[MainPatchSkillRequest, Field(description="Fields to update")],
+        request: Annotated[PatchSkillRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1242,7 +1242,7 @@ class SkillsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainSkillResponse]:
+    ) -> ApiResponse[SkillResponse]:
         """Patch skill
 
         Updates the description or script content of an existing skill.
@@ -1250,7 +1250,7 @@ class SkillsApi:
         :param name: Skill name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchSkillRequest
+        :type request: PatchSkillRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1286,7 +1286,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1305,7 +1305,7 @@ class SkillsApi:
     def patch_skill_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Skill name")],
-        request: Annotated[MainPatchSkillRequest, Field(description="Fields to update")],
+        request: Annotated[PatchSkillRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1327,7 +1327,7 @@ class SkillsApi:
         :param name: Skill name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchSkillRequest
+        :type request: PatchSkillRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1363,7 +1363,7 @@ class SkillsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSkillResponse",
+            '200': "SkillResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }

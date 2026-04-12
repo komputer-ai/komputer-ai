@@ -18,8 +18,8 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictInt, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_office_list_response import MainOfficeListResponse
-from komputer_ai.models.main_office_response import MainOfficeResponse
+from komputer_ai.models.office_list_response import OfficeListResponse
+from komputer_ai.models.office_response import OfficeResponse
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -339,7 +339,7 @@ class OfficesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainOfficeResponse:
+    ) -> OfficeResponse:
         """Get office details
 
         Returns the current status and member list for a single office.
@@ -380,7 +380,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeResponse",
+            '200': "OfficeResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -412,7 +412,7 @@ class OfficesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainOfficeResponse]:
+    ) -> ApiResponse[OfficeResponse]:
         """Get office details
 
         Returns the current status and member list for a single office.
@@ -453,7 +453,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeResponse",
+            '200': "OfficeResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -526,7 +526,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeResponse",
+            '200': "OfficeResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -924,7 +924,7 @@ class OfficesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainOfficeListResponse:
+    ) -> OfficeListResponse:
         """List offices
 
         Returns all offices with their current status in the specified namespace.
@@ -962,7 +962,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeListResponse",
+            '200': "OfficeListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -992,7 +992,7 @@ class OfficesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainOfficeListResponse]:
+    ) -> ApiResponse[OfficeListResponse]:
         """List offices
 
         Returns all offices with their current status in the specified namespace.
@@ -1030,7 +1030,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeListResponse",
+            '200': "OfficeListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1098,7 +1098,7 @@ class OfficesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainOfficeListResponse",
+            '200': "OfficeListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(

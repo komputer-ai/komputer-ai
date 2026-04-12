@@ -82,7 +82,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_office**
-> MainOfficeResponse get_office(name, namespace=namespace)
+> OfficeResponse get_office(name, namespace=namespace)
 
 Get office details
 
@@ -93,7 +93,7 @@ Returns the current status and member list for a single office.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_office_response import MainOfficeResponse
+from komputer_ai.models.office_response import OfficeResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -132,7 +132,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainOfficeResponse**](MainOfficeResponse.md)
+[**OfficeResponse**](OfficeResponse.md)
 
 ### Authorization
 
@@ -228,7 +228,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_offices**
-> MainOfficeListResponse list_offices(namespace=namespace)
+> OfficeListResponse list_offices(namespace=namespace)
 
 List offices
 
@@ -239,7 +239,7 @@ Returns all offices with their current status in the specified namespace.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_office_list_response import MainOfficeListResponse
+from komputer_ai.models.office_list_response import OfficeListResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -276,7 +276,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainOfficeListResponse**](MainOfficeListResponse.md)
+[**OfficeListResponse**](OfficeListResponse.md)
 
 ### Authorization
 

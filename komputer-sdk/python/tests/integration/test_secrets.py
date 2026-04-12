@@ -1,7 +1,7 @@
 """Integration tests for secrets."""
 
 import pytest
-from komputer_ai.models import MainCreateSecretRequest, MainUpdateSecretRequest
+from komputer_ai.models import CreateSecretRequest, UpdateSecretRequest
 
 
 SECRET_NAME = "sdk-test-secret"
@@ -23,7 +23,7 @@ def _safe_delete(client, name):
 
 class TestSecrets:
     def test_create_secret(self, client):
-        req = MainCreateSecretRequest(
+        req = CreateSecretRequest(
             name=SECRET_NAME,
             data={"API_KEY": "test-key-123", "TOKEN": "test-token"},
         )
@@ -34,7 +34,7 @@ class TestSecrets:
         assert "TOKEN" in resp.keys
 
     def test_list_secrets_contains_created(self, client):
-        req = MainCreateSecretRequest(
+        req = CreateSecretRequest(
             name=SECRET_NAME,
             data={"KEY": "val"},
         )
@@ -45,18 +45,18 @@ class TestSecrets:
         assert SECRET_NAME in names
 
     def test_update_secret(self, client):
-        req = MainCreateSecretRequest(
+        req = CreateSecretRequest(
             name=SECRET_NAME,
             data={"OLD_KEY": "old"},
         )
         client.secrets.create_secret(req)
 
-        update = MainUpdateSecretRequest(data={"NEW_KEY": "new-value"})
+        update = UpdateSecretRequest(data={"NEW_KEY": "new-value"})
         resp = client.secrets.update_secret(SECRET_NAME, update)
         assert "NEW_KEY" in resp.keys
 
     def test_delete_secret(self, client):
-        req = MainCreateSecretRequest(
+        req = CreateSecretRequest(
             name=SECRET_NAME,
             data={"KEY": "val"},
         )

@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 
 # **create_secret**
-> MainSecretResponse create_secret(request)
+> SecretResponse create_secret(request)
 
 Create managed secret
 
@@ -22,8 +22,8 @@ Creates a new Kubernetes secret managed by komputer.ai that can be attached to a
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_create_secret_request import MainCreateSecretRequest
-from komputer_ai.models.main_secret_response import MainSecretResponse
+from komputer_ai.models.create_secret_request import CreateSecretRequest
+from komputer_ai.models.secret_response import SecretResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -38,7 +38,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SecretsApi(api_client)
-    request = komputer_ai.MainCreateSecretRequest() # MainCreateSecretRequest | Secret creation request
+    request = komputer_ai.CreateSecretRequest() # CreateSecretRequest | Secret creation request
 
     try:
         # Create managed secret
@@ -56,11 +56,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateSecretRequest**](MainCreateSecretRequest.md)| Secret creation request | 
+ **request** | [**CreateSecretRequest**](CreateSecretRequest.md)| Secret creation request | 
 
 ### Return type
 
-[**MainSecretResponse**](MainSecretResponse.md)
+[**SecretResponse**](SecretResponse.md)
 
 ### Authorization
 
@@ -152,7 +152,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_secrets**
-> MainSecretListResponse list_secrets(namespace=namespace, all=all)
+> SecretListResponse list_secrets(namespace=namespace, all=all)
 
 List secrets
 
@@ -163,7 +163,7 @@ Returns all secrets with key names (not values) and attached agent counts in the
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_secret_list_response import MainSecretListResponse
+from komputer_ai.models.secret_list_response import SecretListResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -202,7 +202,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainSecretListResponse**](MainSecretListResponse.md)
+[**SecretListResponse**](SecretListResponse.md)
 
 ### Authorization
 
@@ -234,7 +234,7 @@ Replaces the key-value pairs in a managed Kubernetes secret.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_update_secret_request import MainUpdateSecretRequest
+from komputer_ai.models.update_secret_request import UpdateSecretRequest
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -250,7 +250,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SecretsApi(api_client)
     name = 'name_example' # str | Secret name
-    request = komputer_ai.MainUpdateSecretRequest() # MainUpdateSecretRequest | Updated secret data
+    request = komputer_ai.UpdateSecretRequest() # UpdateSecretRequest | Updated secret data
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
@@ -270,7 +270,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Secret name | 
- **request** | [**MainUpdateSecretRequest**](MainUpdateSecretRequest.md)| Updated secret data | 
+ **request** | [**UpdateSecretRequest**](UpdateSecretRequest.md)| Updated secret data | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type

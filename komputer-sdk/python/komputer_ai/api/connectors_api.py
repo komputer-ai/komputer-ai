@@ -18,8 +18,8 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_connector_response import MainConnectorResponse
-from komputer_ai.models.main_create_connector_request import MainCreateConnectorRequest
+from komputer_ai.models.connector_response import ConnectorResponse
+from komputer_ai.models.create_connector_request import CreateConnectorRequest
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -42,7 +42,7 @@ class ConnectorsApi:
     @validate_call
     def create_connector(
         self,
-        request: Annotated[MainCreateConnectorRequest, Field(description="Connector creation request")],
+        request: Annotated[CreateConnectorRequest, Field(description="Connector creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -55,13 +55,13 @@ class ConnectorsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainConnectorResponse:
+    ) -> ConnectorResponse:
         """Create connector
 
         Creates a new KomputerConnector CR pointing to an MCP server that can be attached to agents.
 
         :param request: Connector creation request (required)
-        :type request: MainCreateConnectorRequest
+        :type request: CreateConnectorRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -93,7 +93,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainConnectorResponse",
+            '201': "ConnectorResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -111,7 +111,7 @@ class ConnectorsApi:
     @validate_call
     def create_connector_with_http_info(
         self,
-        request: Annotated[MainCreateConnectorRequest, Field(description="Connector creation request")],
+        request: Annotated[CreateConnectorRequest, Field(description="Connector creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -124,13 +124,13 @@ class ConnectorsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainConnectorResponse]:
+    ) -> ApiResponse[ConnectorResponse]:
         """Create connector
 
         Creates a new KomputerConnector CR pointing to an MCP server that can be attached to agents.
 
         :param request: Connector creation request (required)
-        :type request: MainCreateConnectorRequest
+        :type request: CreateConnectorRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -162,7 +162,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainConnectorResponse",
+            '201': "ConnectorResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -180,7 +180,7 @@ class ConnectorsApi:
     @validate_call
     def create_connector_without_preload_content(
         self,
-        request: Annotated[MainCreateConnectorRequest, Field(description="Connector creation request")],
+        request: Annotated[CreateConnectorRequest, Field(description="Connector creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -199,7 +199,7 @@ class ConnectorsApi:
         Creates a new KomputerConnector CR pointing to an MCP server that can be attached to agents.
 
         :param request: Connector creation request (required)
-        :type request: MainCreateConnectorRequest
+        :type request: CreateConnectorRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -231,7 +231,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainConnectorResponse",
+            '201': "ConnectorResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -615,7 +615,7 @@ class ConnectorsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainConnectorResponse:
+    ) -> ConnectorResponse:
         """Get connector details
 
         Returns the URL, service, type, and auth config for a single connector.
@@ -656,7 +656,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainConnectorResponse",
+            '200': "ConnectorResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -688,7 +688,7 @@ class ConnectorsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainConnectorResponse]:
+    ) -> ApiResponse[ConnectorResponse]:
         """Get connector details
 
         Returns the URL, service, type, and auth config for a single connector.
@@ -729,7 +729,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainConnectorResponse",
+            '200': "ConnectorResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -802,7 +802,7 @@ class ConnectorsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainConnectorResponse",
+            '200': "ConnectorResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }

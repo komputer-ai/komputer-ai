@@ -35,30 +35,30 @@ __all__ = [
     "ApiKeyError",
     "ApiAttributeError",
     "ApiException",
-    "MainAgentListResponse",
-    "MainAgentResponse",
-    "MainConnectorResponse",
-    "MainCreateAgentRequest",
-    "MainCreateConnectorRequest",
-    "MainCreateMemoryRequest",
-    "MainCreateScheduleAgentSpec",
-    "MainCreateScheduleRequest",
-    "MainCreateSecretRequest",
-    "MainCreateSkillRequest",
-    "MainMemoryResponse",
-    "MainOfficeListResponse",
-    "MainOfficeMemberResponse",
-    "MainOfficeResponse",
-    "MainPatchAgentRequest",
-    "MainPatchMemoryRequest",
-    "MainPatchScheduleRequest",
-    "MainPatchSkillRequest",
-    "MainScheduleListResponse",
-    "MainScheduleResponse",
-    "MainSecretListResponse",
-    "MainSecretResponse",
-    "MainSkillResponse",
-    "MainUpdateSecretRequest",
+    "AgentListResponse",
+    "AgentResponse",
+    "ConnectorResponse",
+    "CreateAgentRequest",
+    "CreateConnectorRequest",
+    "CreateMemoryRequest",
+    "CreateScheduleAgentSpec",
+    "CreateScheduleRequest",
+    "CreateSecretRequest",
+    "CreateSkillRequest",
+    "MemoryResponse",
+    "OfficeListResponse",
+    "OfficeMemberResponse",
+    "OfficeResponse",
+    "PatchAgentRequest",
+    "PatchMemoryRequest",
+    "PatchScheduleRequest",
+    "PatchSkillRequest",
+    "ScheduleListResponse",
+    "ScheduleResponse",
+    "SecretListResponse",
+    "SecretResponse",
+    "SkillResponse",
+    "UpdateSecretRequest",
 ]
 
 # import apis into sdk package
@@ -83,28 +83,28 @@ from komputer_ai.exceptions import ApiAttributeError as ApiAttributeError
 from komputer_ai.exceptions import ApiException as ApiException
 
 # import models into sdk package
-from komputer_ai.models.main_agent_list_response import MainAgentListResponse as MainAgentListResponse
-from komputer_ai.models.main_agent_response import MainAgentResponse as MainAgentResponse
-from komputer_ai.models.main_connector_response import MainConnectorResponse as MainConnectorResponse
-from komputer_ai.models.main_create_agent_request import MainCreateAgentRequest as MainCreateAgentRequest
-from komputer_ai.models.main_create_connector_request import MainCreateConnectorRequest as MainCreateConnectorRequest
-from komputer_ai.models.main_create_memory_request import MainCreateMemoryRequest as MainCreateMemoryRequest
-from komputer_ai.models.main_create_schedule_agent_spec import MainCreateScheduleAgentSpec as MainCreateScheduleAgentSpec
-from komputer_ai.models.main_create_schedule_request import MainCreateScheduleRequest as MainCreateScheduleRequest
-from komputer_ai.models.main_create_secret_request import MainCreateSecretRequest as MainCreateSecretRequest
-from komputer_ai.models.main_create_skill_request import MainCreateSkillRequest as MainCreateSkillRequest
-from komputer_ai.models.main_memory_response import MainMemoryResponse as MainMemoryResponse
-from komputer_ai.models.main_office_list_response import MainOfficeListResponse as MainOfficeListResponse
-from komputer_ai.models.main_office_member_response import MainOfficeMemberResponse as MainOfficeMemberResponse
-from komputer_ai.models.main_office_response import MainOfficeResponse as MainOfficeResponse
-from komputer_ai.models.main_patch_agent_request import MainPatchAgentRequest as MainPatchAgentRequest
-from komputer_ai.models.main_patch_memory_request import MainPatchMemoryRequest as MainPatchMemoryRequest
-from komputer_ai.models.main_patch_schedule_request import MainPatchScheduleRequest as MainPatchScheduleRequest
-from komputer_ai.models.main_patch_skill_request import MainPatchSkillRequest as MainPatchSkillRequest
-from komputer_ai.models.main_schedule_list_response import MainScheduleListResponse as MainScheduleListResponse
-from komputer_ai.models.main_schedule_response import MainScheduleResponse as MainScheduleResponse
-from komputer_ai.models.main_secret_list_response import MainSecretListResponse as MainSecretListResponse
-from komputer_ai.models.main_secret_response import MainSecretResponse as MainSecretResponse
-from komputer_ai.models.main_skill_response import MainSkillResponse as MainSkillResponse
-from komputer_ai.models.main_update_secret_request import MainUpdateSecretRequest as MainUpdateSecretRequest
+from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
+from komputer_ai.models.agent_response import AgentResponse as AgentResponse
+from komputer_ai.models.connector_response import ConnectorResponse as ConnectorResponse
+from komputer_ai.models.create_agent_request import CreateAgentRequest as CreateAgentRequest
+from komputer_ai.models.create_connector_request import CreateConnectorRequest as CreateConnectorRequest
+from komputer_ai.models.create_memory_request import CreateMemoryRequest as CreateMemoryRequest
+from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpec as CreateScheduleAgentSpec
+from komputer_ai.models.create_schedule_request import CreateScheduleRequest as CreateScheduleRequest
+from komputer_ai.models.create_secret_request import CreateSecretRequest as CreateSecretRequest
+from komputer_ai.models.create_skill_request import CreateSkillRequest as CreateSkillRequest
+from komputer_ai.models.memory_response import MemoryResponse as MemoryResponse
+from komputer_ai.models.office_list_response import OfficeListResponse as OfficeListResponse
+from komputer_ai.models.office_member_response import OfficeMemberResponse as OfficeMemberResponse
+from komputer_ai.models.office_response import OfficeResponse as OfficeResponse
+from komputer_ai.models.patch_agent_request import PatchAgentRequest as PatchAgentRequest
+from komputer_ai.models.patch_memory_request import PatchMemoryRequest as PatchMemoryRequest
+from komputer_ai.models.patch_schedule_request import PatchScheduleRequest as PatchScheduleRequest
+from komputer_ai.models.patch_skill_request import PatchSkillRequest as PatchSkillRequest
+from komputer_ai.models.schedule_list_response import ScheduleListResponse as ScheduleListResponse
+from komputer_ai.models.schedule_response import ScheduleResponse as ScheduleResponse
+from komputer_ai.models.secret_list_response import SecretListResponse as SecretListResponse
+from komputer_ai.models.secret_response import SecretResponse as SecretResponse
+from komputer_ai.models.skill_response import SkillResponse as SkillResponse
+from komputer_ai.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
 

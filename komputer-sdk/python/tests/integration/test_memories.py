@@ -1,7 +1,7 @@
 """Integration tests for memories."""
 
 import pytest
-from komputer_ai.models import MainCreateMemoryRequest, MainPatchMemoryRequest
+from komputer_ai.models import CreateMemoryRequest, PatchMemoryRequest
 
 
 MEMORY_NAME = "sdk-test-memory"
@@ -24,7 +24,7 @@ def _safe_delete(client, name):
 
 class TestMemories:
     def test_create_memory(self, client):
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name=MEMORY_NAME,
             content="SDK integration test content",
             description="Created by Python SDK tests",
@@ -35,7 +35,7 @@ class TestMemories:
 
     def test_list_memories_contains_created(self, client):
         # Create first
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name=MEMORY_NAME,
             content="list test",
             description="for listing",
@@ -47,7 +47,7 @@ class TestMemories:
         assert MEMORY_NAME in names
 
     def test_get_memory(self, client):
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name=MEMORY_NAME,
             content="get test content",
             description="for get",
@@ -59,19 +59,19 @@ class TestMemories:
         assert resp.content == "get test content"
 
     def test_patch_memory(self, client):
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name=MEMORY_NAME,
             content="original",
             description="original desc",
         )
         client.memories.create_memory(req)
 
-        patch = MainPatchMemoryRequest(content="updated content")
+        patch = PatchMemoryRequest(content="updated content")
         resp = client.memories.patch_memory(MEMORY_NAME, patch)
         assert resp.content == "updated content"
 
     def test_delete_memory(self, client):
-        req = MainCreateMemoryRequest(
+        req = CreateMemoryRequest(
             name=MEMORY_NAME, content="to delete", description="delete me"
         )
         client.memories.create_memory(req)

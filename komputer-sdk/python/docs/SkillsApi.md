@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **create_skill**
-> MainSkillResponse create_skill(request)
+> SkillResponse create_skill(request)
 
 Create skill
 
@@ -23,8 +23,8 @@ Creates a new KomputerSkill CR with script content that can be attached to agent
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_create_skill_request import MainCreateSkillRequest
-from komputer_ai.models.main_skill_response import MainSkillResponse
+from komputer_ai.models.create_skill_request import CreateSkillRequest
+from komputer_ai.models.skill_response import SkillResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -39,7 +39,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SkillsApi(api_client)
-    request = komputer_ai.MainCreateSkillRequest() # MainCreateSkillRequest | Skill creation request
+    request = komputer_ai.CreateSkillRequest() # CreateSkillRequest | Skill creation request
 
     try:
         # Create skill
@@ -57,11 +57,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateSkillRequest**](MainCreateSkillRequest.md)| Skill creation request | 
+ **request** | [**CreateSkillRequest**](CreateSkillRequest.md)| Skill creation request | 
 
 ### Return type
 
-[**MainSkillResponse**](MainSkillResponse.md)
+[**SkillResponse**](SkillResponse.md)
 
 ### Authorization
 
@@ -153,7 +153,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_skill**
-> MainSkillResponse get_skill(name, namespace=namespace)
+> SkillResponse get_skill(name, namespace=namespace)
 
 Get skill details
 
@@ -164,7 +164,7 @@ Returns the content, description, and attached agent count for a single skill.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_skill_response import MainSkillResponse
+from komputer_ai.models.skill_response import SkillResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -203,7 +203,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainSkillResponse**](MainSkillResponse.md)
+[**SkillResponse**](SkillResponse.md)
 
 ### Authorization
 
@@ -293,7 +293,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **patch_skill**
-> MainSkillResponse patch_skill(name, request, namespace=namespace)
+> SkillResponse patch_skill(name, request, namespace=namespace)
 
 Patch skill
 
@@ -304,8 +304,8 @@ Updates the description or script content of an existing skill.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_patch_skill_request import MainPatchSkillRequest
-from komputer_ai.models.main_skill_response import MainSkillResponse
+from komputer_ai.models.patch_skill_request import PatchSkillRequest
+from komputer_ai.models.skill_response import SkillResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -321,7 +321,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SkillsApi(api_client)
     name = 'name_example' # str | Skill name
-    request = komputer_ai.MainPatchSkillRequest() # MainPatchSkillRequest | Fields to update
+    request = komputer_ai.PatchSkillRequest() # PatchSkillRequest | Fields to update
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
@@ -341,12 +341,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Skill name | 
- **request** | [**MainPatchSkillRequest**](MainPatchSkillRequest.md)| Fields to update | 
+ **request** | [**PatchSkillRequest**](PatchSkillRequest.md)| Fields to update | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type
 
-[**MainSkillResponse**](MainSkillResponse.md)
+[**SkillResponse**](SkillResponse.md)
 
 ### Authorization
 

@@ -147,7 +147,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **create_agent**
-> MainAgentResponse create_agent(request)
+> AgentResponse create_agent(request)
 
 Create agent or send task
 
@@ -159,8 +159,8 @@ If the agent doesn't exist, it is created. If it exists and is idle, the task is
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_agent_response import MainAgentResponse
-from komputer_ai.models.main_create_agent_request import MainCreateAgentRequest
+from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.models.create_agent_request import CreateAgentRequest
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -175,7 +175,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.AgentsApi(api_client)
-    request = komputer_ai.MainCreateAgentRequest() # MainCreateAgentRequest | Agent creation request
+    request = komputer_ai.CreateAgentRequest() # CreateAgentRequest | Agent creation request
 
     try:
         # Create agent or send task
@@ -193,11 +193,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateAgentRequest**](MainCreateAgentRequest.md)| Agent creation request | 
+ **request** | [**CreateAgentRequest**](CreateAgentRequest.md)| Agent creation request | 
 
 ### Return type
 
-[**MainAgentResponse**](MainAgentResponse.md)
+[**AgentResponse**](AgentResponse.md)
 
 ### Authorization
 
@@ -292,7 +292,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_agent**
-> MainAgentResponse get_agent(name, namespace=namespace)
+> AgentResponse get_agent(name, namespace=namespace)
 
 Get agent details
 
@@ -303,7 +303,7 @@ Returns the current status and metadata for a single agent.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_agent_response import MainAgentResponse
+from komputer_ai.models.agent_response import AgentResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -342,7 +342,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainAgentResponse**](MainAgentResponse.md)
+[**AgentResponse**](AgentResponse.md)
 
 ### Authorization
 
@@ -437,7 +437,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> MainAgentListResponse list_agents(namespace=namespace)
+> AgentListResponse list_agents(namespace=namespace)
 
 List agents
 
@@ -448,7 +448,7 @@ Returns all agents with their current status in the specified namespace.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_agent_list_response import MainAgentListResponse
+from komputer_ai.models.agent_list_response import AgentListResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -485,7 +485,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainAgentListResponse**](MainAgentListResponse.md)
+[**AgentListResponse**](AgentListResponse.md)
 
 ### Authorization
 
@@ -506,7 +506,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **patch_agent**
-> MainAgentResponse patch_agent(name, request, namespace=namespace)
+> AgentResponse patch_agent(name, request, namespace=namespace)
 
 Patch agent
 
@@ -517,8 +517,8 @@ Updates model, lifecycle, instructions, secretRefs, memories, skills, or connect
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_agent_response import MainAgentResponse
-from komputer_ai.models.main_patch_agent_request import MainPatchAgentRequest
+from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.models.patch_agent_request import PatchAgentRequest
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -534,7 +534,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.AgentsApi(api_client)
     name = 'name_example' # str | Agent name
-    request = komputer_ai.MainPatchAgentRequest() # MainPatchAgentRequest | Fields to update
+    request = komputer_ai.PatchAgentRequest() # PatchAgentRequest | Fields to update
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
@@ -554,12 +554,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Agent name | 
- **request** | [**MainPatchAgentRequest**](MainPatchAgentRequest.md)| Fields to update | 
+ **request** | [**PatchAgentRequest**](PatchAgentRequest.md)| Fields to update | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type
 
-[**MainAgentResponse**](MainAgentResponse.md)
+[**AgentResponse**](AgentResponse.md)
 
 ### Authorization
 

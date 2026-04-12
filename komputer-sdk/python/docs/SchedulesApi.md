@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **create_schedule**
-> MainScheduleResponse create_schedule(request)
+> ScheduleResponse create_schedule(request)
 
 Create schedule
 
@@ -23,8 +23,8 @@ Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_create_schedule_request import MainCreateScheduleRequest
-from komputer_ai.models.main_schedule_response import MainScheduleResponse
+from komputer_ai.models.create_schedule_request import CreateScheduleRequest
+from komputer_ai.models.schedule_response import ScheduleResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -39,7 +39,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SchedulesApi(api_client)
-    request = komputer_ai.MainCreateScheduleRequest() # MainCreateScheduleRequest | Schedule creation request
+    request = komputer_ai.CreateScheduleRequest() # CreateScheduleRequest | Schedule creation request
 
     try:
         # Create schedule
@@ -57,11 +57,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateScheduleRequest**](MainCreateScheduleRequest.md)| Schedule creation request | 
+ **request** | [**CreateScheduleRequest**](CreateScheduleRequest.md)| Schedule creation request | 
 
 ### Return type
 
-[**MainScheduleResponse**](MainScheduleResponse.md)
+[**ScheduleResponse**](ScheduleResponse.md)
 
 ### Authorization
 
@@ -154,7 +154,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_schedule**
-> MainScheduleResponse get_schedule(name, namespace=namespace)
+> ScheduleResponse get_schedule(name, namespace=namespace)
 
 Get schedule details
 
@@ -165,7 +165,7 @@ Returns the current status and run history for a single schedule.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_schedule_response import MainScheduleResponse
+from komputer_ai.models.schedule_response import ScheduleResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -204,7 +204,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainScheduleResponse**](MainScheduleResponse.md)
+[**ScheduleResponse**](ScheduleResponse.md)
 
 ### Authorization
 
@@ -226,7 +226,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_schedules**
-> MainScheduleListResponse list_schedules(namespace=namespace)
+> ScheduleListResponse list_schedules(namespace=namespace)
 
 List schedules
 
@@ -237,7 +237,7 @@ Returns all schedules with their current status and run history in the specified
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_schedule_list_response import MainScheduleListResponse
+from komputer_ai.models.schedule_list_response import ScheduleListResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -274,7 +274,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainScheduleListResponse**](MainScheduleListResponse.md)
+[**ScheduleListResponse**](ScheduleListResponse.md)
 
 ### Authorization
 
@@ -295,7 +295,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **patch_schedule**
-> MainScheduleResponse patch_schedule(name, request, namespace=namespace)
+> ScheduleResponse patch_schedule(name, request, namespace=namespace)
 
 Patch schedule
 
@@ -306,8 +306,8 @@ Updates the cron expression for an existing schedule.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_patch_schedule_request import MainPatchScheduleRequest
-from komputer_ai.models.main_schedule_response import MainScheduleResponse
+from komputer_ai.models.patch_schedule_request import PatchScheduleRequest
+from komputer_ai.models.schedule_response import ScheduleResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -323,7 +323,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.SchedulesApi(api_client)
     name = 'name_example' # str | Schedule name
-    request = komputer_ai.MainPatchScheduleRequest() # MainPatchScheduleRequest | Fields to update
+    request = komputer_ai.PatchScheduleRequest() # PatchScheduleRequest | Fields to update
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
@@ -343,12 +343,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Schedule name | 
- **request** | [**MainPatchScheduleRequest**](MainPatchScheduleRequest.md)| Fields to update | 
+ **request** | [**PatchScheduleRequest**](PatchScheduleRequest.md)| Fields to update | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type
 
-[**MainScheduleResponse**](MainScheduleResponse.md)
+[**ScheduleResponse**](ScheduleResponse.md)
 
 ### Authorization
 

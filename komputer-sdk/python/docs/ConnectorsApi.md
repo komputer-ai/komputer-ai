@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **create_connector**
-> MainConnectorResponse create_connector(request)
+> ConnectorResponse create_connector(request)
 
 Create connector
 
@@ -23,8 +23,8 @@ Creates a new KomputerConnector CR pointing to an MCP server that can be attache
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_connector_response import MainConnectorResponse
-from komputer_ai.models.main_create_connector_request import MainCreateConnectorRequest
+from komputer_ai.models.connector_response import ConnectorResponse
+from komputer_ai.models.create_connector_request import CreateConnectorRequest
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -39,7 +39,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.ConnectorsApi(api_client)
-    request = komputer_ai.MainCreateConnectorRequest() # MainCreateConnectorRequest | Connector creation request
+    request = komputer_ai.CreateConnectorRequest() # CreateConnectorRequest | Connector creation request
 
     try:
         # Create connector
@@ -57,11 +57,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateConnectorRequest**](MainCreateConnectorRequest.md)| Connector creation request | 
+ **request** | [**CreateConnectorRequest**](CreateConnectorRequest.md)| Connector creation request | 
 
 ### Return type
 
-[**MainConnectorResponse**](MainConnectorResponse.md)
+[**ConnectorResponse**](ConnectorResponse.md)
 
 ### Authorization
 
@@ -153,7 +153,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_connector**
-> MainConnectorResponse get_connector(name, namespace=namespace)
+> ConnectorResponse get_connector(name, namespace=namespace)
 
 Get connector details
 
@@ -164,7 +164,7 @@ Returns the URL, service, type, and auth config for a single connector.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_connector_response import MainConnectorResponse
+from komputer_ai.models.connector_response import ConnectorResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -203,7 +203,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainConnectorResponse**](MainConnectorResponse.md)
+[**ConnectorResponse**](ConnectorResponse.md)
 
 ### Authorization
 

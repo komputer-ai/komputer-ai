@@ -18,10 +18,10 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictBool, StrictStr
 from typing import Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_create_secret_request import MainCreateSecretRequest
-from komputer_ai.models.main_secret_list_response import MainSecretListResponse
-from komputer_ai.models.main_secret_response import MainSecretResponse
-from komputer_ai.models.main_update_secret_request import MainUpdateSecretRequest
+from komputer_ai.models.create_secret_request import CreateSecretRequest
+from komputer_ai.models.secret_list_response import SecretListResponse
+from komputer_ai.models.secret_response import SecretResponse
+from komputer_ai.models.update_secret_request import UpdateSecretRequest
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -44,7 +44,7 @@ class SecretsApi:
     @validate_call
     def create_secret(
         self,
-        request: Annotated[MainCreateSecretRequest, Field(description="Secret creation request")],
+        request: Annotated[CreateSecretRequest, Field(description="Secret creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -57,13 +57,13 @@ class SecretsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainSecretResponse:
+    ) -> SecretResponse:
         """Create managed secret
 
         Creates a new Kubernetes secret managed by komputer.ai that can be attached to agents.
 
         :param request: Secret creation request (required)
-        :type request: MainCreateSecretRequest
+        :type request: CreateSecretRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -95,7 +95,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSecretResponse",
+            '201': "SecretResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -113,7 +113,7 @@ class SecretsApi:
     @validate_call
     def create_secret_with_http_info(
         self,
-        request: Annotated[MainCreateSecretRequest, Field(description="Secret creation request")],
+        request: Annotated[CreateSecretRequest, Field(description="Secret creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -126,13 +126,13 @@ class SecretsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainSecretResponse]:
+    ) -> ApiResponse[SecretResponse]:
         """Create managed secret
 
         Creates a new Kubernetes secret managed by komputer.ai that can be attached to agents.
 
         :param request: Secret creation request (required)
-        :type request: MainCreateSecretRequest
+        :type request: CreateSecretRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -164,7 +164,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSecretResponse",
+            '201': "SecretResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -182,7 +182,7 @@ class SecretsApi:
     @validate_call
     def create_secret_without_preload_content(
         self,
-        request: Annotated[MainCreateSecretRequest, Field(description="Secret creation request")],
+        request: Annotated[CreateSecretRequest, Field(description="Secret creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -201,7 +201,7 @@ class SecretsApi:
         Creates a new Kubernetes secret managed by komputer.ai that can be attached to agents.
 
         :param request: Secret creation request (required)
-        :type request: MainCreateSecretRequest
+        :type request: CreateSecretRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -233,7 +233,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainSecretResponse",
+            '201': "SecretResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -617,7 +617,7 @@ class SecretsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainSecretListResponse:
+    ) -> SecretListResponse:
         """List secrets
 
         Returns all secrets with key names (not values) and attached agent counts in the specified namespace.
@@ -658,7 +658,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSecretListResponse",
+            '200': "SecretListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -689,7 +689,7 @@ class SecretsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainSecretListResponse]:
+    ) -> ApiResponse[SecretListResponse]:
         """List secrets
 
         Returns all secrets with key names (not values) and attached agent counts in the specified namespace.
@@ -730,7 +730,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSecretListResponse",
+            '200': "SecretListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -802,7 +802,7 @@ class SecretsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainSecretListResponse",
+            '200': "SecretListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -886,7 +886,7 @@ class SecretsApi:
     def update_secret(
         self,
         name: Annotated[StrictStr, Field(description="Secret name")],
-        request: Annotated[MainUpdateSecretRequest, Field(description="Updated secret data")],
+        request: Annotated[UpdateSecretRequest, Field(description="Updated secret data")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -908,7 +908,7 @@ class SecretsApi:
         :param name: Secret name (required)
         :type name: str
         :param request: Updated secret data (required)
-        :type request: MainUpdateSecretRequest
+        :type request: UpdateSecretRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -963,7 +963,7 @@ class SecretsApi:
     def update_secret_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Secret name")],
-        request: Annotated[MainUpdateSecretRequest, Field(description="Updated secret data")],
+        request: Annotated[UpdateSecretRequest, Field(description="Updated secret data")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -985,7 +985,7 @@ class SecretsApi:
         :param name: Secret name (required)
         :type name: str
         :param request: Updated secret data (required)
-        :type request: MainUpdateSecretRequest
+        :type request: UpdateSecretRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1040,7 +1040,7 @@ class SecretsApi:
     def update_secret_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Secret name")],
-        request: Annotated[MainUpdateSecretRequest, Field(description="Updated secret data")],
+        request: Annotated[UpdateSecretRequest, Field(description="Updated secret data")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1062,7 +1062,7 @@ class SecretsApi:
         :param name: Secret name (required)
         :type name: str
         :param request: Updated secret data (required)
-        :type request: MainUpdateSecretRequest
+        :type request: UpdateSecretRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one

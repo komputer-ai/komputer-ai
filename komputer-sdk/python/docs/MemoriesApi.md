@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **create_memory**
-> MainMemoryResponse create_memory(request)
+> MemoryResponse create_memory(request)
 
 Create memory
 
@@ -23,8 +23,8 @@ Creates a new KomputerMemory CR that can be attached to agents as persistent con
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_create_memory_request import MainCreateMemoryRequest
-from komputer_ai.models.main_memory_response import MainMemoryResponse
+from komputer_ai.models.create_memory_request import CreateMemoryRequest
+from komputer_ai.models.memory_response import MemoryResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -39,7 +39,7 @@ configuration = komputer_ai.Configuration(
 with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.MemoriesApi(api_client)
-    request = komputer_ai.MainCreateMemoryRequest() # MainCreateMemoryRequest | Memory creation request
+    request = komputer_ai.CreateMemoryRequest() # CreateMemoryRequest | Memory creation request
 
     try:
         # Create memory
@@ -57,11 +57,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MainCreateMemoryRequest**](MainCreateMemoryRequest.md)| Memory creation request | 
+ **request** | [**CreateMemoryRequest**](CreateMemoryRequest.md)| Memory creation request | 
 
 ### Return type
 
-[**MainMemoryResponse**](MainMemoryResponse.md)
+[**MemoryResponse**](MemoryResponse.md)
 
 ### Authorization
 
@@ -153,7 +153,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_memory**
-> MainMemoryResponse get_memory(name, namespace=namespace)
+> MemoryResponse get_memory(name, namespace=namespace)
 
 Get memory details
 
@@ -164,7 +164,7 @@ Returns the content and attached agent count for a single memory.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_memory_response import MainMemoryResponse
+from komputer_ai.models.memory_response import MemoryResponse
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -203,7 +203,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**MainMemoryResponse**](MainMemoryResponse.md)
+[**MemoryResponse**](MemoryResponse.md)
 
 ### Authorization
 
@@ -293,7 +293,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **patch_memory**
-> MainMemoryResponse patch_memory(name, request, namespace=namespace)
+> MemoryResponse patch_memory(name, request, namespace=namespace)
 
 Patch memory
 
@@ -304,8 +304,8 @@ Updates the content or description of an existing memory.
 
 ```python
 import komputer_ai
-from komputer_ai.models.main_memory_response import MainMemoryResponse
-from komputer_ai.models.main_patch_memory_request import MainPatchMemoryRequest
+from komputer_ai.models.memory_response import MemoryResponse
+from komputer_ai.models.patch_memory_request import PatchMemoryRequest
 from komputer_ai.rest import ApiException
 from pprint import pprint
 
@@ -321,7 +321,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.MemoriesApi(api_client)
     name = 'name_example' # str | Memory name
-    request = komputer_ai.MainPatchMemoryRequest() # MainPatchMemoryRequest | Fields to update
+    request = komputer_ai.PatchMemoryRequest() # PatchMemoryRequest | Fields to update
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
@@ -341,12 +341,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Memory name | 
- **request** | [**MainPatchMemoryRequest**](MainPatchMemoryRequest.md)| Fields to update | 
+ **request** | [**PatchMemoryRequest**](PatchMemoryRequest.md)| Fields to update | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type
 
-[**MainMemoryResponse**](MainMemoryResponse.md)
+[**MemoryResponse**](MemoryResponse.md)
 
 ### Authorization
 

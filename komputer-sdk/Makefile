@@ -27,10 +27,12 @@ spec: swagger
 		--skip-validate-spec
 	cp /tmp/openapi-convert/openapi/openapi.yaml $(SPEC_OPENAPI)
 	rm -rf /tmp/openapi-convert
+	sed -i.bak 's/main\.//g' $(SPEC_OPENAPI) && rm -f $(SPEC_OPENAPI).bak
 	@echo "OpenAPI 3.0 spec written to $(SPEC_OPENAPI)"
 
 # Step 3: Generate Python SDK
 python: spec
+	@if [ -f python/komputer_ai/client.py ]; then cp python/komputer_ai/client.py /tmp/_komputer_client.py; fi
 	rm -rf python/komputer_ai python/docs python/test
 	$(GENERATOR) generate \
 		-i $(SPEC_OPENAPI) \
@@ -39,6 +41,7 @@ python: spec
 		--package-name komputer_ai \
 		--skip-validate-spec \
 		--additional-properties=projectName=komputer-ai,packageVersion=0.1.0
+	@if [ -f /tmp/_komputer_client.py ]; then cp /tmp/_komputer_client.py python/komputer_ai/client.py && rm /tmp/_komputer_client.py; fi
 	@echo "Python SDK generated in python/"
 
 # Placeholder targets for future SDKs

@@ -18,10 +18,10 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr
 from typing import Dict, Optional
 from typing_extensions import Annotated
-from komputer_ai.models.main_create_schedule_request import MainCreateScheduleRequest
-from komputer_ai.models.main_patch_schedule_request import MainPatchScheduleRequest
-from komputer_ai.models.main_schedule_list_response import MainScheduleListResponse
-from komputer_ai.models.main_schedule_response import MainScheduleResponse
+from komputer_ai.models.create_schedule_request import CreateScheduleRequest
+from komputer_ai.models.patch_schedule_request import PatchScheduleRequest
+from komputer_ai.models.schedule_list_response import ScheduleListResponse
+from komputer_ai.models.schedule_response import ScheduleResponse
 
 from komputer_ai.api_client import ApiClient, RequestSerialized
 from komputer_ai.api_response import ApiResponse
@@ -44,7 +44,7 @@ class SchedulesApi:
     @validate_call
     def create_schedule(
         self,
-        request: Annotated[MainCreateScheduleRequest, Field(description="Schedule creation request")],
+        request: Annotated[CreateScheduleRequest, Field(description="Schedule creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -57,13 +57,13 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainScheduleResponse:
+    ) -> ScheduleResponse:
         """Create schedule
 
         Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
 
         :param request: Schedule creation request (required)
-        :type request: MainCreateScheduleRequest
+        :type request: CreateScheduleRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -95,7 +95,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainScheduleResponse",
+            '201': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -113,7 +113,7 @@ class SchedulesApi:
     @validate_call
     def create_schedule_with_http_info(
         self,
-        request: Annotated[MainCreateScheduleRequest, Field(description="Schedule creation request")],
+        request: Annotated[CreateScheduleRequest, Field(description="Schedule creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -126,13 +126,13 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainScheduleResponse]:
+    ) -> ApiResponse[ScheduleResponse]:
         """Create schedule
 
         Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
 
         :param request: Schedule creation request (required)
-        :type request: MainCreateScheduleRequest
+        :type request: CreateScheduleRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -164,7 +164,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainScheduleResponse",
+            '201': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -182,7 +182,7 @@ class SchedulesApi:
     @validate_call
     def create_schedule_without_preload_content(
         self,
-        request: Annotated[MainCreateScheduleRequest, Field(description="Schedule creation request")],
+        request: Annotated[CreateScheduleRequest, Field(description="Schedule creation request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -201,7 +201,7 @@ class SchedulesApi:
         Creates a new KomputerSchedule CR that triggers agent tasks on a cron schedule.
 
         :param request: Schedule creation request (required)
-        :type request: MainCreateScheduleRequest
+        :type request: CreateScheduleRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -233,7 +233,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "MainScheduleResponse",
+            '201': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -620,7 +620,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainScheduleResponse:
+    ) -> ScheduleResponse:
         """Get schedule details
 
         Returns the current status and run history for a single schedule.
@@ -661,7 +661,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -693,7 +693,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainScheduleResponse]:
+    ) -> ApiResponse[ScheduleResponse]:
         """Get schedule details
 
         Returns the current status and run history for a single schedule.
@@ -734,7 +734,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -807,7 +807,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '404': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -902,7 +902,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainScheduleListResponse:
+    ) -> ScheduleListResponse:
         """List schedules
 
         Returns all schedules with their current status and run history in the specified namespace.
@@ -940,7 +940,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleListResponse",
+            '200': "ScheduleListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -970,7 +970,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainScheduleListResponse]:
+    ) -> ApiResponse[ScheduleListResponse]:
         """List schedules
 
         Returns all schedules with their current status and run history in the specified namespace.
@@ -1008,7 +1008,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleListResponse",
+            '200': "ScheduleListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1076,7 +1076,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleListResponse",
+            '200': "ScheduleListResponse",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1155,7 +1155,7 @@ class SchedulesApi:
     def patch_schedule(
         self,
         name: Annotated[StrictStr, Field(description="Schedule name")],
-        request: Annotated[MainPatchScheduleRequest, Field(description="Fields to update")],
+        request: Annotated[PatchScheduleRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1169,7 +1169,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> MainScheduleResponse:
+    ) -> ScheduleResponse:
         """Patch schedule
 
         Updates the cron expression for an existing schedule.
@@ -1177,7 +1177,7 @@ class SchedulesApi:
         :param name: Schedule name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchScheduleRequest
+        :type request: PatchScheduleRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1213,7 +1213,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1232,7 +1232,7 @@ class SchedulesApi:
     def patch_schedule_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Schedule name")],
-        request: Annotated[MainPatchScheduleRequest, Field(description="Fields to update")],
+        request: Annotated[PatchScheduleRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1246,7 +1246,7 @@ class SchedulesApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[MainScheduleResponse]:
+    ) -> ApiResponse[ScheduleResponse]:
         """Patch schedule
 
         Updates the cron expression for an existing schedule.
@@ -1254,7 +1254,7 @@ class SchedulesApi:
         :param name: Schedule name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchScheduleRequest
+        :type request: PatchScheduleRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1290,7 +1290,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
@@ -1309,7 +1309,7 @@ class SchedulesApi:
     def patch_schedule_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Schedule name")],
-        request: Annotated[MainPatchScheduleRequest, Field(description="Fields to update")],
+        request: Annotated[PatchScheduleRequest, Field(description="Fields to update")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1331,7 +1331,7 @@ class SchedulesApi:
         :param name: Schedule name (required)
         :type name: str
         :param request: Fields to update (required)
-        :type request: MainPatchScheduleRequest
+        :type request: PatchScheduleRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1367,7 +1367,7 @@ class SchedulesApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "MainScheduleResponse",
+            '200': "ScheduleResponse",
             '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
