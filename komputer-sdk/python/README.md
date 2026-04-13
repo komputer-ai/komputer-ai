@@ -5,7 +5,7 @@ Python client for the [komputer.ai](https://github.com/kontroloop-ai/komputer-ai
 ## Installation
 
 ```bash
-pip install komputer-ai
+pip install komputer-ai-sdk
 ```
 
 ## Quick Start

@@ -5,7 +5,7 @@ Official client libraries for the komputer.ai REST API and WebSocket streaming.
 ## Python
 
 ```bash
-pip install komputer-ai    # or: cd komputer-sdk/python && pip install -e .
+pip install komputer-ai-sdk
 ```
 
 ```python
@@ -39,7 +39,7 @@ cd komputer-sdk/typescript && npm install && npm run build
 ```
 
 ```typescript
-import { KomputerClient } from "komputer-ai";
+import { KomputerClient } from "@komputer-ai/sdk";
 
 const client = new KomputerClient("http://localhost:8080");
 

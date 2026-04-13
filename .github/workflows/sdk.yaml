@@ -1,0 +1,206 @@
+name: SDK — Test & Publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      sdk: ${{ steps.filter.outputs.sdk }}
+      api: ${{ steps.filter.outputs.api }}
+      is_tag: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            sdk:
+              - 'komputer-sdk/**'
+            api:
+              - 'komputer-api/**'
+
+  test:
+    name: Test SDKs
+    needs: changes
+    if: needs.changes.outputs.sdk == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: komputer-sdk/go/client/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test Python SDK
+        run: |
+          cd komputer-sdk/python
+          pip install -e . -q
+          pytest tests/ --ignore=tests/integration -v
+
+      - name: Test Go SDK
+        run: cd komputer-sdk/go/client && go test -v ./...
+
+      - name: Test TypeScript SDK
+        run: cd komputer-sdk/typescript && npm ci && npx vitest run
+
+  regenerate:
+    name: Regenerate SDK
+    needs: [changes, test]
+    if: needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: komputer-api/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
+      - name: Install pyyaml
+        run: pip install pyyaml -q
+
+      - name: Regenerate all SDKs
+        run: cd komputer-sdk && make all
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet komputer-sdk/ && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push updated SDKs
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add komputer-sdk/
+          git commit -m "chore(sdk): regenerate SDKs for ${VERSION}"
+          git push
+
+  publish-python:
+    name: Publish Python SDK
+    needs: [changes, test, regenerate]
+    if: always() && needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success' && (needs.regenerate.result == 'success' || needs.regenerate.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+
+      - name: Build package
+        run: |
+          cd komputer-sdk/python
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          pip install build -q
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: komputer-sdk/python/dist/
+
+  publish-npm:
+    name: Publish TypeScript SDK
+    needs: [changes, test]
+    if: needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+
+      - name: Build and publish
+        run: |
+          cd komputer-sdk/typescript
+          npm version ${VERSION} --no-git-tag-version
+          npm ci
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-go:
+    name: Publish Go SDK
+    needs: [changes, test]
+    if: needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+
+      - name: Create Go module tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "komputer-sdk/go/komputer/v${VERSION}"
+          git tag "komputer-sdk/go/client/v${VERSION}"
+          git push origin "komputer-sdk/go/komputer/v${VERSION}" "komputer-sdk/go/client/v${VERSION}"
+
+      - name: Warm Go module proxy
+        run: |
+          GOPROXY=proxy.golang.org go get github.com/kontroloop-ai/komputer-ai/komputer-sdk/go/komputer@v${VERSION} || true
+          GOPROXY=proxy.golang.org go get github.com/kontroloop-ai/komputer-ai/komputer-sdk/go/client@v${VERSION} || true

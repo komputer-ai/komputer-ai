@@ -26,7 +26,6 @@ jobs:
       ui: ${{ steps.filter.outputs.ui }}
       cli: ${{ steps.filter.outputs.cli }}
       helm: ${{ steps.filter.outputs.helm }}
-      sdk: ${{ steps.filter.outputs.sdk }}
       is_tag: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +46,6 @@ jobs:
               - 'komputer-cli/**'
             helm:
               - 'helm/**'
-            sdk:
-              - 'komputer-sdk/**'
 
   operator:
     name: Build Operator
@@ -316,27 +313,6 @@ jobs:
         if: needs.changes.outputs.ui == 'true' || needs.changes.outputs.is_tag == 'true'
         run: cd komputer-ui && npm ci && npm test
 
-      - name: Set up Python
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.is_tag == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Test SDK (Python)
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.is_tag == 'true'
-        run: |
-          cd komputer-sdk/python
-          pip install -e . -q
-          pytest tests/ --ignore=tests/integration -v
-
-      - name: Test SDK (Go)
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.is_tag == 'true'
-        run: cd komputer-sdk/go/client && go test -v ./...
-
-      - name: Test SDK (TypeScript)
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.is_tag == 'true'
-        run: cd komputer-sdk/typescript && npm ci && npx vitest run
-
   helm:
     name: Publish Helm Chart
     needs: [changes, test]
@@ -375,51 +351,6 @@ jobs:
 
       - name: Push to GHCR
         run: helm push komputer-ai-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
-
-  regenerate-sdk:
-    name: Regenerate SDK
-    needs: [changes, test]
-    if: needs.changes.outputs.is_tag == 'true' && needs.test.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache-dependency-path: komputer-api/go.sum
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install swag
-        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
-
-      - name: Regenerate SDK
-        run: cd komputer-sdk && make python
-
-      - name: Check for changes
-        id: diff
-        run: |
-          git diff --quiet komputer-sdk/ && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Commit and push updated SDK
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add komputer-sdk/
-          git commit -m "chore(sdk): regenerate Python SDK for ${VERSION}"
-          git push
 
   release:
     name: Create Release

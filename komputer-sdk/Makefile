@@ -39,7 +39,7 @@ python: spec
 		-o python \
 		--package-name komputer_ai \
 		--skip-validate-spec \
-		--additional-properties=projectName=komputer-ai,packageVersion=0.1.0
+		--additional-properties=projectName=komputer-ai-sdk,packageVersion=0.1.0
 	python generate_client.py
 	@echo "Python SDK generated in python/"
 
@@ -67,7 +67,7 @@ typescript: spec
 		-g typescript-fetch \
 		-o typescript \
 		--skip-validate-spec \
-		--additional-properties=npmName=komputer-ai,npmVersion=0.1.0,supportsES6=true
+		--additional-properties=npmName=@komputer-ai/sdk,npmVersion=0.1.0,supportsES6=true
 	python generate_client.py typescript
 	@echo "TypeScript SDK generated in typescript/"
 

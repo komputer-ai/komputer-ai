@@ -5,13 +5,13 @@ TypeScript/JavaScript client for the [komputer.ai](https://github.com/kontroloop
 ## Installation
 
 ```bash
-npm install komputer-ai
+npm install @komputer-ai/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { KomputerClient } from "komputer-ai";
+import { KomputerClient } from "@komputer-ai/sdk";
 
 const client = new KomputerClient("http://localhost:8080");
 

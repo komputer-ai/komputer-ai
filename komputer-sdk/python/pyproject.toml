@@ -1,13 +1,14 @@
 [project]
-name = "komputer_ai"
+name = "komputer-ai-sdk"
 version = "0.1.0"
-description = "komputer.ai API"
+description = "Python SDK for the komputer.ai platform"
 authors = [
-  {name = "OpenAPI Generator Community",email = "team@openapitools.org"},
+  {name = "kontroloop-ai"},
 ]
 readme = "README.md"
-keywords = ["OpenAPI", "OpenAPI-Generator", "komputer.ai API"]
+keywords = ["komputer", "ai", "kubernetes", "agents", "claude"]
 requires-python = ">=3.9"
+license = {text = "MIT"}
 
 dependencies = [
   "urllib3 (>=2.1.0,<3.0.0)",
@@ -17,7 +18,9 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/GIT_USER_ID/GIT_REPO_ID"
+Homepage = "https://github.com/kontroloop-ai/komputer-ai"
+Repository = "https://github.com/kontroloop-ai/komputer-ai"
+Documentation = "https://github.com/kontroloop-ai/komputer-ai/tree/main/komputer-sdk"
 
 [tool.poetry]
 requires-poetry = ">=2.0"

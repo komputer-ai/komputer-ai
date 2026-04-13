@@ -151,7 +151,7 @@ For custom installation options (external Redis, resource limits, etc.), see the
 ## Python SDK
 
 ```bash
-pip install komputer-ai    # or: cd komputer-sdk/python && pip install -e .
+pip install komputer-ai-sdk
 ```
 
 ```python
