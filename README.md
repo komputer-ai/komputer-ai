@@ -34,6 +34,37 @@
   <img src="docs/assets/agent-page.png" alt="komputer.ai agent dashboard" width="800" />
 </p>
 
+## Python SDK
+
+```bash
+pip install komputer-ai-sdk
+```
+
+```python
+from komputer_ai.client import KomputerClient
+
+client = KomputerClient("http://localhost:8080")
+
+# Create an agent and give it a task
+client.create_agent(
+    name="my-agent",
+    instructions="Analyze our Kubernetes cluster and suggest cost optimizations",
+    model="claude-sonnet-4-6",
+)
+
+# Stream events as the agent works
+for event in client.watch_agent("my-agent"):
+    if event.type == "text":
+        print(event.payload.content)
+    elif event.type == "tool_use":
+        print(f"  -> using {event.payload.name}")
+    elif event.type == "task_completed":
+        print(f"\nDone — cost: ${event.payload.cost_usd}")
+        break
+```
+
+Full SDK reference in [komputer-sdk/](komputer-sdk/).
+
 ---
 
 ## Key Features
@@ -147,37 +178,6 @@ komputer run my-agent "Write a haiku about Kubernetes"
 ```
 
 For custom installation options (external Redis, resource limits, etc.), see the [Helm Chart docs](helm/komputer-ai/README.md). For building from source, see [Local Development](docs/local-development.md).
-
-## Python SDK
-
-```bash
-pip install komputer-ai-sdk
-```
-
-```python
-from komputer_ai.client import KomputerClient
-
-client = KomputerClient("http://localhost:8080")
-
-# Create an agent and give it a task
-client.create_agent(
-    name="my-agent",
-    instructions="Analyze our Kubernetes cluster and suggest cost optimizations",
-    model="claude-sonnet-4-6",
-)
-
-# Stream events as the agent works
-for event in client.watch_agent("my-agent"):
-    if event.type == "text":
-        print(event.payload.content)
-    elif event.type == "tool_use":
-        print(f"  -> using {event.payload.name}")
-    elif event.type == "task_completed":
-        print(f"\nDone — cost: ${event.payload.cost_usd}")
-        break
-```
-
-Full SDK reference in [komputer-sdk/](komputer-sdk/).
 
 ## Custom Resources
 
