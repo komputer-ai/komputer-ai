@@ -15,6 +15,8 @@
 import { Configuration } from "./runtime";
 import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, TemplatesApi } from "./apis";
 import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest } from "./models";
+import { AgentEventStream } from "./watch";
+export type { AgentEvent } from "./watch";
 
 export class KomputerClient {
   private _agents: AgentsApi;
@@ -25,9 +27,11 @@ export class KomputerClient {
   private _secrets: SecretsApi;
   private _skills: SkillsApi;
   private _templates: TemplatesApi;
+  private _baseUrl: string;
 
   constructor(baseUrl: string = "http://localhost:8080") {
-    const config = new Configuration({ basePath: baseUrl.replace(/\/$/, "") + "/api/v1" });
+    this._baseUrl = baseUrl.replace(/\/$/, "");
+    const config = new Configuration({ basePath: this._baseUrl + "/api/v1" });
     this._agents = new AgentsApi(config);
     this._connectors = new ConnectorsApi(config);
     this._memories = new MemoriesApi(config);
@@ -198,4 +202,11 @@ export class KomputerClient {
     return this._templates.listTemplates({});
   }
 
+
+  // --- WebSocket ---
+
+  watchAgent(name: string): AgentEventStream {
+    const wsUrl = this._baseUrl.replace("http://", "ws://").replace("https://", "wss://");
+    return new AgentEventStream(wsUrl, name);
+  }
 }

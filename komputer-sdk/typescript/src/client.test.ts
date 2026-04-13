@@ -28,6 +28,7 @@ describe("Agent methods exist", () => {
   it("has deleteAgent", () => expect(typeof client.deleteAgent).toBe("function"));
   it("has cancelAgentTask", () => expect(typeof client.cancelAgentTask).toBe("function"));
   it("has getAgentEvents", () => expect(typeof client.getAgentEvents).toBe("function"));
+  it("has watchAgent", () => expect(typeof client.watchAgent).toBe("function"));
 });
 
 describe("Memory methods exist", () => {

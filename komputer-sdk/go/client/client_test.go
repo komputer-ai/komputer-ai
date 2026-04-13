@@ -34,6 +34,7 @@ func TestMethodsExist(t *testing.T) {
 		c.PatchAgent,
 		c.CancelAgentTask,
 		c.GetAgentEvents,
+		c.WatchAgent,
 		// Memories
 		c.CreateMemory,
 		c.ListMemories,

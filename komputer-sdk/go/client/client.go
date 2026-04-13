@@ -18,7 +18,8 @@ import (
 
 // Client wraps the generated komputer API client with convenience methods.
 type Client struct {
-	api *komputer.APIClient
+	api     *komputer.APIClient
+	baseURL string
 }
 
 // New creates a new Client for the given base URL.
@@ -27,7 +28,7 @@ func New(baseURL string) *Client {
 	cfg.Servers = komputer.ServerConfigurations{
 		{URL: baseURL + "/api/v1"},
 	}
-	return &Client{api: komputer.NewAPIClient(cfg)}
+	return &Client{api: komputer.NewAPIClient(cfg), baseURL: baseURL}
 }
 
 // --- Agents ---

@@ -483,7 +483,8 @@ import (
 
 // Client wraps the generated komputer API client with convenience methods.
 type Client struct {{
-\tapi *komputer.APIClient
+\tapi     *komputer.APIClient
+\tbaseURL string
 }}
 
 // New creates a new Client for the given base URL.
@@ -492,7 +493,7 @@ func New(baseURL string) *Client {{
 \tcfg.Servers = komputer.ServerConfigurations{{
 \t\t{{URL: baseURL + "/api/v1"}},
 \t}}
-\treturn &Client{{api: komputer.NewAPIClient(cfg)}}
+\treturn &Client{{api: komputer.NewAPIClient(cfg), baseURL: baseURL}}
 }}
 
 {chr(10).join(sections)}
@@ -634,16 +635,27 @@ def generate_typescript(operations):
 import {{ Configuration }} from "./runtime";
 import {{ {api_import_list} }} from "./apis";
 import type {{ {model_import_list} }} from "./models";
+import {{ AgentEventStream }} from "./watch";
+export type {{ AgentEvent }} from "./watch";
 
 export class KomputerClient {{
 {chr(10).join(f"  private _{tag}: {to_pascal_case(tag)}Api;" for tag in sorted(TAG_MAP.keys()))}
+  private _baseUrl: string;
 
   constructor(baseUrl: string = "http://localhost:8080") {{
-    const config = new Configuration({{ basePath: baseUrl.replace(/\\/$/, "") + "/api/v1" }});
+    this._baseUrl = baseUrl.replace(/\\/$/, "");
+    const config = new Configuration({{ basePath: this._baseUrl + "/api/v1" }});
 {chr(10).join(constructor_lines)}
   }}
 
 {chr(10).join(sections)}
+
+  // --- WebSocket ---
+
+  watchAgent(name: string): AgentEventStream {{
+    const wsUrl = this._baseUrl.replace("http://", "ws://").replace("https://", "wss://");
+    return new AgentEventStream(wsUrl, name);
+  }}
 }}
 '''
     output_path.parent.mkdir(parents=True, exist_ok=True)
