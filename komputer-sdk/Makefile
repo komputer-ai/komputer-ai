@@ -3,6 +3,7 @@
 #   make python     — regenerate Python SDK
 #   make all        — regenerate all SDKs
 #   make spec       — just regenerate + convert the OpenAPI spec
+#   make client     — regenerate client wrappers (overwrites hand-written files — use with care)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 API_DIR := $(REPO_ROOT)/komputer-api
@@ -65,6 +66,12 @@ typescript: spec
 		--skip-validate-spec \
 		--additional-properties=npmName=@komputer-ai/sdk,npmVersion=0.1.0,supportsES6=true
 	@echo "TypeScript SDK generated in typescript/"
+
+# Regenerate client wrappers from the OpenAPI spec.
+# WARNING: This overwrites the hand-maintained client files (client.ts, client.py, client.go).
+# Only use this to scaffold new methods after API changes, then manually merge.
+client:
+	python generate_client.py
 
 # Run all unit tests
 test: test-python test-go test-typescript
