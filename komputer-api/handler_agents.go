@@ -163,7 +163,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					return
 				}
 				log.Printf("waking sleeping agent %s/%s", ns, req.Name)
-				c.JSON(http.StatusAccepted, AgentResponse{
+				c.JSON(http.StatusOK, AgentResponse{
 					Name:            existing.Name,
 					Namespace:       existing.Namespace,
 					Model:           existing.Spec.Model,
