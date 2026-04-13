@@ -67,8 +67,9 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git stash --include-untracked
           git checkout main
-          git checkout HEAD@{1} -- komputer-sdk/
+          git stash pop
           git add komputer-sdk/
           git commit -m "chore(sdk): regenerate SDKs for ${VERSION}"
           git push origin main
