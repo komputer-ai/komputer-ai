@@ -1818,3 +1818,4 @@ paths:
       tags:
       - templates
 swagger: "2.0"
+# SDK trigger
