@@ -12,7 +12,7 @@
  * });
  */
 
-import { Configuration } from "./runtime";
+import { Configuration, ResponseError } from "./runtime";
 import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, TemplatesApi } from "./apis";
 import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest } from "./models";
 import { AgentEventStream } from "./watch";
@@ -49,7 +49,14 @@ export class KomputerClient {
   }
 
   async createAgent(params: { name: string; instructions: string; connectors?: string[]; lifecycle?: string; memories?: string[]; model?: string; namespace?: string; officeManager?: string; role?: string; secretRefs?: string[]; skills?: string[]; systemPrompt?: string; templateRef?: string }) {
-    return this._agents.createAgent({ request: { connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, name: params.name, namespace: params.namespace, officeManager: params.officeManager, role: params.role, secretRefs: params.secretRefs, skills: params.skills, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
+    try {
+      return await this._agents.createAgent({ request: { connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, name: params.name, namespace: params.namespace, officeManager: params.officeManager, role: params.role, secretRefs: params.secretRefs, skills: params.skills, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
+    } catch (e) {
+      if (e instanceof ResponseError && e.response.status === 409) {
+        return this.patchAgent({ name: params.name, connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, secretRefs: params.secretRefs, skills: params.skills, systemPrompt: params.systemPrompt, templateRef: params.templateRef });
+      }
+      throw e;
+    }
   }
 
   async getAgent(name: string) {
@@ -79,7 +86,14 @@ export class KomputerClient {
   }
 
   async createMemory(params: { name: string; content: string; description?: string; namespace?: string }) {
-    return this._memories.createMemory({ request: { content: params.content, description: params.description, name: params.name, namespace: params.namespace } });
+    try {
+      return await this._memories.createMemory({ request: { content: params.content, description: params.description, name: params.name, namespace: params.namespace } });
+    } catch (e) {
+      if (e instanceof ResponseError && e.response.status === 409) {
+        return this.patchMemory({ name: params.name, content: params.content, description: params.description });
+      }
+      throw e;
+    }
   }
 
   async getMemory(name: string) {
@@ -101,7 +115,14 @@ export class KomputerClient {
   }
 
   async createSkill(params: { name: string; content: string; description: string; namespace?: string }) {
-    return this._skills.createSkill({ request: { content: params.content, description: params.description, name: params.name, namespace: params.namespace } });
+    try {
+      return await this._skills.createSkill({ request: { content: params.content, description: params.description, name: params.name, namespace: params.namespace } });
+    } catch (e) {
+      if (e instanceof ResponseError && e.response.status === 409) {
+        return this.patchSkill({ name: params.name, content: params.content, description: params.description });
+      }
+      throw e;
+    }
   }
 
   async getSkill(name: string) {
@@ -123,7 +144,14 @@ export class KomputerClient {
   }
 
   async createSchedule(params: { name: string; instructions: string; schedule: string; agent?: CreateScheduleAgentSpec; agentName?: string; autoDelete?: boolean; keepAgents?: boolean; namespace?: string; timezone?: string }) {
-    return this._schedules.createSchedule({ request: { agent: params.agent, agentName: params.agentName, autoDelete: params.autoDelete, instructions: params.instructions, keepAgents: params.keepAgents, name: params.name, namespace: params.namespace, schedule: params.schedule, timezone: params.timezone } });
+    try {
+      return await this._schedules.createSchedule({ request: { agent: params.agent, agentName: params.agentName, autoDelete: params.autoDelete, instructions: params.instructions, keepAgents: params.keepAgents, name: params.name, namespace: params.namespace, schedule: params.schedule, timezone: params.timezone } });
+    } catch (e) {
+      if (e instanceof ResponseError && e.response.status === 409) {
+        return this.patchSchedule({ name: params.name, schedule: params.schedule });
+      }
+      throw e;
+    }
   }
 
   async getSchedule(name: string) {
@@ -145,7 +173,14 @@ export class KomputerClient {
   }
 
   async createSecret(params: { name: string; data: Record<string, string>; namespace?: string }) {
-    return this._secrets.createSecret({ request: { data: params.data, name: params.name, namespace: params.namespace } });
+    try {
+      return await this._secrets.createSecret({ request: { data: params.data, name: params.name, namespace: params.namespace } });
+    } catch (e) {
+      if (e instanceof ResponseError && e.response.status === 409) {
+        return this.updateSecret({ name: params.name, data: params.data });
+      }
+      throw e;
+    }
   }
 
   async updateSecret(params: { name: string; data: Record<string, string>; namespace?: string }) {

@@ -92,7 +92,42 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 			req.TemplateRef = o.TemplateRef
 		}
 	}
-	return c.api.AgentsAPI.CreateAgent(ctx).Request(req).Execute()
+	resp, httpResp, err := c.api.AgentsAPI.CreateAgent(ctx).Request(req).Execute()
+	if httpResp != nil && httpResp.StatusCode == 409 {
+		patchOpts := PatchAgentOpts{}
+		if len(opts) > 0 {
+			o := opts[0]
+			if o.Connectors != nil {
+				patchOpts.Connectors = o.Connectors
+			}
+			patchOpts.Instructions = &instructions
+			if o.Lifecycle != nil {
+				patchOpts.Lifecycle = o.Lifecycle
+			}
+			if o.Memories != nil {
+				patchOpts.Memories = o.Memories
+			}
+			if o.Model != nil {
+				patchOpts.Model = o.Model
+			}
+			if o.SecretRefs != nil {
+				patchOpts.SecretRefs = o.SecretRefs
+			}
+			if o.Skills != nil {
+				patchOpts.Skills = o.Skills
+			}
+			if o.SystemPrompt != nil {
+				patchOpts.SystemPrompt = o.SystemPrompt
+			}
+			if o.TemplateRef != nil {
+				patchOpts.TemplateRef = o.TemplateRef
+			}
+		} else {
+			patchOpts.Instructions = &instructions
+		}
+		return c.PatchAgent(ctx, name, patchOpts)
+	}
+	return resp, httpResp, err
 }
 
 func (c *Client) GetAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
@@ -184,7 +219,15 @@ func (c *Client) CreateMemory(ctx context.Context, name string, content string, 
 			req.Namespace = o.Namespace
 		}
 	}
-	return c.api.MemoriesAPI.CreateMemory(ctx).Request(req).Execute()
+	resp, httpResp, err := c.api.MemoriesAPI.CreateMemory(ctx).Request(req).Execute()
+	if httpResp != nil && httpResp.StatusCode == 409 {
+		patchOpts := PatchMemoryOpts{Content: &content}
+		if len(opts) > 0 && opts[0].Description != nil {
+			patchOpts.Description = opts[0].Description
+		}
+		return c.PatchMemory(ctx, name, patchOpts)
+	}
+	return resp, httpResp, err
 }
 
 func (c *Client) GetMemory(ctx context.Context, name string) (*komputer.MemoryResponse, *http.Response, error) {
@@ -237,7 +280,12 @@ func (c *Client) CreateSkill(ctx context.Context, name string, content string, d
 			req.Namespace = o.Namespace
 		}
 	}
-	return c.api.SkillsAPI.CreateSkill(ctx).Request(req).Execute()
+	resp, httpResp, err := c.api.SkillsAPI.CreateSkill(ctx).Request(req).Execute()
+	if httpResp != nil && httpResp.StatusCode == 409 {
+		patchOpts := PatchSkillOpts{Content: &content, Description: &description}
+		return c.PatchSkill(ctx, name, patchOpts)
+	}
+	return resp, httpResp, err
 }
 
 func (c *Client) GetSkill(ctx context.Context, name string) (*komputer.SkillResponse, *http.Response, error) {
@@ -310,7 +358,12 @@ func (c *Client) CreateSchedule(ctx context.Context, name string, instructions s
 			req.Timezone = o.Timezone
 		}
 	}
-	return c.api.SchedulesAPI.CreateSchedule(ctx).Request(req).Execute()
+	resp, httpResp, err := c.api.SchedulesAPI.CreateSchedule(ctx).Request(req).Execute()
+	if httpResp != nil && httpResp.StatusCode == 409 {
+		patchOpts := PatchScheduleOpts{Schedule: &schedule}
+		return c.PatchSchedule(ctx, name, patchOpts)
+	}
+	return resp, httpResp, err
 }
 
 func (c *Client) GetSchedule(ctx context.Context, name string) (*komputer.ScheduleResponse, *http.Response, error) {
@@ -358,7 +411,16 @@ func (c *Client) CreateSecret(ctx context.Context, name string, data map[string]
 			req.Namespace = o.Namespace
 		}
 	}
-	return c.api.SecretsAPI.CreateSecret(ctx).Request(req).Execute()
+	resp, httpResp, err := c.api.SecretsAPI.CreateSecret(ctx).Request(req).Execute()
+	if httpResp != nil && httpResp.StatusCode == 409 {
+		updateOpts := UpdateSecretOpts{}
+		if len(opts) > 0 && opts[0].Namespace != nil {
+			updateOpts.Namespace = opts[0].Namespace
+		}
+		_, updateResp, updateErr := c.UpdateSecret(ctx, name, data, updateOpts)
+		return nil, updateResp, updateErr
+	}
+	return resp, httpResp, err
 }
 
 type UpdateSecretOpts struct {
