@@ -6,6 +6,12 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_sdk:
+        description: 'Force run SDK pipeline (regenerate + test)'
+        type: boolean
+        default: true
 
 env:
   REGISTRY: ghcr.io
@@ -317,7 +323,7 @@ jobs:
   sdk:
     name: SDK
     needs: [changes, test]
-    if: (needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true') && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: (needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true' || (github.event_name == 'workflow_dispatch' && inputs.run_sdk)) && (needs.test.result == 'success' || needs.test.result == 'skipped')
     uses: ./.github/workflows/sdk.yaml
     with:
       is_tag: ${{ needs.changes.outputs.is_tag }}
