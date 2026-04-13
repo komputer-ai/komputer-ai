@@ -96,4 +96,4 @@ jobs:
         run: cd komputer-sdk/go && go test -v ./...
 
       - name: Test TypeScript SDK
-        run: cd komputer-sdk/typescript && npm ci && npx vitest run
+        run: cd komputer-sdk/typescript && npm ci && npm test
