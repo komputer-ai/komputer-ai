@@ -8,8 +8,8 @@ on:
         type: string
 
 jobs:
-  regenerate:
-    name: Regenerate SDKs
+  regenerate-and-test:
+    name: Regenerate & Test SDKs
     if: inputs.is_tag != 'true'
     runs-on: ubuntu-latest
     steps:
@@ -53,6 +53,18 @@ jobs:
       - name: Test TypeScript SDK
         run: cd komputer-sdk/typescript && npm ci && npx vitest run
 
+      - name: Commit regenerated SDKs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add komputer-sdk/
+          if git diff --cached --quiet; then
+            echo "No SDK changes to commit"
+          else
+            git commit -m "chore(sdk): regenerate SDKs [skip ci]"
+            git push
+          fi
+
   test:
     name: Test SDKs
     if: inputs.is_tag == 'true'
@@ -87,5 +99,3 @@ jobs:
 
       - name: Test TypeScript SDK
         run: cd komputer-sdk/typescript && npm ci && npx vitest run
-
-
