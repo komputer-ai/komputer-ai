@@ -1,5 +1,4 @@
 .gitignore
-README.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
