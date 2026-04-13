@@ -17,7 +17,9 @@
   "module": "./dist/esm/index.js",
   "sideEffects": false,
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.esm.json"
+    "build": "tsc && tsc -p tsconfig.esm.json",
+    "test": "vitest run src/client.test.ts",
+    "test:integration": "vitest run src/integration.test.ts"
   },
   "devDependencies": {
     "typescript": "^4.0 || ^5.0",

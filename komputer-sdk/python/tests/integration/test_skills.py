@@ -62,6 +62,22 @@ class TestSkills:
         resp = client.patch_skill(SKILL_NAME, description="updated description")
         assert resp.description == "updated description"
 
+    def test_create_idempotent(self, client):
+        client.create_skill(
+            name=SKILL_NAME,
+            description="original desc",
+            content="echo original",
+        )
+
+        client.create_skill(
+            name=SKILL_NAME,
+            description="updated desc",
+            content="echo updated",
+        )
+
+        resp = client.get_skill(SKILL_NAME)
+        assert resp.content == "echo updated"
+
     def test_delete_skill(self, client):
         client.create_skill(
             name=SKILL_NAME,

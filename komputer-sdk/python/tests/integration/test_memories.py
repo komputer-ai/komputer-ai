@@ -62,6 +62,22 @@ class TestMemories:
         resp = client.patch_memory(MEMORY_NAME, content="updated content")
         assert resp.content == "updated content"
 
+    def test_create_idempotent(self, client):
+        client.create_memory(
+            name=MEMORY_NAME,
+            content="original",
+            description="original desc",
+        )
+
+        client.create_memory(
+            name=MEMORY_NAME,
+            content="updated",
+            description="updated desc",
+        )
+
+        resp = client.get_memory(MEMORY_NAME)
+        assert resp.content == "updated"
+
     def test_delete_memory(self, client):
         client.create_memory(
             name=MEMORY_NAME,
