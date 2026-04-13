@@ -39,7 +39,6 @@ python: spec
 		--package-name komputer_ai \
 		--skip-validate-spec \
 		--additional-properties=projectName=komputer-ai-sdk,packageVersion=0.1.0
-	python generate_client.py python
 	@echo "Python SDK generated in python/"
 
 # Step 4: Generate Go SDK
@@ -55,7 +54,6 @@ go: spec
 		--additional-properties=packageVersion=0.1.0,isGoSubmodule=true
 	rm -f go/internal/go.mod go/internal/go.sum go/internal/git_push.sh go/internal/.travis.yml
 	rm -rf go/internal/.openapi-generator go/internal/test
-	python generate_client.py go
 	@echo "Go SDK generated in go/"
 
 # Step 5: Generate TypeScript SDK
@@ -66,12 +64,7 @@ typescript: spec
 		-o typescript \
 		--skip-validate-spec \
 		--additional-properties=npmName=@komputer-ai/sdk,npmVersion=0.1.0,supportsES6=true
-	python generate_client.py typescript
 	@echo "TypeScript SDK generated in typescript/"
-
-# Regenerate just the client wrappers (no spec/SDK regeneration)
-client:
-	python generate_client.py
 
 # Run all unit tests
 test: test-python test-go test-typescript

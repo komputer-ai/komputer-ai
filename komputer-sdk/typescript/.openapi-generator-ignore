@@ -25,7 +25,9 @@
 # Preserve hand-written and customized files
 src/watch.ts
 src/client.ts
+src/index.ts
 src/**/*.test.ts
 tsconfig.json
 tsconfig.esm.json
 package.json
+.npmignore

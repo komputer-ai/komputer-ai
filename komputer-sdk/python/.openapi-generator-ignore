@@ -24,6 +24,7 @@
 
 # Preserve hand-written and customized files
 komputer_ai/api/agents_ws.py
+komputer_ai/client.py
 README.md
 pyproject.toml
 setup.py
