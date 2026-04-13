@@ -316,8 +316,8 @@ jobs:
 
   sdk:
     name: SDK
-    needs: [changes, test]
-    if: (needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true') && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    needs: [changes]
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
     uses: ./.github/workflows/sdk.yaml
     with:
       is_tag: ${{ needs.changes.outputs.is_tag }}
