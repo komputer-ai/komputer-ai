@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Iterator
 
+import websocket
+
 
 @dataclass
 class AgentEvent:
@@ -25,14 +27,6 @@ class AgentEventStream:
     """
 
     def __init__(self, ws_url: str, agent_name: str):
-        try:
-            import websocket
-        except ImportError:
-            raise ImportError(
-                "websocket-client is required for watch_agent(). "
-                "Install it with: pip install websocket-client"
-            )
-
         self._agent_name = agent_name
         self._ws = websocket.WebSocket()
         self._ws.connect(f"{ws_url}/api/v1/agents/{agent_name}/ws")
