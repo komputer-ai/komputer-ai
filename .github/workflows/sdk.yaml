@@ -8,8 +8,8 @@ on:
         type: string
 
 jobs:
-  regenerate-and-test:
-    name: Regenerate & Test SDKs
+  regenerate:
+    name: Regenerate SDKs
     if: inputs.is_tag != 'true'
     runs-on: ubuntu-latest
     steps:
@@ -41,18 +41,6 @@ jobs:
       - name: Regenerate SDKs
         run: cd komputer-sdk && make all
 
-      - name: Test Python SDK
-        run: |
-          cd komputer-sdk/python
-          pip install -e . pytest -q
-          pytest tests/ --ignore=tests/integration -v
-
-      - name: Test Go SDK
-        run: cd komputer-sdk/go && go test -v ./...
-
-      - name: Test TypeScript SDK
-        run: cd komputer-sdk/typescript && npm ci && npx vitest run
-
       - name: Commit regenerated SDKs
         run: |
           git config user.name "github-actions[bot]"
@@ -67,10 +55,13 @@ jobs:
 
   test:
     name: Test SDKs
-    if: inputs.is_tag == 'true'
+    needs: [regenerate]
+    if: ${{ !cancelled() && (needs.regenerate.result == 'success' || needs.regenerate.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
