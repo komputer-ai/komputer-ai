@@ -209,12 +209,29 @@ class KomputerClient:
     def watch_agent(self, name: str) -> AgentEventStream:
         """Stream real-time events from an agent via WebSocket.
 
+        Prefetches history via REST and deduplicates against live WS events.
+
         Requires: pip install websocket-client
         """
         ws_url = self._base_url.replace("http://", "ws://").replace(
             "https://", "wss://"
         )
-        return AgentEventStream(ws_url, name)
+        history = []
+        try:
+            resp = self.agents.get_agent_events(name, limit=200)
+            if resp and isinstance(resp, dict):
+                raw_events = resp.get("events") or []
+                for e in raw_events:
+                    if isinstance(e, dict):
+                        history.append(AgentEvent(
+                            agent_name=e.get("agentName", name),
+                            type=e.get("type", ""),
+                            timestamp=e.get("timestamp", ""),
+                            payload=Payload(e.get("payload", {})),
+                        ))
+        except Exception:
+            pass
+        return AgentEventStream(ws_url, name, history)
 
     # --- Lifecycle ---
 

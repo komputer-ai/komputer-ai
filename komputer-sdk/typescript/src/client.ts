@@ -16,6 +16,7 @@ import { Configuration, ResponseError } from "./runtime";
 import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, TemplatesApi } from "./apis";
 import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest } from "./models";
 import { AgentEventStream } from "./watch";
+import type { AgentEvent } from "./watch";
 export type { AgentEvent } from "./watch";
 
 export class KomputerClient {
@@ -240,8 +241,23 @@ export class KomputerClient {
 
   // --- WebSocket ---
 
-  watchAgent(name: string): AgentEventStream {
+  async watchAgent(name: string): Promise<AgentEventStream> {
     const wsUrl = this._baseUrl.replace("http://", "ws://").replace("https://", "wss://");
-    return new AgentEventStream(wsUrl, name);
+    // Fetch history via REST, then open WS for live events with dedup.
+    let history: AgentEvent[] = [];
+    try {
+      const resp = await this._agents.getAgentEvents({ name, limit: 200 });
+      if (resp && Array.isArray((resp as any).events)) {
+        history = ((resp as any).events as any[]).map((e: any) => ({
+          agentName: e.agentName || name,
+          type: e.type || "",
+          timestamp: e.timestamp || "",
+          payload: e.payload || {},
+        }));
+      }
+    } catch {
+      // History fetch failed — proceed with live-only.
+    }
+    return new AgentEventStream(wsUrl, name, history);
   }
 }

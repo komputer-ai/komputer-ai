@@ -49,8 +49,13 @@ class AgentEventStream(Iterator[AgentEvent]):
             print(event.type, event.payload)
     """
 
-    def __init__(self, ws_url: str, agent_name: str):
+    def __init__(self, ws_url: str, agent_name: str, history_events: list = None):
         self._agent_name = agent_name
+        self._history_queue = list(history_events) if history_events else []
+        self._seen: set = set()
+        for e in self._history_queue:
+            norm_type = "user_message" if e.type == "task_started" else e.type
+            self._seen.add(f"{e.timestamp}:{norm_type}")
         self._ws = websocket.WebSocket()
         self._ws.connect(f"{ws_url}/api/v1/agents/{agent_name}/ws")
 
@@ -58,17 +63,27 @@ class AgentEventStream(Iterator[AgentEvent]):
         return self
 
     def __next__(self) -> AgentEvent:
+        if self._history_queue:
+            return self._history_queue.pop(0)
         try:
             raw = self._ws.recv()
             if not raw:
                 raise StopIteration
             data = json.loads(raw)
-            return AgentEvent(
+            event = AgentEvent(
                 agent_name=data.get("agentName", self._agent_name),
                 type=data.get("type", ""),
                 timestamp=data.get("timestamp", ""),
                 payload=Payload(data.get("payload", {})),
             )
+            norm_type = "user_message" if event.type == "task_started" else event.type
+            dedup_key = f"{event.timestamp}:{norm_type}"
+            if dedup_key in self._seen:
+                return self.__next__()
+            self._seen.add(dedup_key)
+            return event
+        except StopIteration:
+            raise
         except Exception:
             self.close()
             raise StopIteration

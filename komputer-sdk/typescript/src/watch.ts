@@ -11,6 +11,8 @@ export interface AgentEvent {
 
 /**
  * Async iterable stream of agent events over WebSocket.
+ * Yields pre-fetched history events first, then live WebSocket events,
+ * deduplicating by timestamp+type.
  *
  * @example
  * for await (const event of client.watchAgent("my-agent")) {
@@ -24,9 +26,20 @@ export class AgentEventStream implements AsyncIterable<AgentEvent> {
   private queue: AgentEvent[] = [];
   private resolve: ((value: IteratorResult<AgentEvent>) => void) | null = null;
   private done = false;
+  private seen = new Set<string>();
 
-  constructor(wsUrl: string, agentName: string) {
+  constructor(wsUrl: string, agentName: string, historyEvents?: AgentEvent[]) {
     this.agentName = agentName;
+
+    // Seed dedup set and queue with history events.
+    if (historyEvents) {
+      for (const e of historyEvents) {
+        const key = this.dedupKey(e);
+        this.seen.add(key);
+        this.queue.push(e);
+      }
+    }
+
     this.ws = new WebSocket(`${wsUrl}/api/v1/agents/${agentName}/ws`);
 
     this.ws.onmessage = (event) => {
@@ -37,6 +50,10 @@ export class AgentEventStream implements AsyncIterable<AgentEvent> {
         timestamp: data.timestamp || "",
         payload: data.payload || {},
       };
+
+      const key = this.dedupKey(agentEvent);
+      if (this.seen.has(key)) return;
+      this.seen.add(key);
 
       if (this.resolve) {
         const r = this.resolve;
@@ -64,6 +81,11 @@ export class AgentEventStream implements AsyncIterable<AgentEvent> {
         r({ value: undefined as any, done: true });
       }
     };
+  }
+
+  private dedupKey(e: AgentEvent): string {
+    const normType = e.type === "task_started" ? "user_message" : e.type;
+    return `${e.timestamp}:${normType}`;
   }
 
   [Symbol.asyncIterator](): AsyncIterator<AgentEvent> {

@@ -157,6 +157,44 @@ func formatEvent(event AgentEvent) string {
 	}
 }
 
+// fetchEventHistory fetches up to limit events from the REST API and returns
+// them along with a dedup set of "timestamp:normType" keys. normType maps
+// "task_started" → "user_message" so WS duplicates are correctly suppressed.
+func fetchEventHistory(ep, agentName string, limit int, nsQ string) ([]AgentEvent, map[string]struct{}) {
+	seen := make(map[string]struct{})
+	eventsURL := fmt.Sprintf("%s/api/v1/agents/%s/events?limit=%d%s",
+		ep, url.PathEscape(agentName), limit, nsQ)
+	data, status, err := apiRequest("GET", eventsURL, nil)
+	if err != nil || status != 200 {
+		return nil, seen
+	}
+	var resp struct {
+		Agent  string       `json:"agent"`
+		Events []AgentEvent `json:"events"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, seen
+	}
+	for _, e := range resp.Events {
+		normType := e.Type
+		if normType == "task_started" {
+			normType = "user_message"
+		}
+		seen[e.Timestamp+":"+normType] = struct{}{}
+	}
+	return resp.Events, seen
+}
+
+// eventSeen returns true if the event is already in the seen set (dedup by timestamp+normType).
+func eventSeen(seen map[string]struct{}, e AgentEvent) bool {
+	normType := e.Type
+	if normType == "task_started" {
+		normType = "user_message"
+	}
+	_, ok := seen[e.Timestamp+":"+normType]
+	return ok
+}
+
 // nsQuery returns "?namespace=X" or "" based on the --namespace flag.
 func nsQuery(cmd *cobra.Command) string {
 	ns, _ := cmd.Flags().GetString("namespace")

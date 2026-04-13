@@ -551,6 +551,15 @@ func registerAgentCommands(root *cobra.Command) {
 			fmt.Println(dimStyle.Render("  Press Ctrl+C to stop"))
 			fmt.Println()
 
+			// Prefetch event history via REST before opening the WebSocket.
+			historyEvents, seen := fetchEventHistory(ep, agentName, 200, nsQueryAmp(cmd))
+			for _, e := range historyEvents {
+				if formatted := formatEvent(e); formatted != "" {
+					fmt.Println(formatted)
+					fmt.Println()
+				}
+			}
+
 			conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 			if err != nil {
 				fmt.Println(errorStyle.Render("WebSocket connect failed: " + err.Error()))
@@ -588,6 +597,12 @@ func registerAgentCommands(root *cobra.Command) {
 					fmt.Println(dimStyle.Render(string(msg)))
 					continue
 				}
+
+				// Skip events already shown from history.
+				if eventSeen(seen, event) {
+					continue
+				}
+				seen[event.Timestamp+":"+event.Type] = struct{}{}
 
 				if formatted := formatEvent(event); formatted != "" {
 					fmt.Println(formatted)
@@ -696,6 +711,15 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			defer conn.Close()
 
+			// Prefetch event history via REST now that the pod is up.
+			historyEvents, seen := fetchEventHistory(ep, agentName, 200, nsQueryAmp(cmd))
+			for _, e := range historyEvents {
+				if formatted := formatEvent(e); formatted != "" {
+					fmt.Println(formatted)
+					fmt.Println()
+				}
+			}
+
 			interrupted := make(chan struct{})
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt)
@@ -769,6 +793,12 @@ func registerAgentCommands(root *cobra.Command) {
 				if err := json.Unmarshal(msg, &event); err != nil {
 					continue
 				}
+
+				// Skip events already shown from history.
+				if eventSeen(seen, event) {
+					continue
+				}
+				seen[event.Timestamp+":"+event.Type] = struct{}{}
 
 				if formatted := formatEvent(event); formatted != "" {
 					fmt.Println(formatted)
