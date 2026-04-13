@@ -78,13 +78,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Task forwarded to existing agent",
-                        "schema": {
-                            "$ref": "#/definitions/main.AgentResponse"
-                        }
-                    },
-                    "201": {
-                        "description": "Agent created",
+                        "description": "Agent created or task forwarded",
                         "schema": {
                             "$ref": "#/definitions/main.AgentResponse"
                         }
