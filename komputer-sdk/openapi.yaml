@@ -55,13 +55,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentResponse"
-          description: Task forwarded to existing agent
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AgentResponse"
-          description: Agent created
+          description: Agent created or task forwarded
         "400":
           content:
             application/json:

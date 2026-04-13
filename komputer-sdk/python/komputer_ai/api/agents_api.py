@@ -632,7 +632,6 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
-            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",
@@ -703,7 +702,6 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
-            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",
@@ -774,7 +772,6 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
-            '201': "AgentResponse",
             '400': "Dict[str, str]",
             '409': "Dict[str, str]",
             '500': "Dict[str, str]",

@@ -62,6 +62,9 @@ Name | Type | Description  | Notes
 
 void (empty response body)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -123,6 +126,9 @@ Name | Type | Description  | Notes
 
 **Dict[str, str]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -193,6 +199,9 @@ Name | Type | Description  | Notes
 
 [**AgentResponse**](AgentResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -203,8 +212,7 @@ Name | Type | Description  | Notes
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | Task forwarded to existing agent |  -  |
-**201** | Agent created |  -  |
+**200** | Agent created or task forwarded |  -  |
 **400** | Bad request |  -  |
 **409** | Agent is busy or has no running pod |  -  |
 **500** | Internal error |  -  |
@@ -263,6 +271,9 @@ Name | Type | Description  | Notes
 
 **Dict[str, str]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -332,6 +343,9 @@ Name | Type | Description  | Notes
 
 [**AgentResponse**](AgentResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -402,6 +416,9 @@ Name | Type | Description  | Notes
 
 **Dict[str, object]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -469,6 +486,9 @@ Name | Type | Description  | Notes
 
 [**AgentListResponse**](AgentListResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -540,6 +560,9 @@ Name | Type | Description  | Notes
 
 [**AgentResponse**](AgentResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 

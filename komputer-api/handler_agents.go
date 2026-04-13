@@ -90,8 +90,7 @@ type PatchAgentRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body CreateAgentRequest true "Agent creation request"
-// @Success 201 {object} AgentResponse "Agent created"
-// @Success 200 {object} AgentResponse "Task forwarded to existing agent"
+// @Success 200 {object} AgentResponse "Agent created or task forwarded"
 // @Failure 400 {object} map[string]string "Bad request"
 // @Failure 409 {object} map[string]string "Agent is busy or has no running pod"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -279,7 +278,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		log.Printf("created new agent %s/%s", ns, req.Name)
-		c.JSON(http.StatusCreated, AgentResponse{
+		c.JSON(http.StatusOK, AgentResponse{
 			Name:         agent.Name,
 			Namespace:    agent.Namespace,
 			Model:        agent.Spec.Model,

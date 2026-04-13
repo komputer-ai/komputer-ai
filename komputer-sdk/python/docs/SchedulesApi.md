@@ -63,6 +63,9 @@ Name | Type | Description  | Notes
 
 [**ScheduleResponse**](ScheduleResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -131,6 +134,9 @@ Name | Type | Description  | Notes
 
 **Dict[str, str]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -200,6 +206,9 @@ Name | Type | Description  | Notes
 
 [**ScheduleResponse**](ScheduleResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -267,6 +276,9 @@ Name | Type | Description  | Notes
 
 [**ScheduleListResponse**](ScheduleListResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -338,6 +350,9 @@ Name | Type | Description  | Notes
 
 [**ScheduleResponse**](ScheduleResponse.md)
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 

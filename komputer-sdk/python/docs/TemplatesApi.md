@@ -58,6 +58,9 @@ Name | Type | Description  | Notes
 
 **Dict[str, object]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
@@ -119,6 +122,9 @@ This endpoint does not need any parameter.
 
 **Dict[str, object]**
 
+### Authorization
+
+No authorization required
 
 ### HTTP request headers
 
