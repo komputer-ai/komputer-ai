@@ -15,14 +15,14 @@ permissions:
   id-token: write
 
 jobs:
-  regenerate-and-test:
-    name: Regenerate & Test
+  regenerate:
+    name: Regenerate SDKs
+    if: inputs.is_tag != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -60,24 +60,44 @@ jobs:
       - name: Test TypeScript SDK
         run: cd komputer-sdk/typescript && npm ci && npx vitest run
 
-      - name: Commit regenerated SDKs
-        if: inputs.is_tag == 'true'
+  test:
+    name: Test SDKs
+    if: inputs.is_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: komputer-sdk/go/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test Python SDK
         run: |
-          git diff --quiet komputer-sdk/ && exit 0
-          VERSION=${GITHUB_REF#refs/tags/}
-          cp -r komputer-sdk /tmp/komputer-sdk-regenerated
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout main
-          rm -rf komputer-sdk
-          cp -r /tmp/komputer-sdk-regenerated komputer-sdk
-          git add komputer-sdk/
-          git commit -m "chore(sdk): regenerate SDKs for ${VERSION}"
-          git push origin main
+          cd komputer-sdk/python
+          pip install -e . pytest -q
+          pytest tests/ --ignore=tests/integration -v
+
+      - name: Test Go SDK
+        run: cd komputer-sdk/go && go test -v ./...
+
+      - name: Test TypeScript SDK
+        run: cd komputer-sdk/typescript && npm ci && npx vitest run
 
   publish-python:
     name: Publish Python SDK
-    needs: regenerate-and-test
+    needs: test
     if: inputs.is_tag == 'true'
     runs-on: ubuntu-latest
     environment: pypi
@@ -85,8 +105,6 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -108,7 +126,7 @@ jobs:
 
   publish-npm:
     name: Publish TypeScript SDK
-    needs: regenerate-and-test
+    needs: test
     if: inputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -132,7 +150,7 @@ jobs:
 
   publish-go:
     name: Publish Go SDK
-    needs: regenerate-and-test
+    needs: test
     if: inputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
