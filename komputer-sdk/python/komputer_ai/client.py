@@ -25,7 +25,7 @@ from komputer_ai.api.schedules_api import SchedulesApi
 from komputer_ai.api.secrets_api import SecretsApi
 from komputer_ai.api.skills_api import SkillsApi
 from komputer_ai.api.templates_api import TemplatesApi
-from komputer_ai.api.agents_ws import AgentEventStream
+from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.models import (
     CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest,
 )

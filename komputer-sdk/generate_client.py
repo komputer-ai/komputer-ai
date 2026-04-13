@@ -267,7 +267,7 @@ from typing import Dict, List, Optional
 
 from komputer_ai import Configuration, ApiClient
 {chr(10).join(api_imports)}
-from komputer_ai.api.agents_ws import AgentEventStream
+from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.models import (
     {model_import_list},
 )

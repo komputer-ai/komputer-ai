@@ -24,12 +24,12 @@ class AgentEvent:
     Access payload fields with dot notation: event.payload.content
 
     Payload fields by event type:
-        task_started:   instructions
-        thinking:       content
-        text:           content
-        tool_use:       name, input
-        tool_result:    name, input, output
-        task_completed: result, cost_usd, duration_ms, turns
+        task_started:   instructions, resuming_session
+        thinking:       content, usage
+        text:           content, usage
+        tool_call:      id, tool, input
+        tool_result:    tool, input, output
+        task_completed: cost_usd, duration_ms, turns, stop_reason, session_id, usage
         task_cancelled: reason
         error:          error
     """
