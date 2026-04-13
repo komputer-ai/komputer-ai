@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type SecretResponse struct {
@@ -114,6 +115,10 @@ func createManagedSecret(k8s *K8sClient) gin.HandlerFunc {
 		}
 		secret, err := k8s.CreateManagedSecret(c.Request.Context(), ns, req.Name, req.Data)
 		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusConflict, gin.H{"error": "secret already exists: " + req.Name})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create secret: " + err.Error()})
 			return
 		}

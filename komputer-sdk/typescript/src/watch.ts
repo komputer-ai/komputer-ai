@@ -79,6 +79,10 @@ export class AgentEventStream implements AsyncIterable<AgentEvent> {
           this.resolve = resolve;
         });
       },
+      return: () => {
+        this.close();
+        return Promise.resolve({ value: undefined as any, done: true });
+      },
     };
   }
 

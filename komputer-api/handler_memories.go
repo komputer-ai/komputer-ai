@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type CreateMemoryRequest struct {
@@ -58,6 +59,10 @@ func createMemory(k8s *K8sClient) gin.HandlerFunc {
 		}
 		memory, err := k8s.CreateMemory(c.Request.Context(), ns, req.Name, req.Content, req.Description)
 		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusConflict, gin.H{"error": "memory already exists: " + req.Name})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create memory: " + err.Error()})
 			return
 		}

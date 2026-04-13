@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type CreateConnectorRequest struct {
@@ -77,6 +78,10 @@ func createConnector(k8s *K8sClient) gin.HandlerFunc {
 		}
 		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthType, req.AuthSecretName, req.AuthSecretKey)
 		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusConflict, gin.H{"error": "connector already exists: " + req.Name})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create connector: " + err.Error()})
 			return
 		}

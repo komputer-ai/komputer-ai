@@ -131,6 +131,10 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 
 		schedule, err := k8s.CreateSchedule(c.Request.Context(), ns, &req)
 		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusConflict, gin.H{"error": "schedule already exists: " + req.Name})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create schedule: " + err.Error()})
 			return
 		}

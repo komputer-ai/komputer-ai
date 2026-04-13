@@ -373,6 +373,7 @@ jobs:
           cd komputer-sdk/typescript
           npm version ${VERSION} --no-git-tag-version
           npm ci
+          npm run build
           npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

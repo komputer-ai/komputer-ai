@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type CreateSkillRequest struct {
@@ -59,6 +60,10 @@ func createSkill(k8s *K8sClient) gin.HandlerFunc {
 		}
 		skill, err := k8s.CreateSkill(c.Request.Context(), ns, req.Name, req.Description, req.Content)
 		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusConflict, gin.H{"error": "skill already exists: " + req.Name})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create skill: " + err.Error()})
 			return
 		}
