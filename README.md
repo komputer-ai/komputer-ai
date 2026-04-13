@@ -77,7 +77,7 @@
    3. [komputer-agent](komputer-agent/README.md) — Agent runtime, Claude SDK integration, manager tools, event format
    4. [komputer-cli](komputer-cli/README.md) — CLI commands, flags, usage examples
    5. [komputer-ui](komputer-ui/README.md) — Web dashboard, pages, configuration, development
-   6. [komputer-sdk](komputer-sdk/README.md) — Python SDK, generation pipeline, testing
+   6. [komputer-sdk](komputer-sdk/README.md) — Python, Go, TypeScript SDKs, generation pipeline, testing
    7. [Helm Chart](helm/komputer-ai/README.md) — Chart values, custom installation, external Redis
 
 ## Installation
