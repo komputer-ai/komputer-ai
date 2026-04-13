@@ -54,7 +54,7 @@ go: spec
 		--git-repo-id komputer-ai \
 		--additional-properties=packageVersion=0.1.0,isGoSubmodule=true
 	rm -f go/internal/go.mod go/internal/go.sum go/internal/git_push.sh go/internal/.travis.yml
-	rm -rf go/internal/.openapi-generator
+	rm -rf go/internal/.openapi-generator go/internal/test
 	python generate_client.py go
 	@echo "Go SDK generated in go/"
 
