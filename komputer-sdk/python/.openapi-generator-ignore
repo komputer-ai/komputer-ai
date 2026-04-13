@@ -29,6 +29,7 @@ pyproject.toml
 setup.py
 setup.cfg
 tests/**
+test/**
 
 # Skip CI files we don't use
 .travis.yml
