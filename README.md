@@ -47,6 +47,7 @@
 - **Scheduling** — cron-based recurring tasks with timezone support and auto-cleanup
 - **Cost tracking and analysis** — real-time cost per task, context window monitoring, per-agent cost breakdown with task-level drill-down
 - **Session history resilience** — if Redis is wiped, full conversation history is recovered from the agent's session data with proper event conversion
+- **SDKs for Python, Go, and TypeScript** — auto-generated typed clients with WebSocket streaming, flat kwargs, and full API coverage
 - **CLI, UI, and API** — manage everything from the terminal, browser, or programmatically
 
 ---
