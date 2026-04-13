@@ -51,7 +51,7 @@ jobs:
       - name: Test Python SDK
         run: |
           cd komputer-sdk/python
-          pip install -e . -q
+          pip install -e . pytest -q
           pytest tests/ --ignore=tests/integration -v
 
       - name: Test Go SDK
