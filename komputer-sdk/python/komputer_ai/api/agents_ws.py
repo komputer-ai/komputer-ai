@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Iterator, Self
 
 import websocket
 
@@ -40,7 +40,7 @@ class AgentEvent:
     payload: Payload = field(default_factory=Payload)
 
 
-class AgentEventStream:
+class AgentEventStream(Iterator[AgentEvent]):
     """Iterable stream of agent events over WebSocket.
 
     Usage:
@@ -54,7 +54,7 @@ class AgentEventStream:
         self._ws = websocket.WebSocket()
         self._ws.connect(f"{ws_url}/api/v1/agents/{agent_name}/ws")
 
-    def __iter__(self) -> Iterator[AgentEvent]:
+    def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> AgentEvent:

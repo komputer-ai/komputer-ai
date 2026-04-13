@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.is_tag == 'true' && 'main' || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
