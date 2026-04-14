@@ -808,9 +808,9 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string) error {
 	log := logf.FromContext(ctx)
 
-	// Sleep mode: delete pod when task is complete, keep PVC
+	// Sleep mode: delete pod when task is done (complete or error), keep PVC
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleSleep &&
-		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
+		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
 		log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
 		if err := r.Delete(ctx, pod); err != nil {
@@ -824,9 +824,9 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		})
 	}
 
-	// AutoDelete mode: delete the entire agent CR when task is complete
+	// AutoDelete mode: delete the entire agent CR when task is done (complete or error)
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleAutoDelete &&
-		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
+		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) {
 		log.Info("AutoDelete mode: deleting agent after task completion", "agent", agent.Name)
 		return r.Delete(ctx, agent)
 	}

@@ -245,8 +245,10 @@ export default function AgentDetailPage() {
     setSleeping(true);
     try {
       await patchAgent(agentName, { lifecycle: "Sleep" }, agentNs);
-      fetchAgent();
+      await fetchAgent();
     } catch {
+      // ignore
+    } finally {
       setSleeping(false);
     }
   };
