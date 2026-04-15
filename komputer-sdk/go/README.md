@@ -33,7 +33,7 @@ func main() {
     fmt.Println("Created:", agent.Name)
 
     // Stream events as the agent works
-    stream, err := c.WatchAgent("my-agent")
+    stream, err := c.WatchAgent(ctx, "my-agent")
     if err != nil {
         panic(err)
     }
@@ -119,7 +119,7 @@ c.DeleteSchedule(ctx, "daily-report")
 ### Secrets
 
 ```go
-c.CreateSecret(ctx, map[string]string{"GITHUB_TOKEN": "ghp_xxx"}, "api-keys")
+c.CreateSecret(ctx, "api-keys", map[string]string{"GITHUB_TOKEN": "ghp_xxx"})
 c.PatchAgent(ctx, "my-agent", client.PatchAgentOpts{SecretRefs: []string{"api-keys"}})
 c.DeleteSecret(ctx, "api-keys")
 ```
@@ -136,7 +136,7 @@ c.DeleteConnector(ctx, "slack")
 ### Streaming Events
 
 ```go
-stream, err := c.WatchAgent("my-agent")
+stream, err := c.WatchAgent(ctx, "my-agent")
 if err != nil {
     log.Fatal(err)
 }
