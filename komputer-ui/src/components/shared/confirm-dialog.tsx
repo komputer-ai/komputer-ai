@@ -39,7 +39,7 @@ export function ConfirmDialog({
               {description}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button
               variant="secondary"
               className="border-[var(--color-border)] text-[var(--color-text-secondary)]"

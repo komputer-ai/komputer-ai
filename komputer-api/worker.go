@@ -244,7 +244,12 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 				keys = append(keys, s)
 				id, ok := lastIDs[s]
 				if !ok {
-					id = "$" // Only new messages — history is handled by the history worker.
+					// Start from the beginning of the stream so we don't miss
+					// events published before we discovered it. Streams are
+					// trimmed on each task_started, so this only replays
+					// current-task events.
+					id = "0-0"
+					lastIDs[s] = id
 				}
 				ids = append(ids, id)
 			}
