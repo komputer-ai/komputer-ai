@@ -1,0 +1,47 @@
+name: Debug Failed Run
+
+on:
+  workflow_run:
+    workflows: ["CI"]         # trigger whenever your main CI workflow finishes
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "GitHub Actions run ID to debug"
+        required: true
+
+jobs:
+  debug:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install komputer CLI
+        env:
+          KOMPUTER_API: ${{ secrets.KOMPUTER_API_URL }}
+        run: |
+          curl -sSL https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 \
+            -o /usr/local/bin/komputer && chmod +x /usr/local/bin/komputer
+          komputer login "$KOMPUTER_API"
+
+      - name: Run debugging agent
+        env:
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: |
+          komputer run ci-debugger \
+            "A GitHub Actions run has failed. Investigate and explain what went wrong.
+
+            Run ID: $RUN_ID
+            Repository: ${{ github.repository }}
+            GitHub token is available in the SECRET_GITHUB environment variable.
+
+            Steps to follow:
+            1. Use the GitHub API to fetch the failed run: GET /repos/${{ github.repository }}/actions/runs/$RUN_ID
+            2. Fetch the jobs and their steps: GET /repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs
+            3. Download logs for the failed steps: GET /repos/${{ github.repository }}/actions/jobs/{job_id}/logs
+            4. Analyse the logs and identify the root cause.
+            5. Suggest a concrete fix." \
+            --secret GITHUB=${{ secrets.GITHUB_TOKEN }} \
+            --lifecycle AutoDelete
