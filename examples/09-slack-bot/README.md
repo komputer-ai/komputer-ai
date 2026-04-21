@@ -18,6 +18,8 @@ Uses [Slack Bolt for Python](https://slack.dev/bolt-python/) for the Slack integ
 pip install slack-bolt komputer-ai-sdk
 ```
 
+Bolt includes its own HTTP server — no Flask or additional web framework needed.
+
 ## Setup
 
 ### 1. Create a Slack app
@@ -66,8 +68,8 @@ Bolt handles the parts you'd otherwise have to wire up manually:
 
 - **Signature verification** — every request is verified against `SLACK_SIGNING_SECRET` automatically
 - **3-second ack** — Bolt separates `ack()` (immediate) from the rest of the handler, so you never time out Slack while the agent runs
-- **Routing** — `@bolt.command("/agent")` cleanly maps commands to handlers without manual URL routing
-- **Flask adapter** — `SlackRequestHandler` bridges Bolt into a standard Flask app with one line
+- **Routing** — `@app.command("/agent")` cleanly maps commands to handlers without manual URL routing
+- **Built-in HTTP server** — `app.start(port=3001)` is all you need; no Flask or separate web framework required
 
 ## Key concepts
 
