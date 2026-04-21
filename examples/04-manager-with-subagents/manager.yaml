@@ -5,14 +5,7 @@ metadata:
 spec:
   role: manager
   instructions: >
-    You are a research manager. Your task is to produce a comprehensive report
-    on the current state of AI in healthcare.
-
-    Spawn three worker agents in parallel:
-    1. "medical-imaging-researcher" — research AI applications in medical imaging (MRI, CT, X-ray)
-    2. "drug-discovery-researcher" — research AI in drug discovery and clinical trials
-    3. "patient-care-researcher" — research AI in patient monitoring and care coordination
-
-    Wait for all three to complete, then synthesize their findings into a final
-    executive summary report saved to /workspace/ai-healthcare-report.md.
+    Produce a comprehensive report on the current state of AI in healthcare,
+    covering medical imaging, drug discovery, and patient care coordination.
+    Save the final executive summary to /workspace/ai-healthcare-report.md.
   model: claude-opus-4-7

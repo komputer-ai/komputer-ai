@@ -6,6 +6,8 @@ A manager agent that orchestrates multiple worker agents in parallel, then synth
 
 A manager agent spawns three worker agents concurrently — each researching a different domain of AI in healthcare. Once all workers complete, the manager synthesizes the findings into a final report.
 
+> **Note:** You don't need to explicitly tell a manager to use sub-agents. Managers autonomously decide how to approach a task — they'll spawn sub-agents, parallelize work, and synthesize results whenever they judge it's the most efficient approach. The instructions in this example are deliberately specific to illustrate what's happening, but in practice you can just describe the goal and let the manager figure out the strategy.
+
 ## Run it
 
 ```bash
