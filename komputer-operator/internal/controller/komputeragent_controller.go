@@ -60,7 +60,7 @@ type KomputerAgentReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch
 
 // Reconcile moves the cluster state toward the desired state for a KomputerAgent.
 func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -770,13 +770,25 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL, AuthType: conn.Spec.AuthType}
 			// Mount auth secret as env var and reference it.
 			if conn.Spec.AuthSecretKeyRef != nil {
+				secretName := conn.Spec.AuthSecretKeyRef.Name
+				// Cross-namespace connector: secret lives in the connector's namespace,
+				// not the agent's. Sync it into the agent's namespace so the pod can
+				// mount it via SecretKeyRef (which only resolves within the same ns).
+				if connNs != agent.Namespace {
+					synced, err := r.syncConnectorSecret(ctx, secretName, connNs, agent.Namespace, connName)
+					if err != nil {
+						log.Info("Failed to sync connector secret across namespaces, skipping", "connector", connRef, "error", err.Error())
+						continue
+					}
+					secretName = synced
+				}
 				tokenEnvName := "CONNECTOR_" + sanitized + "_TOKEN"
 				entry.TokenEnv = tokenEnvName
 				envVars = append(envVars, corev1.EnvVar{
 					Name: tokenEnvName,
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: conn.Spec.AuthSecretKeyRef.Name},
+							LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 							Key:                  conn.Spec.AuthSecretKeyRef.Key,
 						},
 					},
@@ -981,4 +993,75 @@ func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&komputerv1alpha1.KomputerAgentClusterTemplate{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForTemplate)).
 		Named("komputeragent").
 		Complete(r)
+}
+
+// syncConnectorSecret copies a connector's auth Secret from the connector's
+// namespace into the agent's namespace, so the pod can reference it via
+// SecretKeyRef (which only resolves within the same namespace). On every
+// reconcile the synced copy is updated to match the source — this keeps it in
+// sync if the source secret rotates. The synced secret is named
+// `<originalName>-from-<sourceNs>` to avoid clashing with any local secret of
+// the same name. Returns the synced secret name in the agent's namespace.
+func (r *KomputerAgentReconciler) syncConnectorSecret(ctx context.Context, srcName, srcNs, dstNs, connectorName string) (string, error) {
+	src := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Name: srcName, Namespace: srcNs}, src); err != nil {
+		return "", fmt.Errorf("get source secret %s/%s: %w", srcNs, srcName, err)
+	}
+
+	syncedName := fmt.Sprintf("%s-from-%s", srcName, srcNs)
+	dst := &corev1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Name: syncedName, Namespace: dstNs}, dst)
+	if errors.IsNotFound(err) {
+		dst = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      syncedName,
+				Namespace: dstNs,
+				Labels: map[string]string{
+					"komputer.ai/synced-from-namespace": srcNs,
+					"komputer.ai/synced-for-connector":  connectorName,
+				},
+				Annotations: map[string]string{
+					"komputer.ai/source-secret": srcNs + "/" + srcName,
+				},
+			},
+			Type: src.Type,
+			Data: src.Data,
+		}
+		if createErr := r.Create(ctx, dst); createErr != nil {
+			return "", fmt.Errorf("create synced secret %s/%s: %w", dstNs, syncedName, createErr)
+		}
+		return syncedName, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get synced secret %s/%s: %w", dstNs, syncedName, err)
+	}
+
+	// Update if data, type, or source label drifted from the source.
+	needsUpdate := dst.Type != src.Type || !secretDataEqual(dst.Data, src.Data)
+	if needsUpdate {
+		original := dst.DeepCopy()
+		dst.Data = src.Data
+		dst.Type = src.Type
+		if dst.Annotations == nil {
+			dst.Annotations = map[string]string{}
+		}
+		dst.Annotations["komputer.ai/source-secret"] = srcNs + "/" + srcName
+		if patchErr := r.Patch(ctx, dst, client.MergeFrom(original)); patchErr != nil {
+			return "", fmt.Errorf("patch synced secret %s/%s: %w", dstNs, syncedName, patchErr)
+		}
+	}
+	return syncedName, nil
+}
+
+func secretDataEqual(a, b map[string][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, va := range a {
+		vb, ok := b[k]
+		if !ok || string(va) != string(vb) {
+			return false
+		}
+	}
+	return true
 }

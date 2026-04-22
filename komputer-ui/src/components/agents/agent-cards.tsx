@@ -180,6 +180,7 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
 function SelectionBorder({ active }: { active: boolean }) {
   const [show, setShow] = useState(active);
   const [drawing, setDrawing] = useState<"in" | "out">(active ? "in" : "out");
+  const [animKey, setAnimKey] = useState(0); // forces rect remount on every transition
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -198,12 +199,16 @@ function SelectionBorder({ active }: { active: boolean }) {
     if (active) {
       setShow(true);
       setDrawing("in");
+      setAnimKey((k) => k + 1);
     } else if (show) {
       setDrawing("out");
+      setAnimKey((k) => k + 1);
       const t = setTimeout(() => setShow(false), 280);
       return () => clearTimeout(t);
     }
-  }, [active, show]);
+    // intentionally not depending on `show` to avoid double-fires
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   if (!show || !size) {
     // Keep ref mounted so we can measure the parent.
@@ -214,6 +219,27 @@ function SelectionBorder({ active }: { active: boolean }) {
   const w = size.w + 2;
   const h = size.h + 2;
   const r = 11;
+  // Build a rounded-rect path so we can compute the exact perimeter for the
+  // stroke-dasharray/offset animation. (pathLength on <rect> isn't reliably
+  // supported across browsers for animated dashoffset.)
+  const innerW = w - 3;
+  const innerH = h - 3;
+  const x0 = 1.5;
+  const y0 = 1.5;
+  const path = [
+    `M ${x0 + r} ${y0}`,
+    `H ${x0 + innerW - r}`,
+    `A ${r} ${r} 0 0 1 ${x0 + innerW} ${y0 + r}`,
+    `V ${y0 + innerH - r}`,
+    `A ${r} ${r} 0 0 1 ${x0 + innerW - r} ${y0 + innerH}`,
+    `H ${x0 + r}`,
+    `A ${r} ${r} 0 0 1 ${x0} ${y0 + innerH - r}`,
+    `V ${y0 + r}`,
+    `A ${r} ${r} 0 0 1 ${x0 + r} ${y0}`,
+    "Z",
+  ].join(" ");
+  // Approximate perimeter: 2(w + h) - 8r + 2πr.
+  const perimeter = 2 * (innerW + innerH) - 8 * r + 2 * Math.PI * r;
 
   return (
     <>
@@ -225,20 +251,22 @@ function SelectionBorder({ active }: { active: boolean }) {
         height={h}
         viewBox={`0 0 ${w} ${h}`}
       >
-        <rect
-          key={drawing}
-          className={drawing === "in" ? "agent-select-border-in" : "agent-select-border-out"}
-          x={1.5}
-          y={1.5}
-          width={w - 3}
-          height={h - 3}
-          rx={r}
-          ry={r}
+        <path
+          key={`${drawing}-${animKey}`}
+          d={path}
           fill="none"
           stroke="var(--color-brand-blue)"
           strokeWidth={3}
           strokeLinejoin="round"
-          pathLength={100}
+          strokeLinecap="round"
+          style={{
+            strokeDasharray: perimeter,
+            strokeDashoffset: drawing === "in" ? perimeter : 0,
+            animation: drawing === "in"
+              ? `agent-border-draw-in 320ms ease-out forwards`
+              : `agent-border-draw-out 260ms ease-in forwards`,
+            ["--perimeter" as string]: `${perimeter}px`,
+          }}
         />
       </svg>
     </>

@@ -398,62 +398,6 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
                     }}
                   >
                     <div className="border-t border-[var(--color-border)] px-3 py-3 flex flex-col gap-4">
-                      {/* Resource overrides */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="agent-cpu">CPU</Label>
-                          <Input
-                            id="agent-cpu"
-                            placeholder="e.g. 2 or 500m"
-                            value={cpu}
-                            onChange={(e) => setCpu(e.target.value)}
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="agent-memory">Memory</Label>
-                          <Input
-                            id="agent-memory"
-                            placeholder="e.g. 4Gi"
-                            value={memoryLimit}
-                            onChange={(e) => setMemoryLimit(e.target.value)}
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="agent-storage">Storage</Label>
-                          <Input
-                            id="agent-storage"
-                            placeholder="e.g. 20Gi"
-                            value={storageSize}
-                            onChange={(e) => setStorageSize(e.target.value)}
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="agent-image">Container Image</Label>
-                          <Input
-                            id="agent-image"
-                            placeholder="e.g. custom:latest"
-                            value={image}
-                            onChange={(e) => setImage(e.target.value)}
-                            autoComplete="off"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="priority-input">Priority</Label>
-                        <input
-                          id="priority-input"
-                          type="number"
-                          value={priority}
-                          onChange={(e) => setPriority(parseInt(e.target.value, 10) || 0)}
-                          placeholder="0"
-                          className="flex h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand-blue)]"
-                        />
-                        <p className="text-xs text-[var(--color-text-secondary)]">Higher priority agents are admitted first when the template capacity limit is reached. Default: 0.</p>
-                      </div>
                       <div className="flex flex-col gap-1.5">
                         <Label>Template</Label>
                         <Select value={templateRef} onValueChange={(v) => v && setTemplateRef(v)}>
@@ -568,6 +512,68 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
                           {availableConnectors.length === 0 && (
                             <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
                           )}
+                        </div>
+                      </div>
+
+                      {/* Resource overrides */}
+                      <div className="pt-3 border-t border-[var(--color-border)] flex flex-col gap-3">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">
+                          Template Overrides
+                        </span>
+                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="agent-cpu">CPU</Label>
+                          <Input
+                            id="agent-cpu"
+                            placeholder="e.g. 2 or 500m"
+                            value={cpu}
+                            onChange={(e) => setCpu(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="agent-memory">Memory</Label>
+                          <Input
+                            id="agent-memory"
+                            placeholder="e.g. 4Gi"
+                            value={memoryLimit}
+                            onChange={(e) => setMemoryLimit(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="agent-storage">Storage</Label>
+                          <Input
+                            id="agent-storage"
+                            placeholder="e.g. 20Gi"
+                            value={storageSize}
+                            onChange={(e) => setStorageSize(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="agent-image">Container Image</Label>
+                          <Input
+                            id="agent-image"
+                            placeholder="e.g. custom:latest"
+                            value={image}
+                            onChange={(e) => setImage(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="priority-input">Priority</Label>
+                          <input
+                            id="priority-input"
+                            type="number"
+                            value={priority}
+                            onChange={(e) => setPriority(parseInt(e.target.value, 10) || 0)}
+                            placeholder="0"
+                            className="flex h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand-blue)]"
+                          />
+                          <p className="text-xs text-[var(--color-text-secondary)]">Higher priority agents are admitted first when the template capacity limit is reached. Default: 0.</p>
                         </div>
                       </div>
                     </div>

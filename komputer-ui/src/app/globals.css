@@ -219,22 +219,12 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-.agent-select-border-in {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: agent-border-fill-in 320ms ease-out forwards;
+@keyframes agent-border-draw-in {
+  from { stroke-dashoffset: var(--perimeter); }
+  to   { stroke-dashoffset: 0; }
 }
 
-.agent-select-border-out {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 0;
-  animation: agent-border-fill-out 260ms ease-in forwards;
-}
-
-@keyframes agent-border-fill-in {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes agent-border-fill-out {
-  to { stroke-dashoffset: 100; }
+@keyframes agent-border-draw-out {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: var(--perimeter); }
 }
