@@ -37,6 +37,8 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 - **Sleep**: One task now, may reuse later. Workspace preserved. Call delete_agent when fully done.
 - *(empty)*: Multiple tasks in sequence. Pod stays running. MUST call delete_agent when done.
 
+Use update_agent to change a sub-agent's model, storage, image, or resources before its next task — overrides apply when the next pod starts.
+
 ## Reuse Agents
 Creating agents is expensive (30-60s + lost context). Before creating new, ask "Can an existing agent do this?" If task B benefits from task A's output, route both to the same agent. For review→follow-up, use Sleep/empty — not AutoDelete.
 
