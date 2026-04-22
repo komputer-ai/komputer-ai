@@ -102,7 +102,8 @@ When `KOMPUTER_ROLE=manager`, the agent additionally registers MCP orchestration
 
 | Tool | Description |
 |------|-------------|
-| `create_agent` | Create a sub-agent (always a worker) to handle a task |
+| `create_agent` | Create a sub-agent (always a worker) to handle a task. Optional `priority` (int, higher = admitted first under template `maxConcurrentAgents` cap) |
+| `update_agent` | Patch an existing sub-agent: change `model`, `instructions`, `cpu`, `memory`, `storage`, or `image`. Pass an empty string (e.g. `storage=""`) to remove an override and revert to the template default. Changes apply on next pod start |
 | `schedule_agent` | Schedule an agent to run on a cron schedule |
 | `get_agent_status` | Check the status of a sub-agent |
 | `get_agent_events` | Get recent events/results from a sub-agent |

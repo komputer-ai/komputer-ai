@@ -51,6 +51,33 @@ With a specific model:
 komputer create my-agent "Write a detailed analysis" --model opus
 ```
 
+With per-agent overrides (resources, image, storage):
+
+```bash
+komputer create heavy-job "Process the dataset" \
+  --cpu 4 --memory-limit 8Gi --storage 50Gi
+```
+
+With queue priority (used when the template has `maxConcurrentAgents > 0`):
+
+```bash
+komputer create urgent-fix "Hotfix the deploy" --priority 100
+```
+
+### Update an agent
+
+`komputer update` patches an existing agent's spec. Same flags as `create` (model, instructions, priority, cpu, memory-limit, storage, image). Changes apply when the next pod is built — running pods are not mutated:
+
+```bash
+komputer update my-agent --priority 50 --memory-limit 4Gi
+```
+
+To clear an override and revert to the template default, pass an empty value:
+
+```bash
+komputer update my-agent --storage ""        # remove storage override
+```
+
 ### Run (create + stream)
 
 Creates the agent and streams all events until the task completes:
@@ -94,6 +121,12 @@ Output:
   ──────────────────────────────────────────────────────────────────────────────
   my-agent          Running    ● In Progress    claude-sonnet-4-6   2026-03-26T...
   other-agent       Running    ✔ Complete       claude-sonnet-4-6   2026-03-26T...
+```
+
+Filter by phase (useful when a template's `maxConcurrentAgents` cap is in play):
+
+```bash
+komputer list --status queued
 ```
 
 ### Get agent details
@@ -165,10 +198,11 @@ komputer rm my-agent
 ### Agents
 ```
 komputer login <endpoint>           Save API endpoint
-komputer create <name> <prompt>     Create agent or send task [--model, --template, --lifecycle, --system-prompt]
-komputer run <name> <prompt>        Create + stream output    [--model, --lifecycle, --system-prompt]
+komputer create <name> <prompt>     Create agent or send task [--model, --template, --lifecycle, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image]
+komputer run <name> <prompt>        Create + stream output    [--model, --lifecycle, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image]
+komputer update <name>              Patch existing agent       [--model, --instructions, --priority, --cpu, --memory-limit, --storage, --image] (pass empty value to clear an override)
 komputer chat <name>                Interactive conversation   [--model, --lifecycle]
-komputer list                       List all agents           (alias: ls)
+komputer list                       List all agents            [--status queued]  (alias: ls)
 komputer get <name>                 Get agent details
 komputer watch <name>               Stream live events (WS)
 komputer cancel <name>              Cancel running task
@@ -353,6 +387,12 @@ name=$(komputer create my-agent "Do something" --json | jq -r '.name')
 | `--skill <name>` | Attach a KomputerSkill by name (repeatable, on create/run/config) |
 | `--lifecycle <mode>` | Agent lifecycle: `Sleep` or `AutoDelete` (on create/run/chat) |
 | `--system-prompt <text>` | Custom system prompt for the agent (on create/run/config) |
+| `--priority <int>` | Queue priority — higher = admitted first when the template's `maxConcurrentAgents` is reached. Default 0 (on create/update) |
+| `--cpu <quantity>` | Override agent container CPU, sets both requests and limits (on create/update) |
+| `--memory-limit <quantity>` | Override agent container memory, sets both requests and limits (on create/update) |
+| `--storage <size>` | Override PVC size; expands existing PVCs in place when StorageClass supports it (on create/update) |
+| `--image <image>` | Override the agent container image (on create/update) |
+| `--status <phase>` | Filter `list` by phase (e.g. `--status queued`) |
 | `--help` | Help for any command |
 
 ## Project Structure

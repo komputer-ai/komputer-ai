@@ -75,6 +75,8 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 - **MCP connectors** — connect agents to external tools (Slack, GitHub, Atlassian, Notion, Google Workspace) via OAuth or token auth
 - **Skills and memories** — attach reusable knowledge and capabilities to agents as Kubernetes CRDs
 - **Custom system prompts** — configure agent behavior, persona, and constraints separately from task instructions
+- **Per-agent overrides** — override resources, image, or PVC size on a single agent without forking a new template; managers can also patch sub-agents at runtime via the `update_agent` tool
+- **Concurrency control** — cap how many agents per template can run at once with `maxConcurrentAgents`; excess agents are queued and admitted in priority order
 - **Scheduling** — cron-based recurring tasks with timezone support and auto-cleanup
 - **Cost tracking and analysis** — real-time cost per task, context window monitoring, per-agent cost breakdown with task-level drill-down
 - **Session history resilience** — if Redis is wiped, full conversation history is recovered from the agent's session data with proper event conversion
@@ -208,6 +210,7 @@ kind: KomputerAgentClusterTemplate
 metadata:
   name: default
 spec:
+  maxConcurrentAgents: 0   # 0 = no cap; set >0 to queue excess agents
   podSpec:
     containers:
       - name: agent
@@ -235,8 +238,18 @@ spec:
   templateRef: "default"
   role: "manager"    # or "worker" — managers get orchestration tools
   lifecycle: "Sleep" # "", "Sleep", or "AutoDelete"
+  priority: 0        # higher = admitted first when template's maxConcurrentAgents is reached
   secrets:           # optional list of K8s Secret names
     - my-agent-secrets
+  # Optional per-agent overrides — merged into the template at pod build time
+  podSpec:
+    containers:
+      - name: agent
+        resources:
+          requests: { cpu: "4", memory: "8Gi" }
+          limits:   { cpu: "4", memory: "8Gi" }
+  storage:
+    size: 50Gi       # expands existing PVC in place when StorageClass supports it
 ```
 
 **KomputerOffice** — Tracks a group of agents under a manager. Created automatically when managers create sub-agents.
@@ -314,7 +327,8 @@ komputer login <endpoint>           # Save API endpoint
 komputer create <name> <prompt>     # Create agent or send task
 komputer run <name> <prompt>        # Create + stream output live
 komputer chat <name>                # Interactive turn-by-turn conversation
-komputer list                       # List all agents
+komputer update <name>              # Patch an existing agent (model, resources, etc.)
+komputer list [--status queued]     # List all agents (optionally filter by phase)
 komputer get <name>                 # Get agent details + recent events
 komputer watch <name>               # Stream live events (WebSocket)
 komputer cancel <name>              # Cancel running task
@@ -329,6 +343,11 @@ komputer delete <name> [name...]    # Delete one or more agents
 --skill <name>                      # Attach a KomputerSkill (repeatable)
 --connector <name>                  # Attach a KomputerConnector (repeatable)
 --system-prompt <text>              # Custom system prompt for the agent
+--priority <int>                    # Queue priority (higher = admitted first; default 0)
+--cpu <quantity>                    # Override agent container CPU (e.g. 2 or 500m)
+--memory-limit <quantity>           # Override agent container memory (e.g. 4Gi)
+--storage <size>                    # Override PVC size (e.g. 20Gi)
+--image <image>                     # Override agent container image
 ```
 
 ### Secrets
