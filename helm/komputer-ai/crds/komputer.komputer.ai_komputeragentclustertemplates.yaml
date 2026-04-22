@@ -42,6 +42,15 @@ spec:
           spec:
             description: KomputerAgentTemplateSpec defines the desired state of KomputerAgentTemplate.
             properties:
+              maxConcurrentAgents:
+                default: 0
+                description: |-
+                  MaxConcurrentAgents caps how many KomputerAgents using this template can be
+                  in Phase=Running at once (per namespace). Excess agents enter Phase=Queued
+                  and are admitted by Priority (higher first; ties by creationTimestamp).
+                  0 (default) disables the cap.
+                format: int32
+                type: integer
               podSpec:
                 description: PodSpec is a full corev1.PodSpec passthrough for the
                   agent pod.

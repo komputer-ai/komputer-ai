@@ -27,6 +27,9 @@ spec:
     - jsonPath: .spec.model
       name: Model
       type: string
+    - jsonPath: .status.queuePosition
+      name: Queue
+      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -95,6 +98,14 @@ spec:
                   OfficeManager is the name of the manager agent that created this sub-agent.
                   When set, the operator creates/joins a KomputerOffice for the group.
                 type: string
+              priority:
+                default: 0
+                description: |-
+                  Priority controls admission order when the template's maxConcurrentAgents
+                  cap is reached. Higher number = admitted first (matches K8s PodPriority).
+                  Ties broken by creationTimestamp (older first). Defaults to 0.
+                format: int32
+                type: integer
               role:
                 default: manager
                 description: |-
@@ -164,6 +175,18 @@ spec:
                 type: string
               pvcName:
                 description: PvcName is the name of the agent PVC.
+                type: string
+              queuePosition:
+                description: |-
+                  QueuePosition is the 1-based position in the template admission queue.
+                  Set by the operator when Phase=Queued. 0 when not queued.
+                  Owned by operator.
+                format: int32
+                type: integer
+              queueReason:
+                description: |-
+                  QueueReason explains why the agent is queued.
+                  Owned by operator.
                 type: string
               sessionId:
                 description: |-

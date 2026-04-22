@@ -38,6 +38,13 @@ type KomputerAgentTemplateSpec struct {
 	// Storage defines the PVC settings for agent workspaces.
 	// +optional
 	Storage StorageSpec `json:"storage,omitempty"`
+	// MaxConcurrentAgents caps how many KomputerAgents using this template can be
+	// in Phase=Running at once (per namespace). Excess agents enter Phase=Queued
+	// and are admitted by Priority (higher first; ties by creationTimestamp).
+	// 0 (default) disables the cap.
+	// +kubebuilder:default=0
+	// +optional
+	MaxConcurrentAgents int32 `json:"maxConcurrentAgents,omitempty"`
 }
 
 // KomputerAgentTemplateStatus defines the observed state of KomputerAgentTemplate.

@@ -29,6 +29,7 @@ const (
 	AgentPhaseSucceeded KomputerAgentPhase = "Succeeded"
 	AgentPhaseFailed    KomputerAgentPhase = "Failed"
 	AgentPhaseSleeping  KomputerAgentPhase = "Sleeping"
+	AgentPhaseQueued    KomputerAgentPhase = "Queued"
 )
 
 // AgentLifecycle controls what happens after task completion.
@@ -102,6 +103,12 @@ type KomputerAgentSpec struct {
 	// When set, the operator creates/joins a KomputerOffice for the group.
 	// +optional
 	OfficeManager string `json:"officeManager,omitempty"`
+	// Priority controls admission order when the template's maxConcurrentAgents
+	// cap is reached. Higher number = admitted first (matches K8s PodPriority).
+	// Ties broken by creationTimestamp (older first). Defaults to 0.
+	// +kubebuilder:default=0
+	// +optional
+	Priority int32 `json:"priority,omitempty"`
 }
 
 // KomputerAgentStatus defines the observed state of KomputerAgent.
@@ -145,6 +152,15 @@ type KomputerAgentStatus struct {
 	// Fetched from the Anthropic API after each task completion or model change.
 	// +optional
 	ModelContextWindow int64 `json:"modelContextWindow,omitempty"`
+	// QueuePosition is the 1-based position in the template admission queue.
+	// Set by the operator when Phase=Queued. 0 when not queued.
+	// Owned by operator.
+	// +optional
+	QueuePosition int32 `json:"queuePosition,omitempty"`
+	// QueueReason explains why the agent is queued.
+	// Owned by operator.
+	// +optional
+	QueueReason string `json:"queueReason,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -153,6 +169,7 @@ type KomputerAgentStatus struct {
 // +kubebuilder:printcolumn:name="Task",type=string,JSONPath=`.status.taskStatus`
 // +kubebuilder:printcolumn:name="Cost",type=string,JSONPath=`.status.totalCostUSD`
 // +kubebuilder:printcolumn:name="Model",type=string,JSONPath=`.spec.model`
+// +kubebuilder:printcolumn:name="Queue",type=integer,JSONPath=`.status.queuePosition`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // KomputerAgent is the Schema for the komputeragents API.
