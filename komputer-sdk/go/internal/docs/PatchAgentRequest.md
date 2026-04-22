@@ -9,8 +9,10 @@ Name | Type | Description | Notes
 **Lifecycle** | Pointer to **string** |  | [optional] 
 **Memories** | Pointer to **[]string** | memory names to attach | [optional] 
 **Model** | Pointer to **string** |  | [optional] 
+**PodSpec** | Pointer to [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **SecretRefs** | Pointer to **[]string** | full replacement list of K8s secret names | [optional] 
 **Skills** | Pointer to **[]string** | skill names to attach | [optional] 
+**Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | custom system prompt | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
@@ -158,6 +160,31 @@ SetModel sets Model field to given value.
 
 HasModel returns a boolean if a field has been set.
 
+### GetPodSpec
+
+`func (o *PatchAgentRequest) GetPodSpec() V1PodSpec`
+
+GetPodSpec returns the PodSpec field if non-nil, zero value otherwise.
+
+### GetPodSpecOk
+
+`func (o *PatchAgentRequest) GetPodSpecOk() (*V1PodSpec, bool)`
+
+GetPodSpecOk returns a tuple with the PodSpec field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetPodSpec
+
+`func (o *PatchAgentRequest) SetPodSpec(v V1PodSpec)`
+
+SetPodSpec sets PodSpec field to given value.
+
+### HasPodSpec
+
+`func (o *PatchAgentRequest) HasPodSpec() bool`
+
+HasPodSpec returns a boolean if a field has been set.
+
 ### GetSecretRefs
 
 `func (o *PatchAgentRequest) GetSecretRefs() []string`
@@ -207,6 +234,31 @@ SetSkills sets Skills field to given value.
 `func (o *PatchAgentRequest) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetStorage
+
+`func (o *PatchAgentRequest) GetStorage() V1alpha1StorageSpec`
+
+GetStorage returns the Storage field if non-nil, zero value otherwise.
+
+### GetStorageOk
+
+`func (o *PatchAgentRequest) GetStorageOk() (*V1alpha1StorageSpec, bool)`
+
+GetStorageOk returns a tuple with the Storage field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetStorage
+
+`func (o *PatchAgentRequest) SetStorage(v V1alpha1StorageSpec)`
+
+SetStorage sets Storage field to given value.
+
+### HasStorage
+
+`func (o *PatchAgentRequest) HasStorage() bool`
+
+HasStorage returns a boolean if a field has been set.
 
 ### GetSystemPrompt
 

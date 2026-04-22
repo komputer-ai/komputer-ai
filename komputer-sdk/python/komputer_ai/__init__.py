@@ -45,6 +45,9 @@ __all__ = [
     "CreateScheduleRequest",
     "CreateSecretRequest",
     "CreateSkillRequest",
+    "IntstrIntOrString",
+    "IntstrType",
+    "K8sIoApiCoreV1ResourceClaim",
     "MemoryResponse",
     "OfficeListResponse",
     "OfficeMemberResponse",
@@ -53,12 +56,158 @@ __all__ = [
     "PatchMemoryRequest",
     "PatchScheduleRequest",
     "PatchSkillRequest",
+    "ResourceQuantity",
     "ScheduleListResponse",
     "ScheduleResponse",
     "SecretListResponse",
     "SecretResponse",
     "SkillResponse",
     "UpdateSecretRequest",
+    "V1AWSElasticBlockStoreVolumeSource",
+    "V1Affinity",
+    "V1AppArmorProfile",
+    "V1AppArmorProfileType",
+    "V1AzureDataDiskCachingMode",
+    "V1AzureDataDiskKind",
+    "V1AzureDiskVolumeSource",
+    "V1AzureFileVolumeSource",
+    "V1CSIVolumeSource",
+    "V1Capabilities",
+    "V1CephFSVolumeSource",
+    "V1CinderVolumeSource",
+    "V1ClusterTrustBundleProjection",
+    "V1ConfigMapEnvSource",
+    "V1ConfigMapKeySelector",
+    "V1ConfigMapProjection",
+    "V1ConfigMapVolumeSource",
+    "V1Container",
+    "V1ContainerPort",
+    "V1ContainerResizePolicy",
+    "V1ContainerRestartPolicy",
+    "V1ContainerRestartRule",
+    "V1ContainerRestartRuleAction",
+    "V1ContainerRestartRuleOnExitCodes",
+    "V1ContainerRestartRuleOnExitCodesOperator",
+    "V1DNSPolicy",
+    "V1DownwardAPIProjection",
+    "V1DownwardAPIVolumeFile",
+    "V1DownwardAPIVolumeSource",
+    "V1EmptyDirVolumeSource",
+    "V1EnvFromSource",
+    "V1EnvVar",
+    "V1EnvVarSource",
+    "V1EphemeralContainer",
+    "V1EphemeralVolumeSource",
+    "V1ExecAction",
+    "V1FCVolumeSource",
+    "V1FileKeySelector",
+    "V1FlexVolumeSource",
+    "V1FlockerVolumeSource",
+    "V1GCEPersistentDiskVolumeSource",
+    "V1GRPCAction",
+    "V1GitRepoVolumeSource",
+    "V1GlusterfsVolumeSource",
+    "V1HTTPGetAction",
+    "V1HTTPHeader",
+    "V1HostAlias",
+    "V1HostPathType",
+    "V1HostPathVolumeSource",
+    "V1ISCSIVolumeSource",
+    "V1ImageVolumeSource",
+    "V1KeyToPath",
+    "V1LabelSelector",
+    "V1LabelSelectorOperator",
+    "V1LabelSelectorRequirement",
+    "V1Lifecycle",
+    "V1LifecycleHandler",
+    "V1LocalObjectReference",
+    "V1ManagedFieldsEntry",
+    "V1ManagedFieldsOperationType",
+    "V1MountPropagationMode",
+    "V1NFSVolumeSource",
+    "V1NodeAffinity",
+    "V1NodeInclusionPolicy",
+    "V1NodeSelector",
+    "V1NodeSelectorOperator",
+    "V1NodeSelectorRequirement",
+    "V1NodeSelectorTerm",
+    "V1OSName",
+    "V1ObjectFieldSelector",
+    "V1ObjectMeta",
+    "V1OwnerReference",
+    "V1PersistentVolumeAccessMode",
+    "V1PersistentVolumeClaimSpec",
+    "V1PersistentVolumeClaimTemplate",
+    "V1PersistentVolumeClaimVolumeSource",
+    "V1PersistentVolumeMode",
+    "V1PhotonPersistentDiskVolumeSource",
+    "V1PodAffinity",
+    "V1PodAffinityTerm",
+    "V1PodAntiAffinity",
+    "V1PodCertificateProjection",
+    "V1PodConditionType",
+    "V1PodDNSConfig",
+    "V1PodDNSConfigOption",
+    "V1PodFSGroupChangePolicy",
+    "V1PodOS",
+    "V1PodReadinessGate",
+    "V1PodResourceClaim",
+    "V1PodSELinuxChangePolicy",
+    "V1PodSchedulingGate",
+    "V1PodSecurityContext",
+    "V1PodSpec",
+    "V1PortworxVolumeSource",
+    "V1PreemptionPolicy",
+    "V1PreferredSchedulingTerm",
+    "V1Probe",
+    "V1ProcMountType",
+    "V1ProjectedVolumeSource",
+    "V1Protocol",
+    "V1PullPolicy",
+    "V1QuobyteVolumeSource",
+    "V1RBDVolumeSource",
+    "V1RecursiveReadOnlyMode",
+    "V1ResourceFieldSelector",
+    "V1ResourceName",
+    "V1ResourceRequirements",
+    "V1ResourceResizeRestartPolicy",
+    "V1RestartPolicy",
+    "V1SELinuxOptions",
+    "V1ScaleIOVolumeSource",
+    "V1SeccompProfile",
+    "V1SeccompProfileType",
+    "V1SecretEnvSource",
+    "V1SecretKeySelector",
+    "V1SecretProjection",
+    "V1SecretVolumeSource",
+    "V1SecurityContext",
+    "V1ServiceAccountTokenProjection",
+    "V1Signal",
+    "V1SleepAction",
+    "V1StorageMedium",
+    "V1StorageOSVolumeSource",
+    "V1SupplementalGroupsPolicy",
+    "V1Sysctl",
+    "V1TCPSocketAction",
+    "V1TaintEffect",
+    "V1TerminationMessagePolicy",
+    "V1Toleration",
+    "V1TolerationOperator",
+    "V1TopologySpreadConstraint",
+    "V1TypedLocalObjectReference",
+    "V1TypedObjectReference",
+    "V1URIScheme",
+    "V1UnsatisfiableConstraintAction",
+    "V1Volume",
+    "V1VolumeDevice",
+    "V1VolumeMount",
+    "V1VolumeProjection",
+    "V1VolumeResourceRequirements",
+    "V1VsphereVirtualDiskVolumeSource",
+    "V1WeightedPodAffinityTerm",
+    "V1WindowsSecurityContextOptions",
+    "V1WorkloadReference",
+    "V1alpha1StorageSpec",
 ]
 
 # import apis into sdk package
@@ -93,6 +242,9 @@ from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpe
 from komputer_ai.models.create_schedule_request import CreateScheduleRequest as CreateScheduleRequest
 from komputer_ai.models.create_secret_request import CreateSecretRequest as CreateSecretRequest
 from komputer_ai.models.create_skill_request import CreateSkillRequest as CreateSkillRequest
+from komputer_ai.models.intstr_int_or_string import IntstrIntOrString as IntstrIntOrString
+from komputer_ai.models.intstr_type import IntstrType as IntstrType
+from komputer_ai.models.k8s_io_api_core_v1_resource_claim import K8sIoApiCoreV1ResourceClaim as K8sIoApiCoreV1ResourceClaim
 from komputer_ai.models.memory_response import MemoryResponse as MemoryResponse
 from komputer_ai.models.office_list_response import OfficeListResponse as OfficeListResponse
 from komputer_ai.models.office_member_response import OfficeMemberResponse as OfficeMemberResponse
@@ -101,10 +253,156 @@ from komputer_ai.models.patch_agent_request import PatchAgentRequest as PatchAge
 from komputer_ai.models.patch_memory_request import PatchMemoryRequest as PatchMemoryRequest
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest as PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest as PatchSkillRequest
+from komputer_ai.models.resource_quantity import ResourceQuantity as ResourceQuantity
 from komputer_ai.models.schedule_list_response import ScheduleListResponse as ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse as ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse as SecretListResponse
 from komputer_ai.models.secret_response import SecretResponse as SecretResponse
 from komputer_ai.models.skill_response import SkillResponse as SkillResponse
 from komputer_ai.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
+from komputer_ai.models.v1_aws_elastic_block_store_volume_source import V1AWSElasticBlockStoreVolumeSource as V1AWSElasticBlockStoreVolumeSource
+from komputer_ai.models.v1_affinity import V1Affinity as V1Affinity
+from komputer_ai.models.v1_app_armor_profile import V1AppArmorProfile as V1AppArmorProfile
+from komputer_ai.models.v1_app_armor_profile_type import V1AppArmorProfileType as V1AppArmorProfileType
+from komputer_ai.models.v1_azure_data_disk_caching_mode import V1AzureDataDiskCachingMode as V1AzureDataDiskCachingMode
+from komputer_ai.models.v1_azure_data_disk_kind import V1AzureDataDiskKind as V1AzureDataDiskKind
+from komputer_ai.models.v1_azure_disk_volume_source import V1AzureDiskVolumeSource as V1AzureDiskVolumeSource
+from komputer_ai.models.v1_azure_file_volume_source import V1AzureFileVolumeSource as V1AzureFileVolumeSource
+from komputer_ai.models.v1_csi_volume_source import V1CSIVolumeSource as V1CSIVolumeSource
+from komputer_ai.models.v1_capabilities import V1Capabilities as V1Capabilities
+from komputer_ai.models.v1_ceph_fs_volume_source import V1CephFSVolumeSource as V1CephFSVolumeSource
+from komputer_ai.models.v1_cinder_volume_source import V1CinderVolumeSource as V1CinderVolumeSource
+from komputer_ai.models.v1_cluster_trust_bundle_projection import V1ClusterTrustBundleProjection as V1ClusterTrustBundleProjection
+from komputer_ai.models.v1_config_map_env_source import V1ConfigMapEnvSource as V1ConfigMapEnvSource
+from komputer_ai.models.v1_config_map_key_selector import V1ConfigMapKeySelector as V1ConfigMapKeySelector
+from komputer_ai.models.v1_config_map_projection import V1ConfigMapProjection as V1ConfigMapProjection
+from komputer_ai.models.v1_config_map_volume_source import V1ConfigMapVolumeSource as V1ConfigMapVolumeSource
+from komputer_ai.models.v1_container import V1Container as V1Container
+from komputer_ai.models.v1_container_port import V1ContainerPort as V1ContainerPort
+from komputer_ai.models.v1_container_resize_policy import V1ContainerResizePolicy as V1ContainerResizePolicy
+from komputer_ai.models.v1_container_restart_policy import V1ContainerRestartPolicy as V1ContainerRestartPolicy
+from komputer_ai.models.v1_container_restart_rule import V1ContainerRestartRule as V1ContainerRestartRule
+from komputer_ai.models.v1_container_restart_rule_action import V1ContainerRestartRuleAction as V1ContainerRestartRuleAction
+from komputer_ai.models.v1_container_restart_rule_on_exit_codes import V1ContainerRestartRuleOnExitCodes as V1ContainerRestartRuleOnExitCodes
+from komputer_ai.models.v1_container_restart_rule_on_exit_codes_operator import V1ContainerRestartRuleOnExitCodesOperator as V1ContainerRestartRuleOnExitCodesOperator
+from komputer_ai.models.v1_dns_policy import V1DNSPolicy as V1DNSPolicy
+from komputer_ai.models.v1_downward_api_projection import V1DownwardAPIProjection as V1DownwardAPIProjection
+from komputer_ai.models.v1_downward_api_volume_file import V1DownwardAPIVolumeFile as V1DownwardAPIVolumeFile
+from komputer_ai.models.v1_downward_api_volume_source import V1DownwardAPIVolumeSource as V1DownwardAPIVolumeSource
+from komputer_ai.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource as V1EmptyDirVolumeSource
+from komputer_ai.models.v1_env_from_source import V1EnvFromSource as V1EnvFromSource
+from komputer_ai.models.v1_env_var import V1EnvVar as V1EnvVar
+from komputer_ai.models.v1_env_var_source import V1EnvVarSource as V1EnvVarSource
+from komputer_ai.models.v1_ephemeral_container import V1EphemeralContainer as V1EphemeralContainer
+from komputer_ai.models.v1_ephemeral_volume_source import V1EphemeralVolumeSource as V1EphemeralVolumeSource
+from komputer_ai.models.v1_exec_action import V1ExecAction as V1ExecAction
+from komputer_ai.models.v1_fc_volume_source import V1FCVolumeSource as V1FCVolumeSource
+from komputer_ai.models.v1_file_key_selector import V1FileKeySelector as V1FileKeySelector
+from komputer_ai.models.v1_flex_volume_source import V1FlexVolumeSource as V1FlexVolumeSource
+from komputer_ai.models.v1_flocker_volume_source import V1FlockerVolumeSource as V1FlockerVolumeSource
+from komputer_ai.models.v1_gce_persistent_disk_volume_source import V1GCEPersistentDiskVolumeSource as V1GCEPersistentDiskVolumeSource
+from komputer_ai.models.v1_grpc_action import V1GRPCAction as V1GRPCAction
+from komputer_ai.models.v1_git_repo_volume_source import V1GitRepoVolumeSource as V1GitRepoVolumeSource
+from komputer_ai.models.v1_glusterfs_volume_source import V1GlusterfsVolumeSource as V1GlusterfsVolumeSource
+from komputer_ai.models.v1_http_get_action import V1HTTPGetAction as V1HTTPGetAction
+from komputer_ai.models.v1_http_header import V1HTTPHeader as V1HTTPHeader
+from komputer_ai.models.v1_host_alias import V1HostAlias as V1HostAlias
+from komputer_ai.models.v1_host_path_type import V1HostPathType as V1HostPathType
+from komputer_ai.models.v1_host_path_volume_source import V1HostPathVolumeSource as V1HostPathVolumeSource
+from komputer_ai.models.v1_iscsi_volume_source import V1ISCSIVolumeSource as V1ISCSIVolumeSource
+from komputer_ai.models.v1_image_volume_source import V1ImageVolumeSource as V1ImageVolumeSource
+from komputer_ai.models.v1_key_to_path import V1KeyToPath as V1KeyToPath
+from komputer_ai.models.v1_label_selector import V1LabelSelector as V1LabelSelector
+from komputer_ai.models.v1_label_selector_operator import V1LabelSelectorOperator as V1LabelSelectorOperator
+from komputer_ai.models.v1_label_selector_requirement import V1LabelSelectorRequirement as V1LabelSelectorRequirement
+from komputer_ai.models.v1_lifecycle import V1Lifecycle as V1Lifecycle
+from komputer_ai.models.v1_lifecycle_handler import V1LifecycleHandler as V1LifecycleHandler
+from komputer_ai.models.v1_local_object_reference import V1LocalObjectReference as V1LocalObjectReference
+from komputer_ai.models.v1_managed_fields_entry import V1ManagedFieldsEntry as V1ManagedFieldsEntry
+from komputer_ai.models.v1_managed_fields_operation_type import V1ManagedFieldsOperationType as V1ManagedFieldsOperationType
+from komputer_ai.models.v1_mount_propagation_mode import V1MountPropagationMode as V1MountPropagationMode
+from komputer_ai.models.v1_nfs_volume_source import V1NFSVolumeSource as V1NFSVolumeSource
+from komputer_ai.models.v1_node_affinity import V1NodeAffinity as V1NodeAffinity
+from komputer_ai.models.v1_node_inclusion_policy import V1NodeInclusionPolicy as V1NodeInclusionPolicy
+from komputer_ai.models.v1_node_selector import V1NodeSelector as V1NodeSelector
+from komputer_ai.models.v1_node_selector_operator import V1NodeSelectorOperator as V1NodeSelectorOperator
+from komputer_ai.models.v1_node_selector_requirement import V1NodeSelectorRequirement as V1NodeSelectorRequirement
+from komputer_ai.models.v1_node_selector_term import V1NodeSelectorTerm as V1NodeSelectorTerm
+from komputer_ai.models.v1_os_name import V1OSName as V1OSName
+from komputer_ai.models.v1_object_field_selector import V1ObjectFieldSelector as V1ObjectFieldSelector
+from komputer_ai.models.v1_object_meta import V1ObjectMeta as V1ObjectMeta
+from komputer_ai.models.v1_owner_reference import V1OwnerReference as V1OwnerReference
+from komputer_ai.models.v1_persistent_volume_access_mode import V1PersistentVolumeAccessMode as V1PersistentVolumeAccessMode
+from komputer_ai.models.v1_persistent_volume_claim_spec import V1PersistentVolumeClaimSpec as V1PersistentVolumeClaimSpec
+from komputer_ai.models.v1_persistent_volume_claim_template import V1PersistentVolumeClaimTemplate as V1PersistentVolumeClaimTemplate
+from komputer_ai.models.v1_persistent_volume_claim_volume_source import V1PersistentVolumeClaimVolumeSource as V1PersistentVolumeClaimVolumeSource
+from komputer_ai.models.v1_persistent_volume_mode import V1PersistentVolumeMode as V1PersistentVolumeMode
+from komputer_ai.models.v1_photon_persistent_disk_volume_source import V1PhotonPersistentDiskVolumeSource as V1PhotonPersistentDiskVolumeSource
+from komputer_ai.models.v1_pod_affinity import V1PodAffinity as V1PodAffinity
+from komputer_ai.models.v1_pod_affinity_term import V1PodAffinityTerm as V1PodAffinityTerm
+from komputer_ai.models.v1_pod_anti_affinity import V1PodAntiAffinity as V1PodAntiAffinity
+from komputer_ai.models.v1_pod_certificate_projection import V1PodCertificateProjection as V1PodCertificateProjection
+from komputer_ai.models.v1_pod_condition_type import V1PodConditionType as V1PodConditionType
+from komputer_ai.models.v1_pod_dns_config import V1PodDNSConfig as V1PodDNSConfig
+from komputer_ai.models.v1_pod_dns_config_option import V1PodDNSConfigOption as V1PodDNSConfigOption
+from komputer_ai.models.v1_pod_fs_group_change_policy import V1PodFSGroupChangePolicy as V1PodFSGroupChangePolicy
+from komputer_ai.models.v1_pod_os import V1PodOS as V1PodOS
+from komputer_ai.models.v1_pod_readiness_gate import V1PodReadinessGate as V1PodReadinessGate
+from komputer_ai.models.v1_pod_resource_claim import V1PodResourceClaim as V1PodResourceClaim
+from komputer_ai.models.v1_pod_se_linux_change_policy import V1PodSELinuxChangePolicy as V1PodSELinuxChangePolicy
+from komputer_ai.models.v1_pod_scheduling_gate import V1PodSchedulingGate as V1PodSchedulingGate
+from komputer_ai.models.v1_pod_security_context import V1PodSecurityContext as V1PodSecurityContext
+from komputer_ai.models.v1_pod_spec import V1PodSpec as V1PodSpec
+from komputer_ai.models.v1_portworx_volume_source import V1PortworxVolumeSource as V1PortworxVolumeSource
+from komputer_ai.models.v1_preemption_policy import V1PreemptionPolicy as V1PreemptionPolicy
+from komputer_ai.models.v1_preferred_scheduling_term import V1PreferredSchedulingTerm as V1PreferredSchedulingTerm
+from komputer_ai.models.v1_probe import V1Probe as V1Probe
+from komputer_ai.models.v1_proc_mount_type import V1ProcMountType as V1ProcMountType
+from komputer_ai.models.v1_projected_volume_source import V1ProjectedVolumeSource as V1ProjectedVolumeSource
+from komputer_ai.models.v1_protocol import V1Protocol as V1Protocol
+from komputer_ai.models.v1_pull_policy import V1PullPolicy as V1PullPolicy
+from komputer_ai.models.v1_quobyte_volume_source import V1QuobyteVolumeSource as V1QuobyteVolumeSource
+from komputer_ai.models.v1_rbd_volume_source import V1RBDVolumeSource as V1RBDVolumeSource
+from komputer_ai.models.v1_recursive_read_only_mode import V1RecursiveReadOnlyMode as V1RecursiveReadOnlyMode
+from komputer_ai.models.v1_resource_field_selector import V1ResourceFieldSelector as V1ResourceFieldSelector
+from komputer_ai.models.v1_resource_name import V1ResourceName as V1ResourceName
+from komputer_ai.models.v1_resource_requirements import V1ResourceRequirements as V1ResourceRequirements
+from komputer_ai.models.v1_resource_resize_restart_policy import V1ResourceResizeRestartPolicy as V1ResourceResizeRestartPolicy
+from komputer_ai.models.v1_restart_policy import V1RestartPolicy as V1RestartPolicy
+from komputer_ai.models.v1_se_linux_options import V1SELinuxOptions as V1SELinuxOptions
+from komputer_ai.models.v1_scale_io_volume_source import V1ScaleIOVolumeSource as V1ScaleIOVolumeSource
+from komputer_ai.models.v1_seccomp_profile import V1SeccompProfile as V1SeccompProfile
+from komputer_ai.models.v1_seccomp_profile_type import V1SeccompProfileType as V1SeccompProfileType
+from komputer_ai.models.v1_secret_env_source import V1SecretEnvSource as V1SecretEnvSource
+from komputer_ai.models.v1_secret_key_selector import V1SecretKeySelector as V1SecretKeySelector
+from komputer_ai.models.v1_secret_projection import V1SecretProjection as V1SecretProjection
+from komputer_ai.models.v1_secret_volume_source import V1SecretVolumeSource as V1SecretVolumeSource
+from komputer_ai.models.v1_security_context import V1SecurityContext as V1SecurityContext
+from komputer_ai.models.v1_service_account_token_projection import V1ServiceAccountTokenProjection as V1ServiceAccountTokenProjection
+from komputer_ai.models.v1_signal import V1Signal as V1Signal
+from komputer_ai.models.v1_sleep_action import V1SleepAction as V1SleepAction
+from komputer_ai.models.v1_storage_medium import V1StorageMedium as V1StorageMedium
+from komputer_ai.models.v1_storage_os_volume_source import V1StorageOSVolumeSource as V1StorageOSVolumeSource
+from komputer_ai.models.v1_supplemental_groups_policy import V1SupplementalGroupsPolicy as V1SupplementalGroupsPolicy
+from komputer_ai.models.v1_sysctl import V1Sysctl as V1Sysctl
+from komputer_ai.models.v1_tcp_socket_action import V1TCPSocketAction as V1TCPSocketAction
+from komputer_ai.models.v1_taint_effect import V1TaintEffect as V1TaintEffect
+from komputer_ai.models.v1_termination_message_policy import V1TerminationMessagePolicy as V1TerminationMessagePolicy
+from komputer_ai.models.v1_toleration import V1Toleration as V1Toleration
+from komputer_ai.models.v1_toleration_operator import V1TolerationOperator as V1TolerationOperator
+from komputer_ai.models.v1_topology_spread_constraint import V1TopologySpreadConstraint as V1TopologySpreadConstraint
+from komputer_ai.models.v1_typed_local_object_reference import V1TypedLocalObjectReference as V1TypedLocalObjectReference
+from komputer_ai.models.v1_typed_object_reference import V1TypedObjectReference as V1TypedObjectReference
+from komputer_ai.models.v1_uri_scheme import V1URIScheme as V1URIScheme
+from komputer_ai.models.v1_unsatisfiable_constraint_action import V1UnsatisfiableConstraintAction as V1UnsatisfiableConstraintAction
+from komputer_ai.models.v1_volume import V1Volume as V1Volume
+from komputer_ai.models.v1_volume_device import V1VolumeDevice as V1VolumeDevice
+from komputer_ai.models.v1_volume_mount import V1VolumeMount as V1VolumeMount
+from komputer_ai.models.v1_volume_projection import V1VolumeProjection as V1VolumeProjection
+from komputer_ai.models.v1_volume_resource_requirements import V1VolumeResourceRequirements as V1VolumeResourceRequirements
+from komputer_ai.models.v1_vsphere_virtual_disk_volume_source import V1VsphereVirtualDiskVolumeSource as V1VsphereVirtualDiskVolumeSource
+from komputer_ai.models.v1_weighted_pod_affinity_term import V1WeightedPodAffinityTerm as V1WeightedPodAffinityTerm
+from komputer_ai.models.v1_windows_security_context_options import V1WindowsSecurityContextOptions as V1WindowsSecurityContextOptions
+from komputer_ai.models.v1_workload_reference import V1WorkloadReference as V1WorkloadReference
+from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec as V1alpha1StorageSpec
 

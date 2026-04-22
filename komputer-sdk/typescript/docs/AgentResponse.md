@@ -17,9 +17,11 @@ Name | Type
 `modelContextWindow` | number
 `name` | string
 `namespace` | string
+`podSpec` | [V1PodSpec](V1PodSpec.md)
 `secrets` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
 `status` | string
+`storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
 `taskStatus` | string
 `totalCostUSD` | string
@@ -43,9 +45,11 @@ const example = {
   "modelContextWindow": null,
   "name": null,
   "namespace": null,
+  "podSpec": null,
   "secrets": null,
   "skills": null,
   "status": null,
+  "storage": null,
   "systemPrompt": null,
   "taskStatus": null,
   "totalCostUSD": null,

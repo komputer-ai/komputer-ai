@@ -19,6 +19,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.v1_pod_spec import V1PodSpec
+from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -35,12 +37,14 @@ class CreateAgentRequest(BaseModel):
     name: StrictStr
     namespace: Optional[StrictStr] = Field(default=None, description="optional, defaults to server default")
     office_manager: Optional[StrictStr] = Field(default=None, description="set by manager MCP tool", alias="officeManager")
+    pod_spec: Optional[V1PodSpec] = Field(default=None, alias="podSpec")
     role: Optional[StrictStr] = Field(default=None, description="\"manager\" or \"\" (default manager)")
     secret_refs: Optional[List[StrictStr]] = Field(default=None, description="names of existing K8s Secrets to attach", alias="secretRefs")
     skills: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerSkill names to attach")
+    storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="optional custom system prompt", alias="systemPrompt")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["connectors", "instructions", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "role", "secretRefs", "skills", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["connectors", "instructions", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "role", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -81,6 +85,12 @@ class CreateAgentRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of pod_spec
+        if self.pod_spec:
+            _dict['podSpec'] = self.pod_spec.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of storage
+        if self.storage:
+            _dict['storage'] = self.storage.to_dict()
         return _dict
 
     @classmethod
@@ -101,9 +111,11 @@ class CreateAgentRequest(BaseModel):
             "name": obj.get("name"),
             "namespace": obj.get("namespace"),
             "officeManager": obj.get("officeManager"),
+            "podSpec": V1PodSpec.from_dict(obj["podSpec"]) if obj.get("podSpec") is not None else None,
             "role": obj.get("role"),
             "secretRefs": obj.get("secretRefs"),
             "skills": obj.get("skills"),
+            "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
             "templateRef": obj.get("templateRef")
         })

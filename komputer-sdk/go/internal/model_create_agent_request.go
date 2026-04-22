@@ -34,12 +34,14 @@ type CreateAgentRequest struct {
 	Namespace *string `json:"namespace,omitempty"`
 	// set by manager MCP tool
 	OfficeManager *string `json:"officeManager,omitempty"`
+	PodSpec *V1PodSpec `json:"podSpec,omitempty"`
 	// \"manager\" or \"\" (default manager)
 	Role *string `json:"role,omitempty"`
 	// names of existing K8s Secrets to attach
 	SecretRefs []string `json:"secretRefs,omitempty"`
 	// optional KomputerSkill names to attach
 	Skills []string `json:"skills,omitempty"`
+	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// optional custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
 	TemplateRef *string `json:"templateRef,omitempty"`
@@ -306,6 +308,38 @@ func (o *CreateAgentRequest) SetOfficeManager(v string) {
 	o.OfficeManager = &v
 }
 
+// GetPodSpec returns the PodSpec field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetPodSpec() V1PodSpec {
+	if o == nil || IsNil(o.PodSpec) {
+		var ret V1PodSpec
+		return ret
+	}
+	return *o.PodSpec
+}
+
+// GetPodSpecOk returns a tuple with the PodSpec field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetPodSpecOk() (*V1PodSpec, bool) {
+	if o == nil || IsNil(o.PodSpec) {
+		return nil, false
+	}
+	return o.PodSpec, true
+}
+
+// HasPodSpec returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasPodSpec() bool {
+	if o != nil && !IsNil(o.PodSpec) {
+		return true
+	}
+
+	return false
+}
+
+// SetPodSpec gets a reference to the given V1PodSpec and assigns it to the PodSpec field.
+func (o *CreateAgentRequest) SetPodSpec(v V1PodSpec) {
+	o.PodSpec = &v
+}
+
 // GetRole returns the Role field value if set, zero value otherwise.
 func (o *CreateAgentRequest) GetRole() string {
 	if o == nil || IsNil(o.Role) {
@@ -402,6 +436,38 @@ func (o *CreateAgentRequest) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetStorage returns the Storage field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetStorage() V1alpha1StorageSpec {
+	if o == nil || IsNil(o.Storage) {
+		var ret V1alpha1StorageSpec
+		return ret
+	}
+	return *o.Storage
+}
+
+// GetStorageOk returns a tuple with the Storage field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetStorageOk() (*V1alpha1StorageSpec, bool) {
+	if o == nil || IsNil(o.Storage) {
+		return nil, false
+	}
+	return o.Storage, true
+}
+
+// HasStorage returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasStorage() bool {
+	if o != nil && !IsNil(o.Storage) {
+		return true
+	}
+
+	return false
+}
+
+// SetStorage gets a reference to the given V1alpha1StorageSpec and assigns it to the Storage field.
+func (o *CreateAgentRequest) SetStorage(v V1alpha1StorageSpec) {
+	o.Storage = &v
+}
+
 // GetSystemPrompt returns the SystemPrompt field value if set, zero value otherwise.
 func (o *CreateAgentRequest) GetSystemPrompt() string {
 	if o == nil || IsNil(o.SystemPrompt) {
@@ -496,6 +562,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.OfficeManager) {
 		toSerialize["officeManager"] = o.OfficeManager
 	}
+	if !IsNil(o.PodSpec) {
+		toSerialize["podSpec"] = o.PodSpec
+	}
 	if !IsNil(o.Role) {
 		toSerialize["role"] = o.Role
 	}
@@ -504,6 +573,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.Storage) {
+		toSerialize["storage"] = o.Storage
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt

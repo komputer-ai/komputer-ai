@@ -13,6 +13,21 @@
  */
 
 import { mapValues } from '../runtime';
+import type { V1alpha1StorageSpec } from './V1alpha1StorageSpec';
+import {
+    V1alpha1StorageSpecFromJSON,
+    V1alpha1StorageSpecFromJSONTyped,
+    V1alpha1StorageSpecToJSON,
+    V1alpha1StorageSpecToJSONTyped,
+} from './V1alpha1StorageSpec';
+import type { V1PodSpec } from './V1PodSpec';
+import {
+    V1PodSpecFromJSON,
+    V1PodSpecFromJSONTyped,
+    V1PodSpecToJSON,
+    V1PodSpecToJSONTyped,
+} from './V1PodSpec';
+
 /**
  * 
  * @export
@@ -86,6 +101,12 @@ export interface AgentResponse {
      */
     namespace?: string;
     /**
+     * 
+     * @type {V1PodSpec}
+     * @memberof AgentResponse
+     */
+    podSpec?: V1PodSpec;
+    /**
      * Key names from K8s Secrets (not values)
      * @type {Array<string>}
      * @memberof AgentResponse
@@ -103,6 +124,12 @@ export interface AgentResponse {
      * @memberof AgentResponse
      */
     status?: string;
+    /**
+     * 
+     * @type {V1alpha1StorageSpec}
+     * @memberof AgentResponse
+     */
+    storage?: V1alpha1StorageSpec;
     /**
      * Custom system prompt (spec.systemPrompt)
      * @type {string}
@@ -157,9 +184,11 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'modelContextWindow': json['modelContextWindow'] == null ? undefined : json['modelContextWindow'],
         'name': json['name'] == null ? undefined : json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
+        'podSpec': json['podSpec'] == null ? undefined : V1PodSpecFromJSON(json['podSpec']),
         'secrets': json['secrets'] == null ? undefined : json['secrets'],
         'skills': json['skills'] == null ? undefined : json['skills'],
         'status': json['status'] == null ? undefined : json['status'],
+        'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'taskStatus': json['taskStatus'] == null ? undefined : json['taskStatus'],
         'totalCostUSD': json['totalCostUSD'] == null ? undefined : json['totalCostUSD'],
@@ -189,9 +218,11 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'modelContextWindow': value['modelContextWindow'],
         'name': value['name'],
         'namespace': value['namespace'],
+        'podSpec': V1PodSpecToJSON(value['podSpec']),
         'secrets': value['secrets'],
         'skills': value['skills'],
         'status': value['status'],
+        'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'taskStatus': value['taskStatus'],
         'totalCostUSD': value['totalCostUSD'],

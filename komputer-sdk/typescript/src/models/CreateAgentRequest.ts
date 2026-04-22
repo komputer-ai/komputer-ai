@@ -13,6 +13,21 @@
  */
 
 import { mapValues } from '../runtime';
+import type { V1alpha1StorageSpec } from './V1alpha1StorageSpec';
+import {
+    V1alpha1StorageSpecFromJSON,
+    V1alpha1StorageSpecFromJSONTyped,
+    V1alpha1StorageSpecToJSON,
+    V1alpha1StorageSpecToJSONTyped,
+} from './V1alpha1StorageSpec';
+import type { V1PodSpec } from './V1PodSpec';
+import {
+    V1PodSpecFromJSON,
+    V1PodSpecFromJSONTyped,
+    V1PodSpecToJSON,
+    V1PodSpecToJSONTyped,
+} from './V1PodSpec';
+
 /**
  * 
  * @export
@@ -68,6 +83,12 @@ export interface CreateAgentRequest {
      */
     officeManager?: string;
     /**
+     * 
+     * @type {V1PodSpec}
+     * @memberof CreateAgentRequest
+     */
+    podSpec?: V1PodSpec;
+    /**
      * "manager" or "" (default manager)
      * @type {string}
      * @memberof CreateAgentRequest
@@ -85,6 +106,12 @@ export interface CreateAgentRequest {
      * @memberof CreateAgentRequest
      */
     skills?: Array<string>;
+    /**
+     * 
+     * @type {V1alpha1StorageSpec}
+     * @memberof CreateAgentRequest
+     */
+    storage?: V1alpha1StorageSpec;
     /**
      * optional custom system prompt
      * @type {string}
@@ -126,9 +153,11 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         'name': json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
         'officeManager': json['officeManager'] == null ? undefined : json['officeManager'],
+        'podSpec': json['podSpec'] == null ? undefined : V1PodSpecFromJSON(json['podSpec']),
         'role': json['role'] == null ? undefined : json['role'],
         'secretRefs': json['secretRefs'] == null ? undefined : json['secretRefs'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
@@ -153,9 +182,11 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         'name': value['name'],
         'namespace': value['namespace'],
         'officeManager': value['officeManager'],
+        'podSpec': V1PodSpecToJSON(value['podSpec']),
         'role': value['role'],
         'secretRefs': value['secretRefs'],
         'skills': value['skills'],
+        'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'templateRef': value['templateRef'],
     };

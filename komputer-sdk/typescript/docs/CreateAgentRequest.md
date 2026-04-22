@@ -14,9 +14,11 @@ Name | Type
 `name` | string
 `namespace` | string
 `officeManager` | string
+`podSpec` | [V1PodSpec](V1PodSpec.md)
 `role` | string
 `secretRefs` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
 `templateRef` | string
 
@@ -35,9 +37,11 @@ const example = {
   "name": null,
   "namespace": null,
   "officeManager": null,
+  "podSpec": null,
   "role": null,
   "secretRefs": null,
   "skills": null,
+  "storage": null,
   "systemPrompt": null,
   "templateRef": null,
 } satisfies CreateAgentRequest

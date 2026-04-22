@@ -10,8 +10,10 @@ Name | Type | Description | Notes
 **lifecycle** | **str** |  | [optional] 
 **memories** | **List[str]** | memory names to attach | [optional] 
 **model** | **str** |  | [optional] 
+**pod_spec** | [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **secret_refs** | **List[str]** | full replacement list of K8s secret names | [optional] 
 **skills** | **List[str]** | skill names to attach | [optional] 
+**storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | custom system prompt | [optional] 
 **template_ref** | **str** |  | [optional] 
 

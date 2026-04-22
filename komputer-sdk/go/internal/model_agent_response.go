@@ -33,11 +33,13 @@ type AgentResponse struct {
 	ModelContextWindow *int32 `json:"modelContextWindow,omitempty"`
 	Name *string `json:"name,omitempty"`
 	Namespace *string `json:"namespace,omitempty"`
+	PodSpec *V1PodSpec `json:"podSpec,omitempty"`
 	// Key names from K8s Secrets (not values)
 	Secrets []string `json:"secrets,omitempty"`
 	// KomputerSkill names attached to this agent
 	Skills []string `json:"skills,omitempty"`
 	Status *string `json:"status,omitempty"`
+	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// Custom system prompt (spec.systemPrompt)
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
 	TaskStatus *string `json:"taskStatus,omitempty"`
@@ -414,6 +416,38 @@ func (o *AgentResponse) SetNamespace(v string) {
 	o.Namespace = &v
 }
 
+// GetPodSpec returns the PodSpec field value if set, zero value otherwise.
+func (o *AgentResponse) GetPodSpec() V1PodSpec {
+	if o == nil || IsNil(o.PodSpec) {
+		var ret V1PodSpec
+		return ret
+	}
+	return *o.PodSpec
+}
+
+// GetPodSpecOk returns a tuple with the PodSpec field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetPodSpecOk() (*V1PodSpec, bool) {
+	if o == nil || IsNil(o.PodSpec) {
+		return nil, false
+	}
+	return o.PodSpec, true
+}
+
+// HasPodSpec returns a boolean if a field has been set.
+func (o *AgentResponse) HasPodSpec() bool {
+	if o != nil && !IsNil(o.PodSpec) {
+		return true
+	}
+
+	return false
+}
+
+// SetPodSpec gets a reference to the given V1PodSpec and assigns it to the PodSpec field.
+func (o *AgentResponse) SetPodSpec(v V1PodSpec) {
+	o.PodSpec = &v
+}
+
 // GetSecrets returns the Secrets field value if set, zero value otherwise.
 func (o *AgentResponse) GetSecrets() []string {
 	if o == nil || IsNil(o.Secrets) {
@@ -508,6 +542,38 @@ func (o *AgentResponse) HasStatus() bool {
 // SetStatus gets a reference to the given string and assigns it to the Status field.
 func (o *AgentResponse) SetStatus(v string) {
 	o.Status = &v
+}
+
+// GetStorage returns the Storage field value if set, zero value otherwise.
+func (o *AgentResponse) GetStorage() V1alpha1StorageSpec {
+	if o == nil || IsNil(o.Storage) {
+		var ret V1alpha1StorageSpec
+		return ret
+	}
+	return *o.Storage
+}
+
+// GetStorageOk returns a tuple with the Storage field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetStorageOk() (*V1alpha1StorageSpec, bool) {
+	if o == nil || IsNil(o.Storage) {
+		return nil, false
+	}
+	return o.Storage, true
+}
+
+// HasStorage returns a boolean if a field has been set.
+func (o *AgentResponse) HasStorage() bool {
+	if o != nil && !IsNil(o.Storage) {
+		return true
+	}
+
+	return false
+}
+
+// SetStorage gets a reference to the given V1alpha1StorageSpec and assigns it to the Storage field.
+func (o *AgentResponse) SetStorage(v V1alpha1StorageSpec) {
+	o.Storage = &v
 }
 
 // GetSystemPrompt returns the SystemPrompt field value if set, zero value otherwise.
@@ -681,6 +747,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Namespace) {
 		toSerialize["namespace"] = o.Namespace
 	}
+	if !IsNil(o.PodSpec) {
+		toSerialize["podSpec"] = o.PodSpec
+	}
 	if !IsNil(o.Secrets) {
 		toSerialize["secrets"] = o.Secrets
 	}
@@ -689,6 +758,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Status) {
 		toSerialize["status"] = o.Status
+	}
+	if !IsNil(o.Storage) {
+		toSerialize["storage"] = o.Storage
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt

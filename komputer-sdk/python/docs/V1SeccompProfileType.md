@@ -1,0 +1,14 @@
+# V1SeccompProfileType
+
+
+## Enum
+
+* `SeccompProfileTypeUnconfined` (value: `'Unconfined'`)
+
+* `SeccompProfileTypeRuntimeDefault` (value: `'RuntimeDefault'`)
+
+* `SeccompProfileTypeLocalhost` (value: `'Localhost'`)
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

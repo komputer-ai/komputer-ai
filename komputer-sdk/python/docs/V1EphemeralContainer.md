@@ -1,0 +1,54 @@
+# V1EphemeralContainer
+
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**args** | **List[str]** | Arguments to the entrypoint. The image&#39;s CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container&#39;s environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \&quot;$$(VAR_NAME)\&quot; will produce the string literal \&quot;$(VAR_NAME)\&quot;. Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell +optional +listType&#x3D;atomic | [optional] 
+**command** | **List[str]** | Entrypoint array. Not executed within a shell. The image&#39;s ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container&#39;s environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \&quot;$$(VAR_NAME)\&quot; will produce the string literal \&quot;$(VAR_NAME)\&quot;. Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell +optional +listType&#x3D;atomic | [optional] 
+**env** | [**List[V1EnvVar]**](V1EnvVar.md) | List of environment variables to set in the container. Cannot be updated. +optional +patchMergeKey&#x3D;name +patchStrategy&#x3D;merge +listType&#x3D;map +listMapKey&#x3D;name | [optional] 
+**env_from** | [**List[V1EnvFromSource]**](V1EnvFromSource.md) | List of sources to populate environment variables in the container. The keys defined within a source may consist of any printable ASCII characters except &#39;&#x3D;&#39;. When a key exists in multiple sources, the value associated with the last source will take precedence. Values defined by an Env with a duplicate key will take precedence. Cannot be updated. +optional +listType&#x3D;atomic | [optional] 
+**image** | **str** | Container image name. More info: https://kubernetes.io/docs/concepts/containers/images | [optional] 
+**image_pull_policy** | [**V1PullPolicy**](V1PullPolicy.md) | Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise. Cannot be updated. More info: https://kubernetes.io/docs/concepts/containers/images#updating-images +optional | [optional] 
+**lifecycle** | [**V1Lifecycle**](V1Lifecycle.md) | Lifecycle is not allowed for ephemeral containers. +optional | [optional] 
+**liveness_probe** | [**V1Probe**](V1Probe.md) | Probes are not allowed for ephemeral containers. +optional | [optional] 
+**name** | **str** | Name of the ephemeral container specified as a DNS_LABEL. This name must be unique among all containers, init containers and ephemeral containers. | [optional] 
+**ports** | [**List[V1ContainerPort]**](V1ContainerPort.md) | Ports are not allowed for ephemeral containers. +optional +patchMergeKey&#x3D;containerPort +patchStrategy&#x3D;merge +listType&#x3D;map +listMapKey&#x3D;containerPort +listMapKey&#x3D;protocol | [optional] 
+**readiness_probe** | [**V1Probe**](V1Probe.md) | Probes are not allowed for ephemeral containers. +optional | [optional] 
+**resize_policy** | [**List[V1ContainerResizePolicy]**](V1ContainerResizePolicy.md) | Resources resize policy for the container. +featureGate&#x3D;InPlacePodVerticalScaling +optional +listType&#x3D;atomic | [optional] 
+**resources** | [**V1ResourceRequirements**](V1ResourceRequirements.md) | Resources are not allowed for ephemeral containers. Ephemeral containers use spare resources already allocated to the pod. +optional | [optional] 
+**restart_policy** | [**V1ContainerRestartPolicy**](V1ContainerRestartPolicy.md) | Restart policy for the container to manage the restart behavior of each container within a pod. You cannot set this field on ephemeral containers. +optional | [optional] 
+**restart_policy_rules** | [**List[V1ContainerRestartRule]**](V1ContainerRestartRule.md) | Represents a list of rules to be checked to determine if the container should be restarted on exit. You cannot set this field on ephemeral containers. +featureGate&#x3D;ContainerRestartRules +optional +listType&#x3D;atomic | [optional] 
+**security_context** | [**V1SecurityContext**](V1SecurityContext.md) | Optional: SecurityContext defines the security options the ephemeral container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. +optional | [optional] 
+**startup_probe** | [**V1Probe**](V1Probe.md) | Probes are not allowed for ephemeral containers. +optional | [optional] 
+**stdin** | **bool** | Whether this container should allocate a buffer for stdin in the container runtime. If this is not set, reads from stdin in the container will always result in EOF. Default is false. +optional | [optional] 
+**stdin_once** | **bool** | Whether the container runtime should close the stdin channel after it has been opened by a single attach. When stdin is true the stdin stream will remain open across multiple attach sessions. If stdinOnce is set to true, stdin is opened on container start, is empty until the first client attaches to stdin, and then remains open and accepts data until the client disconnects, at which time stdin is closed and remains closed until the container is restarted. If this flag is false, a container processes that reads from stdin will never receive an EOF. Default is false +optional | [optional] 
+**target_container_name** | **str** | If set, the name of the container from PodSpec that this ephemeral container targets. The ephemeral container will be run in the namespaces (IPC, PID, etc) of this container. If not set then the ephemeral container uses the namespaces configured in the Pod spec.  The container runtime must implement support for this feature. If the runtime does not support namespace targeting then the result of setting this field is undefined. +optional | [optional] 
+**termination_message_path** | **str** | Optional: Path at which the file to which the container&#39;s termination message will be written is mounted into the container&#39;s filesystem. Message written is intended to be brief final status, such as an assertion failure message. Will be truncated by the node if greater than 4096 bytes. The total message length across all containers will be limited to 12kb. Defaults to /dev/termination-log. Cannot be updated. +optional | [optional] 
+**termination_message_policy** | [**V1TerminationMessagePolicy**](V1TerminationMessagePolicy.md) | Indicate how the termination message should be populated. File will use the contents of terminationMessagePath to populate the container status message on both success and failure. FallbackToLogsOnError will use the last chunk of container log output if the termination message file is empty and the container exited with an error. The log output is limited to 2048 bytes or 80 lines, whichever is smaller. Defaults to File. Cannot be updated. +optional | [optional] 
+**tty** | **bool** | Whether this container should allocate a TTY for itself, also requires &#39;stdin&#39; to be true. Default is false. +optional | [optional] 
+**volume_devices** | [**List[V1VolumeDevice]**](V1VolumeDevice.md) | volumeDevices is the list of block devices to be used by the container. +patchMergeKey&#x3D;devicePath +patchStrategy&#x3D;merge +listType&#x3D;map +listMapKey&#x3D;devicePath +optional | [optional] 
+**volume_mounts** | [**List[V1VolumeMount]**](V1VolumeMount.md) | Pod volumes to mount into the container&#39;s filesystem. Subpath mounts are not allowed for ephemeral containers. Cannot be updated. +optional +patchMergeKey&#x3D;mountPath +patchStrategy&#x3D;merge +listType&#x3D;map +listMapKey&#x3D;mountPath | [optional] 
+**working_dir** | **str** | Container&#39;s working directory. If not specified, the container runtime&#39;s default will be used, which might be configured in the container image. Cannot be updated. +optional | [optional] 
+
+## Example
+
+```python
+from komputer_ai.models.v1_ephemeral_container import V1EphemeralContainer
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of V1EphemeralContainer from a JSON string
+v1_ephemeral_container_instance = V1EphemeralContainer.from_json(json)
+# print the JSON string representation of the object
+print(V1EphemeralContainer.to_json())
+
+# convert the object into a dict
+v1_ephemeral_container_dict = v1_ephemeral_container_instance.to_dict()
+# create an instance of V1EphemeralContainer from a dict
+v1_ephemeral_container_from_dict = V1EphemeralContainer.from_dict(v1_ephemeral_container_dict)
+```
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

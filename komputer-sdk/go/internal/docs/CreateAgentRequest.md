@@ -12,9 +12,11 @@ Name | Type | Description | Notes
 **Name** | **string** |  | 
 **Namespace** | Pointer to **string** | optional, defaults to server default | [optional] 
 **OfficeManager** | Pointer to **string** | set by manager MCP tool | [optional] 
+**PodSpec** | Pointer to [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **Role** | Pointer to **string** | \&quot;manager\&quot; or \&quot;\&quot; (default manager) | [optional] 
 **SecretRefs** | Pointer to **[]string** | names of existing K8s Secrets to attach | [optional] 
 **Skills** | Pointer to **[]string** | optional KomputerSkill names to attach | [optional] 
+**Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | optional custom system prompt | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
@@ -227,6 +229,31 @@ SetOfficeManager sets OfficeManager field to given value.
 
 HasOfficeManager returns a boolean if a field has been set.
 
+### GetPodSpec
+
+`func (o *CreateAgentRequest) GetPodSpec() V1PodSpec`
+
+GetPodSpec returns the PodSpec field if non-nil, zero value otherwise.
+
+### GetPodSpecOk
+
+`func (o *CreateAgentRequest) GetPodSpecOk() (*V1PodSpec, bool)`
+
+GetPodSpecOk returns a tuple with the PodSpec field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetPodSpec
+
+`func (o *CreateAgentRequest) SetPodSpec(v V1PodSpec)`
+
+SetPodSpec sets PodSpec field to given value.
+
+### HasPodSpec
+
+`func (o *CreateAgentRequest) HasPodSpec() bool`
+
+HasPodSpec returns a boolean if a field has been set.
+
 ### GetRole
 
 `func (o *CreateAgentRequest) GetRole() string`
@@ -301,6 +328,31 @@ SetSkills sets Skills field to given value.
 `func (o *CreateAgentRequest) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetStorage
+
+`func (o *CreateAgentRequest) GetStorage() V1alpha1StorageSpec`
+
+GetStorage returns the Storage field if non-nil, zero value otherwise.
+
+### GetStorageOk
+
+`func (o *CreateAgentRequest) GetStorageOk() (*V1alpha1StorageSpec, bool)`
+
+GetStorageOk returns a tuple with the Storage field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetStorage
+
+`func (o *CreateAgentRequest) SetStorage(v V1alpha1StorageSpec)`
+
+SetStorage sets Storage field to given value.
+
+### HasStorage
+
+`func (o *CreateAgentRequest) HasStorage() bool`
+
+HasStorage returns a boolean if a field has been set.
 
 ### GetSystemPrompt
 

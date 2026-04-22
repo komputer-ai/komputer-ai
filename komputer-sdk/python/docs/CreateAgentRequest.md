@@ -13,9 +13,11 @@ Name | Type | Description | Notes
 **name** | **str** |  | 
 **namespace** | **str** | optional, defaults to server default | [optional] 
 **office_manager** | **str** | set by manager MCP tool | [optional] 
+**pod_spec** | [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **role** | **str** | \&quot;manager\&quot; or \&quot;\&quot; (default manager) | [optional] 
 **secret_refs** | **List[str]** | names of existing K8s Secrets to attach | [optional] 
 **skills** | **List[str]** | optional KomputerSkill names to attach | [optional] 
+**storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | optional custom system prompt | [optional] 
 **template_ref** | **str** |  | [optional] 
 

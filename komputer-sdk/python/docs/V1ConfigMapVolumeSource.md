@@ -1,0 +1,32 @@
+# V1ConfigMapVolumeSource
+
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**default_mode** | **int** | defaultMode is optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set. +optional | [optional] 
+**items** | [**List[V1KeyToPath]**](V1KeyToPath.md) | items if unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the &#39;..&#39; path or start with &#39;..&#39;. +optional +listType&#x3D;atomic | [optional] 
+**name** | **str** | Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names +optional +default&#x3D;\&quot;\&quot; +kubebuilder:default&#x3D;\&quot;\&quot; TODO: Drop &#x60;kubebuilder:default&#x60; when controller-gen doesn&#39;t need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896. | [optional] 
+**optional** | **bool** | optional specify whether the ConfigMap or its keys must be defined +optional | [optional] 
+
+## Example
+
+```python
+from komputer_ai.models.v1_config_map_volume_source import V1ConfigMapVolumeSource
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of V1ConfigMapVolumeSource from a JSON string
+v1_config_map_volume_source_instance = V1ConfigMapVolumeSource.from_json(json)
+# print the JSON string representation of the object
+print(V1ConfigMapVolumeSource.to_json())
+
+# convert the object into a dict
+v1_config_map_volume_source_dict = v1_config_map_volume_source_instance.to_dict()
+# create an instance of V1ConfigMapVolumeSource from a dict
+v1_config_map_volume_source_from_dict = V1ConfigMapVolumeSource.from_dict(v1_config_map_volume_source_dict)
+```
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

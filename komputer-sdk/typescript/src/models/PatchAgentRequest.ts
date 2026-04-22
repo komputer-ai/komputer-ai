@@ -13,6 +13,21 @@
  */
 
 import { mapValues } from '../runtime';
+import type { V1alpha1StorageSpec } from './V1alpha1StorageSpec';
+import {
+    V1alpha1StorageSpecFromJSON,
+    V1alpha1StorageSpecFromJSONTyped,
+    V1alpha1StorageSpecToJSON,
+    V1alpha1StorageSpecToJSONTyped,
+} from './V1alpha1StorageSpec';
+import type { V1PodSpec } from './V1PodSpec';
+import {
+    V1PodSpecFromJSON,
+    V1PodSpecFromJSONTyped,
+    V1PodSpecToJSON,
+    V1PodSpecToJSONTyped,
+} from './V1PodSpec';
+
 /**
  * 
  * @export
@@ -50,6 +65,12 @@ export interface PatchAgentRequest {
      */
     model?: string;
     /**
+     * 
+     * @type {V1PodSpec}
+     * @memberof PatchAgentRequest
+     */
+    podSpec?: V1PodSpec;
+    /**
      * full replacement list of K8s secret names
      * @type {Array<string>}
      * @memberof PatchAgentRequest
@@ -61,6 +82,12 @@ export interface PatchAgentRequest {
      * @memberof PatchAgentRequest
      */
     skills?: Array<string>;
+    /**
+     * 
+     * @type {V1alpha1StorageSpec}
+     * @memberof PatchAgentRequest
+     */
+    storage?: V1alpha1StorageSpec;
     /**
      * custom system prompt
      * @type {string}
@@ -97,8 +124,10 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
         'memories': json['memories'] == null ? undefined : json['memories'],
         'model': json['model'] == null ? undefined : json['model'],
+        'podSpec': json['podSpec'] == null ? undefined : V1PodSpecFromJSON(json['podSpec']),
         'secretRefs': json['secretRefs'] == null ? undefined : json['secretRefs'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
@@ -120,8 +149,10 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'lifecycle': value['lifecycle'],
         'memories': value['memories'],
         'model': value['model'],
+        'podSpec': V1PodSpecToJSON(value['podSpec']),
         'secretRefs': value['secretRefs'],
         'skills': value['skills'],
+        'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'templateRef': value['templateRef'],
     };
