@@ -38,8 +38,8 @@ type admissionDecision struct {
 // `siblings` is the full list of KomputerAgents in the same namespace; this
 // function filters by templateRef internally so the caller can pass the raw list.
 // Pure function — no I/O.
-func evaluateAdmission(agent *komputerv1alpha1.KomputerAgent, siblings []komputerv1alpha1.KomputerAgent, cap int32) admissionDecision {
-	if cap <= 0 {
+func evaluateAdmission(agent *komputerv1alpha1.KomputerAgent, siblings []komputerv1alpha1.KomputerAgent, limit int32) admissionDecision {
+	if limit <= 0 {
 		return admissionDecision{Admit: true}
 	}
 	tpl := agent.Spec.TemplateRef
@@ -94,16 +94,16 @@ func evaluateAdmission(agent *komputerv1alpha1.KomputerAgent, siblings []kompute
 		pos++
 	}
 
-	// Open slots = cap - running. Admit this agent only if its rank is within
+	// Open slots = limit - running. Admit this agent only if its rank is within
 	// the open slots.
-	openSlots := cap - running
+	openSlots := limit - running
 	if openSlots > 0 && pos <= openSlots {
 		return admissionDecision{Admit: true}
 	}
 	return admissionDecision{
 		Admit:    false,
 		Position: pos,
-		Reason:   fmt.Sprintf("template %q cap %d/%d reached", tpl, running, cap),
+		Reason:   fmt.Sprintf("template %q reached maxConcurrentAgents (%d/%d running)", tpl, running, limit),
 	}
 }
 

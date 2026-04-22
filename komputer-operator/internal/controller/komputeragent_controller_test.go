@@ -289,7 +289,7 @@ var _ = Describe("KomputerAgent Controller", func() {
 			// r1 already Running — fills the slot.
 			r1 := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-r1", Namespace: "default"},
-				Spec: komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default"},
+				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default"},
 			}
 			Expect(k8sClient.Create(ctx, r1)).To(Succeed())
 			a := &komputerv1alpha1.KomputerAgent{}
@@ -302,13 +302,13 @@ var _ = Describe("KomputerAgent Controller", func() {
 
 			low := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-low", Namespace: "default"},
-				Spec: komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 0},
+				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 0},
 			}
 			Expect(k8sClient.Create(ctx, low)).To(Succeed())
 			time.Sleep(50 * time.Millisecond)
 			high := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-high", Namespace: "default"},
-				Spec: komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 100},
+				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 100},
 			}
 			Expect(k8sClient.Create(ctx, high)).To(Succeed())
 
