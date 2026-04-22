@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/kit/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
@@ -52,7 +51,15 @@ export default function AgentDetailPage() {
   const taskTo = taskToRef.current;
   const taskEvents = taskEventsRef.current;
 
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "info" ? "info" : "chat");
+  const [view, setView] = useState<"chat" | "settings">(searchParams.get("tab") === "info" ? "settings" : "chat");
+
+  const setViewAndUrl = useCallback((next: "chat" | "settings") => {
+    setView(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === "chat") { params.delete("tab"); } else { params.set("tab", "info"); }
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+  }, []);
   const [agent, setAgent] = useState<AgentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const showLoading = useDelayedLoading(loading);
@@ -298,46 +305,35 @@ export default function AgentDetailPage() {
       className="flex h-full flex-col"
     >
       {/* Unified header */}
-      <Tabs
-        defaultValue="chat"
-        value={activeTab}
-        onValueChange={(val) => {
-          setActiveTab(val);
-          const params = new URLSearchParams(window.location.search);
-          if (val === "chat") { params.delete("tab"); } else { params.set("tab", val); }
-          const qs = params.toString();
-          window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
-        }}
-        className="flex flex-1 flex-col overflow-hidden"
-      >
-        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-6">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-6 pr-2">
           <div className="flex items-center gap-4 h-11">
-            {/* Left: status + model + tabs */}
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
-              <StatusBadge status={agent.status} />
-              {agent.taskStatus && (
-                <>
-                  <span className="text-[11px] text-[var(--color-text-muted)]">Task</span>
-                  <StatusBadge status={agent.taskStatus} size="sm" />
-                </>
-              )}
-              <Badge variant="outline" className="text-xs font-mono">
-                {agent.model}
-              </Badge>
-              {agent.lifecycle && (
-                <Badge variant="secondary" className="text-xs">
-                  {agent.lifecycle}
+            {/* Left: back button on settings view, otherwise status + model */}
+            {view === "settings" ? (
+              <Button variant="ghost" size="sm" onClick={() => setViewAndUrl("chat")}>
+                <ArrowLeft className="size-3" data-icon="inline-start" />
+                Back to chat
+              </Button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
+                <StatusBadge status={agent.status} />
+                {agent.taskStatus && (
+                  <>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">Task</span>
+                    <StatusBadge status={agent.taskStatus} size="sm" />
+                  </>
+                )}
+                <Badge variant="outline" className="text-xs font-mono">
+                  {agent.model}
                 </Badge>
-              )}
-            </div>
-
-            <div className="h-4 w-px bg-[var(--color-border)]" />
-
-            <TabsList>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-              <TabsTrigger value="info">Settings</TabsTrigger>
-            </TabsList>
+                {agent.lifecycle && (
+                  <Badge variant="secondary" className="text-xs">
+                    {agent.lifecycle}
+                  </Badge>
+                )}
+              </div>
+            )}
 
             {/* Right: costs + actions */}
             <div className="ml-auto flex items-center gap-3">
@@ -393,73 +389,104 @@ export default function AgentDetailPage() {
                     </Button>
                   }
                 />
+                <Tooltip
+                  content={view === "settings" ? "Back to chat" : "Settings"}
+                  side="bottom"
+                >
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setViewAndUrl(view === "settings" ? "chat" : "settings")}
+                    aria-label={view === "settings" ? "Back to chat" : "Settings"}
+                    className="!px-0 w-7 !bg-white !text-[var(--color-bg)] hover:!bg-white/90 border-white/20"
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={view}
+                        className="inline-flex"
+                        initial={{ opacity: 0, rotate: -90, scale: 0.7 }}
+                        animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                        exit={{ opacity: 0, rotate: 90, scale: 0.7 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        {view === "settings" ? (
+                          <MessageCircle className="size-4" />
+                        ) : (
+                          <SettingsIcon className="size-4" />
+                        )}
+                      </motion.span>
+                    </AnimatePresence>
+                  </Button>
+                </Tooltip>
               </div>
             </div>
           </div>
         </div>
 
-        <TabsContent value="chat" className="flex-1 overflow-hidden flex">
-          <AgentChat
-            agentName={agent.name}
-            agentNamespace={agentNs}
-            agentStatus={agent.status}
-            agentLifecycle={agent.lifecycle}
-            agentContextWindow={agent.modelContextWindow}
-            events={events}
-            taskStatus={agent.taskStatus}
-            initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
-            hasMoreEvents={hasMoreEvents}
-            loadingOlder={loadingOlder}
-            onLoadOlder={loadOlderEvents}
-            scrollContainerRef={scrollContainerRef}
-            scrollSnapshotRef={scrollSnapshotRef}
-            highlightTaskFrom={taskFrom}
-            highlightTaskTo={taskTo}
-            hasNewerEvents={hasNewerEvents}
-            loadingNewer={loadingNewer}
-            onLoadNewer={loadNewerEvents}
-          />
-          <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
-        </TabsContent>
-
-        <TabsContent value="info" className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-4xl space-y-6">
-            {/* Status + metrics */}
-            <motion.div
-              className="flex justify-center gap-3"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <StatusStrip status={agent.status} taskStatus={agent.taskStatus} />
-              <MetricsRow
-                totalCostUSD={agent.totalCostUSD}
-                lastTaskCostUSD={agent.lastTaskCostUSD}
-                totalTokens={agent.totalTokens}
-              />
-            </motion.div>
-
-            {/* Settings */}
-            <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
-
-            {/* Topology */}
-            <AgentTopology agentName={agent.name} agentNs={agentNs} />
-
-            {/* Agent info */}
-            <motion.div
-              className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-3 transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
-            >
-              <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Agent Info</h3>
-              <InfoRow label="Name" value={agent.name} />
-              <InfoRow label="Namespace" value={agent.namespace} />
-              <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
-            </motion.div>
+        {view === "chat" ? (
+          <div className="flex-1 overflow-hidden flex">
+            <AgentChat
+              agentName={agent.name}
+              agentNamespace={agentNs}
+              agentStatus={agent.status}
+              agentLifecycle={agent.lifecycle}
+              agentContextWindow={agent.modelContextWindow}
+              events={events}
+              taskStatus={agent.taskStatus}
+              initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
+              hasMoreEvents={hasMoreEvents}
+              loadingOlder={loadingOlder}
+              onLoadOlder={loadOlderEvents}
+              scrollContainerRef={scrollContainerRef}
+              scrollSnapshotRef={scrollSnapshotRef}
+              highlightTaskFrom={taskFrom}
+              highlightTaskTo={taskTo}
+              hasNewerEvents={hasNewerEvents}
+              loadingNewer={loadingNewer}
+              onLoadNewer={loadNewerEvents}
+            />
+            <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
-        </TabsContent>
-      </Tabs>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-4xl space-y-6">
+              {/* Status + metrics */}
+              <motion.div
+                className="flex justify-center gap-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <StatusStrip status={agent.status} taskStatus={agent.taskStatus} />
+                <MetricsRow
+                  totalCostUSD={agent.totalCostUSD}
+                  lastTaskCostUSD={agent.lastTaskCostUSD}
+                  totalTokens={agent.totalTokens}
+                />
+              </motion.div>
+
+              {/* Settings */}
+              <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+
+              {/* Topology */}
+              <AgentTopology agentName={agent.name} agentNs={agentNs} />
+
+              {/* Agent info */}
+              <motion.div
+                className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-3 transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
+              >
+                <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Agent Info</h3>
+                <InfoRow label="Name" value={agent.name} />
+                <InfoRow label="Namespace" value={agent.namespace} />
+                <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }

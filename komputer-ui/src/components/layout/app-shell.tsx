@@ -36,6 +36,21 @@ export function usePageRefresh(refreshFn: () => void) {
   }, [ctx]);
 }
 
+// --- Header slot context — lets a page inject custom content (e.g. bulk actions)
+// to the left of the page-specific create button.
+type HeaderSlotContextValue = {
+  setSlot: (node: React.ReactNode | null) => void;
+};
+const HeaderSlotContext = createContext<HeaderSlotContextValue | null>(null);
+
+export function usePageHeaderSlot(node: React.ReactNode | null) {
+  const ctx = useContext(HeaderSlotContext);
+  useEffect(() => {
+    ctx?.setSlot(node);
+    return () => ctx?.setSlot(null);
+  }, [ctx, node]);
+}
+
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/agents": "Agents",
@@ -116,6 +131,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const refreshCtx = useMemo<RefreshContextValue>(() => ({
     register: (fn) => setRefreshFn(() => fn),
     unregister: () => setRefreshFn(null),
+  }), []);
+
+  const [headerSlot, setHeaderSlot] = useState<React.ReactNode | null>(null);
+  const headerSlotCtx = useMemo<HeaderSlotContextValue>(() => ({
+    setSlot: (node) => setHeaderSlot(node),
   }), []);
 
   const handleRefresh = useCallback(() => {
@@ -239,6 +259,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </>
             )}
 
+            {/* Page-injected header content (e.g. bulk actions) */}
+            {headerSlot}
+
             {/* Page-specific create button */}
             {isSchedulesPage ? (
               <HeaderAction label="New Schedule" onClick={() => setCreateScheduleOpen(true)} />
@@ -268,7 +291,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex-1 overflow-y-auto">
           <RefreshContext.Provider value={refreshCtx}>
-            {children}
+            <HeaderSlotContext.Provider value={headerSlotCtx}>
+              {children}
+            </HeaderSlotContext.Provider>
           </RefreshContext.Provider>
         </main>
       </div>

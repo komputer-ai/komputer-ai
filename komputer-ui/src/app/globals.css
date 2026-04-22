@@ -212,3 +212,29 @@
     font-weight: 600;
   }
 }
+
+@keyframes agent-check-pop {
+  0%   { transform: scale(0.2); opacity: 0; }
+  50%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.agent-select-border-in {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: agent-border-fill-in 320ms ease-out forwards;
+}
+
+.agent-select-border-out {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: agent-border-fill-out 260ms ease-in forwards;
+}
+
+@keyframes agent-border-fill-in {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes agent-border-fill-out {
+  to { stroke-dashoffset: 100; }
+}
