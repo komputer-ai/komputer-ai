@@ -70,7 +70,17 @@ export function AgentTable({ agents, onDelete }: AgentTableProps) {
                 </Link>
               </TableCell>
               <TableCell>
-                <StatusBadge status={agent.status} size="sm" />
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={agent.status} size="sm" />
+                  {agent.status === 'Queued' && agent.queuePosition != null && agent.queuePosition > 0 && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300"
+                      title={agent.queueReason}
+                    >
+                      #{agent.queuePosition}
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="text-xs text-[var(--color-text-secondary)]">
                 {taskLabel(agent)}

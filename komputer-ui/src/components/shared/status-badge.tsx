@@ -15,6 +15,7 @@ const statusColorMap: Record<string, { dot: string; text: string }> = {
   Failed: { dot: "bg-[#F87171]", text: "text-[var(--color-text)]" },
   Error: { dot: "bg-[#F87171]", text: "text-[var(--color-text)]" },
   Pending: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
+  Queued: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
   Succeeded: { dot: "bg-[#34D399]", text: "text-[var(--color-text)]" },
   Complete: { dot: "bg-[#34D399]", text: "text-[var(--color-text)]" },
 };

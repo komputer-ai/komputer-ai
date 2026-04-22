@@ -1,8 +1,10 @@
+export type AgentStatus = 'Pending' | 'Running' | 'Queued' | 'Sleeping' | 'Succeeded' | 'Failed';
+
 export interface AgentResponse {
   name: string;
   namespace: string;
   model: string;
-  status: 'Pending' | 'Running' | 'Sleeping' | 'Succeeded' | 'Failed';
+  status: AgentStatus;
   taskStatus?: 'InProgress' | 'Complete' | 'Error';
   lastTaskMessage?: string;
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
@@ -17,6 +19,9 @@ export interface AgentResponse {
   instructions?: string;
   systemPrompt?: string;
   createdAt: string;
+  priority?: number;
+  queuePosition?: number;
+  queueReason?: string;
 }
 
 export interface AgentListResponse {
@@ -95,6 +100,7 @@ export interface CreateAgentRequest {
   secretRefs?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
   systemPrompt?: string;
+  priority?: number;
 }
 
 export interface CreateScheduleRequest {
@@ -123,6 +129,7 @@ export interface PatchAgentRequest {
   skills?: string[];
   connectors?: string[];
   systemPrompt?: string;
+  priority?: number;
 }
 
 export interface ConnectorResponse {
@@ -163,6 +170,7 @@ export interface TemplateResponse {
   name: string;
   scope: 'namespace' | 'cluster';
   namespace?: string;
+  maxConcurrentAgents?: number;
 }
 
 export interface TemplateListResponse {
