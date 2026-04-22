@@ -33,6 +33,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
+  - patch
   - update
 - apiGroups:
   - komputer.komputer.ai
