@@ -365,6 +365,13 @@ func (r *KomputerAgentReconciler) ensurePVC(ctx context.Context, agent *komputer
 			original := pvc.DeepCopy()
 			pvc.Spec.Resources.Requests[corev1.ResourceStorage] = storageQty
 			if patchErr := r.Patch(ctx, pvc, client.MergeFrom(original)); patchErr != nil {
+				// If the storage class doesn't support expansion, log and
+				// continue — don't block other reconcile steps.
+				if errors.IsForbidden(patchErr) || errors.IsInvalid(patchErr) {
+					logf.FromContext(ctx).Info("PVC expansion not supported by storage class, ignoring",
+						"pvc", pvcName, "from", current.String(), "to", storageQty.String(), "error", patchErr.Error())
+					return nil
+				}
 				return fmt.Errorf("failed to expand PVC %s from %s to %s: %w", pvcName, current.String(), storageQty.String(), patchErr)
 			}
 		}
