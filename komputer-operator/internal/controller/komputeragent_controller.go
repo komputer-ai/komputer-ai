@@ -118,6 +118,9 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
+	// Apply per-agent podSpec / storage overrides. Affects new pods only.
+	template = applyAgentOverrides(template, agent)
+
 	// 3. Auto-discover the singleton cluster-scoped KomputerConfig
 	komputerConfig, err := r.getConfig(ctx)
 	if err != nil {
