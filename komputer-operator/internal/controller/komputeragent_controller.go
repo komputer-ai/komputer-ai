@@ -343,25 +343,35 @@ func (r *KomputerAgentReconciler) getConfig(ctx context.Context) (*komputerv1alp
 	return &list.Items[0], nil
 }
 
-// ensurePVC creates a PVC if it does not exist.
+// ensurePVC creates a PVC if it does not exist, or expands it in-place when
+// the desired size grows. Shrinks are silently ignored (Kubernetes does not
+// support PVC shrink). Expansion requires a StorageClass with
+// allowVolumeExpansion: true.
 func (r *KomputerAgentReconciler) ensurePVC(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName string) error {
-	pvc := &corev1.PersistentVolumeClaim{}
-	err := r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: agent.Namespace}, pvc)
-	if err == nil {
-		return nil // already exists
-	}
-	if !errors.IsNotFound(err) {
-		return err
-	}
-
 	size := template.Spec.Storage.Size
 	if size == "" {
 		size = "5Gi"
 	}
-
 	storageQty, err := resource.ParseQuantity(size)
 	if err != nil {
 		return fmt.Errorf("invalid storage size %q: %w", size, err)
+	}
+
+	pvc := &corev1.PersistentVolumeClaim{}
+	err = r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: agent.Namespace}, pvc)
+	if err == nil {
+		current := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+		if storageQty.Cmp(current) > 0 {
+			original := pvc.DeepCopy()
+			pvc.Spec.Resources.Requests[corev1.ResourceStorage] = storageQty
+			if patchErr := r.Patch(ctx, pvc, client.MergeFrom(original)); patchErr != nil {
+				return fmt.Errorf("failed to expand PVC %s from %s to %s: %w", pvcName, current.String(), storageQty.String(), patchErr)
+			}
+		}
+		return nil
+	}
+	if !errors.IsNotFound(err) {
+		return err
 	}
 
 	pvc = &corev1.PersistentVolumeClaim{
