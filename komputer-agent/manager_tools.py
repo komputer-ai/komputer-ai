@@ -387,9 +387,53 @@ async def attach_skill(args):
     return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"skills": current_skills})
 
 
+@tool(
+    name="update_agent",
+    description="Update a sub-agent's spec (model, instructions, cpu, memory, storage, image). Changes apply to the next pod start — running pods are not mutated. Use Sleep+wake if you want changes to take effect now.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Sub-agent name (as passed to create_agent)."},
+            "instructions": {"type": "string", "description": "New task instructions (optional)."},
+            "model": {"type": "string", "description": "Override Claude model (optional)."},
+            "cpu": {"type": "string", "description": "CPU (e.g. '2' or '500m'). Sets both requests and limits."},
+            "memory": {"type": "string", "description": "Memory (e.g. '4Gi'). Sets both requests and limits."},
+            "storage": {"type": "string", "description": "PVC size (e.g. '20Gi'). New PVCs only — existing PVCs are not resized."},
+            "image": {"type": "string", "description": "Override agent container image."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_agent(args):
+    full_name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("instructions"):
+        payload["instructions"] = args["instructions"]
+    if args.get("model"):
+        payload["model"] = args["model"]
+    if args.get("storage"):
+        payload["storage"] = {"size": args["storage"]}
+    if args.get("cpu") or args.get("memory") or args.get("image"):
+        container = {"name": "agent"}
+        if args.get("image"):
+            container["image"] = args["image"]
+        if args.get("cpu") or args.get("memory"):
+            rl = {}
+            if args.get("cpu"):
+                rl["cpu"] = args["cpu"]
+            if args.get("memory"):
+                rl["memory"] = args["memory"]
+            # Same value for both requests and limits.
+            container["resources"] = {"requests": dict(rl), "limits": dict(rl)}
+        payload["podSpec"] = {"containers": [container]}
+    if not payload:
+        return _err("update_agent requires at least one field to update")
+    return await _request("PATCH", f"/api/v1/agents/{full_name}", timeout=30, json=payload)
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent],
     )
