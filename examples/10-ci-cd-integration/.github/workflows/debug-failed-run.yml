@@ -31,17 +31,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
         run: |
           komputer run ci-debugger \
-            "A GitHub Actions run has failed. Investigate and explain what went wrong.
-
-            Run ID: $RUN_ID
-            Repository: ${{ github.repository }}
-            GitHub token is available in the SECRET_GITHUB environment variable.
-
-            Steps to follow:
-            1. Use the GitHub API to fetch the failed run: GET /repos/${{ github.repository }}/actions/runs/$RUN_ID
-            2. Fetch the jobs and their steps: GET /repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs
-            3. Download logs for the failed steps: GET /repos/${{ github.repository }}/actions/jobs/{job_id}/logs
-            4. Analyse the logs and identify the root cause.
-            5. Suggest a concrete fix." \
+            "A GitHub Actions run has failed in ${{ github.repository }} (run ID: $RUN_ID).
+            Fetch the failed job logs, identify the root cause, and suggest a concrete fix." \
             --secret GITHUB=${{ secrets.GITHUB_TOKEN }} \
             --lifecycle AutoDelete
