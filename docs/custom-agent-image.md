@@ -9,7 +9,7 @@ Only `pip` and `npm` installs are persisted to the workspace PVC. System-level i
 Build your own image using the official komputer-agent as the base:
 
 ```dockerfile
-FROM ghcr.io/kontroloop-ai/komputer-agent:latest
+FROM ghcr.io/komputer-ai/komputer-agent:latest
 
 # Switch to root to install system packages
 USER root

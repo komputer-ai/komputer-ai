@@ -64,7 +64,7 @@ await client.patchAgent({ name: "my-agent", memories: ["context"] });
 ## Go
 
 ```bash
-go get github.com/kontroloop-ai/komputer-ai/komputer-sdk/go
+go get github.com/komputer-ai/komputer-ai/komputer-sdk/go
 ```
 
 ```go
@@ -74,7 +74,7 @@ import (
     "context"
     "fmt"
 
-    client "github.com/kontroloop-ai/komputer-ai/komputer-sdk/go"
+    client "github.com/komputer-ai/komputer-ai/komputer-sdk/go"
 )
 
 func main() {

@@ -81,7 +81,7 @@ When creating a git tag, always create a GitHub release with release notes using
 - **Opening line**: One sentence explaining the theme or headline change in plain language.
 - **Body**: `## What's New` section with named subsections per feature area. Each subsection has a one-line description followed by bullet points of specific capabilities. Write for users — describe what they can now do, not internal implementation details.
 - **Fixes**: Group under `### Fixes` at the end of `## What's New`. One bullet per fix, plain language.
-- **Footer**: Horizontal rule, then `**Full Changelog**: https://github.com/kontroloop-ai/komputer-ai/compare/vOLD...vNEW`
+- **Footer**: Horizontal rule, then `**Full Changelog**: https://github.com/komputer-ai/komputer-ai/compare/vOLD...vNEW`
 - **No emojis** in section headers. No `## Features` / `## Improvements` — use `## What's New` with named subsections.
 
 See `v0.6.3` and `v0.7.0` releases for reference.

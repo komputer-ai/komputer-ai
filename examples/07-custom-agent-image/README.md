@@ -4,7 +4,7 @@ Extend the base komputer-agent image with additional system tools and Python pac
 
 ## What it does
 
-Builds a custom Docker image on top of `ghcr.io/kontroloop-ai/komputer-agent:latest` that includes PostgreSQL client, AWS CLI, FFmpeg, and common data science Python packages. Then creates a `KomputerAgentClusterTemplate` that uses this image and references it from an agent.
+Builds a custom Docker image on top of `ghcr.io/komputer-ai/komputer-agent:latest` that includes PostgreSQL client, AWS CLI, FFmpeg, and common data science Python packages. Then creates a `KomputerAgentClusterTemplate` that uses this image and references it from an agent.
 
 ## Build the image
 
@@ -48,7 +48,7 @@ Use `KomputerAgentClusterTemplate` for images that all namespaces can share.
 
 ## Key concepts
 
-- **`FROM ghcr.io/kontroloop-ai/komputer-agent:latest`** — always extend the official base
+- **`FROM ghcr.io/komputer-ai/komputer-agent:latest`** — always extend the official base
 - **`USER komputer`** at the end — required; the Claude CLI refuses to run as root
 - **`KomputerAgentClusterTemplate`** — cluster-scoped template, any namespace can reference it by name
 - The agent's `templateRef: data-science` matches the template's `metadata.name`

@@ -478,7 +478,7 @@ import (
 \t"context"
 \t"net/http"
 
-\tkomputer "github.com/kontroloop-ai/komputer-ai/komputer-sdk/go/internal"
+\tkomputer "github.com/komputer-ai/komputer-ai/komputer-sdk/go/internal"
 )
 
 // Client wraps the generated komputer API client with convenience methods.

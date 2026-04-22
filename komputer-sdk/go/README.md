@@ -1,11 +1,11 @@
 # komputer-ai Go SDK
 
-Go client for the [komputer.ai](https://github.com/kontroloop-ai/komputer-ai) platform.
+Go client for the [komputer.ai](https://github.com/komputer-ai/komputer-ai) platform.
 
 ## Installation
 
 ```bash
-go get github.com/kontroloop-ai/komputer-ai/komputer-sdk/go
+go get github.com/komputer-ai/komputer-ai/komputer-sdk/go
 ```
 
 ## Quick Start
@@ -17,7 +17,7 @@ import (
     "context"
     "fmt"
 
-    client "github.com/kontroloop-ai/komputer-ai/komputer-sdk/go"
+    client "github.com/komputer-ai/komputer-ai/komputer-sdk/go"
 )
 
 func main() {

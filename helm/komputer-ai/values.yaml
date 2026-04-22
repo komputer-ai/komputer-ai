@@ -8,7 +8,7 @@ imagePullSecrets: []
 
 operator:
   image:
-    repository: ghcr.io/kontroloop-ai/komputer-operator
+    repository: ghcr.io/komputer-ai/komputer-operator
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
@@ -24,7 +24,7 @@ operator:
 
 api:
   image:
-    repository: ghcr.io/kontroloop-ai/komputer-api
+    repository: ghcr.io/komputer-ai/komputer-api
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
@@ -64,7 +64,7 @@ api:
 ui:
   enabled: true
   image:
-    repository: ghcr.io/kontroloop-ai/komputer-ui
+    repository: ghcr.io/komputer-ai/komputer-ui
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
@@ -95,7 +95,7 @@ ui:
 
 agent:
   image:
-    repository: ghcr.io/kontroloop-ai/komputer-agent
+    repository: ghcr.io/komputer-ai/komputer-agent
     tag: latest
     pullPolicy: IfNotPresent
   # -- Default Claude model for new agents

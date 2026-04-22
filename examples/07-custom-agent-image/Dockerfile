@@ -1,4 +1,4 @@
-FROM ghcr.io/kontroloop-ai/komputer-agent:latest
+FROM ghcr.io/komputer-ai/komputer-agent:latest
 
 USER root
 

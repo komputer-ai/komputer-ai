@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	openapiclient "github.com/kontroloop-ai/komputer-ai/komputer"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
 )
 
 func main() {
@@ -100,7 +100,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	openapiclient "github.com/kontroloop-ai/komputer-ai/komputer"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
 )
 
 func main() {
@@ -172,7 +172,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	openapiclient "github.com/kontroloop-ai/komputer-ai/komputer"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
 )
 
 func main() {
@@ -246,7 +246,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	openapiclient "github.com/kontroloop-ai/komputer-ai/komputer"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
 )
 
 func main() {

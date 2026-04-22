@@ -1,6 +1,6 @@
 # komputer-ai Python SDK
 
-Python client for the [komputer.ai](https://github.com/kontroloop-ai/komputer-ai) platform.
+Python client for the [komputer.ai](https://github.com/komputer-ai/komputer-ai) platform.
 
 ## Installation
 
@@ -11,7 +11,7 @@ pip install komputer-ai-sdk
 Or install directly from the repository:
 
 ```bash
-pip install git+https://github.com/kontroloop-ai/komputer-ai.git#subdirectory=komputer-sdk/python
+pip install git+https://github.com/komputer-ai/komputer-ai.git#subdirectory=komputer-sdk/python
 ```
 
 ## Quick Start

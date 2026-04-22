@@ -3,7 +3,7 @@ name = "komputer-ai-sdk"
 version = "0.1.0"
 description = "Python SDK for the komputer.ai platform"
 authors = [
-  {name = "kontroloop-ai"},
+  {name = "komputer-ai"},
 ]
 readme = "README.md"
 keywords = ["komputer", "ai", "kubernetes", "agents", "claude"]
@@ -19,9 +19,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/kontroloop-ai/komputer-ai"
-Repository = "https://github.com/kontroloop-ai/komputer-ai"
-Documentation = "https://github.com/kontroloop-ai/komputer-ai/tree/main/komputer-sdk"
+Homepage = "https://github.com/komputer-ai/komputer-ai"
+Repository = "https://github.com/komputer-ai/komputer-ai"
+Documentation = "https://github.com/komputer-ai/komputer-ai/tree/main/komputer-sdk"
 
 [tool.poetry]
 requires-poetry = ">=2.0"

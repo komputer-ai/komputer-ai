@@ -1,4 +1,4 @@
-module github.com/kontroloop-ai/komputer-ai/komputer-sdk/go
+module github.com/komputer-ai/komputer-ai/komputer-sdk/go
 
 go 1.23
 

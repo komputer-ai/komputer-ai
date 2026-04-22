@@ -50,7 +50,7 @@ go: spec
 		-o go/internal \
 		--package-name komputer \
 		--skip-validate-spec \
-		--git-user-id kontroloop-ai \
+		--git-user-id komputer-ai \
 		--git-repo-id komputer-ai \
 		--additional-properties=packageVersion=0.1.0,isGoSubmodule=true
 	rm -f go/internal/go.mod go/internal/go.sum go/internal/git_push.sh go/internal/.travis.yml

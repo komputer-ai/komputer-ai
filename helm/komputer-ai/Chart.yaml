@@ -4,12 +4,12 @@ description: Distributed Claude AI agents on Kubernetes
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/kontroloop-ai/komputer-ai
+home: https://github.com/komputer-ai/komputer-ai
 sources:
-  - https://github.com/kontroloop-ai/komputer-ai
+  - https://github.com/komputer-ai/komputer-ai
 maintainers:
-  - name: kontroloop-ai
-    url: https://github.com/kontroloop-ai
+  - name: komputer-ai
+    url: https://github.com/komputer-ai
 keywords:
   - ai
   - agents

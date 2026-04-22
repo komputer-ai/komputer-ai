@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kontroloop-ai/komputer-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/komputer-ai/komputer-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white" alt="Go 1.22+" /></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white" alt="Python 3.12+" /></a>
   <a href="https://kubernetes.io/"><img src="https://img.shields.io/badge/Kubernetes-operator-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes" /></a>
@@ -144,7 +144,7 @@ kubectl create secret generic anthropic-api-key \
 ### 2. Install with Helm
 
 ```bash
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --namespace komputer-ai
 ```
@@ -153,15 +153,15 @@ This deploys the operator, API, Redis, CRDs, and a default agent template — ev
 
 ### 3. Install the CLI
 
-Download from [GitHub Releases](https://github.com/kontroloop-ai/komputer-ai/releases):
+Download from [GitHub Releases](https://github.com/komputer-ai/komputer-ai/releases):
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-darwin-arm64 -o komputer
+curl -L https://github.com/komputer-ai/komputer-ai/releases/latest/download/komputer-darwin-arm64 -o komputer
 chmod +x komputer && sudo mv komputer /usr/local/bin/
 
 # Linux (amd64)
-curl -L https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 -o komputer
+curl -L https://github.com/komputer-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 -o komputer
 chmod +x komputer && sudo mv komputer /usr/local/bin/
 ```
 

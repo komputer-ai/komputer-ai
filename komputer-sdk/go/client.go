@@ -13,7 +13,7 @@ import (
 	"context"
 	"net/http"
 
-	komputer "github.com/kontroloop-ai/komputer-ai/komputer-sdk/go/internal"
+	komputer "github.com/komputer-ai/komputer-ai/komputer-sdk/go/internal"
 )
 
 // Client wraps the generated komputer API client with convenience methods.

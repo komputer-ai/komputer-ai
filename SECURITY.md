@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a vulnerability, please report it through [GitHub Security Advisories](https://github.com/kontroloop-ai/komputer-ai/security/advisories/new).
+We take security seriously. If you discover a vulnerability, please report it through [GitHub Security Advisories](https://github.com/komputer-ai/komputer-ai/security/advisories/new).
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 

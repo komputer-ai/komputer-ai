@@ -22,7 +22,7 @@ jobs:
         env:
           KOMPUTER_API: ${{ secrets.KOMPUTER_API_URL }}
         run: |
-          curl -sSL https://github.com/kontroloop-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 \
+          curl -sSL https://github.com/komputer-ai/komputer-ai/releases/latest/download/komputer-linux-amd64 \
             -o /usr/local/bin/komputer && chmod +x /usr/local/bin/komputer
           komputer login "$KOMPUTER_API"
 

@@ -2,11 +2,11 @@
   "name": "@komputer-ai/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for the komputer.ai platform",
-  "author": "kontroloop-ai",
+  "author": "komputer-ai",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kontroloop-ai/komputer-ai.git",
+    "url": "https://github.com/komputer-ai/komputer-ai.git",
     "directory": "komputer-sdk/typescript"
   },
   "publishConfig": {

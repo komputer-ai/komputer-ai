@@ -22,7 +22,7 @@ kubectl create secret generic anthropic-api-key \
 ### 2. Install the chart
 
 ```bash
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --namespace komputer-ai
 ```
@@ -85,10 +85,10 @@ templates/
 | `anthropicApiKeySecret.name` | **(Required)** Name of the K8s Secret containing your Anthropic API key | `""` |
 | `anthropicApiKeySecret.key` | Key within the secret | `api-key` |
 | `operator.replicas` | Operator replica count | `1` |
-| `operator.image.repository` | Operator image | `ghcr.io/kontroloop-ai/komputer-operator` |
+| `operator.image.repository` | Operator image | `ghcr.io/komputer-ai/komputer-operator` |
 | `operator.image.tag` | Operator image tag | `latest` |
 | `ui.enabled` | Deploy the web dashboard | `true` |
-| `ui.image.repository` | UI image | `ghcr.io/kontroloop-ai/komputer-ui` |
+| `ui.image.repository` | UI image | `ghcr.io/komputer-ai/komputer-ui` |
 | `ui.image.tag` | UI image tag | `latest` |
 | `ui.replicas` | UI replica count | `1` |
 | `ui.apiUrl` | API URL the browser connects to (not in-cluster) | `http://localhost:8080` |
@@ -96,7 +96,7 @@ templates/
 | `ui.service.port` | UI service port | `3000` |
 | `ui.ingress.enabled` | Create an Ingress for the UI | `false` |
 | `api.replicas` | API replica count | `1` |
-| `api.image.repository` | API image | `ghcr.io/kontroloop-ai/komputer-api` |
+| `api.image.repository` | API image | `ghcr.io/komputer-ai/komputer-api` |
 | `api.image.tag` | API image tag | `latest` |
 | `api.service.type` | API service type | `ClusterIP` |
 | `api.service.port` | API service port | `8080` |
@@ -105,7 +105,7 @@ templates/
 | `api.ingress.annotations` | Ingress annotations | `{}` |
 | `api.ingress.hosts` | Ingress host rules | See `values.yaml` |
 | `api.ingress.tls` | Ingress TLS configuration | `[]` |
-| `agent.image.repository` | Agent image used in the default cluster template | `ghcr.io/kontroloop-ai/komputer-agent` |
+| `agent.image.repository` | Agent image used in the default cluster template | `ghcr.io/komputer-ai/komputer-agent` |
 | `agent.image.tag` | Agent image tag | `latest` |
 | `agent.defaultModel` | Default Claude model for new agents | `claude-sonnet-4-6` |
 | `agent.serviceAccount.create` | Create a ServiceAccount, Role, and RoleBinding for agent pods | `false` |
@@ -122,7 +122,7 @@ See [`values.yaml`](values.yaml) for all options.
 ### External Redis
 
 ```bash
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --set redis.enabled=false \
   --set externalRedis.address=redis.prod:6379 \
@@ -175,7 +175,7 @@ ui:
 ```
 
 ```bash
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   -f values-ingress.yaml \
   --namespace komputer-ai
@@ -194,7 +194,7 @@ kubectl create secret docker-registry ghcr-pull-secret \
   --docker-password=<pat> \
   -n komputer-ai
 
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   --set imagePullSecrets[0].name=ghcr-pull-secret \
   --namespace komputer-ai
@@ -225,7 +225,7 @@ agent:
 ```
 
 ```bash
-helm install komputer-ai oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set anthropicApiKeySecret.name=anthropic-api-key \
   -f values-with-kubectl.yaml \
   --namespace komputer-ai
@@ -256,7 +256,7 @@ The service account is automatically set on the default `KomputerAgentClusterTem
 ## Upgrading
 
 ```bash
-helm upgrade komputer oci://ghcr.io/kontroloop-ai/charts/komputer-ai \
+helm upgrade komputer oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --namespace komputer-ai --reuse-values
 ```
 
