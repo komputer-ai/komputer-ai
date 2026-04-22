@@ -195,6 +195,16 @@ func registerAgentCommands(root *cobra.Command) {
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
 			}
+			cpu, _ := cmd.Flags().GetString("cpu")
+			memLimit, _ := cmd.Flags().GetString("memory-limit")
+			image, _ := cmd.Flags().GetString("image")
+			storage, _ := cmd.Flags().GetString("storage")
+			if ps := buildPodSpecOverride(cpu, memLimit, image); ps != nil {
+				body["podSpec"] = ps
+			}
+			if storage != "" {
+				body["storage"] = map[string]interface{}{"size": storage}
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -248,7 +258,101 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	createCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
+	createCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
+	createCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
+	createCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
+	createCmd.Flags().String("image", "", "Override agent container image.")
 	root.AddCommand(createCmd)
+
+	// ── update ───────────────────────────────────────────────────────────
+	updateCmd := &cobra.Command{
+		Use:   "update <name>",
+		Short: "Update an agent's spec (model, instructions, cpu, memory, storage, image)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			body := map[string]interface{}{}
+
+			if cmd.Flags().Changed("model") {
+				v, _ := cmd.Flags().GetString("model")
+				body["model"] = v
+			}
+			if cmd.Flags().Changed("instructions") {
+				v, _ := cmd.Flags().GetString("instructions")
+				body["instructions"] = v
+			}
+			if cmd.Flags().Changed("lifecycle") {
+				v, _ := cmd.Flags().GetString("lifecycle")
+				body["lifecycle"] = v
+			}
+			if cmd.Flags().Changed("system-prompt") {
+				v, _ := cmd.Flags().GetString("system-prompt")
+				body["systemPrompt"] = v
+			}
+			if cmd.Flags().Changed("storage") {
+				v, _ := cmd.Flags().GetString("storage")
+				body["storage"] = map[string]interface{}{"size": v}
+			}
+			cpu, _ := cmd.Flags().GetString("cpu")
+			memLimit, _ := cmd.Flags().GetString("memory-limit")
+			image, _ := cmd.Flags().GetString("image")
+			if cmd.Flags().Changed("cpu") || cmd.Flags().Changed("memory-limit") || cmd.Flags().Changed("image") {
+				if ps := buildPodSpecOverride(cpu, memLimit, image); ps != nil {
+					body["podSpec"] = ps
+				}
+			}
+
+			if len(body) == 0 {
+				if jsonMode {
+					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, or --image.", 400)
+				}
+				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, or --image."))
+				os.Exit(1)
+			}
+
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+			if jsonMode {
+				printJSON(agent)
+				return
+			}
+			fmt.Println(successStyle.Render("✔ Agent updated"))
+			printAgent(agent)
+		},
+	}
+	updateCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
+	updateCmd.Flags().String("instructions", "", "New task instructions")
+	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	updateCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
+	updateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
+	updateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
+	updateCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
+	updateCmd.Flags().String("image", "", "Override agent container image.")
+	root.AddCommand(updateCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────
 	getCmd := &cobra.Command{
@@ -1215,4 +1319,32 @@ func registerAgentCommands(root *cobra.Command) {
 	chatCmd.Flags().String("model", "", "Claude model to use")
 	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep or AutoDelete (default: empty, pod stays running)")
 	root.AddCommand(chatCmd)
+}
+
+// buildPodSpecOverride constructs a minimal podSpec map for the API from cpu/memory/image overrides.
+// CPU and memory are set on both requests and limits. Returns nil if no overrides are provided.
+func buildPodSpecOverride(cpu, memory, image string) map[string]interface{} {
+	if cpu == "" && memory == "" && image == "" {
+		return nil
+	}
+	container := map[string]interface{}{"name": "agent"}
+	if image != "" {
+		container["image"] = image
+	}
+	if cpu != "" || memory != "" {
+		rl := map[string]interface{}{}
+		if cpu != "" {
+			rl["cpu"] = cpu
+		}
+		if memory != "" {
+			rl["memory"] = memory
+		}
+		container["resources"] = map[string]interface{}{
+			"requests": rl,
+			"limits":   rl,
+		}
+	}
+	return map[string]interface{}{
+		"containers": []interface{}{container},
+	}
 }
