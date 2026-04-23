@@ -58,6 +58,10 @@ type AgentResponse struct {
 	QueueReason     string   `json:"queueReason,omitempty"`
 	PodSpec         *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage         *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
+	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched
+	// but live-pod sync failed). The CR change still took effect; the UI can surface these
+	// as toasts so the user knows something didn't fully apply.
+	Errors          []string                      `json:"errors,omitempty"`
 }
 
 // mergeDefaultSkills adds default skill names to the explicit list, deduplicating.
@@ -627,6 +631,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		var nonFatalErrors []string
+
 		// 1. Patch CR spec first — this is the source of truth.
 		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
@@ -665,7 +671,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 						podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agentForSkills.Status.PodName)
 						if ipErr == nil {
 							if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agentForSkills.Status.PodName, podIP, string(configJSON)); applyErr != nil {
-								log.Printf("warning: skills config apply to pod failed for %s: %v", name, applyErr)
+								log.Printf("error: skills config apply to pod failed for %s: %v", name, applyErr)
+								nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("skills sync to running pod failed: %v", applyErr))
 							}
 						}
 					}
@@ -706,9 +713,14 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				mcpServers := k8s.ResolveConnectorMCPConfigs(c.Request.Context(), ns, *req.Connectors)
 				payload.McpServers = &mcpServers
 			}
+			// Skip if payload has no fields the agent's /config endpoint understands
+			// (e.g. only skills/memories changed — those are applied separately above).
+			hasPayloadFields := payload.Model != nil || payload.Lifecycle != nil ||
+				payload.Instructions != nil || payload.TemplateRef != nil ||
+				payload.Secrets != nil || payload.McpServers != nil
 			configPayload, _ := json.Marshal(payload)
 			podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
-			if ipErr == nil {
+			if ipErr == nil && hasPayloadFields {
 				if req.Model != nil && *req.Model != "" {
 					// Read response to capture context_window
 					if cw := k8s.ApplyAgentConfigGetContextWindow(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); cw > 0 {
@@ -719,7 +731,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 					}
 				} else {
 					if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); applyErr != nil {
-						log.Printf("warning: CR patched but config apply to pod failed for %s: %v", name, applyErr)
+						log.Printf("error: CR patched but config apply to pod failed for %s: %v", name, applyErr)
+						nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("config sync to running pod failed: %v", applyErr))
 					}
 				}
 			}
@@ -760,6 +773,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			QueueReason:        updated.Status.QueueReason,
 			PodSpec:            updated.Spec.PodSpec,
 			Storage:            updated.Spec.Storage,
+			Errors:             nonFatalErrors,
 		})
 	}
 }

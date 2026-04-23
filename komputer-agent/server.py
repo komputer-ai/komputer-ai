@@ -1,15 +1,36 @@
 import asyncio
+import logging
 import threading
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+logger = logging.getLogger("komputer.agent.server")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 from agent import _write_skills
 import config as agent_config
 import state
 
 app = FastAPI()
+
+
+@app.exception_handler(HTTPException)
+async def _log_http_exception(request: Request, exc: HTTPException):
+    # Log 4xx as warnings, 5xx as errors so failures aren't silently hidden behind access logs.
+    level = logging.ERROR if exc.status_code >= 500 else logging.WARNING
+    logger.log(level, "%s %s -> %d: %s", request.method, request.url.path, exc.status_code, exc.detail)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def _log_validation_error(request: Request, exc: RequestValidationError):
+    logger.warning("%s %s -> 422 validation error: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 _publisher = None
 _current_task: Optional[asyncio.Task] = None

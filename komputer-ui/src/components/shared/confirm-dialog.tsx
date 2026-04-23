@@ -32,7 +32,7 @@ export function ConfirmDialog({
         {trigger}
       </span>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)]">
+        <DialogContent className="max-w-md mx-auto bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)]">
           <DialogHeader>
             <DialogTitle className="text-[var(--color-text)]">{title}</DialogTitle>
             <DialogDescription className="text-[var(--color-text-secondary)]">

@@ -29,6 +29,7 @@ export interface AgentResponse {
   queueReason?: string;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  errors?: string[];
 }
 
 export interface AgentListResponse {

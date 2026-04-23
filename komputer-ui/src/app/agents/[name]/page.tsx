@@ -630,9 +630,15 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (connectorsChanged) patch.connectors = agentConnectors;
       if (systemPromptChanged) patch.systemPrompt = systemPrompt.trim() || "";
       const updated = await patchAgent(agent.name, patch, agentNs);
-      setSaved(true);
+      if (updated.errors && updated.errors.length > 0) {
+        // Saved successfully but some live-pod sync steps failed. Surface the error
+        // so the user knows part of the change didn't fully apply.
+        setError(`Saved, but: ${updated.errors.join("; ")}`);
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
       onSaved(updated);
-      setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
