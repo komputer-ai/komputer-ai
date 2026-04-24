@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `connectors` | Array&lt;string&gt;
 `createdAt` | string
+`errors` | Array&lt;string&gt;
 `instructions` | string
 `lastTaskCostUSD` | string
 `lastTaskMessage` | string
@@ -39,6 +40,7 @@ import type { AgentResponse } from '@komputer-ai/sdk'
 const example = {
   "connectors": null,
   "createdAt": null,
+  "errors": null,
   "instructions": null,
   "lastTaskCostUSD": null,
   "lastTaskMessage": null,

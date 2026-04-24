@@ -31,6 +31,7 @@ class AgentResponse(BaseModel):
     """ # noqa: E501
     connectors: Optional[List[StrictStr]] = Field(default=None, description="KomputerConnector names attached to this agent")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
+    errors: Optional[List[StrictStr]] = Field(default=None, description="Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.")
     instructions: Optional[StrictStr] = Field(default=None, description="User task (spec.instructions)")
     last_task_cost_usd: Optional[StrictStr] = Field(default=None, alias="lastTaskCostUSD")
     last_task_message: Optional[StrictStr] = Field(default=None, alias="lastTaskMessage")
@@ -52,7 +53,7 @@ class AgentResponse(BaseModel):
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["connectors", "createdAt", "instructions", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["connectors", "createdAt", "errors", "instructions", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -113,6 +114,7 @@ class AgentResponse(BaseModel):
         _obj = cls.model_validate({
             "connectors": obj.get("connectors"),
             "createdAt": obj.get("createdAt"),
+            "errors": obj.get("errors"),
             "instructions": obj.get("instructions"),
             "lastTaskCostUSD": obj.get("lastTaskCostUSD"),
             "lastTaskMessage": obj.get("lastTaskMessage"),

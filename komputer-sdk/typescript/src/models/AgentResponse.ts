@@ -47,6 +47,14 @@ export interface AgentResponse {
      */
     createdAt?: string;
     /**
+     * Errors are non-fatal failures that occurred during the request (e.g. CR was patched
+     * but live-pod sync failed). The CR change still took effect; the UI can surface these
+     * as toasts so the user knows something didn't fully apply.
+     * @type {Array<string>}
+     * @memberof AgentResponse
+     */
+    errors?: Array<string>;
+    /**
      * User task (spec.instructions)
      * @type {string}
      * @memberof AgentResponse
@@ -193,6 +201,7 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
+        'errors': json['errors'] == null ? undefined : json['errors'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'lastTaskCostUSD': json['lastTaskCostUSD'] == null ? undefined : json['lastTaskCostUSD'],
         'lastTaskMessage': json['lastTaskMessage'] == null ? undefined : json['lastTaskMessage'],
@@ -230,6 +239,7 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         
         'connectors': value['connectors'],
         'createdAt': value['createdAt'],
+        'errors': value['errors'],
         'instructions': value['instructions'],
         'lastTaskCostUSD': value['lastTaskCostUSD'],
         'lastTaskMessage': value['lastTaskMessage'],

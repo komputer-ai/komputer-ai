@@ -15,11 +15,11 @@ Method | HTTP request | Description
 
 
 # **agents_name_ws_get**
-> agents_name_ws_get(name)
+> agents_name_ws_get(name, group=group)
 
 Stream agent events (WebSocket)
 
-Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
 
 ### Example
 
@@ -41,10 +41,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.AgentsApi(api_client)
     name = 'name_example' # str | Agent name
+    group = 'group_example' # str | Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. (optional)
 
     try:
         # Stream agent events (WebSocket)
-        api_instance.agents_name_ws_get(name)
+        api_instance.agents_name_ws_get(name, group=group)
     except Exception as e:
         print("Exception when calling AgentsApi->agents_name_ws_get: %s\n" % e)
 ```
@@ -57,6 +58,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Agent name | 
+ **group** | **str**| Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. | [optional] 
 
 ### Return type
 

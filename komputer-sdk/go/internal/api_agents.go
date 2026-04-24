@@ -27,6 +27,13 @@ type ApiAgentsNameWsGetRequest struct {
 	ctx context.Context
 	ApiService *AgentsAPIService
 	name string
+	group *string
+}
+
+// Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.
+func (r ApiAgentsNameWsGetRequest) Group(group string) ApiAgentsNameWsGetRequest {
+	r.group = &group
+	return r
 }
 
 func (r ApiAgentsNameWsGetRequest) Execute() (*http.Response, error) {
@@ -36,7 +43,7 @@ func (r ApiAgentsNameWsGetRequest) Execute() (*http.Response, error) {
 /*
 AgentsNameWsGet Stream agent events (WebSocket)
 
-Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param name Agent name
@@ -70,6 +77,9 @@ func (a *AgentsAPIService) AgentsNameWsGetExecute(r ApiAgentsNameWsGetRequest) (
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.group != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "group", r.group, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

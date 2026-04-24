@@ -17,7 +17,7 @@ Method | HTTP request | Description
 
 ## AgentsNameWsGet
 
-> AgentsNameWsGet(ctx, name).Execute()
+> AgentsNameWsGet(ctx, name).Group(group).Execute()
 
 Stream agent events (WebSocket)
 
@@ -37,10 +37,11 @@ import (
 
 func main() {
 	name := "name_example" // string | Agent name
+	group := "group_example" // string | Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.AgentsAPI.AgentsNameWsGet(context.Background(), name).Execute()
+	r, err := apiClient.AgentsAPI.AgentsNameWsGet(context.Background(), name).Group(group).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.AgentsNameWsGet``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -64,6 +65,7 @@ Other parameters are passed through a pointer to a apiAgentsNameWsGetRequest str
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
+ **group** | **string** | Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. | 
 
 ### Return type
 

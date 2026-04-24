@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
+**Errors** | Pointer to **[]string** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **Instructions** | Pointer to **string** | User task (spec.instructions) | [optional] 
 **LastTaskCostUSD** | Pointer to **string** |  | [optional] 
 **LastTaskMessage** | Pointer to **string** |  | [optional] 
@@ -96,6 +97,31 @@ SetCreatedAt sets CreatedAt field to given value.
 `func (o *AgentResponse) HasCreatedAt() bool`
 
 HasCreatedAt returns a boolean if a field has been set.
+
+### GetErrors
+
+`func (o *AgentResponse) GetErrors() []string`
+
+GetErrors returns the Errors field if non-nil, zero value otherwise.
+
+### GetErrorsOk
+
+`func (o *AgentResponse) GetErrorsOk() (*[]string, bool)`
+
+GetErrorsOk returns a tuple with the Errors field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetErrors
+
+`func (o *AgentResponse) SetErrors(v []string)`
+
+SetErrors sets Errors field to given value.
+
+### HasErrors
+
+`func (o *AgentResponse) HasErrors() bool`
+
+HasErrors returns a boolean if a field has been set.
 
 ### GetInstructions
 

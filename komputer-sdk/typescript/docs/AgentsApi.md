@@ -17,11 +17,11 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 ## agentsNameWsGet
 
-> agentsNameWsGet(name)
+> agentsNameWsGet(name, group)
 
 Stream agent events (WebSocket)
 
-Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+Upgrades to a WebSocket connection to stream real-time agent events. Pass &#x60;?group&#x3D;&lt;name&gt;&#x60; to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without &#x60;group&#x60;, every connected client receives every event (legacy broadcast).
 
 ### Example
 
@@ -39,6 +39,8 @@ async function example() {
   const body = {
     // string | Agent name
     name: name_example,
+    // string | Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. (optional)
+    group: group_example,
   } satisfies AgentsNameWsGetRequest;
 
   try {
@@ -59,6 +61,7 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **group** | `string` | Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies. | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

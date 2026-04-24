@@ -45,6 +45,7 @@ class AgentsApi:
     def agents_name_ws_get(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
+        group: Annotated[Optional[StrictStr], Field(description="Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,10 +61,12 @@ class AgentsApi:
     ) -> None:
         """Stream agent events (WebSocket)
 
-        Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+        Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
 
         :param name: Agent name (required)
         :type name: str
+        :param group: Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.
+        :type group: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -88,6 +91,7 @@ class AgentsApi:
 
         _param = self._agents_name_ws_get_serialize(
             name=name,
+            group=group,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -111,6 +115,7 @@ class AgentsApi:
     def agents_name_ws_get_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
+        group: Annotated[Optional[StrictStr], Field(description="Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -126,10 +131,12 @@ class AgentsApi:
     ) -> ApiResponse[None]:
         """Stream agent events (WebSocket)
 
-        Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+        Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
 
         :param name: Agent name (required)
         :type name: str
+        :param group: Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.
+        :type group: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -154,6 +161,7 @@ class AgentsApi:
 
         _param = self._agents_name_ws_get_serialize(
             name=name,
+            group=group,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -177,6 +185,7 @@ class AgentsApi:
     def agents_name_ws_get_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
+        group: Annotated[Optional[StrictStr], Field(description="Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -192,10 +201,12 @@ class AgentsApi:
     ) -> RESTResponseType:
         """Stream agent events (WebSocket)
 
-        Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+        Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
 
         :param name: Agent name (required)
         :type name: str
+        :param group: Consumer group name. When set, this connection joins a group and Redis-coordinated single-delivery applies.
+        :type group: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -220,6 +231,7 @@ class AgentsApi:
 
         _param = self._agents_name_ws_get_serialize(
             name=name,
+            group=group,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -238,6 +250,7 @@ class AgentsApi:
     def _agents_name_ws_get_serialize(
         self,
         name,
+        group,
         _request_auth,
         _content_type,
         _headers,
@@ -262,6 +275,10 @@ class AgentsApi:
         if name is not None:
             _path_params['name'] = name
         # process the query parameters
+        if group is not None:
+            
+            _query_params.append(('group', group))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter

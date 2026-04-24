@@ -33,6 +33,7 @@ import {
 
 export interface AgentsNameWsGetRequest {
     name: string;
+    group?: string;
 }
 
 export interface CancelAgentTaskRequest {
@@ -88,6 +89,10 @@ export class AgentsApi extends runtime.BaseAPI {
 
         const queryParameters: any = {};
 
+        if (requestParameters['group'] != null) {
+            queryParameters['group'] = requestParameters['group'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -103,7 +108,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+     * Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
      * Stream agent events (WebSocket)
      */
     async agentsNameWsGetRaw(requestParameters: AgentsNameWsGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
@@ -114,7 +119,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Upgrades to a WebSocket connection to stream real-time agent events. Events include task_started, thinking, tool_call, tool_result, text, task_completed, task_cancelled, and error.
+     * Upgrades to a WebSocket connection to stream real-time agent events. Pass `?group=<name>` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without `group`, every connected client receives every event (legacy broadcast).
      * Stream agent events (WebSocket)
      */
     async agentsNameWsGet(requestParameters: AgentsNameWsGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {

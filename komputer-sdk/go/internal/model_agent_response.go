@@ -22,6 +22,8 @@ type AgentResponse struct {
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
+	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.
+	Errors []string `json:"errors,omitempty"`
 	// User task (spec.instructions)
 	Instructions *string `json:"instructions,omitempty"`
 	LastTaskCostUSD *string `json:"lastTaskCostUSD,omitempty"`
@@ -129,6 +131,38 @@ func (o *AgentResponse) HasCreatedAt() bool {
 // SetCreatedAt gets a reference to the given string and assigns it to the CreatedAt field.
 func (o *AgentResponse) SetCreatedAt(v string) {
 	o.CreatedAt = &v
+}
+
+// GetErrors returns the Errors field value if set, zero value otherwise.
+func (o *AgentResponse) GetErrors() []string {
+	if o == nil || IsNil(o.Errors) {
+		var ret []string
+		return ret
+	}
+	return o.Errors
+}
+
+// GetErrorsOk returns a tuple with the Errors field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetErrorsOk() ([]string, bool) {
+	if o == nil || IsNil(o.Errors) {
+		return nil, false
+	}
+	return o.Errors, true
+}
+
+// HasErrors returns a boolean if a field has been set.
+func (o *AgentResponse) HasErrors() bool {
+	if o != nil && !IsNil(o.Errors) {
+		return true
+	}
+
+	return false
+}
+
+// SetErrors gets a reference to the given []string and assigns it to the Errors field.
+func (o *AgentResponse) SetErrors(v []string) {
+	o.Errors = v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -818,6 +852,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
+	}
+	if !IsNil(o.Errors) {
+		toSerialize["errors"] = o.Errors
 	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions

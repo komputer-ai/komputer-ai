@@ -325,13 +325,21 @@ paths:
   /agents/{name}/ws:
     get:
       description: "Upgrades to a WebSocket connection to stream real-time agent events.\
-        \ Events include task_started, thinking, tool_call, tool_result, text, task_completed,\
-        \ task_cancelled, and error."
+        \ Pass `?group=<name>` to join a consumer group: each event in the stream\
+        \ is delivered to exactly one client per group across all API replicas (useful\
+        \ for distributed consumers). Without `group`, every connected client receives\
+        \ every event (legacy broadcast)."
       parameters:
       - description: Agent name
         in: path
         name: name
         required: true
+        schema:
+          type: string
+      - description: "Consumer group name. When set, this connection joins a group\
+          \ and Redis-coordinated single-delivery applies."
+        in: query
+        name: group
         schema:
           type: string
       summary: Stream agent events (WebSocket)
@@ -2204,6 +2212,9 @@ components:
           queueReason: queueReason
           model: model
           lastTaskCostUSD: lastTaskCostUSD
+          errors:
+          - errors
+          - errors
           lastTaskMessage: lastTaskMessage
           taskStatus: taskStatus
           status: status
@@ -2856,6 +2867,9 @@ components:
           queueReason: queueReason
           model: model
           lastTaskCostUSD: lastTaskCostUSD
+          errors:
+          - errors
+          - errors
           lastTaskMessage: lastTaskMessage
           taskStatus: taskStatus
           status: status
@@ -3516,6 +3530,9 @@ components:
         queueReason: queueReason
         model: model
         lastTaskCostUSD: lastTaskCostUSD
+        errors:
+        - errors
+        - errors
         lastTaskMessage: lastTaskMessage
         taskStatus: taskStatus
         status: status
@@ -3527,6 +3544,14 @@ components:
           type: array
         createdAt:
           type: string
+        errors:
+          description: |-
+            Errors are non-fatal failures that occurred during the request (e.g. CR was patched
+            but live-pod sync failed). The CR change still took effect; the UI can surface these
+            as toasts so the user knows something didn't fully apply.
+          items:
+            type: string
+          type: array
         instructions:
           description: User task (spec.instructions)
           type: string
