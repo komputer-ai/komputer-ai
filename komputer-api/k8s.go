@@ -777,7 +777,8 @@ func (k *K8sClient) postToAgentWithResponse(ctx context.Context, podIP, path, bo
 	return respBody, nil
 }
 
-// ApplyAgentConfig sends a config update to the agent's FastAPI /config endpoint.
+// ApplyAgentConfig sends a config update to the agent's FastAPI /config endpoint,
+// falling back to an in-pod curl if the direct HTTP call fails.
 func (k *K8sClient) ApplyAgentConfig(ctx context.Context, ns, podName, podIP string, configPayload string) error {
 	err := k.postToAgent(ctx, podIP, "/config", configPayload)
 	if err != nil {
