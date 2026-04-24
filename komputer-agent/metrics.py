@@ -164,6 +164,10 @@ def _build_write_request_protobuf() -> bytes:
     parts = []
     for metric_family in REGISTRY.collect():
         for sample in metric_family.samples:
+            # Skip prometheus_client's `_created` timestamp samples — they
+            # pollute the remote series set without adding signal.
+            if sample.name.endswith("_created"):
+                continue
             ts_bytes = _encode_timeseries(sample.name, sample.labels, sample.value, timestamp_ms)
             # field 1 (timeseries), wire type 2 (length-delimited)
             parts.append(_tag_length_value(1, 2, ts_bytes))

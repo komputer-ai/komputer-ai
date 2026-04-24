@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -146,6 +147,13 @@ var (
 		},
 		[]string{"version", "commit"},
 	)
+	crCollectorErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_api_cr_collector_errors_total",
+			Help: "Failed CR list calls during /agent/metrics scrape, by resource.",
+		},
+		[]string{"resource"},
+	)
 )
 
 // newMetricsRegistries creates fresh registries and registers all metric handles.
@@ -171,6 +179,7 @@ func newMetricsRegistries(perAgentLabels bool) (*prometheus.Registry, *prometheu
 	agentRegistry.MustRegister(agentToolDuration)
 	agentRegistry.MustRegister(agentActionsTotal)
 	agentRegistry.MustRegister(agentBuildInfo)
+	agentRegistry.MustRegister(crCollectorErrorsTotal)
 
 	apiBuildInfo.WithLabelValues(version, commit).Set(1)
 	agentBuildInfo.WithLabelValues(version, commit).Set(1)
@@ -261,7 +270,10 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 	defer cancel()
 
 	var agents komputerv1alpha1.KomputerAgentList
-	if err := c.k8s.client.List(ctx, &agents, &client.ListOptions{LabelSelector: labels.Everything()}); err == nil {
+	if err := c.k8s.client.List(ctx, &agents, &client.ListOptions{LabelSelector: labels.Everything()}); err != nil {
+		log.Printf("crCollector: failed to list KomputerAgents: %v", err)
+		crCollectorErrorsTotal.WithLabelValues("agents").Inc()
+	} else {
 		// tasksInProgress: when perAgentLabels=true, one series per agent (value=1).
 		// When false, aggregated by (namespace, model) with agent_name="" (sum is the count).
 		inProg := map[[3]string]int{} // (namespace, model, agent_name) -> count
@@ -280,11 +292,12 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(c.agentsByPhase, prometheus.GaugeValue, float64(v), k[0], k[1])
 		}
 	}
-	// List errors are silently dropped — we don't have a good way to expose collector errors
-	// through the standard interface. The metric just won't appear that scrape.
 
 	var schedules komputerv1alpha1.KomputerScheduleList
-	if err := c.k8s.client.List(ctx, &schedules); err == nil {
+	if err := c.k8s.client.List(ctx, &schedules); err != nil {
+		log.Printf("crCollector: failed to list KomputerSchedules: %v", err)
+		crCollectorErrorsTotal.WithLabelValues("schedules").Inc()
+	} else {
 		byNs := map[string]int{}
 		for _, s := range schedules.Items {
 			byNs[s.Namespace]++
@@ -294,6 +307,7 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 }
+
 
 // metricsMiddleware records HTTP request count and duration for every handled request.
 // Path is the route template (e.g. "/agents/:name") so cardinality stays bounded.
