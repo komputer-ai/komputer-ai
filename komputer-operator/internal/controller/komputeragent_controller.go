@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
+	operatormetrics "github.com/komputer-ai/komputer-operator/internal/metrics"
 )
 
 // KomputerAgentReconciler reconciles a KomputerAgent object
@@ -136,6 +137,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		decision := evaluateAdmission(agent, siblings, admissionCap)
 		if !decision.Admit {
+			operatormetrics.TemplateCapReachedTotal.WithLabelValues(agent.Namespace, templateRef).Inc()
 			if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 				s.Phase = komputerv1alpha1.AgentPhaseQueued
 				s.QueuePosition = decision.Position
