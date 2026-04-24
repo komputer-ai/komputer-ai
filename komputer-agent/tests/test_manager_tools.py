@@ -163,6 +163,18 @@ async def test_detach_secret(mock_api):
 
 
 @pytest.mark.asyncio
+async def test_attach_secret_rejects_empty_name(mock_api):
+    result = await manager_tools.attach_secret.handler({"secret_name": "", "agent_name": "foo"})
+    assert result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_detach_secret_rejects_empty_name(mock_api):
+    result = await manager_tools.detach_secret.handler({"secret_name": "  ", "agent_name": "foo"})
+    assert result.get("isError")
+
+
+@pytest.mark.asyncio
 async def test_list_skills(mock_api):
     mock_api.set("GET", "/api/v1/skills", {"skills": [{"name": "git"}]})
     result = await manager_tools.list_skills.handler({})

@@ -695,6 +695,8 @@ async def delete_secret(args):
 )
 async def attach_secret(args):
     secret = _sanitize_secret_name(args["secret_name"])
+    if not secret:
+        return _err("secret_name cannot be empty.")
     agent, err = _resolve_agent(args)
     if err:
         return err
@@ -724,6 +726,8 @@ async def attach_secret(args):
 )
 async def detach_secret(args):
     secret = _sanitize_secret_name(args["secret_name"])
+    if not secret:
+        return _err("secret_name cannot be empty.")
     agent, err = _resolve_agent(args)
     if err:
         return err
