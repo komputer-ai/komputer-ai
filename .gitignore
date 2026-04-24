@@ -24,3 +24,4 @@ local/
 workspace
 .superpowers
 tmp
+.claude/worktrees/
