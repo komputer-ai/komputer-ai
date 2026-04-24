@@ -925,9 +925,80 @@ async def detach_memory(args):
     return await _agent_list_field_patch(agent, "memories", mutator)
 
 
+@tool(
+    name="list_schedules",
+    description="List all KomputerSchedule resources in the current namespace. Each schedule defines when an agent runs.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_schedules(args):
+    return await _request("GET", "/api/v1/schedules")
+
+
+@tool(
+    name="get_schedule",
+    description="Get full details of a schedule: cron expression, timezone, instructions, last run status.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Schedule name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_schedule(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/schedules/{name}")
+
+
+@tool(
+    name="update_schedule",
+    description="Update a schedule's cron expression, timezone, or instructions. Use this to reschedule an existing recurring task or change what it does.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Schedule name."},
+            "schedule": {"type": "string", "description": "New cron expression (5-field)."},
+            "timezone": {"type": "string", "description": "New IANA timezone."},
+            "instructions": {"type": "string", "description": "New instructions for each run."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_schedule(args):
+    name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("schedule"):
+        payload["schedule"] = args["schedule"]
+    if args.get("timezone"):
+        payload["timezone"] = args["timezone"]
+    if args.get("instructions"):
+        payload["instructions"] = args["instructions"]
+    if not payload:
+        return _err("update_schedule requires at least one of: schedule, timezone, instructions.")
+    return await _request("PATCH", f"/api/v1/schedules/{name}", timeout=30, json=payload)
+
+
+@tool(
+    name="list_namespaces",
+    description="List Kubernetes namespaces visible to the API. Use this when you need to know where to look for resources.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_namespaces(args):
+    return await _request("GET", "/api/v1/namespaces")
+
+
+@tool(
+    name="list_templates",
+    description="List available KomputerAgentTemplate / KomputerAgentClusterTemplate resources. Templates define pod sizing, image, and other defaults — pass templateRef='<name>' to create_agent to use one.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_templates(args):
+    return await _request("GET", "/api/v1/templates")
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates],
     )

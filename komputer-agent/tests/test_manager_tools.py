@@ -249,3 +249,57 @@ async def test_detach_memory(mock_api):
     result = await manager_tools.detach_memory.handler({"memory_name": "a", "agent_name": "foo"})
     assert not result.get("isError")
     assert mock_api.last_json == {"memories": ["b"]}
+
+
+# --- list_schedules ---
+
+@pytest.mark.asyncio
+async def test_list_schedules(mock_api):
+    mock_api.set("GET", "/api/v1/schedules", {"schedules": [{"name": "morning"}]})
+    result = await manager_tools.list_schedules.handler({})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_get_schedule(mock_api):
+    mock_api.set("GET", "/api/v1/schedules/morning", {"name": "morning", "schedule": "0 9 * * *"})
+    result = await manager_tools.get_schedule.handler({"name": "morning"})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_cron(mock_api):
+    mock_api.set("PATCH", "/api/v1/schedules/morning", {"name": "morning"})
+    result = await manager_tools.update_schedule.handler({"name": "morning", "schedule": "0 10 * * *"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"schedule": "0 10 * * *"}
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_instructions(mock_api):
+    mock_api.set("PATCH", "/api/v1/schedules/morning", {"name": "morning"})
+    result = await manager_tools.update_schedule.handler({"name": "morning", "instructions": "new task"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"instructions": "new task"}
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_requires_a_field(mock_api):
+    result = await manager_tools.update_schedule.handler({"name": "morning"})
+    assert result.get("isError")
+
+
+# --- list_namespaces / list_templates ---
+
+@pytest.mark.asyncio
+async def test_list_namespaces(mock_api):
+    mock_api.set("GET", "/api/v1/namespaces", {"namespaces": ["default", "team-a"]})
+    result = await manager_tools.list_namespaces.handler({})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_list_templates(mock_api):
+    mock_api.set("GET", "/api/v1/templates", {"templates": [{"name": "default"}, {"name": "gpu"}]})
+    result = await manager_tools.list_templates.handler({})
+    assert not result.get("isError")
