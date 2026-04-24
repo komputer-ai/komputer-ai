@@ -80,52 +80,67 @@ def main():
 
     print(f"Waiting for {total} agent(s): {', '.join(names)}", file=sys.stderr, flush=True)
 
-    while pending and time.time() < deadline:
-        streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
+    start_time = time.time()
+    try:
+        while pending and time.time() < deadline:
+            streams = {info["stream_key"]: info["last_id"] for info in pending.values()}
 
-        try:
-            resp = r.xread(streams, block=5000, count=100)
-        except redis_lib.RedisError:
-            time.sleep(1)
-            continue
-
-        if not resp:
-            continue
-
-        for stream_key_bytes, entries in resp:
-            stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
-
-            matched_name = None
-            for name, info in pending.items():
-                if info["stream_key"] == stream_key:
-                    matched_name = name
-                    break
-            if not matched_name:
+            try:
+                resp = r.xread(streams, block=5000, count=100)
+            except redis_lib.RedisError:
+                time.sleep(1)
                 continue
 
-            for entry_id, fields in entries:
-                entry_id_str = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
-                pending[matched_name]["last_id"] = entry_id_str
-                etype = field(fields, "type")
+            if not resp:
+                continue
 
-                # Track the last text event as the agent's output.
-                if etype == "text":
-                    payload_str = field(fields, "payload")
-                    try:
-                        payload = json.loads(payload_str) if payload_str else {}
-                    except json.JSONDecodeError:
-                        payload = {}
-                    pending[matched_name]["last_text"] = payload.get("content", "")
+            for stream_key_bytes, entries in resp:
+                stream_key = stream_key_bytes.decode() if isinstance(stream_key_bytes, bytes) else stream_key_bytes
 
-                if etype in terminal_types:
-                    results[matched_name] = {
-                        "status": etype,
-                        "result": pending[matched_name].get("last_text", ""),
-                    }
-                    del pending[matched_name]
-                    done = total - len(pending)
-                    print(f"[{done}/{total}] {matched_name} -> {etype}", file=sys.stderr, flush=True)
-                    break
+                matched_name = None
+                for name, info in pending.items():
+                    if info["stream_key"] == stream_key:
+                        matched_name = name
+                        break
+                if not matched_name:
+                    continue
+
+                for entry_id, fields in entries:
+                    entry_id_str = entry_id.decode() if isinstance(entry_id, bytes) else entry_id
+                    pending[matched_name]["last_id"] = entry_id_str
+                    etype = field(fields, "type")
+
+                    # Track the last text event as the agent's output.
+                    if etype == "text":
+                        payload_str = field(fields, "payload")
+                        try:
+                            payload = json.loads(payload_str) if payload_str else {}
+                        except json.JSONDecodeError:
+                            payload = {}
+                        pending[matched_name]["last_text"] = payload.get("content", "")
+
+                    if etype in terminal_types:
+                        results[matched_name] = {
+                            "status": etype,
+                            "result": pending[matched_name].get("last_text", ""),
+                        }
+                        del pending[matched_name]
+                        done = total - len(pending)
+                        print(f"[{done}/{total}] {matched_name} -> {etype}", file=sys.stderr, flush=True)
+                        break
+    finally:
+        duration = time.time() - start_time
+        # Push wait duration metric. Script runs as a separate process, so we
+        # init, observe, and force one flush before exit.
+        sys.path.insert(0, "/app")
+        try:
+            import metrics
+            metrics.init()
+            metrics.observe_subagent_wait(duration)
+            import asyncio
+            asyncio.run(metrics._flush_once())
+        except Exception:
+            pass  # never crash the wait script over metrics
 
     for name in pending:
         results[name] = {"status": "timeout"}

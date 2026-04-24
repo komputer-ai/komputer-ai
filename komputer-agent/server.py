@@ -14,9 +14,15 @@ if not logger.handlers:
 
 from agent import _write_skills
 import config as agent_config
+import metrics as agent_metrics
 import state
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def _on_startup():
+    agent_metrics.start_flush_task()
 
 
 @app.exception_handler(HTTPException)
@@ -69,6 +75,12 @@ async def get_status():
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    from fastapi.responses import Response
+    return Response(content=agent_metrics.expose_text(), media_type="text/plain; version=0.0.4")
 
 
 @app.get("/readyz")
@@ -154,6 +166,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
         if _publisher:
             _publisher.publish("user_message", {"content": req.instructions, "steer": True})
 
+        agent_metrics.record_steering()
         return {"status": "steered", "instructions": req.instructions[:100]}
 
     # Agent is idle — start a new session as normal.

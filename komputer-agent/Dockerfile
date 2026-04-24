@@ -15,10 +15,12 @@ RUN ARCH=$(dpkg --print-architecture) && \
     tar -xzf - -C /usr/local/bin ./gws && \
     chmod +x /usr/local/bin/gws
 
-# Install Python dependencies
+# Install Python dependencies (libsnappy-dev required for python-snappy)
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
+RUN apt-get update && apt-get install -y --no-install-recommends libsnappy-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir -r requirements.txt && \
     pip cache purge 2>/dev/null; rm -rf /root/.cache/pip
 
 COPY . .

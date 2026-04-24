@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import httpx
+import metrics as agent_metrics
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -157,6 +158,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                         if token:
                             cfg["headers"] = {"Authorization": f"Bearer {token}"}
                 mcp_servers[name] = cfg
+                agent_metrics.set_mcp_status(name, healthy=True)
         except Exception as e:
             print(f"[komputer] failed to parse KOMPUTER_MCP_SERVERS: {e}")
 

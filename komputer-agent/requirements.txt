@@ -3,3 +3,6 @@ httpx
 redis
 fastapi
 uvicorn
+prometheus-client>=0.20.0
+python-snappy>=0.7.0
+protobuf>=5.0.0

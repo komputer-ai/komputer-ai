@@ -9,6 +9,7 @@ import uvicorn
 from agent import run_agent, _write_skills
 from events import EventPublisher
 import config
+import metrics as agent_metrics
 import state
 
 
@@ -72,6 +73,9 @@ def main():
     user_system_prompt = os.getenv("KOMPUTER_SYSTEM_PROMPT", "")
     combined_prompt_parts = [p for p in [internal_system_prompt, user_system_prompt] if p]
     combined_system_prompt = "\n\n".join(combined_prompt_parts) if combined_prompt_parts else None
+
+    # Initialize metrics module (must happen before server starts).
+    agent_metrics.init()
 
     # Initialize runtime config from env vars.
     config.init()
