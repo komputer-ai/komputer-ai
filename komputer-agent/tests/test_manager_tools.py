@@ -203,3 +203,49 @@ async def test_detach_skill(mock_api):
     result = await manager_tools.detach_skill.handler({"skill_name": "git", "agent_name": "foo"})
     assert not result.get("isError")
     assert mock_api.last_json == {"skills": ["docker"]}
+
+
+# --- list_memories ---
+
+@pytest.mark.asyncio
+async def test_list_memories(mock_api):
+    mock_api.set("GET", "/api/v1/memories", {"memories": [{"name": "preferences"}]})
+    result = await manager_tools.list_memories.handler({})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_get_memory(mock_api):
+    mock_api.set("GET", "/api/v1/memories/preferences", {"name": "preferences", "content": "..."})
+    result = await manager_tools.get_memory.handler({"name": "preferences"})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_update_memory(mock_api):
+    mock_api.set("PATCH", "/api/v1/memories/preferences", {"name": "preferences"})
+    result = await manager_tools.update_memory.handler({"name": "preferences", "content": "new"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"content": "new"}
+
+
+@pytest.mark.asyncio
+async def test_update_memory_requires_a_field(mock_api):
+    result = await manager_tools.update_memory.handler({"name": "preferences"})
+    assert result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_delete_memory(mock_api):
+    mock_api.set("DELETE", "/api/v1/memories/preferences", {"deleted": "preferences"})
+    result = await manager_tools.delete_memory.handler({"name": "preferences"})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_detach_memory(mock_api):
+    mock_api.set("GET", "/api/v1/agents/foo", {"name": "foo", "memories": ["a", "b"]})
+    mock_api.set("PATCH", "/api/v1/agents/foo", {"name": "foo"})
+    result = await manager_tools.detach_memory.handler({"memory_name": "a", "agent_name": "foo"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"memories": ["b"]}
