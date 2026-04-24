@@ -656,6 +656,7 @@ func registerAgentCommands(root *cobra.Command) {
 			ep := resolveEndpoint(cmd)
 			agentName := args[0]
 			group, _ := cmd.Flags().GetString("group")
+			follow, _ := cmd.Flags().GetBool("follow")
 
 			// Verify agent exists before connecting WebSocket
 			_, status, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(agentName), nsQuery(cmd)), nil)
@@ -739,14 +740,15 @@ func registerAgentCommands(root *cobra.Command) {
 					fmt.Println()
 				}
 
-				// Exit on terminal events
-				if event.Type == "task_completed" || event.Type == "task_cancelled" || event.Type == "error" {
+				// Exit on terminal events unless --follow keeps the stream open.
+				if !follow && (event.Type == "task_completed" || event.Type == "task_cancelled" || event.Type == "error") {
 					return
 				}
 			}
 		},
 	}
 	watchCmd.Flags().String("group", "", "Join a consumer group: each event is delivered to exactly one client per group across all API replicas")
+	watchCmd.Flags().Bool("follow", false, "Keep streaming after task_completed/task_cancelled/error instead of exiting")
 	root.AddCommand(watchCmd)
 
 	// ── run (create + watch) ─────────────────────────────────────────────
