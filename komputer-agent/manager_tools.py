@@ -739,9 +739,102 @@ async def detach_secret(args):
     return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"secretRefs": current})
 
 
+@tool(
+    name="list_skills",
+    description="List all KomputerSkill resources in the current namespace. Use this before attach_skill to see what's available.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_skills(args):
+    return await _request("GET", "/api/v1/skills")
+
+
+@tool(
+    name="get_skill",
+    description="Get full details of a skill (content, description, attached agents).",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_skill(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/skills/{name}")
+
+
+@tool(
+    name="update_skill",
+    description="Update a skill's content or description. Changes apply to all attached agents on their next pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+            "content": {"type": "string", "description": "New skill content (markdown)."},
+            "description": {"type": "string", "description": "New short description."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_skill(args):
+    name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("content") is not None:
+        payload["content"] = args["content"]
+    if args.get("description") is not None:
+        payload["description"] = args["description"]
+    if not payload:
+        return _err("update_skill requires at least one of: content, description.")
+    return await _request("PATCH", f"/api/v1/skills/{name}", timeout=30, json=payload)
+
+
+@tool(
+    name="delete_skill",
+    description="Delete a KomputerSkill from the current namespace. Any agents that have it attached will silently lose it on next pod start. Use list_skills first if unsure.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+        },
+        "required": ["name"],
+    },
+)
+async def delete_skill(args):
+    name = _sanitize_name(args["name"])
+    return await _request("DELETE", f"/api/v1/skills/{name}", timeout=30)
+
+
+@tool(
+    name="detach_skill",
+    description="Detach a skill from an agent. The skill will not be loaded into the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Skill name."},
+            "agent_name": {"type": "string", "description": "Agent to detach from. Defaults to the current agent."},
+        },
+        "required": ["skill_name"],
+    },
+)
+async def detach_skill(args):
+    skill = _sanitize_name(args["skill_name"])
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    def mutator(current):
+        if skill not in current:
+            return None, f"Skill '{skill}' is not attached to '{agent}'."
+        current.remove(skill)
+        return current, None
+
+    return await _agent_list_field_patch(agent, "skills", mutator)
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill],
     )

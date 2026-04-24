@@ -159,3 +159,47 @@ async def test_detach_secret(mock_api):
     result = await manager_tools.detach_secret.handler({"secret_name": "OPENAI", "agent_name": "foo"})
     assert not result.get("isError")
     assert mock_api.last_json == {"secretRefs": ["GITHUB"]}
+
+
+@pytest.mark.asyncio
+async def test_list_skills(mock_api):
+    mock_api.set("GET", "/api/v1/skills", {"skills": [{"name": "git"}]})
+    result = await manager_tools.list_skills.handler({})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_get_skill(mock_api):
+    mock_api.set("GET", "/api/v1/skills/git", {"name": "git", "content": "..."})
+    result = await manager_tools.get_skill.handler({"name": "git"})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_update_skill(mock_api):
+    mock_api.set("PATCH", "/api/v1/skills/git", {"name": "git"})
+    result = await manager_tools.update_skill.handler({"name": "git", "content": "new content"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"content": "new content"}
+
+
+@pytest.mark.asyncio
+async def test_update_skill_requires_a_field(mock_api):
+    result = await manager_tools.update_skill.handler({"name": "git"})
+    assert result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_delete_skill(mock_api):
+    mock_api.set("DELETE", "/api/v1/skills/git", {"deleted": "git"})
+    result = await manager_tools.delete_skill.handler({"name": "git"})
+    assert not result.get("isError")
+
+
+@pytest.mark.asyncio
+async def test_detach_skill(mock_api):
+    mock_api.set("GET", "/api/v1/agents/foo", {"name": "foo", "skills": ["git", "docker"]})
+    mock_api.set("PATCH", "/api/v1/agents/foo", {"name": "foo"})
+    result = await manager_tools.detach_skill.handler({"skill_name": "git", "agent_name": "foo"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"skills": ["docker"]}
