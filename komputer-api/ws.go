@@ -200,6 +200,35 @@ func HandleAgentWS(hub *Hub) gin.HandlerFunc {
 		}
 		defer hub.Unsubscribe(agentName, conn)
 
+		// Ping/pong keepalive: detect silently-dropped clients (browser tab killed,
+		// network blip) so they don't leak in the connections gauge forever.
+		const (
+			pongWait   = 60 * time.Second
+			pingPeriod = 30 * time.Second
+		)
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(pongWait))
+			return nil
+		})
+
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(pingPeriod)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+						return
+					}
+				case <-done:
+					return
+				}
+			}
+		}()
+		defer close(done)
+
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				break

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -322,6 +323,9 @@ func metricsMiddleware() gin.HandlerFunc {
 		method := c.Request.Method
 		status := strconv.Itoa(c.Writer.Status())
 		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
-		httpRequestDuration.WithLabelValues(method, path).Observe(time.Since(start).Seconds())
+		// Skip duration for WebSocket routes — connection lifetime isn't request latency.
+		if !strings.HasSuffix(path, "/ws") {
+			httpRequestDuration.WithLabelValues(method, path).Observe(time.Since(start).Seconds())
+		}
 	}
 }
