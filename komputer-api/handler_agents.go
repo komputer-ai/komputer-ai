@@ -176,10 +176,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					wakeSystemPrompt = existing.Spec.SystemPrompt
 				}
 				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(wakeMemories), wakeSystemPrompt, req.Model, req.Lifecycle); err != nil {
+					agentActionsTotal.WithLabelValues("wake", "error").Inc()
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
 				}
 				log.Printf("waking sleeping agent %s/%s", ns, req.Name)
+				agentActionsTotal.WithLabelValues("wake", "success").Inc()
 				c.JSON(http.StatusOK, AgentResponse{
 					Name:            existing.Name,
 					Namespace:       existing.Namespace,
@@ -231,6 +233,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt)
 			if err != nil {
+				agentActionsTotal.WithLabelValues("wake", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
 			}
@@ -248,6 +251,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 
 			log.Printf("forwarded task to existing agent %s/%s", ns, req.Name)
+			agentActionsTotal.WithLabelValues("wake", "success").Inc()
 			c.JSON(http.StatusOK, AgentResponse{
 				Name:            existing.Name,
 				Namespace:       existing.Namespace,
@@ -304,11 +308,13 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusConflict, gin.H{"error": "agent already exists: " + req.Name})
 				return
 			}
+			agentActionsTotal.WithLabelValues("create", "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent: " + err.Error()})
 			return
 		}
 
 		log.Printf("created new agent %s/%s", ns, req.Name)
+		agentActionsTotal.WithLabelValues("create", "success").Inc()
 		c.JSON(http.StatusOK, AgentResponse{
 			Name:         agent.Name,
 			Namespace:    agent.Namespace,
@@ -352,6 +358,7 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 				return
 			}
+			agentActionsTotal.WithLabelValues("delete", "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete agent: " + err.Error()})
 			return
 		}
@@ -360,6 +367,7 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 			log.Printf("warning: failed to delete event stream for %s: %v", name, err)
 		}
 		log.Printf("deleted agent %s/%s", ns, name)
+		agentActionsTotal.WithLabelValues("delete", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
 }
@@ -404,11 +412,13 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		if err := k8s.CancelAgentTask(c.Request.Context(), ns, agent.Status.PodName, podIP); err != nil {
+			agentActionsTotal.WithLabelValues("cancel", "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel: " + err.Error()})
 			return
 		}
 
 		log.Printf("cancelled task on agent %s/%s", ns, name)
+		agentActionsTotal.WithLabelValues("cancel", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "cancelling", "name": name})
 	}
 }
@@ -633,8 +643,15 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		var nonFatalErrors []string
 
+		// Determine action label for metrics: "sleep" if lifecycle → Sleep, else "patch".
+		patchAction := "patch"
+		if req.Lifecycle != nil && *req.Lifecycle == "Sleep" {
+			patchAction = "sleep"
+		}
+
 		// 1. Patch CR spec first — this is the source of truth.
 		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority); err != nil {
+			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
 		}
@@ -642,6 +659,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		// 1a-override. Patch podSpec / storage overrides if provided.
 		if req.PodSpec != nil || req.Storage != nil {
 			if err := k8s.PatchAgentOverrides(c.Request.Context(), ns, name, req.PodSpec, req.Storage); err != nil {
+				agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent overrides: " + err.Error()})
 				return
 			}
@@ -741,6 +759,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		// 3. Return updated agent.
 		updated, err := k8s.GetAgent(c.Request.Context(), ns, name)
 		if err != nil {
+			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "agent patched but failed to read back: " + err.Error()})
 			return
 		}
@@ -749,6 +768,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if freshContextWindow > 0 {
 			modelContextWindow = freshContextWindow
 		}
+		agentActionsTotal.WithLabelValues(patchAction, "success").Inc()
 		c.JSON(http.StatusOK, AgentResponse{
 			Name:            updated.Name,
 			Namespace:       updated.Namespace,

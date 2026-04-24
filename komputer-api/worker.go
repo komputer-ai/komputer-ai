@@ -140,6 +140,65 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						continue
 					}
 
+					// --- metric emission ---
+					model := ""
+					if m, ok := event.Payload["model"].(string); ok {
+						model = m
+					}
+					agentLabel := agentNameLabel(event.AgentName)
+
+					switch event.Type {
+					case "task_started":
+						agentTasksTotal.WithLabelValues(event.Namespace, model, "started", agentLabel).Inc()
+					case "task_completed":
+						agentTasksTotal.WithLabelValues(event.Namespace, model, "completed", agentLabel).Inc()
+						if cost, ok := event.Payload["cost_usd"].(float64); ok {
+							agentTaskCostUSD.WithLabelValues(event.Namespace, model, agentLabel).Add(cost)
+						}
+						if dur, ok := event.Payload["duration_ms"].(float64); ok {
+							agentTaskDuration.WithLabelValues(event.Namespace, model, agentLabel).Observe(dur / 1000.0)
+						}
+						if usage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
+							for kindKey, label := range map[string]string{
+								"input_tokens":                "input",
+								"output_tokens":               "output",
+								"cache_read_input_tokens":     "cache_read",
+								"cache_creation_input_tokens": "cache_creation",
+							} {
+								if v, ok := usage[kindKey].(float64); ok {
+									agentTaskTokens.WithLabelValues(event.Namespace, model, label, agentLabel).Add(v)
+								}
+							}
+						}
+					case "task_cancelled":
+						agentTasksTotal.WithLabelValues(event.Namespace, model, "cancelled", agentLabel).Inc()
+					case "error":
+						agentTasksTotal.WithLabelValues(event.Namespace, model, "errored", agentLabel).Inc()
+					case "tool_call":
+						if toolName, ok := event.Payload["tool"].(string); ok && toolName != "" {
+							if toolUseID, ok := event.Payload["id"].(string); ok && toolUseID != "" {
+								toolCallTracker.markStart(event.AgentName, toolUseID, time.Now())
+							}
+						}
+					case "tool_result":
+						toolName, _ := event.Payload["tool"].(string)
+						toolUseID, _ := event.Payload["id"].(string)
+						isError, _ := event.Payload["is_error"].(bool)
+						outcome := "success"
+						if isError {
+							outcome = "error"
+						}
+						if toolName != "" {
+							agentToolInvocations.WithLabelValues(event.Namespace, toolName, outcome, agentLabel).Inc()
+							if toolUseID != "" {
+								if dur, ok := toolCallTracker.consumeDuration(event.AgentName, toolUseID, time.Now()); ok {
+									agentToolDuration.WithLabelValues(event.Namespace, toolName, agentLabel).Observe(dur.Seconds())
+								}
+							}
+						}
+					}
+					// --- end metric emission ---
+
 					raw, err := json.Marshal(event)
 					if err != nil {
 						log.Printf("failed to marshal event: %v", err)

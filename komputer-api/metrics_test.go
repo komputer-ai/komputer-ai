@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -77,5 +78,22 @@ func TestHTTPMiddlewareObservesDuration(t *testing.T) {
 	count := testutil.CollectAndCount(httpRequestDuration)
 	if count == 0 {
 		t.Errorf("expected histogram to have observations")
+	}
+}
+
+func TestToolCallTracker(t *testing.T) {
+	toolCallTracker = &toolCallTrackerT{starts: make(map[string]time.Time)}
+	start := time.Now()
+	toolCallTracker.markStart("foo-agent", "tc_01", start)
+	dur, ok := toolCallTracker.consumeDuration("foo-agent", "tc_01", start.Add(2*time.Second))
+	if !ok {
+		t.Fatal("expected to find start time")
+	}
+	if dur != 2*time.Second {
+		t.Errorf("expected 2s, got %v", dur)
+	}
+	// Second consume should fail (already consumed).
+	if _, ok := toolCallTracker.consumeDuration("foo-agent", "tc_01", time.Now()); ok {
+		t.Error("expected second consume to fail")
 	}
 }

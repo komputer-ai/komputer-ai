@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,9 +39,59 @@ var (
 	agentTasksTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "komputer_agent_tasks_total",
-			Help: "Total agent task lifecycle transitions (started, completed, cancelled, errored).",
+			Help: "Total agent task lifecycle transitions.",
 		},
 		[]string{"namespace", "model", "outcome", "agent_name"},
+	)
+
+	agentTaskDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "komputer_agent_task_duration_seconds",
+			Help:    "Wall-clock duration of completed agent tasks.",
+			Buckets: prometheus.ExponentialBuckets(1, 2, 12), // 1s, 2s, ... ~1h
+		},
+		[]string{"namespace", "model", "agent_name"},
+	)
+
+	agentTaskCostUSD = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_agent_task_cost_usd_total",
+			Help: "Total cost in USD across all completed agent tasks.",
+		},
+		[]string{"namespace", "model", "agent_name"},
+	)
+
+	agentTaskTokens = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_agent_task_tokens_total",
+			Help: "Total tokens used across all completed agent tasks.",
+		},
+		[]string{"namespace", "model", "kind", "agent_name"},
+	)
+
+	agentToolInvocations = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_agent_tool_invocations_total",
+			Help: "Total tool invocations by tool name and outcome.",
+		},
+		[]string{"namespace", "tool", "outcome", "agent_name"},
+	)
+
+	agentToolDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "komputer_agent_tool_duration_seconds",
+			Help:    "Tool execution duration, derived from tool_call/tool_result event pairs.",
+			Buckets: prometheus.ExponentialBuckets(0.1, 2, 12), // 100ms, 200ms, ... ~7min
+		},
+		[]string{"namespace", "tool", "agent_name"},
+	)
+
+	agentActionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_agent_actions_total",
+			Help: "Agent management actions taken via the API (create/delete/cancel/sleep/wake/patch).",
+		},
+		[]string{"action", "result"},
 	)
 
 	httpRequestDuration = prometheus.NewHistogramVec(
@@ -109,6 +160,12 @@ func newMetricsRegistries(perAgentLabels bool) (*prometheus.Registry, *prometheu
 	apiRegistry.MustRegister(redisXreadMessagesTotal)
 	apiRegistry.MustRegister(apiBuildInfo)
 	agentRegistry.MustRegister(agentTasksTotal)
+	agentRegistry.MustRegister(agentTaskDuration)
+	agentRegistry.MustRegister(agentTaskCostUSD)
+	agentRegistry.MustRegister(agentTaskTokens)
+	agentRegistry.MustRegister(agentToolInvocations)
+	agentRegistry.MustRegister(agentToolDuration)
+	agentRegistry.MustRegister(agentActionsTotal)
 	agentRegistry.MustRegister(agentBuildInfo)
 
 	apiBuildInfo.WithLabelValues(version, commit).Set(1)
@@ -124,6 +181,33 @@ func agentNameLabel(name string) string {
 		return name
 	}
 	return ""
+}
+
+// toolCallTrackerT correlates tool_call → tool_result events to compute tool execution duration.
+type toolCallTrackerT struct {
+	mu     sync.Mutex
+	starts map[string]time.Time // key = "<agent>:<tool_use_id>"
+}
+
+var toolCallTracker = &toolCallTrackerT{starts: make(map[string]time.Time)}
+
+func (t *toolCallTrackerT) markStart(agent, toolUseID string, at time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.starts[agent+":"+toolUseID] = at
+}
+
+// consumeDuration returns the time between markStart and now, deleting the entry. Returns false if no start was tracked.
+func (t *toolCallTrackerT) consumeDuration(agent, toolUseID string, endAt time.Time) (time.Duration, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	key := agent + ":" + toolUseID
+	startAt, ok := t.starts[key]
+	if !ok {
+		return 0, false
+	}
+	delete(t.starts, key)
+	return endAt.Sub(startAt), true
 }
 
 // metricsMiddleware records HTTP request count and duration for every handled request.
