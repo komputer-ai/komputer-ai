@@ -274,7 +274,7 @@ The WebSocket endpoint supports two delivery modes via the optional `?group=<nam
 **Group semantics:**
 - The group name is opaque — pick anything (`my-app`, `slack-bot-prod`, `audit-pipeline`).
 - Group membership is per-agent: `?group=my-app` on agent `A` is independent of `?group=my-app` on agent `B`.
-- Routing is best-effort: if the chosen client's WebSocket fails mid-write, that event is lost for the group. For exactly-once processing, use the [`/events` REST endpoint](#get-apiv1agentsnameevents) on reconnect to backfill any missed events.
+- Routing is best-effort with intra-replica retry: if the chosen client's WebSocket fails mid-write, the API tries the next group member on the same replica before giving up. The event is only lost for the group if **all** group members on the routing replica fail simultaneously (or no group members are connected to the replica that won the claim). For strict exactly-once processing, use the [`/events` REST endpoint](#get-apiv1agentsnameevents) on reconnect to backfill any missed events.
 - A group with one connected client behaves identically to broadcast.
 - Mixing modes works: ungrouped clients still get every event; grouped clients share within their group.
 

@@ -179,5 +179,5 @@ The API uses Redis-coordinated routing to deliver each event to exactly one clie
 **Use broadcast** for: dashboards, debugging, single-instance workers, anywhere "see everything" is the goal.
 **Use `WithGroup`** for: distributed services, webhook forwarders, anywhere you'd otherwise dedupe events yourself.
 
-Routing is best-effort — if a chosen client's WebSocket fails mid-write, that event is lost for the group. Use `GetAgentEvents(ctx, name, ...)` to backfill on reconnect if you need stronger guarantees.
+On write failure, the API retries delivery to other group members on the same replica before giving up — an event is only lost when all members on the routing replica fail simultaneously. Use `GetAgentEvents(ctx, name, ...)` to backfill on reconnect if you need strict exactly-once guarantees.
 

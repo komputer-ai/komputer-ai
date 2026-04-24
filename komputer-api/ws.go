@@ -122,19 +122,35 @@ func (h *Hub) Dispatch(ctx context.Context, agentName, msgID string, message []b
 	}
 
 	// Group buckets: per group, claim then deliver to one local member.
+	// On write failure, try other local members in the same group before giving up.
 	for group, members := range groupMembers {
 		claimKey := "wsclaim:" + agentName + ":" + group + ":" + msgID
 		ok, err := h.rdb.SetNX(ctx, claimKey, h.replicaID, h.claimTTL).Result()
 		if err != nil || !ok {
 			continue
 		}
-		// Pick a random member to spread load within this replica.
-		pick := members[rand.Intn(len(members))]
-		if err := pick.WriteMessage(websocket.TextMessage, message); err != nil {
-			pick.Close()
-			h.Unsubscribe(agentName, pick)
-			// Release the claim so the next event arrival can pick another client.
-			// (Not the same event — that's lost; clients reconcile via REST history.)
+
+		// Shuffle a copy so we try members in random order — spreads load and avoids
+		// always retrying the same head-of-list candidate.
+		order := make([]*websocket.Conn, len(members))
+		copy(order, members)
+		rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
+
+		delivered := false
+		for _, pick := range order {
+			if err := pick.WriteMessage(websocket.TextMessage, message); err != nil {
+				pick.Close()
+				h.Unsubscribe(agentName, pick)
+				continue // try next member in this group
+			}
+			delivered = true
+			break
+		}
+
+		if !delivered {
+			// All local members failed. Release the claim so a future event
+			// re-evaluates routing (a different replica may have live members).
+			// This event itself is lost for the group; clients reconcile via REST history.
 			h.rdb.Del(ctx, claimKey)
 		}
 	}

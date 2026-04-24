@@ -258,7 +258,7 @@ ws://localhost:8080/api/v1/agents/my-agent/ws
 
 Use **broadcast** for UIs, dashboards, and any case where multiple consumers should each see every event. Use **consumer group** when you run multiple replicas of the same service and want each event handled exactly once across them — without it, two replicas of your bot calling `/ws` will both receive every event and process the same work twice.
 
-The API coordinates group routing across replicas using a short-TTL Redis claim key (`SET NX wsclaim:<agent>:<group>:<msgID>`), so adding clients does not add Redis connections or goroutines. Routing is best-effort — if the chosen client's WebSocket fails mid-write, that event is lost for the group; clients should backfill via [`GET /agents/:name/events`](#get-apiv1agentsnameevents) on reconnect when stronger guarantees are needed.
+The API coordinates group routing across replicas using a short-TTL Redis claim key (`SET NX wsclaim:<agent>:<group>:<msgID>`), so adding clients does not add Redis connections or goroutines. On write failure, the API tries the next group member on the same replica before giving up — the event is only lost for the group if all group members on the routing replica fail simultaneously. Clients should backfill via [`GET /agents/:name/events`](#get-apiv1agentsnameevents) on reconnect when strict exactly-once semantics are required.
 
 Each message is a JSON object:
 
