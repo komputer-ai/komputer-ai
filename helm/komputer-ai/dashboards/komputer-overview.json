@@ -1,0 +1,11 @@
+{
+  "title": "Komputer Overview",
+  "uid": "komputer-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [],
+  "time": {"from": "now-1h", "to": "now"},
+  "tags": ["komputer-ai"],
+  "annotations": {"list": []},
+  "templating": {"list": []}
+}

@@ -1,0 +1,23 @@
+{{- if .Values.metrics.operator.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+    {{- with .Values.metrics.operator.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: komputer
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: operator
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.metrics.operator.serviceMonitor.interval }}
+{{- end }}

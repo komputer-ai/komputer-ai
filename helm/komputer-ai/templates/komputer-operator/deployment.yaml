@@ -40,6 +40,8 @@ spec:
         - --leader-elect
         {{- end }}
         - --health-probe-bind-address=:8081
+        - --metrics-bind-address={{ .Values.metrics.operator.bindAddress }}
+        - --metrics-secure=false
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -48,6 +50,9 @@ spec:
         ports:
         - containerPort: 8081
           name: health
+          protocol: TCP
+        - containerPort: 8080
+          name: metrics
           protocol: TCP
         livenessProbe:
           httpGet:

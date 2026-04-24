@@ -37,6 +37,8 @@ spec:
           value: {{ include "komputer.redisAddress" . }}
         - name: REDIS_STREAM_PREFIX
           value: {{ .Values.config.redis.streamPrefix }}
+        - name: KOMPUTER_METRICS_PER_AGENT
+          value: {{ .Values.metrics.perAgentLabels | quote }}
         {{- if .Values.api.oauth.callbackUrl }}
         - name: OAUTH_CALLBACK_URL
           value: {{ .Values.api.oauth.callbackUrl | quote }}

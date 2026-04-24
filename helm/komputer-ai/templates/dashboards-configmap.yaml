@@ -1,0 +1,13 @@
+{{- if or .Values.metrics.api.serviceMonitor.enabled .Values.metrics.agentMetrics.serviceMonitor.enabled .Values.metrics.operator.serviceMonitor.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboards
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  komputer-overview.json: |
+{{ .Files.Get "dashboards/komputer-overview.json" | indent 4 }}
+{{- end }}
