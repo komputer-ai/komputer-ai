@@ -444,9 +444,565 @@ async def update_agent(args):
     return await _request("PATCH", f"/api/v1/agents/{full_name}", timeout=30, json=payload)
 
 
+@tool(
+    name="sleep_agent",
+    description="Put an agent to sleep — pod is deleted, PVC (workspace) is preserved. The agent can be woken later with a new task. Defaults to the current agent if no name is given.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Agent to sleep. Defaults to the current agent."},
+        },
+    },
+)
+async def sleep_agent(args):
+    name = args.get("name")
+    if name:
+        name = _sanitize_name(name)
+    else:
+        name = os.environ.get("KOMPUTER_AGENT_NAME", "")
+        if not name:
+            return _err("No name provided and KOMPUTER_AGENT_NAME not set.")
+    return await _request("PATCH", f"/api/v1/agents/{name}", timeout=30, json={"lifecycle": "Sleep"})
+
+
+@tool(
+    name="wake_agent",
+    description="Wake a sleeping agent (or trigger a new task on a running one) by sending it instructions. Equivalent to calling create_agent with the same name — the API routes the call to the existing agent.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Agent to wake."},
+            "instructions": {"type": "string", "description": "Task instructions for this run."},
+        },
+        "required": ["name", "instructions"],
+    },
+)
+async def wake_agent(args):
+    if not args.get("instructions"):
+        return _err("wake_agent requires 'instructions'.")
+    name = _sanitize_name(args["name"])
+    payload = {"name": name, "instructions": args["instructions"], "namespace": NAMESPACE}
+    return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
+
+
+@tool(
+    name="list_agents",
+    description="List all agents in the current namespace, with name, status, lifecycle, model, and last task summary.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_agents(args):
+    return await _request("GET", "/api/v1/agents")
+
+
+@tool(
+    name="get_agent",
+    description="Get full details of an agent: spec (model, instructions, skills, memories, connectors, secrets, podSpec, storage, priority) and live status (phase, taskStatus, cost, tokens). Use this to inspect a sub-agent's full configuration.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Agent name. Defaults to the current agent."},
+        },
+    },
+)
+async def get_agent(args):
+    name = args.get("name")
+    if name:
+        name = _sanitize_name(name)
+    else:
+        name = os.environ.get("KOMPUTER_AGENT_NAME", "")
+        if not name:
+            return _err("No name provided and KOMPUTER_AGENT_NAME not set.")
+    return await _request("GET", f"/api/v1/agents/{name}")
+
+
+@tool(
+    name="list_connectors",
+    description="List configured connectors (KomputerConnector resources) in the current namespace. Each connector defines an MCP server an agent can use (Slack, GitHub, etc.). Use this before attach_connector to see what's available.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_connectors(args):
+    return await _request("GET", "/api/v1/connectors")
+
+
+@tool(
+    name="list_connector_templates",
+    description="List built-in connector templates (catalog of known MCP integrations like Slack, GitHub, Linear). Use this when you want to set up a new connector and want to see what's supported.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_connector_templates(args):
+    return await _request("GET", "/api/v1/connector-templates")
+
+
+@tool(
+    name="get_connector",
+    description="Get full details of a connector: auth type, MCP server URL, and configuration.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Connector name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_connector(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/connectors/{name}")
+
+
+async def _agent_list_field_patch(agent_name, field_name, mutator):
+    """Helper: GET agent, mutate one of its list fields, PATCH it back.
+
+    mutator(current_list) -> (new_list_or_None, message_if_no_op)
+    Returns the tool result (either the PATCH result or _ok with message).
+    """
+    get_result = await _request("GET", f"/api/v1/agents/{agent_name}")
+    if get_result.get("isError"):
+        return get_result
+    agent_data = json.loads(get_result["content"][0]["text"])
+    current = agent_data.get(field_name) or []
+    new_list, no_op_msg = mutator(list(current))
+    if new_list is None:
+        return _ok(no_op_msg)
+    return await _request("PATCH", f"/api/v1/agents/{agent_name}", timeout=30, json={field_name: new_list})
+
+
+def _resolve_agent(args):
+    """Resolve agent_name arg or fall back to KOMPUTER_AGENT_NAME. Returns (name, error_dict_or_None)."""
+    agent = args.get("agent_name")
+    if agent:
+        return _sanitize_name(agent), None
+    agent = os.environ.get("KOMPUTER_AGENT_NAME", "")
+    if not agent:
+        return None, _err("No agent_name provided and KOMPUTER_AGENT_NAME not set.")
+    return agent, None
+
+
+@tool(
+    name="attach_connector",
+    description="Attach a connector (MCP server) to an agent. The connector's tools become available in the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "connector_name": {"type": "string", "description": "Name of the connector to attach."},
+            "agent_name": {"type": "string", "description": "Agent to attach to. Defaults to the current agent."},
+        },
+        "required": ["connector_name"],
+    },
+)
+async def attach_connector(args):
+    connector = _sanitize_name(args["connector_name"])
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    def mutator(current):
+        if connector in current:
+            return None, f"Connector '{connector}' is already attached to '{agent}'."
+        current.append(connector)
+        return current, None
+
+    return await _agent_list_field_patch(agent, "connectors", mutator)
+
+
+@tool(
+    name="detach_connector",
+    description="Detach a connector from an agent. Its tools will not be available in the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "connector_name": {"type": "string", "description": "Name of the connector to detach."},
+            "agent_name": {"type": "string", "description": "Agent to detach from. Defaults to the current agent."},
+        },
+        "required": ["connector_name"],
+    },
+)
+async def detach_connector(args):
+    connector = _sanitize_name(args["connector_name"])
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    def mutator(current):
+        if connector not in current:
+            return None, f"Connector '{connector}' is not attached to '{agent}'."
+        current.remove(connector)
+        return current, None
+
+    return await _agent_list_field_patch(agent, "connectors", mutator)
+
+
+def _sanitize_secret_name(name: str) -> str:
+    """Secret names are env var names — uppercase + underscores. Strip whitespace only."""
+    return (name or "").strip()
+
+
+@tool(
+    name="list_secrets",
+    description="List managed secrets (Kubernetes Secret resources tagged for komputer.ai) in the current namespace. Returns names only — values are never exposed.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_secrets(args):
+    return await _request("GET", "/api/v1/secrets")
+
+
+@tool(
+    name="create_secret",
+    description="Create a managed secret in the current namespace. The secret can then be attached to any agent with attach_secret. Use this when an agent needs a new API key, token, or credential.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Secret name (env var style: UPPER_SNAKE_CASE, e.g. 'GITHUB_TOKEN')."},
+            "value": {"type": "string", "description": "Secret value."},
+        },
+        "required": ["name", "value"],
+    },
+)
+async def create_secret(args):
+    name = _sanitize_secret_name(args["name"])
+    if not name:
+        return _err("Secret name cannot be empty.")
+    payload = {"name": name, "value": args["value"], "namespace": NAMESPACE}
+    return await _request("POST", "/api/v1/secrets", timeout=30, json=payload)
+
+
+@tool(
+    name="delete_secret",
+    description="Delete a managed secret from the current namespace. Detach it from any agents first — leaving stale references can break the agent's pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Secret name."},
+        },
+        "required": ["name"],
+    },
+)
+async def delete_secret(args):
+    name = _sanitize_secret_name(args["name"])
+    return await _request("DELETE", f"/api/v1/secrets/{name}", timeout=30)
+
+
+@tool(
+    name="attach_secret",
+    description="Attach a secret to an agent. The secret's value will be exposed as an env var (named after the secret) in the agent's pod on next start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "secret_name": {"type": "string", "description": "Name of the secret to attach."},
+            "agent_name": {"type": "string", "description": "Agent to attach to. Defaults to the current agent."},
+        },
+        "required": ["secret_name"],
+    },
+)
+async def attach_secret(args):
+    secret = _sanitize_secret_name(args["secret_name"])
+    if not secret:
+        return _err("secret_name cannot be empty.")
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    get_result = await _request("GET", f"/api/v1/agents/{agent}")
+    if get_result.get("isError"):
+        return get_result
+    agent_data = json.loads(get_result["content"][0]["text"])
+    current = list(agent_data.get("secrets") or [])
+    if secret in current:
+        return _ok(f"Secret '{secret}' is already attached to '{agent}'.")
+    current.append(secret)
+    return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"secretRefs": current})
+
+
+@tool(
+    name="detach_secret",
+    description="Detach a secret from an agent. The env var will not be set in the next pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "secret_name": {"type": "string", "description": "Name of the secret to detach."},
+            "agent_name": {"type": "string", "description": "Agent to detach from. Defaults to the current agent."},
+        },
+        "required": ["secret_name"],
+    },
+)
+async def detach_secret(args):
+    secret = _sanitize_secret_name(args["secret_name"])
+    if not secret:
+        return _err("secret_name cannot be empty.")
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    get_result = await _request("GET", f"/api/v1/agents/{agent}")
+    if get_result.get("isError"):
+        return get_result
+    agent_data = json.loads(get_result["content"][0]["text"])
+    current = list(agent_data.get("secrets") or [])
+    if secret not in current:
+        return _ok(f"Secret '{secret}' is not attached to '{agent}'.")
+    current.remove(secret)
+    return await _request("PATCH", f"/api/v1/agents/{agent}", timeout=30, json={"secretRefs": current})
+
+
+@tool(
+    name="list_skills",
+    description="List all KomputerSkill resources in the current namespace. Use this before attach_skill to see what's available.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_skills(args):
+    return await _request("GET", "/api/v1/skills")
+
+
+@tool(
+    name="get_skill",
+    description="Get full details of a skill (content, description, attached agents).",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_skill(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/skills/{name}")
+
+
+@tool(
+    name="update_skill",
+    description="Update a skill's content or description. Changes apply to all attached agents on their next pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+            "content": {"type": "string", "description": "New skill content (markdown)."},
+            "description": {"type": "string", "description": "New short description."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_skill(args):
+    name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("content") is not None:
+        payload["content"] = args["content"]
+    if args.get("description") is not None:
+        payload["description"] = args["description"]
+    if not payload:
+        return _err("update_skill requires at least one of: content, description.")
+    return await _request("PATCH", f"/api/v1/skills/{name}", timeout=30, json=payload)
+
+
+@tool(
+    name="delete_skill",
+    description="Delete a KomputerSkill from the current namespace. Any agents that have it attached will silently lose it on next pod start. Use list_skills first if unsure.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Skill name."},
+        },
+        "required": ["name"],
+    },
+)
+async def delete_skill(args):
+    name = _sanitize_name(args["name"])
+    return await _request("DELETE", f"/api/v1/skills/{name}", timeout=30)
+
+
+@tool(
+    name="detach_skill",
+    description="Detach a skill from an agent. The skill will not be loaded into the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Skill name."},
+            "agent_name": {"type": "string", "description": "Agent to detach from. Defaults to the current agent."},
+        },
+        "required": ["skill_name"],
+    },
+)
+async def detach_skill(args):
+    skill = _sanitize_name(args["skill_name"])
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    def mutator(current):
+        if skill not in current:
+            return None, f"Skill '{skill}' is not attached to '{agent}'."
+        current.remove(skill)
+        return current, None
+
+    return await _agent_list_field_patch(agent, "skills", mutator)
+
+
+@tool(
+    name="list_memories",
+    description="List all KomputerMemory resources in the current namespace. Use this before attach_memory to see what's available.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_memories(args):
+    return await _request("GET", "/api/v1/memories")
+
+
+@tool(
+    name="get_memory",
+    description="Get full details of a memory (content, description, attached agents).",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Memory name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_memory(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/memories/{name}")
+
+
+@tool(
+    name="update_memory",
+    description="Update a memory's content or description. Changes apply to all attached agents on their next pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Memory name."},
+            "content": {"type": "string", "description": "New memory content (markdown)."},
+            "description": {"type": "string", "description": "New short description."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_memory(args):
+    name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("content") is not None:
+        payload["content"] = args["content"]
+    if args.get("description") is not None:
+        payload["description"] = args["description"]
+    if not payload:
+        return _err("update_memory requires at least one of: content, description.")
+    return await _request("PATCH", f"/api/v1/memories/{name}", timeout=30, json=payload)
+
+
+@tool(
+    name="delete_memory",
+    description="Delete a KomputerMemory from the current namespace. Any agents that have it attached will silently lose it on next pod start.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Memory name."},
+        },
+        "required": ["name"],
+    },
+)
+async def delete_memory(args):
+    name = _sanitize_name(args["name"])
+    return await _request("DELETE", f"/api/v1/memories/{name}", timeout=30)
+
+
+@tool(
+    name="detach_memory",
+    description="Detach a memory from an agent. The memory will not be loaded into the agent's next task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "memory_name": {"type": "string", "description": "Memory name."},
+            "agent_name": {"type": "string", "description": "Agent to detach from. Defaults to the current agent."},
+        },
+        "required": ["memory_name"],
+    },
+)
+async def detach_memory(args):
+    memory = _sanitize_name(args["memory_name"])
+    agent, err = _resolve_agent(args)
+    if err:
+        return err
+
+    def mutator(current):
+        if memory not in current:
+            return None, f"Memory '{memory}' is not attached to '{agent}'."
+        current.remove(memory)
+        return current, None
+
+    return await _agent_list_field_patch(agent, "memories", mutator)
+
+
+@tool(
+    name="list_schedules",
+    description="List all KomputerSchedule resources in the current namespace. Each schedule defines when an agent runs.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_schedules(args):
+    return await _request("GET", "/api/v1/schedules")
+
+
+@tool(
+    name="get_schedule",
+    description="Get full details of a schedule: cron expression, timezone, instructions, last run status.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Schedule name."},
+        },
+        "required": ["name"],
+    },
+)
+async def get_schedule(args):
+    name = _sanitize_name(args["name"])
+    return await _request("GET", f"/api/v1/schedules/{name}")
+
+
+@tool(
+    name="update_schedule",
+    description="Update a schedule's cron expression, timezone, or instructions. Use this to reschedule an existing recurring task or change what it does.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Schedule name."},
+            "schedule": {"type": "string", "description": "New cron expression (5-field)."},
+            "timezone": {"type": "string", "description": "New IANA timezone."},
+            "instructions": {"type": "string", "description": "New instructions for each run."},
+        },
+        "required": ["name"],
+    },
+)
+async def update_schedule(args):
+    name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("schedule"):
+        payload["schedule"] = args["schedule"]
+    if args.get("timezone"):
+        payload["timezone"] = args["timezone"]
+    if args.get("instructions"):
+        payload["instructions"] = args["instructions"]
+    if not payload:
+        return _err("update_schedule requires at least one of: schedule, timezone, instructions.")
+    return await _request("PATCH", f"/api/v1/schedules/{name}", timeout=30, json=payload)
+
+
+@tool(
+    name="list_namespaces",
+    description="List Kubernetes namespaces visible to the API. Use this when you need to know where to look for resources.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_namespaces(args):
+    return await _request("GET", "/api/v1/namespaces")
+
+
+@tool(
+    name="list_templates",
+    description="List available KomputerAgentTemplate / KomputerAgentClusterTemplate resources. Templates define pod sizing, image, and other defaults — pass templateRef='<name>' to create_agent to use one.",
+    input_schema={"type": "object", "properties": {}},
+)
+async def list_templates(args):
+    return await _request("GET", "/api/v1/templates")
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates],
     )
