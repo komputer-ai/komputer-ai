@@ -85,7 +85,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(accessLogMiddleware())
-
+  
 	// CORS middleware — allow all origins (UI may run on a different host/port)
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
