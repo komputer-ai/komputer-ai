@@ -79,11 +79,12 @@ func main() {
 	Logger.Info("redis worker started")
 
 	// Skip the default gin access logger — Prometheus middleware already
-	// records method/path/status/latency, and structured Logger covers
-	// errors via the exception handler. A per-request access log would
-	// just be duplicate noise.
+	// records method/path/status/latency in production. We do emit a
+	// structured Debug log per request so `LOG_LEVEL=debug` gives full
+	// access tracing without polluting normal logs.
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(accessLogMiddleware())
 
 	// CORS middleware — allow all origins (UI may run on a different host/port)
 	r.Use(func(c *gin.Context) {

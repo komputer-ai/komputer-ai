@@ -4,7 +4,9 @@ package main
 import (
 	"os"
 	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
@@ -56,4 +58,34 @@ func InitLogger() {
 	core := zapcore.NewCore(encoder, zapcore.Lock(os.Stdout), level)
 	logger := zap.New(core).With(zap.String("component", "komputer-api"))
 	Logger = logger.Sugar()
+}
+
+// accessLogMiddleware emits one structured Debug log per HTTP request, with
+// method, path, status, latency, and client IP. At INFO and above this is
+// silent — Prometheus already records the same data. Set LOG_LEVEL=debug to
+// see access lines (replaces gin's default `[GIN] ...` line printer).
+//
+// Skips noisy paths (metrics, health probes) so debug mode stays useful.
+func accessLogMiddleware() gin.HandlerFunc {
+	skip := map[string]struct{}{
+		"/api/metrics":   {},
+		"/agent/metrics": {},
+		"/healthz":       {},
+		"/readyz":        {},
+	}
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		path := c.Request.URL.Path
+		if _, isSkipped := skip[path]; isSkipped {
+			return
+		}
+		Logger.Debugw("http request",
+			"method", c.Request.Method,
+			"path", path,
+			"status", c.Writer.Status(),
+			"duration_ms", time.Since(start).Milliseconds(),
+			"client_ip", c.ClientIP(),
+		)
+	}
 }
