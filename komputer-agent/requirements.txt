@@ -6,3 +6,4 @@ uvicorn
 prometheus-client>=0.20.0
 python-snappy>=0.7.0
 protobuf>=5.0.0
+python-json-logger>=2.0
