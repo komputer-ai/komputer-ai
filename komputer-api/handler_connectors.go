@@ -300,7 +300,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 		if sessionID == "" {
 			return nil, fmt.Errorf("MCP server did not return Mcp-Session-Id after initialize")
 		}
-		Logger.Infow("MCP session established", "session_id", sessionID, "init_response", truncate(string(initBody), 200))
+		Logger.Debugw("MCP session established", "session_id", sessionID, "init_response", truncate(string(initBody), 200))
 		_ = respHeaders // unused now
 
 		// Step 3: tools/list with session.
