@@ -27,6 +27,9 @@ import (
 // @BasePath /api/v1
 
 func main() {
+	InitLogger()
+	defer Logger.Sync()
+
 	log.Println("komputer-api starting...")
 
 	port := os.Getenv("PORT")
