@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import signal
 import threading
@@ -12,6 +13,8 @@ from logger import init_logger
 import config
 import metrics as agent_metrics
 import state
+
+logger = logging.getLogger(__name__)
 
 
 def load_redis_config():
@@ -47,7 +50,7 @@ def load_redis_config():
 def _handle_signal(signum, frame):
     """Handle SIGTERM/SIGINT: interrupt the running task and shut down."""
     sig_name = signal.Signals(signum).name
-    print(f"komputer-agent received {sig_name}, shutting down gracefully...", flush=True)
+    logger.info("received signal, shutting down gracefully", extra={"signal": sig_name})
     state.shutdown.set()
 
     # Interrupt the active Claude SDK client if one is running.
@@ -63,7 +66,7 @@ async def _interrupt_client():
         if state.active_client:
             await state.active_client.interrupt()
     except Exception as e:
-        print(f"Error interrupting client: {e}", flush=True)
+        logger.error("error interrupting client", extra={"error": str(e)})
 
 
 def main():
@@ -99,7 +102,7 @@ def main():
     redis_config = load_redis_config()
 
     publisher = EventPublisher(redis_config, agent_name)
-    print(f"komputer-agent {agent_name} starting with model {model}")
+    logger.info("agent starting", extra={"agent_name": agent_name, "model": model})
 
     # Import server here to avoid circular imports; configure it.
     from server import configure
@@ -122,7 +125,7 @@ def main():
             except asyncio.CancelledError:
                 publisher.publish("task_cancelled", {"reason": "Cancelled by signal"})
             except Exception as e:
-                print(f"Initial task failed: {e}", flush=True)
+                logger.error("initial task failed", extra={"error": str(e)})
                 publisher.publish("error", {"error": str(e)})
             finally:
                 state.set_active_client(None)
@@ -139,10 +142,10 @@ def main():
 
     # After uvicorn exits, wait for the task thread to finish.
     if thread and thread.is_alive():
-        print("Waiting for task to finish...", flush=True)
+        logger.info("waiting for task to finish")
         thread.join(timeout=10)
         if thread.is_alive():
-            print("Task did not finish in time, exiting.", flush=True)
+            logger.warning("task did not finish in time, exiting")
 
     # Flush any remaining queued events to Redis before exiting.
     publisher.shutdown()
