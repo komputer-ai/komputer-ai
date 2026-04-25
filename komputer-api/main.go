@@ -76,7 +76,11 @@ func main() {
 	}, k8s, hub)
 	log.Println("redis worker started")
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/api/metrics", "/agent/metrics", "/healthz", "/readyz"},
+	}))
+	r.Use(gin.Recovery())
 
 	// CORS middleware — allow all origins (UI may run on a different host/port)
 	r.Use(func(c *gin.Context) {
