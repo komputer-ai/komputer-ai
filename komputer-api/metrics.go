@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -272,7 +271,7 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 
 	var agents komputerv1alpha1.KomputerAgentList
 	if err := c.k8s.client.List(ctx, &agents, &client.ListOptions{LabelSelector: labels.Everything()}); err != nil {
-		log.Printf("crCollector: failed to list KomputerAgents: %v", err)
+		Logger.Errorw("crCollector: failed to list KomputerAgents", "error", err)
 		crCollectorErrorsTotal.WithLabelValues("agents").Inc()
 	} else {
 		// tasksInProgress: when perAgentLabels=true, one series per agent (value=1).
@@ -296,7 +295,7 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 
 	var schedules komputerv1alpha1.KomputerScheduleList
 	if err := c.k8s.client.List(ctx, &schedules); err != nil {
-		log.Printf("crCollector: failed to list KomputerSchedules: %v", err)
+		Logger.Errorw("crCollector: failed to list KomputerSchedules", "error", err)
 		crCollectorErrorsTotal.WithLabelValues("schedules").Inc()
 	} else {
 		byNs := map[string]int{}

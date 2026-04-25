@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -128,7 +127,7 @@ func registerOAuthClient(registrationEndpoint, clientName, redirectURI string) (
 		return "", "", fmt.Errorf("registration returned empty client_id")
 	}
 
-	log.Printf("OAuth dynamic registration: endpoint=%s client_id=%s", registrationEndpoint, result.ClientID)
+	Logger.Infow("OAuth dynamic registration completed", "endpoint", registrationEndpoint, "client_id", result.ClientID)
 	return result.ClientID, result.ClientSecret, nil
 }
 
@@ -247,7 +246,7 @@ func oauthAuthorize(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		authorizeURL := disc.AuthorizationEndpoint + "?" + params.Encode()
-		log.Printf("OAuth authorize: service=%s connector=%s/%s callback=%s", req.Service, req.Namespace, req.ConnectorName, callbackURL)
+		Logger.Infow("OAuth authorize", "service", req.Service, "namespace", req.Namespace, "connector_name", req.ConnectorName, "callback_url", callbackURL)
 		c.JSON(http.StatusOK, gin.H{"authorizeUrl": authorizeURL})
 	}
 }
@@ -304,7 +303,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 		quirks := getQuirks(flow.Service)
 		tokenData, err := exchangeCodeForTokens(disc.TokenEndpoint, quirks, creds, code, callbackURL)
 		if err != nil {
-			log.Printf("OAuth token exchange error: %v", err)
+			Logger.Errorw("OAuth token exchange error", "error", err)
 			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(oauthErrorHTML("Token exchange failed: "+err.Error())))
 			return
 		}
@@ -331,7 +330,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 			"client_secret": flow.OAuthClientSecret,
 			secretKey:       string(tokenJSON),
 		}); err != nil {
-			log.Printf("OAuth: failed to create secret %s/%s: %v", flow.Namespace, secretName, err)
+			Logger.Errorw("OAuth: failed to create secret", "namespace", flow.Namespace, "secret_name", secretName, "error", err)
 			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(oauthErrorHTML("Failed to store token")))
 			return
 		}
@@ -341,7 +340,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 		sk := secretKey
 		conn, err := k8s.CreateConnector(ctx, flow.Namespace, flow.ConnectorName, flow.Service, flow.DisplayName, flow.URL, "remote", "oauth", &sn, &sk)
 		if err != nil {
-			log.Printf("OAuth: failed to create connector %s/%s: %v", flow.Namespace, flow.ConnectorName, err)
+			Logger.Errorw("OAuth: failed to create connector", "namespace", flow.Namespace, "connector_name", flow.ConnectorName, "error", err)
 			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(oauthErrorHTML("Failed to create connector: "+err.Error())))
 			return
 		}
@@ -349,7 +348,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 		// Set owner reference on secret → connector for garbage collection.
 		k8s.SetSecretOwnerRef(ctx, flow.Namespace, secretName, conn.Name, string(conn.UID))
 
-		log.Printf("OAuth success: service=%s connector=%s/%s secret=%s", flow.Service, flow.Namespace, flow.ConnectorName, secretName)
+		Logger.Infow("OAuth success", "service", flow.Service, "namespace", flow.Namespace, "connector_name", flow.ConnectorName, "secret_name", secretName)
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(oauthSuccessHTML(flow.ConnectorName)))
 	}
 }
@@ -442,7 +441,7 @@ func oauthRefresh(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		if err := k8s.UpdateOAuthTokenData(ctx, req.Namespace, secretName, secretKey, tokenData); err != nil {
-			log.Printf("OAuth refresh: failed to update secret %s/%s: %v", req.Namespace, secretName, err)
+			Logger.Errorw("OAuth refresh: failed to update secret", "namespace", req.Namespace, "secret_name", secretName, "error", err)
 			// Still return the new token even if secret update failed.
 		}
 
@@ -498,7 +497,7 @@ func exchangeCodeForTokens(tokenURL string, quirks *oauthQuirks, creds oauthClie
 		return nil, fmt.Errorf("token exchange returned %d: %s", resp.StatusCode, truncate(string(body), 256))
 	}
 
-	log.Printf("OAuth token exchange raw response: %s", truncate(string(body), 512))
+	Logger.Debugw("OAuth token exchange raw response", "body", truncate(string(body), 512))
 
 	var raw map[string]interface{}
 	if err := json.Unmarshal(body, &raw); err != nil {

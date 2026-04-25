@@ -1,7 +1,10 @@
 """OAuth token refresh helper — calls komputer-api to refresh expired tokens."""
 
+import logging
 import os
 import httpx
+
+logger = logging.getLogger(__name__)
 
 API_URL = os.environ.get("KOMPUTER_API_URL", "http://komputer-api:8080")
 NAMESPACE = os.environ.get("KOMPUTER_NAMESPACE", "default")
@@ -19,5 +22,5 @@ async def refresh_oauth_token(connector_name: str) -> str | None:
                 data = resp.json()
                 return data.get("access_token")
     except Exception as e:
-        print(f"[komputer] oauth refresh failed for {connector_name}: {e}")
+        logger.exception("oauth refresh failed", extra={"connector_name": connector_name, "error": str(e)})
     return None

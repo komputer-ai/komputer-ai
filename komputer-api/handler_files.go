@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -60,13 +59,13 @@ func downloadAgentFile(k8s *K8sClient) gin.HandlerFunc {
 				c.Data(http.StatusOK, contentType, data)
 				return
 			}
-			log.Printf("file proxy failed, falling back to exec: agent=%s/%s err=%v", ns, agentName, proxyErr)
+			Logger.Warnw("file proxy failed, falling back to exec", "namespace", ns, "agent_name", agentName, "error", proxyErr)
 		}
 
 		// Fallback: kubectl exec cat (binary-safe, works locally).
 		data, err := k8s.execInPodWithOutput(c.Request.Context(), ns, podName, "cat", fullPath)
 		if err != nil {
-			log.Printf("file exec fallback failed: agent=%s/%s path=%s err=%v", ns, agentName, fullPath, err)
+			Logger.Errorw("file exec fallback failed", "namespace", ns, "agent_name", agentName, "path", fullPath, "error", err)
 			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
 			return
 		}

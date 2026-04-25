@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import queue
 import threading
@@ -6,6 +7,8 @@ import time
 import redis
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
+
+logger = logging.getLogger(__name__)
 
 
 class EventPublisher:
@@ -47,7 +50,7 @@ class EventPublisher:
             try:
                 self.client.xadd(stream_key, event, maxlen=200, approximate=True)
             except redis.RedisError as e:
-                print(json.dumps({"level": "error", "msg": "failed to publish event", "error": str(e)}), flush=True)
+                logger.exception("failed to publish event", extra={"error": str(e)})
             self._queue.task_done()
 
     def ping(self) -> bool:
@@ -69,8 +72,7 @@ class EventPublisher:
         }
 
         # Log immediately for kubectl logs visibility.
-        log_entry = {**event, "payload": payload}
-        print(json.dumps(log_entry), flush=True)
+        logger.debug("publishing event", extra={"event_type": event_type, "agent_name": self.agent_name, "payload": payload})
 
         # For task_started: trim old messages and publish atomically so the
         # stream only contains events from the current task.
@@ -86,7 +88,7 @@ class EventPublisher:
                 pipe.xadd(stream_key, event, maxlen=200, approximate=True)
                 pipe.execute()
             except redis.RedisError as e:
-                print(json.dumps({"level": "error", "msg": "failed to publish task_started", "error": str(e)}), flush=True)
+                logger.exception("failed to publish task_started", extra={"error": str(e)})
             return
 
         # All other events: enqueue for background publisher — returns immediately.

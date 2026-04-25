@@ -15,7 +15,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/redis/go-redis/v9"
@@ -62,7 +61,7 @@ func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessio
 	var err error
 	raw, err = k8s.execInPodWithOutput(ctx, ns, podName, "cat", sessionFilePath)
 	if err != nil {
-		log.Printf("session JSONL read failed for %s: %v", agentName, err)
+		Logger.Errorw("session JSONL read failed", "agent_name", agentName, "error", err)
 		return nil
 	}
 
@@ -82,7 +81,7 @@ func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEve
 		}
 		rdb.RPush(ctx, historyKey, raw)
 	}
-	log.Printf("backfilled %d events from session to Redis for %s", len(events), agentName)
+	Logger.Infow("backfilled events from session to Redis", "event_count", len(events), "agent_name", agentName)
 }
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import os
 from pathlib import Path
 
 import httpx
 import metrics as agent_metrics
+
+logger = logging.getLogger(__name__)
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -162,7 +165,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 mcp_servers[name] = cfg
                 agent_metrics.set_mcp_status(name, healthy=True)
         except Exception as e:
-            print(f"[komputer] failed to parse KOMPUTER_MCP_SERVERS: {e}")
+            logger.exception("failed to parse KOMPUTER_MCP_SERVERS", extra={"error": str(e)})
 
     if mcp_servers:
         options.mcp_servers = mcp_servers
@@ -179,8 +182,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 debug_servers[n] = d
             else:
                 debug_servers[n] = "<sdk_server>"
-        print(f"[komputer] registered MCP servers: {debug_servers}")
-        print(f"[komputer] allowed_tools: {options.allowed_tools}")
+        logger.debug("registered MCP servers", extra={"servers": debug_servers})
+        logger.debug("allowed_tools", extra={"allowed_tools": options.allowed_tools})
 
     # Resume previous session if one exists
     if session_id:

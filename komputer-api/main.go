@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,7 +26,10 @@ import (
 // @BasePath /api/v1
 
 func main() {
-	log.Println("komputer-api starting...")
+	InitLogger()
+	defer Logger.Sync()
+
+	Logger.Info("komputer-api starting")
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -52,9 +54,9 @@ func main() {
 
 	k8s, err := NewK8sClient(namespace)
 	if err != nil {
-		log.Fatalf("failed to create k8s client: %v", err)
+		Logger.Fatalw("failed to create k8s client", "error", err)
 	}
-	log.Println("kubernetes client initialized")
+	Logger.Info("kubernetes client initialized")
 
 	hostname := os.Getenv("CONSUMER_NAME")
 	if hostname == "" {
@@ -74,14 +76,16 @@ func main() {
 		StreamPrefix: redisStreamPrefix,
 		ConsumerName: hostname,
 	}, k8s, hub)
-	log.Println("redis worker started")
+	Logger.Info("redis worker started")
 
+	// Skip the default gin access logger — Prometheus middleware already
+	// records method/path/status/latency in production. We do emit a
+	// structured Debug log per request so `LOG_LEVEL=debug` gives full
+	// access tracing without polluting normal logs.
 	r := gin.New()
-	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/api/metrics", "/agent/metrics", "/healthz", "/readyz"},
-	}))
 	r.Use(gin.Recovery())
-
+	r.Use(accessLogMiddleware())
+  
 	// CORS middleware — allow all origins (UI may run on a different host/port)
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -106,7 +110,7 @@ func main() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		log.Println("shutting down...")
+		Logger.Info("shutting down")
 		cancel()
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -114,8 +118,8 @@ func main() {
 		srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("listening on :%s", port)
+	Logger.Infow("listening", "port", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("server error: %v", err)
+		Logger.Fatalw("server error", "error", err)
 	}
 }
