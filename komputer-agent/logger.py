@@ -38,7 +38,10 @@ class _ConsoleFormatter(logging.Formatter):
         }
         extras_str = " ".join(f"{k}={v}" for k, v in extras.items())
         msg = record.getMessage()
-        return f"{ts} {color}{record.levelname:5}{self.RESET} {msg}" + (f"  {extras_str}" if extras_str else "")
+        line = f"{ts} {color}{record.levelname:5}{self.RESET} {msg}" + (f"  {extras_str}" if extras_str else "")
+        if record.exc_info:
+            line += "\n" + self.formatException(record.exc_info)
+        return line
 
 
 class _JsonFormatter(jsonlogger.JsonFormatter):
