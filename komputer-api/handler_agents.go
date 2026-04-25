@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -180,7 +179,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
 				}
-				log.Printf("waking sleeping agent %s/%s", ns, req.Name)
+				Logger.Infow("waking sleeping agent", "namespace", ns, "agent_name", req.Name)
 				agentActionsTotal.WithLabelValues("wake", "success").Inc()
 				c.JSON(http.StatusOK, AgentResponse{
 					Name:            existing.Name,
@@ -239,18 +238,18 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			if cw > 0 {
 				if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, req.Name, cw); patchErr != nil {
-					log.Printf("warning: failed to patch context window for %s: %v", req.Name, patchErr)
+					Logger.Warnw("failed to patch context window", "agent_name", req.Name, "error", patchErr)
 				}
 			}
 
 			// Update lifecycle if changed
 			if req.Lifecycle != "" && req.Lifecycle != string(existing.Spec.Lifecycle) {
 				if err := k8s.PatchAgentLifecycle(c.Request.Context(), ns, req.Name, req.Lifecycle); err != nil {
-					log.Printf("warning: failed to patch lifecycle for %s: %v", req.Name, err)
+					Logger.Warnw("failed to patch lifecycle", "agent_name", req.Name, "error", err)
 				}
 			}
 
-			log.Printf("forwarded task to existing agent %s/%s", ns, req.Name)
+			Logger.Infow("forwarded task to existing agent", "namespace", ns, "agent_name", req.Name)
 			agentActionsTotal.WithLabelValues("wake", "success").Inc()
 			c.JSON(http.StatusOK, AgentResponse{
 				Name:            existing.Name,
@@ -313,7 +312,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("created new agent %s/%s", ns, req.Name)
+		Logger.Infow("created new agent", "namespace", ns, "agent_name", req.Name)
 		agentActionsTotal.WithLabelValues("create", "success").Inc()
 		c.JSON(http.StatusOK, AgentResponse{
 			Name:         agent.Name,
@@ -364,9 +363,9 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 		}
 		// Clean up the agent's Redis event stream
 		if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, name, worker.StreamPrefix); err != nil {
-			log.Printf("warning: failed to delete event stream for %s: %v", name, err)
+			Logger.Warnw("failed to delete event stream", "agent_name", name, "error", err)
 		}
-		log.Printf("deleted agent %s/%s", ns, name)
+		Logger.Infow("deleted agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("delete", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
@@ -417,7 +416,7 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("cancelled task on agent %s/%s", ns, name)
+		Logger.Infow("cancelled task on agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("cancel", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "cancelling", "name": name})
 	}
@@ -689,7 +688,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 						podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agentForSkills.Status.PodName)
 						if ipErr == nil {
 							if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agentForSkills.Status.PodName, podIP, string(configJSON)); applyErr != nil {
-								log.Printf("error: skills config apply to pod failed for %s: %v", name, applyErr)
+								Logger.Errorw("skills config apply to pod failed", "agent_name", name, "error", applyErr)
 								nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("skills sync to running pod failed: %v", applyErr))
 							}
 						}
@@ -744,12 +743,12 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 					if cw := k8s.ApplyAgentConfigGetContextWindow(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); cw > 0 {
 						freshContextWindow = cw
 						if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, name, cw); patchErr != nil {
-							log.Printf("warning: failed to patch context window for %s: %v", name, patchErr)
+							Logger.Warnw("failed to patch context window", "agent_name", name, "error", patchErr)
 						}
 					}
 				} else {
 					if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); applyErr != nil {
-						log.Printf("error: CR patched but config apply to pod failed for %s: %v", name, applyErr)
+						Logger.Errorw("CR patched but config apply to pod failed", "agent_name", name, "error", applyErr)
 						nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("config sync to running pod failed: %v", applyErr))
 					}
 				}

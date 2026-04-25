@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -96,7 +95,7 @@ func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
 				Type: srcSecret.Type,
 			}
 			if createErr := k.client.Create(ctx, newSecret); createErr != nil && !errors.IsAlreadyExists(createErr) {
-				log.Printf("warning: failed to copy secret %s to namespace %s: %v", secretName, ns, createErr)
+				Logger.Warnw("failed to copy secret to namespace", "secret_name", secretName, "namespace", ns, "error", createErr)
 			}
 		}
 	}

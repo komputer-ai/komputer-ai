@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -197,14 +196,14 @@ func listConnectorTools(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
-		log.Printf("fetching MCP tools for connector %s/%s url=%s auth=%v", conn.Namespace, conn.Name, conn.Spec.URL, authHeader != "")
+		Logger.Infow("fetching MCP tools for connector", "namespace", conn.Namespace, "name", conn.Name, "url", conn.Spec.URL, "has_auth", authHeader != "")
 		tools, err := fetchMCPTools(conn.Spec.URL, authHeader)
 		if err != nil {
-			log.Printf("error fetching MCP tools for connector %s/%s: %v", conn.Namespace, conn.Name, err)
+			Logger.Errorw("error fetching MCP tools for connector", "namespace", conn.Namespace, "name", conn.Name, "error", err)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch tools from MCP server: " + err.Error()})
 			return
 		}
-		log.Printf("fetched %d tools for connector %s/%s", len(tools), conn.Namespace, conn.Name)
+		Logger.Infow("fetched MCP tools for connector", "tool_count", len(tools), "namespace", conn.Namespace, "name", conn.Name)
 		c.JSON(http.StatusOK, gin.H{"tools": tools})
 	}
 }
@@ -275,7 +274,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("MCP tools/list response: content-type=%q url=%s", contentType, serverURL)
+	Logger.Debugw("MCP tools/list response", "content_type", contentType, "url", serverURL)
 
 	// Check if server requires a session (Mcp-Session-Id header).
 	needsSession := false
@@ -301,7 +300,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 		if sessionID == "" {
 			return nil, fmt.Errorf("MCP server did not return Mcp-Session-Id after initialize")
 		}
-		log.Printf("MCP session established: %s (init response: %s)", sessionID, truncate(string(initBody), 200))
+		Logger.Infow("MCP session established", "session_id", sessionID, "init_response", truncate(string(initBody), 200))
 		_ = respHeaders // unused now
 
 		// Step 3: tools/list with session.
@@ -321,7 +320,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 		Error json.RawMessage `json:"error"`
 	}
 	if err := json.Unmarshal(rawBody, &rpcResp); err != nil {
-		log.Printf("MCP tools/list unmarshal error: %v — raw: %s", err, truncate(string(rawBody), 256))
+		Logger.Errorw("MCP tools/list unmarshal error", "error", err, "raw_body", truncate(string(rawBody), 256))
 		return nil, fmt.Errorf("invalid MCP response: %w", err)
 	}
 	if len(rpcResp.Error) > 0 && string(rpcResp.Error) != "null" {
@@ -335,7 +334,7 @@ func fetchMCPTools(serverURL, authHeader string) ([]mcpTool, error) {
 		} else {
 			_ = json.Unmarshal(rpcResp.Error, &errMsg)
 		}
-		log.Printf("MCP tools/list RPC error: %s", errMsg)
+		Logger.Errorw("MCP tools/list RPC error", "error", errMsg)
 		return nil, fmt.Errorf("MCP error: %s", errMsg)
 	}
 

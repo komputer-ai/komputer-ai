@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,7 +29,7 @@ func main() {
 	InitLogger()
 	defer Logger.Sync()
 
-	log.Println("komputer-api starting...")
+	Logger.Info("komputer-api starting")
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -55,9 +54,9 @@ func main() {
 
 	k8s, err := NewK8sClient(namespace)
 	if err != nil {
-		log.Fatalf("failed to create k8s client: %v", err)
+		Logger.Fatalw("failed to create k8s client", "error", err)
 	}
-	log.Println("kubernetes client initialized")
+	Logger.Info("kubernetes client initialized")
 
 	hostname := os.Getenv("CONSUMER_NAME")
 	if hostname == "" {
@@ -77,7 +76,7 @@ func main() {
 		StreamPrefix: redisStreamPrefix,
 		ConsumerName: hostname,
 	}, k8s, hub)
-	log.Println("redis worker started")
+	Logger.Info("redis worker started")
 
 	r := gin.Default()
 
@@ -105,7 +104,7 @@ func main() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		log.Println("shutting down...")
+		Logger.Info("shutting down")
 		cancel()
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -113,8 +112,8 @@ func main() {
 		srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("listening on :%s", port)
+	Logger.Infow("listening", "port", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("server error: %v", err)
+		Logger.Fatalw("server error", "error", err)
 	}
 }

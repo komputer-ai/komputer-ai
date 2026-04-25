@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -186,17 +185,17 @@ func HandleAgentWS(hub *Hub) gin.HandlerFunc {
 
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			log.Printf("ws upgrade error: %v", err)
+			Logger.Errorw("ws upgrade failed", "error", err)
 			return
 		}
 		defer conn.Close()
 
 		if group != "" {
 			hub.SubscribeGroup(agentName, group, conn)
-			log.Printf("ws client connected for agent %s (group=%s)", agentName, group)
+			Logger.Infow("ws client connected", "agent_name", agentName, "group", group)
 		} else {
 			hub.SubscribeBroadcast(agentName, conn)
-			log.Printf("ws client connected for agent %s (broadcast)", agentName)
+			Logger.Infow("ws client connected", "agent_name", agentName, "group", "broadcast")
 		}
 		defer hub.Unsubscribe(agentName, conn)
 

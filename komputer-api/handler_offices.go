@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -170,16 +169,16 @@ func deleteOffice(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 		// Clean up Redis event streams for all member agents (including manager).
 		if office.Status.Manager.Name != "" {
 			if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, office.Status.Manager.Name, worker.StreamPrefix); err != nil {
-				log.Printf("warning: failed to delete event stream for manager %s: %v", office.Status.Manager.Name, err)
+				Logger.Warnw("failed to delete event stream for manager", "agent_name", office.Status.Manager.Name, "error", err)
 			}
 		}
 		for _, m := range office.Status.Members {
 			if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, m.Name, worker.StreamPrefix); err != nil {
-				log.Printf("warning: failed to delete event stream for member %s: %v", m.Name, err)
+				Logger.Warnw("failed to delete event stream for member", "agent_name", m.Name, "error", err)
 			}
 		}
 
-		log.Printf("deleted office %s/%s", ns, name)
+		Logger.Infow("deleted office", "namespace", ns, "name", name)
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
 }
@@ -240,7 +239,7 @@ func getOfficeEvents(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 		for _, agentName := range agentNames {
 			events, err := GetAgentEvents(c.Request.Context(), worker.Rdb, agentName, limit, worker.StreamPrefix)
 			if err != nil {
-				log.Printf("warning: failed to get events for agent %s: %v", agentName, err)
+				Logger.Warnw("failed to get events for agent", "agent_name", agentName, "error", err)
 				continue
 			}
 			allEvents = append(allEvents, events...)

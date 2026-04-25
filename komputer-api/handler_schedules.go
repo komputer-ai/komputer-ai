@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -139,7 +138,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("created new schedule %s/%s", ns, req.Name)
+		Logger.Infow("created new schedule", "namespace", ns, "name", req.Name)
 		c.JSON(http.StatusCreated, scheduleToResponse(*schedule))
 	}
 }
@@ -223,7 +222,7 @@ func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete schedule: " + err.Error()})
 			return
 		}
-		log.Printf("deleted schedule %s/%s", ns, name)
+		Logger.Infow("deleted schedule", "namespace", ns, "name", name)
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
 	}
 }
