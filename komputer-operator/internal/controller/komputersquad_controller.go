@@ -18,7 +18,10 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"sort"
 	"time"
 
@@ -49,6 +52,7 @@ type KomputerSquadReconciler struct {
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputersquads,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputersquads/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputersquads/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=pods/ephemeralcontainers,verbs=get;patch;update
 
 // Reconcile moves the cluster state toward the desired state for a KomputerSquad.
 func (r *KomputerSquadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -324,8 +328,30 @@ func (r *KomputerSquadReconciler) ensureMemberPVCs(ctx context.Context, squad *k
 }
 
 // reconcileSquadPod ensures the squad Pod exists with the correct set of containers.
-// If membership changed since pod creation, the old pod is deleted; a new one will
-// be created on the next reconcile loop (after the pod is fully removed).
+//
+// Membership change strategy:
+//   - If the Pod does not exist → create it.
+//   - If the Pod exists but is NOT Running → delete + recreate (fallback path).
+//   - If the Pod is Running:
+//   - Added members → inject ephemeral containers via the pods/ephemeralcontainers subresource.
+//   - Removed members → cancel their in-flight task via the API; the container
+//     remains in the pod until the next restart (k8s cannot remove containers
+//     from a running pod without killing it).
+//
+// NOTE — ephemeral container volume limitation:
+// Kubernetes does not allow adding volumes to a running pod. This means a newly
+// injected ephemeral container can only mount volumes that were declared when the
+// pod was first created (i.e. the original members' PVC-backed volumes). The new
+// member's own PVC volume ("<agentName>-workspace") is NOT in the pod's volumes
+// list and therefore CANNOT be mounted by the ephemeral container. As a result:
+//
+//   - The new member will start without /workspace (its own persistent workspace).
+//   - It WILL be able to read all existing siblings' workspaces at
+//     /agents/<sibling>/workspace.
+//
+// This is an acceptable v1 trade-off: the agent is functional and collaborative,
+// but loses its own workspace mount until the squad pod is next restarted (which
+// will include its PVC in the volumes block).
 func (r *KomputerSquadReconciler) reconcileSquadPod(ctx context.Context, squad *komputerv1alpha1.KomputerSquad, agents []*komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) error {
 	log := logf.FromContext(ctx)
 	podName := squad.Name + "-pod"
@@ -336,13 +362,42 @@ func (r *KomputerSquadReconciler) reconcileSquadPod(ctx context.Context, squad *
 
 	if err == nil {
 		// Pod exists — check if membership changed by comparing container names
-		if membershipChanged(existing, agents) {
-			log.Info("Squad membership changed, deleting pod for recreation", "pod", podName)
+		added, removed := membershipDelta(existing, agents)
+		if len(added) == 0 && len(removed) == 0 {
+			return nil // nothing to do
+		}
+
+		// If the pod is not yet Running, fall back to delete + recreate so the new
+		// pod is built with all members' PVCs in its volumes block from the start.
+		if existing.Status.Phase != corev1.PodRunning {
+			log.Info("Squad membership changed (pod not Running), deleting pod for recreation", "pod", podName)
 			if delErr := r.Delete(ctx, existing); delErr != nil && !apierrors.IsNotFound(delErr) {
 				return fmt.Errorf("delete stale squad pod %s: %w", podName, delErr)
 			}
-			// Will be created on next reconcile
+			// Will be created on the next reconcile loop once the pod is gone.
+			return nil
 		}
+
+		// Pod is Running — use surgical changes to avoid interrupting existing members.
+
+		// Inject ephemeral containers for newly added members.
+		for _, agent := range added {
+			log.Info("Injecting ephemeral container for new squad member", "pod", podName, "agent", agent.Name)
+			if injectErr := r.injectEphemeralContainer(ctx, existing, agent, agents, config); injectErr != nil {
+				log.Error(injectErr, "Failed to inject ephemeral container", "agent", agent.Name)
+				// Non-fatal: log and continue; controller will retry on next reconcile.
+			}
+		}
+
+		// Cancel tasks for removed members (container stays until next pod restart).
+		for _, agent := range removed {
+			log.Info("Cancelling task for removed squad member", "pod", podName, "agent", agent.Name)
+			if cancelErr := r.cancelTaskViaAPI(ctx, ns, agent.Name); cancelErr != nil {
+				log.Error(cancelErr, "Failed to cancel task for removed member", "agent", agent.Name)
+				// Non-fatal: log and continue.
+			}
+		}
+
 		return nil
 	}
 	if !apierrors.IsNotFound(err) {
@@ -367,21 +422,184 @@ func (r *KomputerSquadReconciler) reconcileSquadPod(ctx context.Context, squad *
 	return nil
 }
 
-// membershipChanged returns true if the pod's containers don't exactly match the agent list.
-func membershipChanged(pod *corev1.Pod, agents []*komputerv1alpha1.KomputerAgent) bool {
-	if len(pod.Spec.Containers) != len(agents) {
-		return true
-	}
-	podContainerNames := make(map[string]bool, len(pod.Spec.Containers))
+// membershipDelta returns the agents that were added to (or removed from) the
+// running pod relative to the desired agent set.
+//
+// "added"   = in desired agents, not in pod.Spec.Containers
+// "removed" = in pod.Spec.Containers, not in desired agents
+//
+// Ephemeral containers that were previously injected are also checked so that
+// containers injected in earlier reconciles are not re-injected.
+func membershipDelta(pod *corev1.Pod, agents []*komputerv1alpha1.KomputerAgent) (added, removed []*komputerv1alpha1.KomputerAgent) {
+	// Build the set of all container names currently in the pod (regular + ephemeral).
+	podContainerNames := make(map[string]bool)
 	for _, c := range pod.Spec.Containers {
 		podContainerNames[c.Name] = true
 	}
+	for _, ec := range pod.Spec.EphemeralContainers {
+		podContainerNames[ec.Name] = true
+	}
+
+	// Build the desired-agent set for O(1) lookups.
+	desiredAgentNames := make(map[string]*komputerv1alpha1.KomputerAgent, len(agents))
+	for _, a := range agents {
+		desiredAgentNames[a.Name] = a
+	}
+
+	// Agents desired but not yet in pod.
 	for _, a := range agents {
 		if !podContainerNames[a.Name] {
-			return true
+			added = append(added, a)
 		}
 	}
-	return false
+
+	// Regular containers in pod that are no longer desired.
+	// (We do not attempt to remove ephemeral containers — k8s does not support it.)
+	for _, c := range pod.Spec.Containers {
+		if _, ok := desiredAgentNames[c.Name]; !ok {
+			removed = append(removed, &komputerv1alpha1.KomputerAgent{
+				// Populate only Name/Namespace — enough for the cancel call.
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      c.Name,
+					Namespace: pod.Namespace,
+				},
+			})
+		}
+	}
+
+	return added, removed
+}
+
+// injectEphemeralContainer injects a new ephemeral container into a running squad
+// pod for the given agent via the pods/ephemeralcontainers subresource.
+//
+// Volume limitation: ephemeral containers can only mount volumes that already
+// exist in the pod's volumes list at pod creation time. The new agent's own PVC
+// volume is not present, so /workspace (its own) cannot be mounted. It CAN mount
+// all sibling workspaces at /agents/<sibling>/workspace because those volumes
+// were declared when the pod was first created. See reconcileSquadPod for the
+// full trade-off discussion.
+func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, pod *corev1.Pod, agent *komputerv1alpha1.KomputerAgent, allAgents []*komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) error {
+	// Resolve the agent's image from its template.
+	templateRef := agent.Spec.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	template := &komputerv1alpha1.KomputerAgentTemplate{}
+	if err := r.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: agent.Namespace}, template); err != nil {
+		clusterTemplate := &komputerv1alpha1.KomputerAgentClusterTemplate{}
+		if clusterErr := r.Get(ctx, types.NamespacedName{Name: templateRef}, clusterTemplate); clusterErr != nil {
+			return fmt.Errorf("template %q not found for agent %s", templateRef, agent.Name)
+		}
+		template = &komputerv1alpha1.KomputerAgentTemplate{
+			Spec: *clusterTemplate.Spec.DeepCopy(),
+		}
+	}
+	if len(template.Spec.PodSpec.Containers) == 0 {
+		return fmt.Errorf("template %q for agent %s has no containers defined", templateRef, agent.Name)
+	}
+	baseContainer := template.Spec.PodSpec.Containers[0]
+
+	// Build env vars the same way as a regular squad container.
+	envVars, err := buildAgentEnvVars(ctx, r.Client, agent, config)
+	if err != nil {
+		return fmt.Errorf("build env vars for ephemeral container %s: %w", agent.Name, err)
+	}
+	envVars = mergeEnvVars(baseContainer.Env, envVars)
+
+	// Build volume mounts: only sibling workspaces (own PVC volume is not in the
+	// pod's volumes list — see volume limitation note above).
+	podVolumeNames := make(map[string]bool, len(pod.Spec.Volumes))
+	for _, v := range pod.Spec.Volumes {
+		podVolumeNames[v.Name] = true
+	}
+
+	var volumeMounts []corev1.VolumeMount
+	for _, sibling := range allAgents {
+		if sibling.Name == agent.Name {
+			continue
+		}
+		volumeName := sibling.Name + "-workspace"
+		if podVolumeNames[volumeName] {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: "/agents/" + sibling.Name + "/workspace",
+				ReadOnly:  false,
+			})
+		}
+	}
+
+	ec := corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:            agent.Name,
+			Image:           baseContainer.Image,
+			ImagePullPolicy: baseContainer.ImagePullPolicy,
+			Env:             envVars,
+			VolumeMounts:    volumeMounts,
+			// Resources intentionally omitted: k8s rejects ResourceRequirements
+			// on ephemeral containers (they cannot be used for resource accounting).
+		},
+	}
+
+	patch := []map[string]interface{}{{
+		"op":    "add",
+		"path":  "/spec/ephemeralContainers/-",
+		"value": ec,
+	}}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("marshal ephemeral container patch: %w", err)
+	}
+
+	return r.SubResource("ephemeralcontainers").Patch(ctx, pod, client.RawPatch(types.JSONPatchType, patchBytes))
+}
+
+// cancelTaskViaAPI calls POST /api/v1/agents/<name>/cancel on the running komputer-api.
+// This is used when a member is removed from a running squad: the container cannot
+// be removed from the pod without a restart, but the agent's in-flight task can be
+// cancelled immediately.
+func (r *KomputerSquadReconciler) cancelTaskViaAPI(ctx context.Context, namespace, agentName string) error {
+	apiURL, err := r.getAPIURL(ctx)
+	if err != nil {
+		return err
+	}
+	cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel", apiURL, agentName)
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cancelURL, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("cancel returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// getAPIURL returns the API URL. Checks KOMPUTER_API_URL env var first (for local dev),
+// then falls back to KomputerConfig (for in-cluster).
+// Copied from KomputerScheduleReconciler.getAPIURL — intentionally duplicated to
+// keep blast radius minimal; a shared helper can be extracted in a future cleanup.
+func (r *KomputerSquadReconciler) getAPIURL(ctx context.Context) (string, error) {
+	if envURL := os.Getenv("KOMPUTER_API_URL"); envURL != "" {
+		return envURL, nil
+	}
+	configList := &komputerv1alpha1.KomputerConfigList{}
+	if err := r.List(ctx, configList); err != nil {
+		return "", err
+	}
+	if len(configList.Items) == 0 {
+		return "", fmt.Errorf("no KomputerConfig found")
+	}
+	url := configList.Items[0].Spec.APIURL
+	if url == "" {
+		return "", fmt.Errorf("KomputerConfig has no apiURL")
+	}
+	return url, nil
 }
 
 // buildSquadPodSpec constructs the desired Pod for the squad. Each agent gets
