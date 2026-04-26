@@ -9,19 +9,23 @@ import {
   useNodesState,
   useEdgesState,
   ReactFlowProvider,
+  Panel,
+  useStore,
   type Node,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
 
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { listAgents, listOffices, getOffice, listSchedules } from "@/lib/api";
+import { listAgents, listOffices, getOffice, listSchedules, listSquads } from "@/lib/api";
 import { usePageRefresh } from "@/components/layout/app-shell";
 import type {
   AgentResponse,
   OfficeResponse,
   ScheduleResponse,
+  Squad,
 } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
@@ -143,7 +147,7 @@ function layoutSingleGroup(nodes: Node[], edges: Edge[]): { nodes: Node[]; width
   return { nodes: normalized, width: maxX - minX, height: maxY - minY };
 }
 
-function applyDagreLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; firstRowNodeIds: Set<string> } {
+function applyDagreLayout(nodes: Node[], edges: Edge[], squads?: Squad[]): { nodes: Node[]; firstRowNodeIds: Set<string> } {
   const firstRowNodeIds = new Set<string>();
   // Find connected components
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -190,6 +194,23 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; firstR
   const ROW_GAP = 40;
 
   // 1. Standalone agents in a grid row at the top
+  //    Layout hint: sort so same-squad nodes are consecutive in the grid
+  if (standaloneIds.length > 0 && squads && squads.length > 0) {
+    // Build a map: nodeId -> squad index (lower = placed earlier)
+    const nodeSquadIdx = new Map<string, number>();
+    squads.forEach((sq, si) => {
+      sq.members.forEach((m) => {
+        const nid = `agent-${m.name}`;
+        if (!nodeSquadIdx.has(nid)) nodeSquadIdx.set(nid, si);
+      });
+    });
+    standaloneIds.sort((a, b) => {
+      const ai = nodeSquadIdx.get(a) ?? 999;
+      const bi = nodeSquadIdx.get(b) ?? 999;
+      return ai !== bi ? ai - bi : a.localeCompare(b);
+    });
+  }
+
   if (standaloneIds.length > 0) {
     const cols = Math.min(standaloneIds.length, 6);
     for (let i = 0; i < standaloneIds.length; i++) {
@@ -239,13 +260,198 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; firstR
 }
 
 /* ------------------------------------------------------------------ */
+/*  Squad color helper                                                */
+/* ------------------------------------------------------------------ */
+
+function squadColor(name: string): string {
+  // Stable color from squad name hash — warm palette that contrasts on dark bg
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  const hue = h % 360;
+  return `hsl(${hue}, 70%, 60%)`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Squad overlay: renders colored borders in ReactFlow SVG space     */
+/* ------------------------------------------------------------------ */
+
+const BORDER_PAD = 24;
+
+interface SquadCluster {
+  squadName: string;
+  namespace: string;
+  color: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function computeSquadClusters(squads: Squad[], nodes: Node[]): SquadCluster[] {
+  const clusters: SquadCluster[] = [];
+
+  for (const squad of squads) {
+    const color = squadColor(squad.name);
+    // Find laid-out nodes belonging to this squad
+    const memberNodeIds = new Set(squad.members.map((m) => `agent-${m.name}`));
+    const memberNodes = nodes.filter((n) => memberNodeIds.has(n.id));
+    if (memberNodes.length === 0) continue;
+
+    // Spatial greedy clustering: group nodes within maxDistance of each other
+    const MAX_DISTANCE = 400;
+    const used = new Set<string>();
+    const clusterGroups: Node[][] = [];
+
+    // Sort by position for deterministic grouping
+    const sorted = [...memberNodes].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y);
+
+    for (const node of sorted) {
+      if (used.has(node.id)) continue;
+      const cluster: Node[] = [node];
+      used.add(node.id);
+
+      // Keep adding nearest unused nodes that are within maxDistance of cluster centroid
+      let changed = true;
+      while (changed) {
+        changed = false;
+        const cx = cluster.reduce((s, n) => s + n.position.x, 0) / cluster.length;
+        const cy = cluster.reduce((s, n) => s + n.position.y, 0) / cluster.length;
+        for (const candidate of sorted) {
+          if (used.has(candidate.id)) continue;
+          const dx = candidate.position.x - cx;
+          const dy = candidate.position.y - cy;
+          if (Math.sqrt(dx * dx + dy * dy) <= MAX_DISTANCE) {
+            cluster.push(candidate);
+            used.add(candidate.id);
+            changed = true;
+          }
+        }
+      }
+      clusterGroups.push(cluster);
+    }
+
+    // Produce a SquadCluster rect for each group
+    const totalClusters = clusterGroups.length;
+    clusterGroups.forEach((clusterNodes, idx) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of clusterNodes) {
+        const w = (n.data as { nodeWidth?: number }).nodeWidth ?? NODE_WIDTH;
+        minX = Math.min(minX, n.position.x);
+        minY = Math.min(minY, n.position.y);
+        maxX = Math.max(maxX, n.position.x + w);
+        maxY = Math.max(maxY, n.position.y + NODE_HEIGHT);
+      }
+
+      const label = totalClusters > 1
+        ? `${squad.name} (${idx + 1}/${totalClusters})`
+        : squad.name;
+
+      clusters.push({
+        squadName: squad.name,
+        namespace: squad.namespace,
+        color,
+        label,
+        x: minX - BORDER_PAD,
+        y: minY - BORDER_PAD,
+        width: maxX - minX + BORDER_PAD * 2,
+        height: maxY - minY + BORDER_PAD * 2,
+      });
+    });
+  }
+
+  return clusters;
+}
+
+function SquadOverlay({ squads, nodes }: { squads: Squad[]; nodes: Node[] }) {
+  const router = useRouter();
+  // Subscribe to viewport changes so we re-render on pan/zoom
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transform = useStore((s: any) => s.transform as [number, number, number]);
+  const [tx, ty, zoom] = transform;
+
+  const clusters = useMemo(() => computeSquadClusters(squads, nodes), [squads, nodes]);
+
+  if (clusters.length === 0) return null;
+
+  // Project a flow-space rect to screen-space coords (inside the ReactFlow wrapper div)
+  const project = (fx: number, fy: number) => ({
+    sx: fx * zoom + tx,
+    sy: fy * zoom + ty,
+  });
+
+  return (
+    <Panel position="top-left" style={{ inset: 0, pointerEvents: "none" }}>
+      <svg
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
+        // Re-render key ensures React recreates on transform change
+        key={`${tx.toFixed(1)}-${ty.toFixed(1)}-${zoom.toFixed(3)}`}
+      >
+        {clusters.map((c: SquadCluster) => {
+          const tl = project(c.x, c.y);
+          const w = c.width * zoom;
+          const h = c.height * zoom;
+          const LABEL_PAD = 6;
+          const FONT_SIZE = Math.max(10, Math.min(13, 12 * zoom));
+
+          return (
+            <g
+              key={`${c.squadName}-${c.label}`}
+              style={{ pointerEvents: "all", cursor: "pointer" }}
+              onClick={() => router.push(`/squads/${c.squadName}?namespace=${c.namespace}`)}
+            >
+              <rect
+                x={tl.sx}
+                y={tl.sy}
+                width={w}
+                height={h}
+                rx={10 * zoom}
+                ry={10 * zoom}
+                fill={c.color}
+                fillOpacity={0.05}
+                stroke={c.color}
+                strokeWidth={2}
+                strokeOpacity={0.7}
+              />
+              {/* Label background pill */}
+              <rect
+                x={tl.sx + LABEL_PAD * zoom}
+                y={tl.sy - (FONT_SIZE * 0.7)}
+                width={(c.label.length * FONT_SIZE * 0.6 + LABEL_PAD * 2) * zoom}
+                height={FONT_SIZE * 1.4}
+                rx={4 * zoom}
+                fill="var(--color-bg, #0d1117)"
+                fillOpacity={0.85}
+              />
+              <text
+                x={tl.sx + (LABEL_PAD * 2) * zoom}
+                y={tl.sy + FONT_SIZE * 0.35}
+                fontSize={FONT_SIZE}
+                fill={c.color}
+                fontWeight="600"
+                fontFamily="var(--font-mono, monospace)"
+              >
+                {c.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </Panel>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Build nodes + edges from API data                                 */
 /* ------------------------------------------------------------------ */
 
 function buildGraph(
   agents: AgentResponse[],
   offices: OfficeResponse[],
-  schedules: ScheduleResponse[]
+  schedules: ScheduleResponse[],
+  squads?: Squad[]
 ) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -388,8 +594,8 @@ function buildGraph(
     };
   }
 
-  // Apply layout
-  const { nodes: laidOutNodes, firstRowNodeIds } = applyDagreLayout(nodes, edges);
+  // Apply layout (pass squads for positional hints)
+  const { nodes: laidOutNodes, firstRowNodeIds } = applyDagreLayout(nodes, edges, squads);
   return { nodes: laidOutNodes, edges, firstRowNodeIds };
 }
 
@@ -401,10 +607,12 @@ function TopologyGraphInner({
   initialNodes,
   initialEdges,
   firstRowNodeIds,
+  squads,
 }: {
   initialNodes: Node[];
   initialEdges: Edge[];
   firstRowNodeIds: Set<string>;
+  squads: Squad[];
 }) {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
@@ -428,6 +636,7 @@ function TopologyGraphInner({
       maxZoom={2}
     >
       <Background color="var(--color-border)" gap={24} size={1} />
+      {squads.length > 0 && <SquadOverlay squads={squads} nodes={nodes} />}
       <Controls
         className="!bg-[var(--color-surface)] !border-[var(--color-border)] !shadow-lg [&>button]:!bg-[var(--color-surface)] [&>button]:!border-[var(--color-border)] [&>button]:!text-[var(--color-text)] [&>button:hover]:!bg-[var(--color-bg)]"
       />
@@ -448,6 +657,7 @@ export function TopologyGraph() {
   const [allAgents, setAllAgents] = useState<AgentResponse[]>([]);
   const [allOffices, setAllOffices] = useState<OfficeResponse[]>([]);
   const [allSchedules, setAllSchedules] = useState<ScheduleResponse[]>([]);
+  const [allSquads, setAllSquads] = useState<Squad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -484,10 +694,11 @@ export function TopologyGraph() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [agentsRes, officesRes, schedulesRes] = await Promise.all([
+      const [agentsRes, officesRes, schedulesRes, squadsRes] = await Promise.all([
         listAgents(),
         listOffices(),
         listSchedules(),
+        listSquads().catch(() => ({ squads: [] })),
       ]);
       // List endpoint doesn't include members — fetch each office individually.
       const officeList = officesRes.offices || [];
@@ -497,6 +708,7 @@ export function TopologyGraph() {
       setAllAgents(agentsRes.agents || []);
       setAllOffices(detailedOffices);
       setAllSchedules(schedulesRes.schedules || []);
+      setAllSquads(squadsRes.squads || []);
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load topology data");
@@ -529,11 +741,13 @@ export function TopologyGraph() {
     let agents = allAgents;
     let offices = allOffices;
     let schedules = allSchedules;
+    let squads = allSquads;
 
     if (nsFilter !== "all") {
       agents = agents.filter((a) => a.namespace === nsFilter);
       offices = offices.filter((o) => o.namespace === nsFilter);
       schedules = schedules.filter((s) => s.namespace === nsFilter);
+      squads = squads.filter((sq) => sq.namespace === nsFilter);
     }
 
     if (officeFilter.length > 0) {
@@ -555,8 +769,8 @@ export function TopologyGraph() {
       return null;
     }
 
-    return buildGraph(agents, offices, schedules);
-  }, [allAgents, allOffices, allSchedules, nsFilter, officeFilter]);
+    return { ...buildGraph(agents, offices, schedules, squads), squads };
+  }, [allAgents, allOffices, allSchedules, allSquads, nsFilter, officeFilter]);
 
   if (loading) {
     return (
@@ -683,6 +897,7 @@ export function TopologyGraph() {
                   initialNodes={graphData.nodes}
                   initialEdges={graphData.edges}
                   firstRowNodeIds={graphData.firstRowNodeIds}
+                  squads={graphData.squads}
                 />
               </ReactFlowProvider>
             </motion.div>
