@@ -1,0 +1,26 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-komputer-komputer-ai-v1alpha1-komputersquad
+  failurePolicy: Fail
+  name: vkomputersquad.kb.io
+  rules:
+  - apiGroups:
+    - komputer.komputer.ai
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - komputersquads
+  sideEffects: None

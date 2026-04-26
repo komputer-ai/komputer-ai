@@ -434,18 +434,36 @@ func (k *K8sClient) DeleteAgent(ctx context.Context, ns, name string) error {
 	return k.client.Delete(ctx, agent)
 }
 
+// agentHTTPBase returns the base URL for an agent's HTTP endpoint via the
+// per-agent K8s Service. Works for both solo and squad-member agents — the
+// Service routes to the right container port (named "http") inside the pod.
+func agentHTTPBase(ns, agentName string) string {
+	return fmt.Sprintf("http://%s-agent-svc.%s:8000", agentName, ns)
+}
+
+// execInPodCurl curls localhost on the agent container. Each squad member
+// container is named after its agent, so passing agentName as containerName
+// targets the right one. For solo pods, container name == agent name too.
+// The container reads AGENT_PORT itself so the URL works in both modes.
+func (k *K8sClient) execInPodCurl(ctx context.Context, ns, podName, agentName, method, path, body string) ([]byte, error) {
+	// Pass the body via stdin (-d @-) to avoid shell-quoting hazards from arbitrary user content.
+	args := []string{"sh", "-c", fmt.Sprintf("curl -s -X %s -H 'Content-Type: application/json' --data-binary @- http://localhost:${AGENT_PORT:-8000}%s", method, path)}
+	return k.execInContainerWithStdin(ctx, ns, podName, agentName, body, args...)
+}
+
 // CancelAgentTask sends a cancel request to the agent's FastAPI endpoint.
-func (k *K8sClient) CancelAgentTask(ctx context.Context, ns, podName, podIP string) error {
-	err := k.postToAgent(ctx, podIP, "/cancel", "")
+func (k *K8sClient) CancelAgentTask(ctx context.Context, ns, podName, agentName string) error {
+	err := k.postToAgent(ctx, ns, agentName, "/cancel", "")
 	if err != nil {
-		// Fallback: kubectl exec curl inside the pod
-		return k.execInPod(ctx, ns, podName, "curl", "-s", "-X", "POST", "http://localhost:8000/cancel")
+		// Fallback: kubectl exec curl inside the pod (uses $AGENT_PORT to pick the right port).
+		_, execErr := k.execInPodCurl(ctx, ns, podName, agentName, "POST", "/cancel", "")
+		return execErr
 	}
 	return nil
 }
 
 // ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
-func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, instructions, model, internalSystemPrompt, systemPrompt string) (int64, error) {
+func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentName, instructions, model, internalSystemPrompt, systemPrompt string) (int64, error) {
 	bodyMap := map[string]string{"instructions": instructions}
 	if model != "" {
 		bodyMap["model"] = model
@@ -458,13 +476,10 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, 
 	}
 	bodyJSON, _ := json.Marshal(bodyMap)
 
-	respBody, err := k.postToAgentWithResponse(ctx, podIP, "/task", string(bodyJSON))
+	respBody, err := k.postToAgentWithResponse(ctx, ns, agentName, "/task", string(bodyJSON))
 	if err != nil {
 		// Fallback: kubectl exec curl inside the pod — capture stdout to get context_window
-		out, execErr := k.execInPodWithOutput(ctx, ns, podName, "curl", "-s", "-X", "POST",
-			"-H", "Content-Type: application/json",
-			"-d", string(bodyJSON),
-			"http://localhost:8000/task")
+		out, execErr := k.execInPodCurl(ctx, ns, podName, agentName, "POST", "/task", string(bodyJSON))
 		if execErr != nil {
 			return 0, execErr
 		}
@@ -477,13 +492,13 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, podIP, 
 	return result.ContextWindow, nil
 }
 
-// postToAgent makes a direct HTTP POST to an agent pod. Returns error if unreachable.
-// When LOCAL=true, skips HTTP entirely to force exec fallback (avoids slow pod networking).
-func (k *K8sClient) postToAgent(ctx context.Context, podIP, path, body string) error {
+// postToAgent makes an HTTP POST to an agent via its per-agent K8s Service.
+// When LOCAL=true, skips HTTP entirely to force exec fallback (no in-cluster DNS).
+func (k *K8sClient) postToAgent(ctx context.Context, ns, agentName, path, body string) error {
 	if os.Getenv("LOCAL") == "true" {
 		return fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
-	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
+	url := agentHTTPBase(ns, agentName) + path
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -514,17 +529,44 @@ func (k *K8sClient) postToAgent(ctx context.Context, podIP, path, body string) e
 	return nil
 }
 
-// execInPod runs a command inside a pod using the Kubernetes API (equivalent to kubectl exec).
+// execInPod runs a command inside a pod's first container.
 func (k *K8sClient) execInPod(ctx context.Context, ns, podName string, command ...string) error {
 	_, err := k.execInPodWithOutput(ctx, ns, podName, command...)
 	return err
 }
 
-// execInPodWithOutput runs a command inside a pod and returns stdout.
+// execInPodWithOutput runs a command inside a pod's first container and returns stdout.
+// For squad pods, prefer execInContainerWithOutput so you target the right agent.
 func (k *K8sClient) execInPodWithOutput(ctx context.Context, ns, podName string, command ...string) ([]byte, error) {
+	return k.execInContainerWithOutput(ctx, ns, podName, "", command...)
+}
+
+// execInContainerWithOutput runs a command in a specific container of a pod and returns stdout.
+// containerName is treated as a preferred name:
+//   - If the pod has a container with that exact name, exec there (correct for squad pods,
+//     where each member container is named after its agent).
+//   - Otherwise, fall back to the pod's first container (correct for solo pods, where the
+//     container is named generically e.g. "agent").
+func (k *K8sClient) execInContainerWithOutput(ctx context.Context, ns, podName, containerName string, command ...string) ([]byte, error) {
 	pod := &corev1.Pod{}
 	if err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, pod); err != nil {
 		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
+	}
+	if len(pod.Spec.Containers) == 0 {
+		return nil, fmt.Errorf("pod %s has no containers", podName)
+	}
+
+	resolved := ""
+	if containerName != "" {
+		for _, c := range pod.Spec.Containers {
+			if c.Name == containerName {
+				resolved = containerName
+				break
+			}
+		}
+	}
+	if resolved == "" {
+		resolved = pod.Spec.Containers[0].Name
 	}
 
 	execReq := k.clientset.CoreV1().RESTClient().Post().
@@ -533,7 +575,7 @@ func (k *K8sClient) execInPodWithOutput(ctx context.Context, ns, podName string,
 		Namespace(ns).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Container: pod.Spec.Containers[0].Name,
+			Container: resolved,
 			Command:   command,
 			Stdout:    true,
 			Stderr:    true,
@@ -546,6 +588,59 @@ func (k *K8sClient) execInPodWithOutput(ctx context.Context, ns, podName string,
 
 	var stdout, stderr bytes.Buffer
 	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}); err != nil {
+		return nil, fmt.Errorf("exec failed: %w (stderr: %s)", err, stderr.String())
+	}
+
+	return stdout.Bytes(), nil
+}
+
+// execInContainerWithStdin is like execInContainerWithOutput but pipes `stdin` to the command.
+func (k *K8sClient) execInContainerWithStdin(ctx context.Context, ns, podName, containerName, stdin string, command ...string) ([]byte, error) {
+	pod := &corev1.Pod{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, pod); err != nil {
+		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
+	}
+	if len(pod.Spec.Containers) == 0 {
+		return nil, fmt.Errorf("pod %s has no containers", podName)
+	}
+
+	resolved := ""
+	if containerName != "" {
+		for _, c := range pod.Spec.Containers {
+			if c.Name == containerName {
+				resolved = containerName
+				break
+			}
+		}
+	}
+	if resolved == "" {
+		resolved = pod.Spec.Containers[0].Name
+	}
+
+	execReq := k.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(ns).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: resolved,
+			Command:   command,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+		}, clientgoscheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(k.restConfig, "POST", execReq.URL())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  strings.NewReader(stdin),
 		Stdout: &stdout,
 		Stderr: &stderr,
 	}); err != nil {
@@ -633,6 +728,18 @@ func (k *K8sClient) DeleteSquad(ctx context.Context, ns, name string) error {
 	return k.client.Delete(ctx, squad)
 }
 
+// DeletePod deletes a Pod by name. Used to force a squad pod recreation after
+// membership changes (the squad reconciler will rebuild it on the next loop).
+func (k *K8sClient) DeletePod(ctx context.Context, ns, podName string) error {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: ns,
+		},
+	}
+	return k.client.Delete(ctx, pod)
+}
+
 // FindSquadForAgent lists all squads in the namespace and returns the first one
 // that contains agentName as a ref member. Returns nil if the agent is not in any squad.
 func (k *K8sClient) FindSquadForAgent(ctx context.Context, ns, agentName string) (*komputerv1alpha1.KomputerSquad, error) {
@@ -660,19 +767,11 @@ func (k *K8sClient) SteerAgent(ctx context.Context, ns, agentName, message strin
 	if agent.Status.PodName == "" {
 		return fmt.Errorf("agent %s has no running pod", agentName)
 	}
-	podIP, err := k.GetAgentPodIP(ctx, ns, agent.Status.PodName)
-	if err != nil {
-		return err
-	}
 	bodyJSON, _ := json.Marshal(map[string]string{"instructions": message})
-	_, err = k.postToAgentWithResponse(ctx, podIP, "/task", string(bodyJSON))
+	_, err := k.postToAgentWithResponse(ctx, ns, agentName, "/task", string(bodyJSON))
 	if err != nil {
-		// Fallback via kubectl exec
-		_, err = k.execInPodWithOutput(ctx, ns, agent.Status.PodName,
-			"curl", "-s", "-X", "POST",
-			"-H", "Content-Type: application/json",
-			"-d", string(bodyJSON),
-			"http://localhost:8000/task")
+		// Fallback via kubectl exec (uses $AGENT_PORT inside the container)
+		_, err = k.execInPodCurl(ctx, ns, agent.Status.PodName, agentName, "POST", "/task", string(bodyJSON))
 	}
 	return err
 }
@@ -803,12 +902,12 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
-// getFromAgent makes a direct HTTP GET to an agent pod and returns the response body.
-func (k *K8sClient) getFromAgent(ctx context.Context, podIP, path string) ([]byte, error) {
+// getFromAgent makes an HTTP GET to an agent via its per-agent K8s Service.
+func (k *K8sClient) getFromAgent(ctx context.Context, ns, agentName, path string) ([]byte, error) {
 	if os.Getenv("LOCAL") == "true" {
 		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
-	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
+	url := agentHTTPBase(ns, agentName) + path
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -831,12 +930,13 @@ func (k *K8sClient) getFromAgent(ctx context.Context, podIP, path string) ([]byt
 	return respBody, nil
 }
 
-// postToAgentWithResponse makes a direct HTTP POST to an agent pod and returns the response body.
-func (k *K8sClient) postToAgentWithResponse(ctx context.Context, podIP, path, body string) ([]byte, error) {
+// postToAgentWithResponse makes an HTTP POST to an agent via its per-agent K8s Service
+// and returns the response body.
+func (k *K8sClient) postToAgentWithResponse(ctx context.Context, ns, agentName, path, body string) ([]byte, error) {
 	if os.Getenv("LOCAL") == "true" {
 		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
-	url := fmt.Sprintf("http://%s:8000%s", podIP, path)
+	url := agentHTTPBase(ns, agentName) + path
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -869,28 +969,23 @@ func (k *K8sClient) postToAgentWithResponse(ctx context.Context, podIP, path, bo
 
 // ApplyAgentConfig sends a config update to the agent's FastAPI /config endpoint,
 // falling back to an in-pod curl if the direct HTTP call fails.
-func (k *K8sClient) ApplyAgentConfig(ctx context.Context, ns, podName, podIP string, configPayload string) error {
-	err := k.postToAgent(ctx, podIP, "/config", configPayload)
+func (k *K8sClient) ApplyAgentConfig(ctx context.Context, ns, podName, agentName string, configPayload string) error {
+	err := k.postToAgent(ctx, ns, agentName, "/config", configPayload)
 	if err != nil {
-		// Fallback: kubectl exec curl inside the pod
-		return k.execInPod(ctx, ns, podName, "curl", "-s", "-X", "POST",
-			"-H", "Content-Type: application/json",
-			"-d", configPayload,
-			"http://localhost:8000/config")
+		// Fallback: kubectl exec curl inside the pod (uses $AGENT_PORT)
+		_, execErr := k.execInPodCurl(ctx, ns, podName, agentName, "POST", "/config", configPayload)
+		return execErr
 	}
 	return nil
 }
 
 // ApplyAgentConfigGetContextWindow sends a config update and returns the context_window from the response.
 // Returns 0 if the agent is unreachable or the field is absent.
-func (k *K8sClient) ApplyAgentConfigGetContextWindow(ctx context.Context, ns, podName, podIP string, configPayload string) int64 {
-	respBody, err := k.postToAgentWithResponse(ctx, podIP, "/config", configPayload)
+func (k *K8sClient) ApplyAgentConfigGetContextWindow(ctx context.Context, ns, podName, agentName string, configPayload string) int64 {
+	respBody, err := k.postToAgentWithResponse(ctx, ns, agentName, "/config", configPayload)
 	if err != nil {
 		// Fallback via exec — capture stdout to still get context_window
-		out, execErr := k.execInPodWithOutput(ctx, ns, podName, "curl", "-s", "-X", "POST",
-			"-H", "Content-Type: application/json",
-			"-d", configPayload,
-			"http://localhost:8000/config")
+		out, execErr := k.execInPodCurl(ctx, ns, podName, agentName, "POST", "/config", configPayload)
 		if execErr != nil {
 			return 0
 		}
@@ -1384,6 +1479,22 @@ func (k *K8sClient) PatchAgentContextWindow(ctx context.Context, ns, agentName s
 	}
 	original := agent.DeepCopy()
 	agent.Status.ModelContextWindow = contextWindow
+	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// PatchAgentPhase sets Status.Phase (and optionally Message) on a KomputerAgent.
+// Used by the API to drive squad-member sleep/wake transitions, since the agent
+// controller skips squad-managed agents.
+func (k *K8sClient) PatchAgentPhase(ctx context.Context, ns, agentName string, phase komputerv1alpha1.KomputerAgentPhase, message string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: agentName, Namespace: ns}, agent); err != nil {
+		return err
+	}
+	original := agent.DeepCopy()
+	agent.Status.Phase = phase
+	if message != "" {
+		agent.Status.Message = message
+	}
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
 

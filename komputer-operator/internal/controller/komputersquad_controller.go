@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,6 +43,12 @@ import (
 )
 
 const defaultOrphanTTL = 10 * time.Minute
+
+// squadCleanupFinalizer blocks K8s from removing a KomputerSquad until the
+// reconciler has cleared Status.Squad on every member agent. Without it, a
+// squad delete that races the operator (e.g. operator down) leaves members
+// stuck with Status.Squad=true and no controller reconciling them.
+const squadCleanupFinalizer = "komputer.ai/squad-cleanup"
 
 // KomputerSquadReconciler reconciles a KomputerSquad object.
 type KomputerSquadReconciler struct {
@@ -64,21 +71,40 @@ func (r *KomputerSquadReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Handle deletion: clear Phase=Squad on all member agents before the squad is gone.
+	// 2. Handle deletion: clear Status.Squad on all member agents before the squad is gone.
+	// We use a finalizer so this runs even if the operator was down at delete time —
+	// K8s blocks the actual deletion until we remove the finalizer.
 	if !squad.DeletionTimestamp.IsZero() {
-		for _, member := range squad.Spec.Members {
-			if member.Ref == nil {
-				continue
+		if controllerutil.ContainsFinalizer(squad, squadCleanupFinalizer) {
+			for _, member := range squad.Spec.Members {
+				if member.Ref == nil {
+					continue
+				}
+				ns := member.Ref.Namespace
+				if ns == "" {
+					ns = squad.Namespace
+				}
+				if err := r.clearSquadPhase(ctx, member.Ref.Name, ns); err != nil {
+					log.Error(err, "Failed to clear Squad phase on agent during deletion", "agent", member.Ref.Name)
+					return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+				}
 			}
-			ns := member.Ref.Namespace
-			if ns == "" {
-				ns = squad.Namespace
-			}
-			if err := r.clearSquadPhase(ctx, member.Ref.Name, ns); err != nil {
-				log.Error(err, "Failed to clear Squad phase on agent during deletion", "agent", member.Ref.Name)
+			controllerutil.RemoveFinalizer(squad, squadCleanupFinalizer)
+			if err := r.Update(ctx, squad); err != nil {
+				return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 			}
 		}
 		return ctrl.Result{}, nil
+	}
+
+	// Ensure the cleanup finalizer is set on every live squad.
+	if !controllerutil.ContainsFinalizer(squad, squadCleanupFinalizer) {
+		controllerutil.AddFinalizer(squad, squadCleanupFinalizer)
+		if err := r.Update(ctx, squad); err != nil {
+			return ctrl.Result{}, fmt.Errorf("add finalizer: %w", err)
+		}
+		// Requeue with the patched object on the next loop.
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// 3. Normalize members: convert embedded spec members → create KomputerAgent + convert to ref.
@@ -160,8 +186,11 @@ func (r *KomputerSquadReconciler) normalizeMembers(ctx context.Context, squad *k
 			continue // already a ref, nothing to do
 		}
 
-		// Generate a deterministic agent name: <squad-name>-member-<index>
-		agentName := fmt.Sprintf("%s-member-%d", squad.Name, i)
+		// Use the user-supplied name when set, otherwise fall back to <squad-name>-member-<index>
+		agentName := member.Name
+		if agentName == "" {
+			agentName = fmt.Sprintf("%s-member-%d", squad.Name, i)
+		}
 
 		// Create the KomputerAgent if it does not exist yet
 		existing := &komputerv1alpha1.KomputerAgent{}
@@ -226,7 +255,10 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 	log := logf.FromContext(ctx)
 	agents := make([]*komputerv1alpha1.KomputerAgent, 0, len(squad.Spec.Members))
 
-	for _, member := range squad.Spec.Members {
+	// Assign per-member ports stably by member index. buildSquadPodSpec uses the
+	// same scheme (8000 + position-in-agents-slice), and since we append agents
+	// in member order, the indices match.
+	for memberIdx, member := range squad.Spec.Members {
 		if member.Ref == nil {
 			continue
 		}
@@ -244,15 +276,17 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 			return nil, fmt.Errorf("get agent %s: %w", member.Ref.Name, err)
 		}
 
-		// Set Phase=Squad if not already set
-		if agent.Status.Phase != komputerv1alpha1.KomputerAgentPhaseSquad {
+		desiredPort := int32(8000 + memberIdx)
+
+		// Mark agent as squad-managed. The actual Phase is set later by
+		// updateSquadMemberStatus based on the squad pod's state.
+		if !agent.Status.Squad || agent.Status.Port != desiredPort {
 			original := agent.DeepCopy()
-			agent.Status.Phase = komputerv1alpha1.KomputerAgentPhaseSquad
+			agent.Status.Squad = true
+			agent.Status.Port = desiredPort
 			agent.Status.Message = fmt.Sprintf("Managed by squad %s", squad.Name)
 			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
-				// Any error (including conflict) means we have a partial set — return
-				// immediately so controller-runtime requeues the entire reconcile.
-				return nil, fmt.Errorf("patch agent %s phase to Squad: %w", agent.Name, err)
+				return nil, fmt.Errorf("patch agent %s squad=true: %w", agent.Name, err)
 			}
 		}
 
@@ -359,6 +393,38 @@ func (r *KomputerSquadReconciler) reconcileSquadPod(ctx context.Context, squad *
 
 	existing := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: ns}, existing)
+
+	// If every member is Sleeping, the squad has nothing to do — delete the pod
+	// (PVCs are kept). The pod is rebuilt when any member wakes (the API clears
+	// that member's Phase=Sleeping before forwarding a task).
+	allSleeping := len(agents) > 0
+	for _, a := range agents {
+		if a.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+			allSleeping = false
+			break
+		}
+	}
+	if allSleeping {
+		// If a break-up was requested, dissolve the squad now: deleting the squad
+		// CR triggers the cleanup finalizer which clears Status.Squad on every
+		// member, returning them to the agent controller as solo agents. PVCs
+		// survive (they're owned by the agent CR, not the squad).
+		if squad.Spec.BreakUpRequested {
+			log.Info("All members sleeping and break-up requested — deleting squad CR", "squad", squad.Name)
+			if delErr := r.Delete(ctx, squad); delErr != nil && !apierrors.IsNotFound(delErr) {
+				return fmt.Errorf("delete squad %s (break-up): %w", squad.Name, delErr)
+			}
+			return nil
+		}
+		if err == nil {
+			log.Info("All squad members are Sleeping — deleting squad pod", "pod", podName)
+			if delErr := r.Delete(ctx, existing); delErr != nil && !apierrors.IsNotFound(delErr) {
+				return fmt.Errorf("delete squad pod %s (all sleeping): %w", podName, delErr)
+			}
+		}
+		// Pod already gone (or just deleted) — nothing more to do until someone wakes.
+		return nil
+	}
 
 	if err == nil {
 		// Pod exists — check if membership changed by comparing container names
@@ -636,6 +702,13 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 	containers := make([]corev1.Container, 0, len(agents))
 
 	for _, agent := range agents {
+		// Each member's port is stamped on Status.Port by markMembersAsSquad.
+		// We trust that here so the per-agent Service (which targets Status.Port)
+		// stays in sync with the actual container port.
+		agentPort := agent.Status.Port
+		if agentPort == 0 {
+			agentPort = 8000
+		}
 		// Resolve the agent's template to get the base container spec (image, resources, etc.)
 		templateRef := agent.Spec.TemplateRef
 		if templateRef == "" {
@@ -668,7 +741,58 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		if err != nil {
 			return nil, fmt.Errorf("failed to build env vars for squad member %s: %w", agent.Name, err)
 		}
+		// AGENT_PORT tells the agent which port to bind. Squad members each get a
+		// unique port so they don't collide on the shared pod network namespace.
+		envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: fmt.Sprintf("%d", agentPort)})
+		// If this member is currently Sleeping but the pod is being (re)built for a
+		// non-sleeping sibling, start the container in wake-idle mode so it exposes
+		// its HTTP server without auto-running its previous instructions.
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
+		}
 		c.Env = mergeEnvVars(c.Env, envVars)
+
+		// Declare the per-member containerPort. Name must be unique across the
+		// squad pod's containers (K8s pod-spec validation), so we suffix it with
+		// the port number. The per-agent Service routes to this port numerically.
+		c.Ports = []corev1.ContainerPort{{
+			Name:          fmt.Sprintf("http-%d", agentPort),
+			ContainerPort: agentPort,
+			Protocol:      corev1.ProtocolTCP,
+		}}
+
+		// Health probes hit the per-member port.
+		c.LivenessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/healthz",
+					Port: intstr.FromInt(int(agentPort)),
+				},
+			},
+			InitialDelaySeconds: 10,
+			PeriodSeconds:       30,
+		}
+		c.ReadinessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/readyz",
+					Port: intstr.FromInt(int(agentPort)),
+				},
+			},
+			// /readyz is a no-op endpoint; poll fast so wake-up latency to
+			// "Running" stays under a couple of seconds.
+			InitialDelaySeconds: 1,
+			PeriodSeconds:       2,
+			FailureThreshold:    3,
+		}
+		c.Lifecycle = &corev1.Lifecycle{
+			PreStop: &corev1.LifecycleHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/shutdown",
+					Port: intstr.FromInt(int(agentPort)),
+				},
+			},
+		}
 
 		// Volume mounts: own PVC at /workspace, siblings at /agents/<sibling>/workspace.
 		c.VolumeMounts = append(c.VolumeMounts,
@@ -693,14 +817,22 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		containers = append(containers, c)
 	}
 
+	// Pod labels include one "komputer.ai/member-<name>=true" label per squad
+	// member so the per-agent Service (selector: komputer.ai/member-<name>=true)
+	// can find the pod regardless of which container runs the agent.
+	podLabels := map[string]string{
+		"komputer.ai/squad":      "true",
+		"komputer.ai/squad-name": squad.Name,
+	}
+	for _, agent := range agents {
+		podLabels["komputer.ai/member-"+agent.Name] = "true"
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: squad.Namespace,
-			Labels: map[string]string{
-				"komputer.ai/squad":      "true",
-				"komputer.ai/squad-name": squad.Name,
-			},
+			Labels:    podLabels,
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -745,6 +877,35 @@ func (r *KomputerSquadReconciler) updateSquadMemberStatus(ctx context.Context, s
 			Ready:      ready,
 			TaskStatus: string(agent.Status.TaskStatus),
 		})
+
+		// Mirror the squad pod state onto the member agent's Status so the UI
+		// can show "Running" instead of "Squad".
+		// Exception: an explicit Sleeping intent (set by the API sleep handler)
+		// is preserved regardless of pod state — the member's container may still
+		// be running inside the squad pod, but the agent is logically asleep.
+		desiredPhase := komputerv1alpha1.AgentPhasePending
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			desiredPhase = komputerv1alpha1.AgentPhaseSleeping
+		} else if podExists {
+			switch pod.Status.Phase {
+			case corev1.PodRunning:
+				if ready {
+					desiredPhase = komputerv1alpha1.AgentPhaseRunning
+				}
+			case corev1.PodFailed:
+				desiredPhase = komputerv1alpha1.AgentPhaseFailed
+			case corev1.PodSucceeded:
+				desiredPhase = komputerv1alpha1.AgentPhaseSucceeded
+			}
+		}
+		if agent.Status.Phase != desiredPhase || agent.Status.PodName != podName {
+			original := agent.DeepCopy()
+			agent.Status.Phase = desiredPhase
+			agent.Status.PodName = podName
+			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				return fmt.Errorf("patch agent %s phase from squad pod: %w", agent.Name, err)
+			}
+		}
 	}
 
 	// Stable output order
@@ -837,7 +998,7 @@ func (r *KomputerSquadReconciler) handleSingleMemberShrinkage(ctx context.Contex
 	return ctrl.Result{}, r.Delete(ctx, squad)
 }
 
-// clearSquadPhase sets agent.status.phase = "" so the agent controller resets it to Pending.
+// clearSquadPhase clears Status.Squad and resets Phase so the agent controller picks it up.
 func (r *KomputerSquadReconciler) clearSquadPhase(ctx context.Context, agentName, namespace string) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	if err := r.Get(ctx, types.NamespacedName{Name: agentName, Namespace: namespace}, agent); err != nil {
@@ -846,11 +1007,13 @@ func (r *KomputerSquadReconciler) clearSquadPhase(ctx context.Context, agentName
 		}
 		return err
 	}
-	if agent.Status.Phase != komputerv1alpha1.KomputerAgentPhaseSquad {
-		return nil // phase already cleared
+	if !agent.Status.Squad {
+		return nil // already cleared
 	}
 	original := agent.DeepCopy()
+	agent.Status.Squad = false
 	agent.Status.Phase = ""
+	agent.Status.PodName = ""
 	agent.Status.Message = ""
 	return r.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
@@ -878,6 +1041,9 @@ func (r *KomputerSquadReconciler) updateSquadStatus(ctx context.Context, squad *
 func (r *KomputerSquadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&komputerv1alpha1.KomputerSquad{}).
+		// Watch the owned squad pod so container readiness changes (Pending → Running)
+		// trigger an immediate reconcile instead of waiting up to 30s for the next tick.
+		Owns(&corev1.Pod{}).
 		// Watch KomputerAgent changes to react to member phase/status transitions.
 		Watches(
 			&komputerv1alpha1.KomputerAgent{},

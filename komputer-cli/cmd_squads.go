@@ -400,6 +400,54 @@ func registerSquadCommands(root *cobra.Command) {
 		},
 	})
 
+	// ── squad break-up ──────────────────────────────────────────────────
+	squadCmd.AddCommand(&cobra.Command{
+		Use:   "break-up <name>",
+		Short: "Request squad break-up (dissolves squad once all members are sleeping)",
+		Long: "Marks the squad for dissolution. Once every member is asleep, " +
+			"the operator deletes the squad and members fall back to solo agents. " +
+			"Workspaces (PVCs) are preserved. Sending tasks to sleeping members " +
+			"in the meantime is allowed — they wake, run, return to Sleeping, and " +
+			"the break-up eventually completes.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			squadName := args[0]
+
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/squads/%s/break-up%s", ep, url.PathEscape(squadName), nsQuery(cmd)), nil)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				return fmt.Errorf("request failed: %w", err)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Squad %q not found", squadName), 404)
+				}
+				return fmt.Errorf("squad %q not found", squadName)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				return fmt.Errorf("API error (%d): %s", status, string(data))
+			}
+
+			var squad SquadResponse
+			json.Unmarshal(data, &squad)
+
+			if jsonMode {
+				printJSON(squad)
+				return nil
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Break-up requested for squad %q — will dissolve once all members are sleeping", squadName)))
+			printSquad(squad)
+			return nil
+		},
+	})
+
 	root.AddCommand(squadCmd)
 }
 

@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/redis/go-redis/v9"
@@ -26,10 +27,9 @@ func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessio
 	var raw []byte
 
 	// Try HTTP first (skipped instantly in LOCAL mode).
-	podIP, _ := k8s.GetAgentPodIP(ctx, ns, podName)
-	if podIP != "" {
+	if os.Getenv("LOCAL") != "true" {
 		historyPath := fmt.Sprintf("/history?limit=%d&session_id=%s", limit, sessionID)
-		respBody, err := k8s.getFromAgent(ctx, podIP, historyPath)
+		respBody, err := k8s.getFromAgent(ctx, ns, agentName, historyPath)
 		if err == nil {
 			var result struct {
 				Events []struct {

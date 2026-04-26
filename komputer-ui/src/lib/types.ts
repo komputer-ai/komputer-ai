@@ -29,6 +29,8 @@ export interface AgentResponse {
   queueReason?: string;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  squad?: boolean;
+  squadName?: string;
   errors?: string[];
 }
 
@@ -287,6 +289,7 @@ export interface Squad {
   orphanTTL?: string;
   orphanedSince?: string;
   message?: string;
+  breakUpRequested?: boolean;
   createdAt: string;
 }
 
@@ -297,7 +300,10 @@ export interface SquadListResponse {
 export interface CreateSquadRequest {
   name: string;
   namespace?: string;
-  members: Array<{ ref?: { name: string; namespace?: string } } | { spec: unknown }>;
+  members: Array<
+    | { ref: { name: string; namespace?: string }; name?: string }
+    | { spec: unknown; name?: string }
+  >;
   orphanTTL?: string;
 }
 

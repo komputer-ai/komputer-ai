@@ -1,0 +1,14 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/main ./cmd"
+  bin = "./tmp/main"
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "bin", "config", "test", "dist"]
+  delay = 500
+  kill_delay = "2s"
+  send_interrupt = true
+
+[log]
+  time = false

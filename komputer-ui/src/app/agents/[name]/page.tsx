@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -19,6 +20,7 @@ import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
+import { BreakUpButton } from "@/components/squads/break-up-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
@@ -238,10 +240,10 @@ export default function AgentDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (opts?: { recreatePod?: boolean }) => {
     if (!agentName) return;
     try {
-      await deleteAgent(agentName, agentNs);
+      await deleteAgent(agentName, agentNs, opts);
       router.push("/agents");
     } catch {
       // Will be reflected in next poll
@@ -335,6 +337,18 @@ export default function AgentDetailPage() {
                     <StatusBadge status={agent.taskStatus} size="sm" />
                   </>
                 )}
+                {agent.squad && agent.squadName && (
+                  <>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">Squad</span>
+                    <Link
+                      href={`/squads/${agent.squadName}?namespace=${agent.namespace}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                    >
+                      <Users className="size-3" />
+                      <span>{agent.squadName}</span>
+                    </Link>
+                  </>
+                )}
                 <Badge variant="outline" className="text-xs font-mono">
                   {agent.model}
                 </Badge>
@@ -389,10 +403,17 @@ export default function AgentDetailPage() {
                     </Button>
                   </>
                 )}
-                <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
-                  <Users className="size-3" data-icon="inline-start" />
-                  Team Up
-                </Button>
+                {agentSquad ? (
+                  <BreakUpButton
+                    squad={agentSquad}
+                    onSuccess={refreshSquads}
+                  />
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
+                    <Users className="size-3" data-icon="inline-start" />
+                    Team Up
+                  </Button>
+                )}
                 {agentSquad ? (
                   <SquadAwareDeleteButton
                     agentName={agent.name}
@@ -530,6 +551,7 @@ export default function AgentDetailPage() {
         onOpenChange={setTeamUpOpen}
         agentName={agent.name}
         agentNamespace={agent.namespace || agentNs || "default"}
+        agentStatus={agent.status}
         squads={squads}
         onSuccess={refreshSquads}
       />
@@ -940,89 +962,31 @@ function SettingsCard({ agent, agentNs, onSaved }: {
 
 function SquadAwareDeleteButton({
   agentName,
-  agentNamespace,
   squad,
   onConfirm,
 }: {
   agentName: string;
   agentNamespace: string;
   squad: Squad;
-  onConfirm: () => void;
+  onConfirm: (opts?: { recreatePod?: boolean }) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [deleteSquadChecked, setDeleteSquadChecked] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleConfirm = async () => {
-    setSubmitting(true);
-    try {
-      if (deleteSquadChecked) {
-        await deleteSquad(squad.name, squad.namespace);
-      }
-      onConfirm();
-    } finally {
-      setSubmitting(false);
-      setOpen(false);
-    }
-  };
-
   return (
-    <>
-      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
-        <Trash2 className="size-3" data-icon="inline-start" />
-        Delete
-      </Button>
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setOpen(false)}
-        >
-          <div className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md" />
-          <div
-            className="relative z-10 w-full max-w-sm mx-4 rounded-[var(--radius-xl)] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold text-[var(--color-text)]">Delete {agentName}?</h2>
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                This agent is part of squad{" "}
-                <Link
-                  href={`/squads/${squad.name}?namespace=${squad.namespace}`}
-                  className="font-medium text-[var(--color-brand-blue)] hover:underline"
-                  onClick={() => setOpen(false)}
-                >
-                  {squad.name}
-                </Link>
-                .
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={deleteSquadChecked}
-                  onChange={(e) => setDeleteSquadChecked(e.target.checked)}
-                  className="mt-0.5 accent-[var(--color-brand-blue)]"
-                />
-                <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors">
-                  Delete squad too (all members will revert to solo)
-                </span>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" size="sm" onClick={handleConfirm} disabled={submitting}>
-                {submitting ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <SquadAwareDeleteDialog
+      title={`Delete ${agentName}?`}
+      squad={{ name: squad.name, namespace: squad.namespace }}
+      onConfirm={async ({ recreatePod, deleteSquads }) => {
+        if (deleteSquads) {
+          await deleteSquad(squad.name, squad.namespace);
+        }
+        onConfirm({ recreatePod });
+      }}
+      trigger={
+        <Button variant="destructive" size="sm">
+          <Trash2 className="size-3" data-icon="inline-start" />
+          Delete
+        </Button>
+      }
+    />
   );
 }
 

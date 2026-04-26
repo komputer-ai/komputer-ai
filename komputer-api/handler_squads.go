@@ -13,15 +13,16 @@ import (
 
 // SquadResponse is the API representation of a KomputerSquad.
 type SquadResponse struct {
-	Name          string                `json:"name"`
-	Namespace     string                `json:"namespace"`
-	Phase         string                `json:"phase"`
-	PodName       string                `json:"podName,omitempty"`
-	Members       []SquadMemberResponse `json:"members"`
-	OrphanTTL     string                `json:"orphanTTL,omitempty"`
-	OrphanedSince *time.Time            `json:"orphanedSince,omitempty"`
-	Message       string                `json:"message,omitempty"`
-	CreatedAt     time.Time             `json:"createdAt"`
+	Name             string                `json:"name"`
+	Namespace        string                `json:"namespace"`
+	Phase            string                `json:"phase"`
+	PodName          string                `json:"podName,omitempty"`
+	Members          []SquadMemberResponse `json:"members"`
+	OrphanTTL        string                `json:"orphanTTL,omitempty"`
+	OrphanedSince    *time.Time            `json:"orphanedSince,omitempty"`
+	Message          string                `json:"message,omitempty"`
+	BreakUpRequested bool                  `json:"breakUpRequested,omitempty"`
+	CreatedAt        time.Time             `json:"createdAt"`
 }
 
 // SquadMemberResponse is the API representation of a squad member status entry.
@@ -54,6 +55,8 @@ type PatchSquadRequest struct {
 type AddSquadMemberRequest struct {
 	Ref  *komputerv1alpha1.KomputerSquadMemberRef `json:"ref,omitempty"`
 	Spec *komputerv1alpha1.KomputerAgentSpec      `json:"spec,omitempty"`
+	// Name is the desired KomputerAgent name when Spec is set. Optional.
+	Name string `json:"name,omitempty"`
 }
 
 // squadToResponse converts a KomputerSquad CR to a SquadResponse.
@@ -79,15 +82,16 @@ func squadToResponse(s komputerv1alpha1.KomputerSquad) SquadResponse {
 	}
 
 	return SquadResponse{
-		Name:          s.Name,
-		Namespace:     s.Namespace,
-		Phase:         string(s.Status.Phase),
-		PodName:       s.Status.PodName,
-		Members:       members,
-		OrphanTTL:     orphanTTL,
-		OrphanedSince: orphanedSince,
-		Message:       s.Status.Message,
-		CreatedAt:     s.CreationTimestamp.UTC(),
+		Name:             s.Name,
+		Namespace:        s.Namespace,
+		Phase:            string(s.Status.Phase),
+		PodName:          s.Status.PodName,
+		Members:          members,
+		OrphanTTL:        orphanTTL,
+		OrphanedSince:    orphanedSince,
+		Message:          s.Status.Message,
+		BreakUpRequested: s.Spec.BreakUpRequested,
+		CreatedAt:        s.CreationTimestamp.UTC(),
 	}
 }
 
@@ -150,6 +154,28 @@ func getSquad(k8s *K8sClient) gin.HandlerFunc {
 // @ID createSquad
 // @Summary Create squad
 // @Description Creates a new squad with the given members.
+// validateMemberRefForAdoption ensures an existing agent being adopted into a squad
+// is asleep (no running pod), so that joining the squad doesn't leave a stale solo
+// pod alongside the new squad-pod container. Returns (errorMessage, true) to block,
+// or ("", false) to allow.
+func validateMemberRefForAdoption(c *gin.Context, k8s *K8sClient, ns, agentName string) (string, bool) {
+	agent, err := k8s.GetAgent(c.Request.Context(), ns, agentName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return fmt.Sprintf("agent %q not found", agentName), true
+		}
+		return fmt.Sprintf("failed to look up agent %q: %v", agentName, err), true
+	}
+	// Already in a squad? Let the operator handle it (no transition needed).
+	if agent.Status.Squad {
+		return "", false
+	}
+	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		return fmt.Sprintf("agent %q must be asleep in order to team up (current phase: %s). Sleep the agent first, then retry.", agentName, agent.Status.Phase), true
+	}
+	return "", false
+}
+
 // @Tags squads
 // @Accept json
 // @Produce json
@@ -175,6 +201,61 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 		ns := req.Namespace
 		if ns == "" {
 			ns = resolveNamespace(c, k8s)
+		}
+
+		// Block team-up of running agents — the existing solo pod must be removed first.
+		// Sleeping the agent stops its pod (PVC kept) so the squad pod can adopt it cleanly.
+		for _, m := range req.Members {
+			if m.Ref == nil {
+				continue
+			}
+			refNs := m.Ref.Namespace
+			if refNs == "" {
+				refNs = ns
+			}
+			if msg, blocked := validateMemberRefForAdoption(c, k8s, refNs, m.Ref.Name); blocked {
+				c.JSON(http.StatusConflict, gin.H{"error": msg})
+				return
+			}
+		}
+
+		// Compute member names so each inline member's InternalSystemPrompt can
+		// reference its squad siblings.
+		memberNames := make([]string, 0, len(req.Members))
+		for i, m := range req.Members {
+			if m.Ref != nil {
+				memberNames = append(memberNames, m.Ref.Name)
+			} else if m.Name != "" {
+				memberNames = append(memberNames, m.Name)
+			} else {
+				memberNames = append(memberNames, fmt.Sprintf("%s-member-%d", req.Name, i))
+			}
+		}
+
+		// For each inline-spec member, populate InternalSystemPrompt the same way
+		// the solo-agent create flow does. Otherwise squad members start with an
+		// empty KOMPUTER_INTERNAL_SYSTEM_PROMPT and lack their role/memories/squad
+		// context.
+		for i := range req.Members {
+			m := &req.Members[i]
+			if m.Spec == nil {
+				continue
+			}
+			role := m.Spec.Role
+			if role == "" {
+				role = "worker"
+			}
+			myName := memberNames[i]
+			siblings := make([]string, 0, len(memberNames)-1)
+			for j, n := range memberNames {
+				if j != i {
+					siblings = append(siblings, n)
+				}
+			}
+			m.Spec.InternalSystemPrompt = buildAgentInternalSystemPrompt(
+				c.Request.Context(), k8s, ns, myName, role,
+				m.Spec.Memories, req.Name, siblings,
+			)
 		}
 
 		spec := komputerv1alpha1.KomputerSquadSpec{
@@ -366,9 +447,23 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// Block adoption of a running agent — must be asleep so the existing solo pod
+		// is gone before the squad pod takes over its PVC.
+		if req.Ref != nil {
+			refNs := req.Ref.Namespace
+			if refNs == "" {
+				refNs = ns
+			}
+			if msg, blocked := validateMemberRefForAdoption(c, k8s, refNs, req.Ref.Name); blocked {
+				c.JSON(http.StatusConflict, gin.H{"error": msg})
+				return
+			}
+		}
+
 		newMember := komputerv1alpha1.KomputerSquadMember{
 			Ref:  req.Ref,
 			Spec: req.Spec,
+			Name: req.Name,
 		}
 
 		// Retry once on 409 conflict.
@@ -383,6 +478,31 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 				squadActionsTotal.WithLabelValues("add_member", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
+			}
+
+			// If the new member is an inline spec, populate its InternalSystemPrompt
+			// so it starts with the correct role + memories + squad context.
+			if newMember.Spec != nil {
+				role := newMember.Spec.Role
+				if role == "" {
+					role = "worker"
+				}
+				myName := newMember.Name
+				if myName == "" {
+					myName = fmt.Sprintf("%s-member-%d", squad.Name, len(squad.Spec.Members))
+				}
+				siblings := make([]string, 0, len(squad.Spec.Members))
+				for _, m := range squad.Spec.Members {
+					if m.Ref != nil {
+						siblings = append(siblings, m.Ref.Name)
+					} else if m.Name != "" {
+						siblings = append(siblings, m.Name)
+					}
+				}
+				newMember.Spec.InternalSystemPrompt = buildAgentInternalSystemPrompt(
+					c.Request.Context(), k8s, ns, myName, role,
+					newMember.Spec.Memories, squad.Name, siblings,
+				)
 			}
 
 			squad.Spec.Members = append(squad.Spec.Members, newMember)
@@ -499,6 +619,67 @@ func removeSquadMember(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
+		c.JSON(http.StatusOK, squadToResponse(*updated))
+	}
+}
+
+// breakUpSquad marks the squad for dissolution. The operator deletes the squad
+// CR (and via the cleanup finalizer, clears Status.Squad on each member) once
+// every member is asleep. Sending tasks to sleeping members in the meantime is
+// allowed — they wake, run, return to Sleeping, and the break-up eventually
+// completes. PVCs are preserved.
+//
+// @ID breakUpSquad
+// @Summary Request squad break-up
+// @Description Marks the squad for dissolution once all members are asleep.
+// @Tags squads
+// @Produce json
+// @Param name path string true "Squad name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} SquadResponse "Squad with break-up flag set"
+// @Failure 404 {object} map[string]string "Squad not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /squads/{name}/break-up [post]
+func breakUpSquad(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+
+		// Retry once on 409 conflict.
+		var updated *komputerv1alpha1.KomputerSquad
+		for attempt := 0; attempt < 2; attempt++ {
+			squad, err := k8s.GetSquad(c.Request.Context(), ns, name)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					c.JSON(http.StatusNotFound, gin.H{"error": "squad not found"})
+					return
+				}
+				squadActionsTotal.WithLabelValues("break_up", "error").Inc()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			if squad.Spec.BreakUpRequested {
+				// Idempotent — already requested.
+				c.JSON(http.StatusOK, squadToResponse(*squad))
+				return
+			}
+
+			squad.Spec.BreakUpRequested = true
+			updated, err = k8s.UpdateSquad(c.Request.Context(), squad)
+			if err == nil {
+				break
+			}
+			if !errors.IsConflict(err) || attempt == 1 {
+				squadActionsTotal.WithLabelValues("break_up", "error").Inc()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to request break-up: " + err.Error()})
+				return
+			}
+			Logger.Infow("squad break_up conflict, retrying", "squad_name", name)
+		}
+
+		Logger.Infow("squad break-up requested", "namespace", ns, "squad_name", name)
+		squadActionsTotal.WithLabelValues("break_up", "success").Inc()
 		c.JSON(http.StatusOK, squadToResponse(*updated))
 	}
 }

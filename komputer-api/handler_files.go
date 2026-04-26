@@ -46,10 +46,9 @@ func downloadAgentFile(k8s *K8sClient) gin.HandlerFunc {
 		filename := filepath.Base(filePath)
 		fullPath := agentFilesDir + "/" + filePath
 
-		// Try HTTP proxy first (works when pod IP is reachable, skipped in LOCAL mode).
-		podIP, _ := k8s.GetAgentPodIP(c.Request.Context(), ns, podName)
-		if podIP != "" && os.Getenv("LOCAL") != "true" {
-			agentURL := fmt.Sprintf("http://%s:8000/download/%s", podIP, filePath)
+		// Try HTTP proxy first (skipped in LOCAL mode where in-cluster DNS isn't available).
+		if os.Getenv("LOCAL") != "true" {
+			agentURL := fmt.Sprintf("%s/download/%s", agentHTTPBase(ns, agentName), filePath)
 			data, contentType, proxyFilename, proxyErr := proxyFileFromAgent(c.Request.Context(), agentURL)
 			if proxyErr == nil {
 				if proxyFilename != "" {
@@ -63,7 +62,8 @@ func downloadAgentFile(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// Fallback: kubectl exec cat (binary-safe, works locally).
-		data, err := k8s.execInPodWithOutput(c.Request.Context(), ns, podName, "cat", fullPath)
+		// For squad pods, target the per-agent container by name.
+		data, err := k8s.execInContainerWithOutput(c.Request.Context(), ns, podName, agentName, "cat", fullPath)
 		if err != nil {
 			Logger.Errorw("file exec fallback failed", "namespace", ns, "agent_name", agentName, "path", fullPath, "error", err)
 			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})

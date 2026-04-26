@@ -72,7 +72,7 @@ export default function SquadsPage() {
         ) : filtered.length === 0 && squads.length === 0 ? (
           <EmptyState
             title="No squads yet"
-            description="No squads yet. Create one from the agent dialog."
+            description="No squads yet. Create one by teaming up agents."
           />
         ) : filtered.length === 0 ? (
           <EmptyState

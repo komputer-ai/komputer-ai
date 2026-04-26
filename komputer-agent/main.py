@@ -132,13 +132,24 @@ def main():
                 state.active_loop = None
                 state.steer_queue = None  # Ensure no stale queue reference remains.
 
+    # KOMPUTER_WAKE_IDLE=true means "expose HTTP server but don't auto-run instructions".
+    # Used when a squad pod is rebuilt to wake one member: other still-sleeping members
+    # need their containers up (K8s can't selectively run containers in a pod) but must
+    # not auto-restart their last task.
+    wake_idle = os.getenv("KOMPUTER_WAKE_IDLE", "").lower() == "true"
+
     thread = None
-    if instructions:
+    if instructions and not wake_idle:
         thread = threading.Thread(target=run_initial_task)
         thread.start()
+    elif wake_idle:
+        logger.info("agent started in wake-idle mode (no auto task)")
 
     # Run uvicorn — it handles SIGTERM/SIGINT for its own shutdown.
-    uvicorn.run("server:app", host="0.0.0.0", port=8000)
+    # AGENT_PORT lets squad pods give each member container its own port (8000, 8001, …)
+    # to avoid bind conflicts when sharing the squad pod's network namespace.
+    port = int(os.getenv("AGENT_PORT", "8000"))
+    uvicorn.run("server:app", host="0.0.0.0", port=port)
 
     # After uvicorn exits, wait for the task thread to finish.
     if thread and thread.is_alive():

@@ -10,8 +10,10 @@ import { Button } from "@/components/kit/button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { BreakUpButton } from "@/components/squads/break-up-button";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
+import { SquadTopologyGraph } from "@/components/topology/topology-graph";
 import {
   getSquad,
   deleteSquad,
@@ -294,7 +296,7 @@ export default function SquadDetailPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex-1 overflow-y-auto p-6 space-y-8"
+        className="flex-1 overflow-y-auto p-6 space-y-6"
       >
         {/* Orphaned banner */}
         {isOrphaned && (
@@ -320,6 +322,11 @@ export default function SquadDetailPage() {
           <span className="text-sm text-[var(--color-text-secondary)]">
             ns: <span className="font-medium text-[var(--color-text)]">{squad.namespace}</span>
           </span>
+          {squad.breakUpRequested && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              Break-up pending
+            </span>
+          )}
           {squad.message && (
             <span className="text-xs text-[var(--color-text-muted)] italic truncate max-w-xs">
               {squad.message}
@@ -345,6 +352,7 @@ export default function SquadDetailPage() {
               <Moon className="size-3" data-icon="inline-start" />
               {actionInProgress === "sleep" ? "Sleeping…" : "Sleep all"}
             </Button>
+            <BreakUpButton squad={squad} onSuccess={fetchData} />
             <ConfirmDialog
               title={`Delete squad "${squad.name}"?`}
               description="This will delete the squad. Member agents will not be deleted but will no longer be grouped. This action cannot be undone."
@@ -393,10 +401,6 @@ export default function SquadDetailPage() {
           )}
         </motion.section>
 
-        {/* Topology — TODO: pass squadFilter once topology supports squad borders (Task 13) */}
-        {/* Embedding is deferred: the existing AgentTopology is scoped to a single agent.
-            A squad-level topology would require either extending topology-graph.tsx (Task 13 scope)
-            or building a bespoke mini-graph here. Leaving as a TODO per task constraints. */}
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -413,11 +417,7 @@ export default function SquadDetailPage() {
               View in Topology →
             </Link>
           </div>
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-secondary)]">
-            {/* TODO: render a squad-scoped topology graph once Task 13 adds squad border support */}
-            Squad topology graph will be available once the topology view supports squad grouping.
-            Use the link above to view the full topology.
-          </div>
+          <SquadTopologyGraph squad={squad} agents={Array.from(agentMap.values())} />
         </motion.section>
 
         {/* Info */}

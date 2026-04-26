@@ -39,11 +39,25 @@ spec:
             type: object
           spec:
             properties:
+              breakUpRequested:
+                description: |-
+                  BreakUpRequested marks the squad for dissolution. Once every member is
+                  asleep, the operator deletes the squad CR; the squad-cleanup finalizer
+                  then clears Status.Squad on each member so they fall back to solo agents.
+                  PVCs are preserved. Sending a new task to a sleeping member while a
+                  break-up is pending is allowed (the member wakes, runs, returns to
+                  Sleeping, and the break-up eventually completes).
+                type: boolean
               members:
                 description: Members of the squad. The operator co-locates them in
                   a single Pod.
                 items:
                   properties:
+                    name:
+                      description: |-
+                        Name is the desired KomputerAgent name when Spec is provided. When empty, the
+                        operator generates "<squad>-member-<index>". Ignored when Ref is set.
+                      type: string
                     ref:
                       description: Exactly one of Ref or Spec must be set.
                       properties:

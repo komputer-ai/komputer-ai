@@ -61,6 +61,7 @@ type KomputerAgentReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile moves the cluster state toward the desired state for a KomputerAgent.
 func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -75,9 +76,52 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// Always ensure the per-agent Service exists, even for squad-managed agents.
+	// The Service selector matches both solo pods and squad pods (via the
+	// "komputer.ai/member-<name>=true" pod label) and routes port 8000 to the
+	// correct container port (8000 for solo, 8000+i for squad members).
+	if agent.DeletionTimestamp.IsZero() {
+		if err := r.ensureAgentService(ctx, agent); err != nil {
+			log.Error(err, "Failed to ensure agent Service", "agent", agent.Name)
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Skip agents owned by a squad — the squad controller is responsible for their lifecycle.
-	if agent.Status.Phase == komputerv1alpha1.KomputerAgentPhaseSquad {
-		return ctrl.Result{}, nil
+	// Defensive: if Status.Squad=true but no parent squad exists (e.g. squad was deleted while
+	// the operator was down and finalizer cleanup didn't run), reclaim the agent as solo so it
+	// doesn't sit orphaned forever.
+	if agent.Status.Squad {
+		squadList := &komputerv1alpha1.KomputerSquadList{}
+		if listErr := r.List(ctx, squadList, client.InNamespace(agent.Namespace)); listErr == nil {
+			parentExists := false
+			for i := range squadList.Items {
+				for _, m := range squadList.Items[i].Spec.Members {
+					if m.Ref != nil && m.Ref.Name == agent.Name {
+						parentExists = true
+						break
+					}
+				}
+				if parentExists {
+					break
+				}
+			}
+			if !parentExists {
+				log.Info("Agent has Status.Squad=true but no parent squad found; reclaiming as solo", "agent", agent.Name)
+				if patchErr := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+					s.Squad = false
+					s.PodName = ""
+					s.Message = "Reclaimed as solo (parent squad missing)"
+				}); patchErr != nil {
+					return ctrl.Result{}, patchErr
+				}
+				// Continue this reconcile so the solo pod is built immediately.
+			} else {
+				return ctrl.Result{}, nil
+			}
+		} else {
+			return ctrl.Result{}, listErr
+		}
 	}
 
 	// Handle office-cleanup finalizer for managers being deleted.
@@ -598,11 +642,23 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 		return nil, fmt.Errorf("build env vars for agent %s: %w", agent.Name, err)
 	}
 
+	// Solo pods always use port 8000. AGENT_PORT is also set in squad pods
+	// (with a per-member port); keeping it explicit here makes the agent's
+	// startup path identical in both modes.
+	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: "8000"})
+
 	// Merge: new vars replace template vars with the same name.
 	container.Env = mergeEnvVars(container.Env, envVars)
 
 	// Add workspace volume mount.
 	container.VolumeMounts = append(container.VolumeMounts, buildAgentVolumeMounts("workspace")...)
+
+	// Declare the agent's HTTP port so a Service can target it.
+	container.Ports = []corev1.ContainerPort{{
+		Name:          "http",
+		ContainerPort: 8000,
+		Protocol:      corev1.ProtocolTCP,
+	}}
 
 	// Inject health probes (override any existing ones from the template).
 	container.LivenessProbe = &corev1.Probe{
@@ -622,8 +678,11 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 				Port: intstr.FromInt(8000),
 			},
 		},
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       10,
+		// /readyz is a no-op endpoint; poll fast so wake-up latency to
+		// "Running" stays under a couple of seconds.
+		InitialDelaySeconds: 1,
+		PeriodSeconds:       2,
+		FailureThreshold:    3,
 	}
 
 	// Graceful shutdown: cancel running task and wait for cleanup before pod termination.
@@ -641,8 +700,9 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 			Name:      podName,
 			Namespace: agent.Namespace,
 			Labels: map[string]string{
-				"komputer.ai/agent-name": agent.Name,
-				"komputer.ai/squad":      "false",
+				"komputer.ai/agent-name":           agent.Name,
+				"komputer.ai/squad":                "false",
+				"komputer.ai/member-" + agent.Name: "true",
 			},
 		},
 		Spec: podSpec,
@@ -682,6 +742,8 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.PodName = podName
 		s.PvcName = pvcName
+		// Solo agents always listen on 8000.
+		s.Port = 8000
 
 		if pod == nil {
 			// If agent is sleeping, preserve the sleeping state
@@ -832,6 +894,102 @@ func secretDataEqual(a, b map[string][]byte) bool {
 	for k, va := range a {
 		vb, ok := b[k]
 		if !ok || string(va) != string(vb) {
+			return false
+		}
+	}
+	return true
+}
+
+// agentServiceName returns the K8s Service name for an agent.
+func agentServiceName(agentName string) string {
+	return agentName + "-agent-svc"
+}
+
+// ensureAgentService creates or updates the per-agent Service so the API can
+// reach the agent's HTTP endpoint by stable DNS name regardless of pod IP or
+// whether the agent is running solo or as a squad member.
+//
+// The Service:
+//   - Selects pods with label "komputer.ai/member-<agent-name>=true" (set on
+//     both solo and squad pods).
+//   - Exposes port 8000 → targetPort "http" (the named port on the agent
+//     container; resolves to 8000 for solo or 8000+i for squad members).
+//   - Is owned by the KomputerAgent so it is GC'd when the agent is deleted.
+func (r *KomputerAgentReconciler) ensureAgentService(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+	svcName := agentServiceName(agent.Name)
+	// Numeric targetPort: each squad-pod container has a different port, and port
+	// names must be unique across containers in a pod, so we cannot use a shared
+	// named port. Use the agent's assigned Status.Port (set by whichever controller
+	// owns the pod). Default to 8000 for solo agents that haven't been reconciled
+	// yet.
+	targetPort := agent.Status.Port
+	if targetPort == 0 {
+		targetPort = 8000
+	}
+	desired := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      svcName,
+			Namespace: agent.Namespace,
+			Labels: map[string]string{
+				"komputer.ai/agent-name": agent.Name,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				"komputer.ai/member-" + agent.Name: "true",
+			},
+			Ports: []corev1.ServicePort{{
+				Name:       "http",
+				Port:       8000,
+				TargetPort: intstr.FromInt(int(targetPort)),
+				Protocol:   corev1.ProtocolTCP,
+			}},
+		},
+	}
+	if err := controllerutil.SetControllerReference(agent, desired, r.Scheme); err != nil {
+		return fmt.Errorf("set owner ref on service %s: %w", svcName, err)
+	}
+
+	existing := &corev1.Service{}
+	err := r.Get(ctx, types.NamespacedName{Name: svcName, Namespace: agent.Namespace}, existing)
+	if errors.IsNotFound(err) {
+		return r.Create(ctx, desired)
+	}
+	if err != nil {
+		return fmt.Errorf("get service %s: %w", svcName, err)
+	}
+
+	// Patch only if the spec drifted (selector or ports). ClusterIP is immutable.
+	needsUpdate := !equalServiceSelector(existing.Spec.Selector, desired.Spec.Selector) ||
+		!equalServicePorts(existing.Spec.Ports, desired.Spec.Ports)
+	if !needsUpdate {
+		return nil
+	}
+	original := existing.DeepCopy()
+	existing.Spec.Selector = desired.Spec.Selector
+	existing.Spec.Ports = desired.Spec.Ports
+	return r.Patch(ctx, existing, client.MergeFrom(original))
+}
+
+func equalServiceSelector(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func equalServicePorts(a, b []corev1.ServicePort) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name || a[i].Port != b[i].Port || a[i].TargetPort != b[i].TargetPort || a[i].Protocol != b[i].Protocol {
 			return false
 		}
 	}

@@ -10,6 +10,7 @@ rules:
   - configmaps
   - persistentvolumeclaims
   - pods
+  - services
   verbs:
   - create
   - delete
@@ -18,6 +19,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/ephemeralcontainers
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -47,6 +56,7 @@ rules:
   - komputeragents
   - komputeroffices
   - komputerschedules
+  - komputersquads
   verbs:
   - create
   - delete
@@ -61,6 +71,7 @@ rules:
   - komputeragents/finalizers
   - komputeroffices/finalizers
   - komputerschedules/finalizers
+  - komputersquads/finalizers
   verbs:
   - update
 - apiGroups:
@@ -71,6 +82,7 @@ rules:
   - komputeroffices/status
   - komputerschedules/status
   - komputerskills/status
+  - komputersquads/status
   verbs:
   - get
   - patch

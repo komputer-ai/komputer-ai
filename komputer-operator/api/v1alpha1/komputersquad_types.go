@@ -15,6 +15,11 @@ type KomputerSquadMember struct {
 	// Exactly one of Ref or Spec must be set.
 	Ref  *KomputerSquadMemberRef `json:"ref,omitempty"`
 	Spec *KomputerAgentSpec      `json:"spec,omitempty"`
+
+	// Name is the desired KomputerAgent name when Spec is provided. When empty, the
+	// operator generates "<squad>-member-<index>". Ignored when Ref is set.
+	// +optional
+	Name string `json:"name,omitempty"`
 }
 
 type KomputerSquadSpec struct {
@@ -26,6 +31,15 @@ type KomputerSquadSpec struct {
 	// Defaults to "10m".
 	// +optional
 	OrphanTTL *metav1.Duration `json:"orphanTTL,omitempty"`
+
+	// BreakUpRequested marks the squad for dissolution. Once every member is
+	// asleep, the operator deletes the squad CR; the squad-cleanup finalizer
+	// then clears Status.Squad on each member so they fall back to solo agents.
+	// PVCs are preserved. Sending a new task to a sleeping member while a
+	// break-up is pending is allowed (the member wakes, runs, returns to
+	// Sleeping, and the break-up eventually completes).
+	// +optional
+	BreakUpRequested bool `json:"breakUpRequested,omitempty"`
 }
 
 type KomputerSquadMemberStatus struct {

@@ -231,9 +231,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerSquad")
 		os.Exit(1)
 	}
-	if err := (&komputerwebhooks.KomputerSquadValidator{Client: mgr.GetClient()}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to register webhook", "webhook", "KomputerSquad")
-		os.Exit(1)
+	// Webhooks are skipped when DISABLE_WEBHOOKS=true (typically for `make run` outside the cluster,
+	// where cert-manager-provisioned TLS certs aren't mounted and the API server can't call back anyway).
+	if os.Getenv("DISABLE_WEBHOOKS") == "true" {
+		setupLog.Info("webhooks disabled via DISABLE_WEBHOOKS=true")
+	} else {
+		if err := (&komputerwebhooks.KomputerSquadValidator{Client: mgr.GetClient()}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to register webhook", "webhook", "KomputerSquad")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

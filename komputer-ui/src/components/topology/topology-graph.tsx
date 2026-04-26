@@ -393,15 +393,13 @@ function SquadOverlay({ squads, nodes }: { squads: Squad[]; nodes: Node[] }) {
           const tl = project(c.x, c.y);
           const w = c.width * zoom;
           const h = c.height * zoom;
-          const LABEL_PAD = 6;
           const FONT_SIZE = Math.max(10, Math.min(13, 12 * zoom));
+          const LABEL_INSET = 12 * zoom;
+          const LABEL_HEIGHT = FONT_SIZE + 8;
 
           return (
-            <g
-              key={`${c.squadName}-${c.label}`}
-              style={{ pointerEvents: "all", cursor: "pointer" }}
-              onClick={() => router.push(`/squads/${c.squadName}?namespace=${c.namespace}`)}
-            >
+            <g key={`${c.squadName}-${c.label}`}>
+              {/* Border rect — pointer-events: none so agents underneath are draggable */}
               <rect
                 x={tl.sx}
                 y={tl.sy}
@@ -414,27 +412,38 @@ function SquadOverlay({ squads, nodes }: { squads: Squad[]; nodes: Node[] }) {
                 stroke={c.color}
                 strokeWidth={2}
                 strokeOpacity={0.7}
+                style={{ pointerEvents: "none" }}
               />
-              {/* Label background pill */}
-              <rect
-                x={tl.sx + LABEL_PAD * zoom}
-                y={tl.sy - (FONT_SIZE * 0.7)}
-                width={(c.label.length * FONT_SIZE * 0.6 + LABEL_PAD * 2) * zoom}
-                height={FONT_SIZE * 1.4}
-                rx={4 * zoom}
-                fill="var(--color-bg, #0d1117)"
-                fillOpacity={0.85}
-              />
-              <text
-                x={tl.sx + (LABEL_PAD * 2) * zoom}
-                y={tl.sy + FONT_SIZE * 0.35}
-                fontSize={FONT_SIZE}
-                fill={c.color}
-                fontWeight="600"
-                fontFamily="var(--font-mono, monospace)"
+              {/* Label as foreignObject — auto-sizes to text content, only the label is clickable */}
+              <foreignObject
+                x={tl.sx + LABEL_INSET}
+                y={tl.sy - LABEL_HEIGHT / 2}
+                width={Math.max(60, w - LABEL_INSET * 2)}
+                height={LABEL_HEIGHT}
+                style={{ overflow: "visible" }}
               >
-                {c.label}
-              </text>
+                <div
+                  onClick={() => router.push(`/squads/${c.squadName}?namespace=${c.namespace}`)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: LABEL_HEIGHT,
+                    padding: "0 8px",
+                    backgroundColor: "var(--color-bg, #0d1117)",
+                    color: c.color,
+                    fontSize: FONT_SIZE,
+                    fontWeight: 600,
+                    fontFamily: "var(--font-mono, monospace)",
+                    borderRadius: 4,
+                    lineHeight: 1,
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                    pointerEvents: "all",
+                  }}
+                >
+                  {c.label}
+                </div>
+              </foreignObject>
             </g>
           );
         })}
@@ -904,6 +913,44 @@ export function TopologyGraph() {
           )}
         </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Squad-scoped topology — embedded on the squad details page        */
+/* ------------------------------------------------------------------ */
+
+export function SquadTopologyGraph({ squad, agents }: { squad: Squad; agents: AgentResponse[] }) {
+  const memberNames = useMemo(() => new Set(squad.members.map((m) => m.name)), [squad.members]);
+  const filteredAgents = useMemo(
+    () => agents.filter((a) => memberNames.has(a.name) && a.namespace === squad.namespace),
+    [agents, memberNames, squad.namespace],
+  );
+
+  const graphData = useMemo(() => {
+    const built = buildGraph(filteredAgents, [], [], [squad]);
+    return { ...built, squads: [squad] };
+  }, [filteredAgents, squad]);
+
+  if (filteredAgents.length === 0) {
+    return (
+      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-secondary)]">
+        No member agents to display.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden h-[420px]">
+      <ReactFlowProvider>
+        <TopologyGraphInner
+          initialNodes={graphData.nodes}
+          initialEdges={graphData.edges}
+          firstRowNodeIds={graphData.firstRowNodeIds}
+          squads={[squad]}
+        />
+      </ReactFlowProvider>
     </div>
   );
 }

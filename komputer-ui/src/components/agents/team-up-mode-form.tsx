@@ -1,103 +1,166 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/kit/button";
 import { Input } from "@/components/kit/input";
-import { Textarea } from "@/components/kit/textarea";
 import { Label } from "@/components/kit/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/kit/select";
-import { ChevronRight } from "lucide-react";
-import { NamespaceSelector } from "@/components/shared/namespace-selector";
-import { listAgents, listSquads, createSquad, addSquadMember } from "@/lib/api";
+import { ChevronRight, Moon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { listAgents, listSquads, createSquad, addSquadMember, patchAgent } from "@/lib/api";
 import type { AgentResponse, Squad } from "@/lib/types";
-import { MODELS, LIFECYCLES } from "@/lib/constants";
+import {
+  AgentFieldsForm,
+  type AgentFormValues,
+  buildAgentSpecForSquad,
+} from "./agent-fields-form";
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+export interface TeamUpState {
+  values: AgentFormValues;
+  teamUpWithAgent: string; // "<namespace>/<name>"
+  squadName: string;
+}
+
 export interface TeamUpModeFormProps {
-  sharedValues: { name: string; namespace: string; instructions: string; model: string; lifecycle: string };
-  onSharedValuesChange: (v: { name: string; namespace: string; instructions: string; model: string; lifecycle: string }) => void;
-  open: boolean;
+  state: TeamUpState;
+  onChange: (next: TeamUpState) => void;
+  active: boolean;
+  error: string | null;
+  onError: (error: string | null) => void;
   onCreated?: () => void;
   onCancel: () => void;
 }
 
-export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCreated, onCancel }: TeamUpModeFormProps) {
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [systemPromptOpen, setSystemPromptOpen] = useState(false);
-
-  // Team-up specific state
+export function TeamUpModeForm({ state, onChange, active, error, onError, onCreated, onCancel }: TeamUpModeFormProps) {
   const [availableAgents, setAvailableAgents] = useState<AgentResponse[]>([]);
   const [squads, setSquads] = useState<Squad[]>([]);
-  const [teamUpWithAgent, setTeamUpWithAgent] = useState<string>(""); // "<namespace>/<name>"
-  const [squadName, setSquadName] = useState("");
-  const [squadNameReadOnly, setSquadNameReadOnly] = useState(false);
   const [agentSearch, setAgentSearch] = useState("");
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [sleepingPartner, setSleepingPartner] = useState(false);
 
-  const { name, namespace, instructions, model, lifecycle } = sharedValues;
+  async function sleepPartner(name: string, namespace: string) {
+    setSleepingPartner(true);
+    onError(null);
+    try {
+      await patchAgent(name, { lifecycle: "Sleep" }, namespace);
+      const res = await listAgents();
+      setAvailableAgents(res.agents ?? []);
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : `Failed to sleep ${name}`);
+    } finally {
+      setSleepingPartner(false);
+    }
+  }
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+
+  const { values, teamUpWithAgent, squadName } = state;
 
   useEffect(() => {
-    if (!open) return;
+    if (!active) return;
     listAgents()
       .then((res) => setAvailableAgents(res.agents ?? []))
       .catch(() => setAvailableAgents([]));
     listSquads()
       .then((res) => setSquads(res.squads ?? []))
       .catch(() => setSquads([]));
-  }, [open]);
+  }, [active]);
 
-  // When the selected "team up with" agent changes, check if it's in a squad
+  // Close dropdown when the form is no longer active (e.g. dialog closed or tab switched)
   useEffect(() => {
-    if (!teamUpWithAgent) {
-      setSquadName("");
-      setSquadNameReadOnly(false);
+    if (!active) setAgentDropdownOpen(false);
+  }, [active]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!agentDropdownOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node;
+      const inDropdown = dropdownRef.current?.contains(target);
+      const inTrigger = triggerRef.current?.contains(target);
+      if (!inDropdown && !inTrigger) {
+        setAgentDropdownOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [agentDropdownOpen]);
+
+  // Compute dropdown position when opening (and on window resize/scroll while open)
+  useEffect(() => {
+    if (!agentDropdownOpen) {
+      setDropdownPos(null);
       return;
     }
-    const [agentNs, agentName] = teamUpWithAgent.split("/");
-    // Find any squad that contains this agent as a member
-    const matchingSquad = squads.find((squad) =>
-      squad.members?.some((m) => m.name === agentName) &&
-      squad.namespace === agentNs
-    );
-    if (matchingSquad) {
-      setSquadName(matchingSquad.name);
-      setSquadNameReadOnly(true);
-    } else {
-      setSquadNameReadOnly(false);
-      setSquadName((prev) => prev && !squadNameReadOnly ? prev : "");
+    function reposition() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const margin = 8;
+      const top = rect.bottom + 4;
+      const maxHeight = Math.max(120, window.innerHeight - top - margin);
+      setDropdownPos({ top, left: rect.left, width: rect.width, maxHeight });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamUpWithAgent, squads]);
-
-  function buildNewAgentSpec() {
-    return {
-      name: name.trim(),
-      instructions: instructions.trim(),
-      model,
-      namespace: namespace.trim() || undefined,
-      lifecycle: lifecycle === "default" ? "" : lifecycle,
-      systemPrompt: systemPrompt.trim() || undefined,
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
     };
-  }
+  }, [agentDropdownOpen]);
+
+  // Determine if the selected agent is already part of a squad
+  const matchingSquad = (() => {
+    if (!teamUpWithAgent) return null;
+    const [agentNs, agentName] = teamUpWithAgent.split("/");
+    return squads.find((s) =>
+      s.namespace === agentNs && s.members?.some((m) => m.name === agentName)
+    ) ?? null;
+  })();
+
+  const squadNameLocked = matchingSquad !== null;
+  const noAgentSelected = !teamUpWithAgent;
+
+  // Resolve the selected partner agent so we can preflight its phase. Only solo
+  // (not-yet-in-a-squad) agents need to be asleep — agents already in a squad
+  // are managed by the squad controller, so adding them to another squad isn't
+  // a typical flow but doesn't trigger the dual-pod problem.
+  const selectedPartnerAgent = teamUpWithAgent
+    ? (() => {
+        const [ns, n] = teamUpWithAgent.split("/");
+        return availableAgents.find((a) => a.name === n && a.namespace === ns) ?? null;
+      })()
+    : null;
+  const partnerMustBeAsleep =
+    selectedPartnerAgent !== null &&
+    !matchingSquad &&
+    selectedPartnerAgent.status !== "Sleeping";
+
+  // When matching squad changes, sync squadName
+  useEffect(() => {
+    if (matchingSquad) {
+      if (state.squadName !== matchingSquad.name) {
+        onChange({ ...state, squadName: matchingSquad.name });
+      }
+    }
+    // When no squad match: leave whatever the user typed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchingSquad?.name]);
 
   function validate(): string | null {
-    if (!name.trim()) return "Name is required.";
-    if (!NAME_PATTERN.test(name)) return "Name must be lowercase letters, numbers, and hyphens only.";
-    if (!instructions.trim()) return "Instructions are required.";
+    if (!values.name.trim()) return "Name is required.";
+    if (!NAME_PATTERN.test(values.name)) return "Name must be lowercase letters, numbers, and hyphens only.";
+    if (!values.instructions.trim()) return "Instructions are required.";
     if (!teamUpWithAgent) return "Select an agent to team up with.";
+    if (partnerMustBeAsleep && selectedPartnerAgent) {
+      return `Agent "${selectedPartnerAgent.name}" must be asleep in order to team up. Sleep it first, then retry.`;
+    }
     if (!squadName.trim()) return "Squad name is required.";
-    if (!NAME_PATTERN.test(squadName)) return "Squad name must be lowercase letters, numbers, and hyphens only.";
+    if (!squadNameLocked && !NAME_PATTERN.test(squadName)) return "Squad name must be lowercase letters, numbers, and hyphens only.";
     return null;
   }
 
@@ -105,47 +168,42 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
     e.preventDefault();
     const validationError = validate();
     if (validationError) {
-      setError(validationError);
+      onError(validationError);
       return;
     }
 
     setSubmitting(true);
-    setError(null);
+    onError(null);
 
     try {
       const [agentNs, agentName] = teamUpWithAgent.split("/");
-      const newAgentSpec = buildNewAgentSpec();
-
-      const matchingSquad = squads.find((squad) =>
-        squad.members?.some((m) => m.name === agentName) &&
-        squad.namespace === agentNs
-      );
+      const newAgentSpec = buildAgentSpecForSquad(values);
+      const newAgentName = values.name.trim();
 
       if (matchingSquad) {
-        // Add new agent to existing squad
-        await addSquadMember(matchingSquad.name, matchingSquad.namespace, { spec: newAgentSpec });
+        await addSquadMember(matchingSquad.name, matchingSquad.namespace, {
+          name: newAgentName,
+          spec: newAgentSpec,
+        });
       } else {
-        // Create a new squad with both the existing agent + new agent spec
         await createSquad({
           name: squadName.trim(),
-          namespace: namespace.trim() || undefined,
+          namespace: values.namespace.trim() || undefined,
           members: [
             { ref: { name: agentName, namespace: agentNs } },
-            { spec: newAgentSpec },
+            { name: newAgentName, spec: newAgentSpec },
           ],
         });
       }
 
       onCreated?.();
-      onCancel();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to team up.");
+      onError(e instanceof Error ? e.message : "Failed to team up.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  // Filter agents for dropdown
   const filteredAgents = availableAgents.filter((a) => {
     const q = agentSearch.toLowerCase();
     return !q || a.name.toLowerCase().includes(q) || a.namespace.toLowerCase().includes(q);
@@ -160,94 +218,15 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
     : null;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-      <div className="flex flex-col gap-4 overflow-y-auto flex-1 pr-1">
-        {/* New agent fields */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="teamup-agent-name">Name</Label>
-            <Input
-              id="teamup-agent-name"
-              placeholder="my-agent"
-              value={name}
-              onChange={(e) => onSharedValuesChange({ ...sharedValues, name: e.target.value })}
-              autoComplete="off"
-            />
-          </div>
-          <NamespaceSelector value={namespace} onChange={(v) => onSharedValuesChange({ ...sharedValues, namespace: v })} />
-        </div>
-
-        {/* System prompt */}
-        <div className="flex flex-col">
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
-            onClick={() => setSystemPromptOpen(!systemPromptOpen)}
-          >
-            <ChevronRight className={`size-3.5 transition-transform duration-150 ${systemPromptOpen ? "rotate-90" : ""}`} />
-            System Prompt <span className="text-[var(--color-text-muted)] font-normal">(Optional)</span>
-          </button>
-          <AnimatePresence initial={false}>
-            {systemPromptOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <div className="pt-2">
-                  <Textarea
-                    placeholder="Custom instructions that define agent behavior, persona, or constraints..."
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    style={{ minHeight: 100 }}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="teamup-instructions">Instructions</Label>
-          <Textarea
-            id="teamup-instructions"
-            placeholder="Describe what this agent should do..."
-            value={instructions}
-            onChange={(e) => onSharedValuesChange({ ...sharedValues, instructions: e.target.value })}
-            style={{ minHeight: 140 }}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>Model</Label>
-            <Select value={model} onValueChange={(v) => v && onSharedValuesChange({ ...sharedValues, model: v })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MODELS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Lifecycle</Label>
-            <Select value={lifecycle} onValueChange={(v) => v && onSharedValuesChange({ ...sharedValues, lifecycle: v })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LIFECYCLES.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-4">
+        {/* Full agent form */}
+        <AgentFieldsForm
+          values={values}
+          onChange={(next) => onChange({ ...state, values: next })}
+          active={active}
+          idPrefix="teamup"
+        />
 
         {/* Team Up section */}
         <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-3">
@@ -258,9 +237,10 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
             <Label>Team Up With</Label>
             <div className="relative">
               <button
+                ref={triggerRef}
                 type="button"
                 onClick={() => setAgentDropdownOpen((v) => !v)}
-                className="flex h-9 w-full items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm transition-colors hover:border-[var(--color-border-hover)] cursor-pointer"
+                className="flex h-9 w-full items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1 text-sm transition-colors hover:border-[var(--color-border-hover)] cursor-pointer"
               >
                 {selectedAgentDisplay ? (
                   <span className="text-[var(--color-text)]">{selectedAgentDisplay}</span>
@@ -269,9 +249,23 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
                 )}
                 <ChevronRight className={`size-3.5 text-[var(--color-text-secondary)] transition-transform ${agentDropdownOpen ? "rotate-90" : ""}`} />
               </button>
-              {agentDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-elevated)] shadow-lg">
-                  <div className="p-1.5 border-b border-[var(--color-border)]">
+              <AnimatePresence>
+                {agentDropdownOpen && dropdownPos && (
+                <motion.div
+                  ref={dropdownRef}
+                  style={{
+                    position: "fixed",
+                    top: dropdownPos.top,
+                    left: dropdownPos.left,
+                    width: dropdownPos.width,
+                    maxHeight: dropdownPos.maxHeight,
+                  }}
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="z-[100] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] flex flex-col">
+                  <div className="p-1.5 border-b border-[var(--color-border)] shrink-0">
                     <input
                       autoFocus
                       type="text"
@@ -281,7 +275,7 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
                       className="w-full bg-transparent text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none px-1 py-0.5"
                     />
                   </div>
-                  <div className="max-h-48 overflow-y-auto">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     {filteredAgents.length === 0 && (
                       <p className="px-3 py-2 text-xs text-[var(--color-text-muted)]">No agents found</p>
                     )}
@@ -295,7 +289,7 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
                           key={key}
                           type="button"
                           onClick={() => {
-                            setTeamUpWithAgent(key);
+                            onChange({ ...state, teamUpWithAgent: key });
                             setAgentDropdownOpen(false);
                             setAgentSearch("");
                           }}
@@ -312,8 +306,9 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
                       );
                     })}
                   </div>
-                </div>
-              )}
+                </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -321,21 +316,55 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="teamup-squad-name">
               Squad Name
-              {squadNameReadOnly && (
-                <span className="ml-2 text-[10px] text-[var(--color-brand-violet)] font-normal">(prefilled from existing squad)</span>
+              {squadNameLocked && (
+                <span className="ml-2 text-[10px] text-[var(--color-brand-violet)] font-normal">
+                  (using existing squad)
+                </span>
+              )}
+              {noAgentSelected && (
+                <span className="ml-2 text-[10px] text-[var(--color-text-muted)] font-normal">
+                  (select an agent first)
+                </span>
               )}
             </Label>
             <Input
               id="teamup-squad-name"
-              placeholder="my-squad"
+              placeholder={squadNameLocked ? "" : "my-squad"}
               value={squadName}
-              onChange={(e) => !squadNameReadOnly && setSquadName(e.target.value)}
-              readOnly={squadNameReadOnly}
-              className={squadNameReadOnly ? "opacity-60 cursor-default" : ""}
+              onChange={(e) => {
+                if (squadNameLocked || noAgentSelected) return;
+                onChange({ ...state, squadName: e.target.value });
+              }}
+              disabled={squadNameLocked || noAgentSelected}
+              className={squadNameLocked || noAgentSelected ? "opacity-60 cursor-not-allowed" : ""}
               autoComplete="off"
             />
           </div>
         </div>
+
+        {partnerMustBeAsleep && selectedPartnerAgent && (
+          <div className="rounded-[var(--radius-md)] border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-300/90 space-y-2">
+            <p>
+              Agent <span className="font-medium text-amber-200">{selectedPartnerAgent.name}</span> must be asleep before teaming up.
+            </p>
+            <div className="flex items-center justify-between gap-2 rounded bg-amber-500/5 px-2 py-1">
+              <span className="text-sm">
+                <span className="font-medium text-amber-200">{selectedPartnerAgent.name}</span>
+                <span className="ml-1.5 text-xs text-amber-300/70">({selectedPartnerAgent.status})</span>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => sleepPartner(selectedPartnerAgent.name, selectedPartnerAgent.namespace)}
+                disabled={sleepingPartner}
+              >
+                <Moon className={`size-3 ${sleepingPartner ? "animate-pulse" : ""}`} data-icon="inline-start" />
+                {sleepingPartner ? "Sleeping…" : "Sleep"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
@@ -344,8 +373,8 @@ export function TeamUpModeForm({ sharedValues, onSharedValuesChange, open, onCre
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Creating..." : "Team Up"}
+        <Button type="submit" disabled={submitting || partnerMustBeAsleep}>
+          {submitting ? "Creating..." : matchingSquad ? "Add to Squad" : "Team Up"}
         </Button>
       </div>
     </form>
