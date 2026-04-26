@@ -96,11 +96,13 @@ The `create_agent` tool also accepts an optional `squad` parameter to add the ne
 
 ## Configuration
 
-The admission webhook that enforces membership uniqueness requires cert-manager. Enable or disable it in `values.yaml`:
+The validating admission webhook enforces the **one-squad-per-agent** constraint. It is enabled by default and **strongly recommended**:
 
 ```yaml
 webhooks:
-  enabled: true   # set to false if cert-manager is not available
+  enabled: true   # default; requires cert-manager
 ```
 
-When disabled, the one-squad-per-agent constraint is not enforced at admission time (the operator still handles conflicts, but errors surface later in the reconcile loop).
+**With it on** — Kubernetes rejects conflicting squad create/update with a clear error like `agent "alice" is already in squad "squad-1"`. Requires cert-manager to be installed (the chart provisions a self-signed Issuer + Certificate automatically).
+
+**With it off** — overlapping squads are allowed at the API. Two squads can both claim the same agent, causing the squad controller to race over `Phase=Squad` and Pod ownership: the agent flips between Pods and neither squad stabilizes. Only disable if cert-manager is unavailable and you accept this risk.

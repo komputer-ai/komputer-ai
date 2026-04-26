@@ -220,12 +220,24 @@ metrics:
       bearerTokenSecret: ""  # name of K8s Secret with key 'token'
 
 webhooks:
-  # Enables the validating admission webhook for KomputerSquad.
-  # When enabled, the operator serves HTTPS on port 9443 and Kubernetes calls it
-  # on every KomputerSquad create/update to enforce membership uniqueness.
-  # Requires cert-manager to be installed in the cluster — it provisions the TLS
-  # certificate and injects the CA bundle into the ValidatingWebhookConfiguration.
-  # Set to false to disable the webhook if cert-manager is not available.
+  # Validating admission webhook for KomputerSquad. RECOMMENDED: keep enabled.
+  #
+  # What it enforces:
+  #   - An agent cannot belong to more than one squad in the same namespace.
+  #
+  # Why it matters: without this guardrail, two squads can both claim the same
+  # agent. The squad controller will then race — each squad tries to set
+  # Phase=Squad on the agent and place it in its own Pod, causing the agent to
+  # flip between Pods and neither squad to stabilize. The webhook rejects the
+  # conflicting create/update at API admission time with a clear error.
+  #
+  # Requirements:
+  #   cert-manager must be installed. The chart provisions a self-signed
+  #   Issuer + Certificate that serves the webhook on HTTPS port 9443 and
+  #   injects the CA bundle into the ValidatingWebhookConfiguration.
+  #
+  # Disable only if you cannot install cert-manager and accept the risk of
+  # overlapping squads (rare in practice, but the failure mode is messy).
   enabled: true
 
 # -- Default KomputerAgentClusterTemplate settings
