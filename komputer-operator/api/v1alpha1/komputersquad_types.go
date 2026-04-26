@@ -10,6 +10,7 @@ type KomputerSquadMemberRef struct {
 	Namespace string `json:"namespace,omitempty"` // defaults to squad's namespace
 }
 
+// +kubebuilder:validation:XValidation:rule="(has(self.ref) ? 1 : 0) + (has(self.spec) ? 1 : 0) == 1",message="exactly one of ref or spec must be set"
 type KomputerSquadMember struct {
 	// Exactly one of Ref or Spec must be set.
 	Ref  *KomputerSquadMemberRef `json:"ref,omitempty"`
@@ -18,17 +19,21 @@ type KomputerSquadMember struct {
 
 type KomputerSquadSpec struct {
 	// Members of the squad. The operator co-locates them in a single Pod.
+	// +kubebuilder:validation:MinItems=1
 	Members []KomputerSquadMember `json:"members"`
 
 	// OrphanTTL is how long to keep an empty squad before deleting it.
 	// Defaults to "10m".
 	// +optional
-	OrphanTTL string `json:"orphanTTL,omitempty"`
+	OrphanTTL *metav1.Duration `json:"orphanTTL,omitempty"`
 }
 
 type KomputerSquadMemberStatus struct {
-	Name       string `json:"name"`
-	Ready      bool   `json:"ready"`
+	Name  string `json:"name"`
+	Ready bool   `json:"ready"`
+	// TaskStatus is owned by the API worker (mirrors the agent's TaskStatus).
+	// The squad controller only writes Name and Ready; TaskStatus is populated
+	// by the API worker as it reconciles the underlying agent's status.
 	TaskStatus string `json:"taskStatus,omitempty"`
 }
 

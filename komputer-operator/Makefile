@@ -95,6 +95,9 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@mkdir -p ../helm/komputer-ai/crds
+	@cp config/crd/bases/*.yaml ../helm/komputer-ai/crds/
+	@echo "Copied CRDs to helm/komputer-ai/crds/"
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
