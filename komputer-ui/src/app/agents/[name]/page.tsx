@@ -20,7 +20,7 @@ import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
-import { BreakUpButton } from "@/components/squads/break-up-button";
+import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
@@ -404,9 +404,14 @@ export default function AgentDetailPage() {
                   </>
                 )}
                 {agentSquad ? (
-                  <BreakUpButton
+                  <LeaveSquadButton
+                    agentName={agent.name}
+                    agentNamespace={agent.namespace}
                     squad={agentSquad}
-                    onSuccess={refreshSquads}
+                    onSuccess={() => {
+                      refreshSquads();
+                      fetchAgent();
+                    }}
                   />
                 ) : (
                   <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>

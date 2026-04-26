@@ -250,16 +250,21 @@ func (r *KomputerSquadReconciler) normalizeMembers(ctx context.Context, squad *k
 }
 
 // markMembersAsSquad sets Phase=Squad on each referenced agent and returns the
-// resolved KomputerAgent objects (skipping any not found yet).
+// resolved KomputerAgent objects. Members whose KomputerAgent CR no longer exists
+// are pruned from squad.Spec.Members so the squad doesn't loop forever trying to
+// reconcile a phantom member.
 func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad *komputerv1alpha1.KomputerSquad) ([]*komputerv1alpha1.KomputerAgent, error) {
 	log := logf.FromContext(ctx)
 	agents := make([]*komputerv1alpha1.KomputerAgent, 0, len(squad.Spec.Members))
+	prunedMembers := make([]komputerv1alpha1.KomputerSquadMember, 0, len(squad.Spec.Members))
+	pruned := false
 
 	// Assign per-member ports stably by member index. buildSquadPodSpec uses the
 	// same scheme (8000 + position-in-agents-slice), and since we append agents
 	// in member order, the indices match.
 	for memberIdx, member := range squad.Spec.Members {
 		if member.Ref == nil {
+			prunedMembers = append(prunedMembers, member)
 			continue
 		}
 		ns := member.Ref.Namespace
@@ -270,7 +275,8 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 		agent := &komputerv1alpha1.KomputerAgent{}
 		if err := r.Get(ctx, types.NamespacedName{Name: member.Ref.Name, Namespace: ns}, agent); err != nil {
 			if apierrors.IsNotFound(err) {
-				log.Info("Member agent not found yet, skipping", "agent", member.Ref.Name)
+				log.Info("Member agent no longer exists; removing from squad spec", "agent", member.Ref.Name)
+				pruned = true
 				continue
 			}
 			return nil, fmt.Errorf("get agent %s: %w", member.Ref.Name, err)
@@ -291,6 +297,15 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 		}
 
 		agents = append(agents, agent)
+		prunedMembers = append(prunedMembers, member)
+	}
+
+	if pruned {
+		original := squad.DeepCopy()
+		squad.Spec.Members = prunedMembers
+		if err := r.Patch(ctx, squad, client.MergeFrom(original)); err != nil {
+			return nil, fmt.Errorf("prune missing members from squad %s: %w", squad.Name, err)
+		}
 	}
 
 	return agents, nil
@@ -571,6 +586,19 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 	if err != nil {
 		return fmt.Errorf("build env vars for ephemeral container %s: %w", agent.Name, err)
 	}
+	// AGENT_PORT must be the per-member port assigned by markMembersAsSquad —
+	// otherwise the ephemeral container defaults to 8000 and collides with the
+	// first regular squad member that already binds 8000.
+	agentPort := agent.Status.Port
+	if agentPort == 0 {
+		agentPort = 8000
+	}
+	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: fmt.Sprintf("%d", agentPort)})
+	// If this member is currently Sleeping, start the EC in wake-idle mode so it
+	// exposes its HTTP server without auto-running its previous instructions.
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
+	}
 	envVars = mergeEnvVars(baseContainer.Env, envVars)
 
 	// Build volume mounts: only sibling workspaces (own PVC volume is not in the
@@ -607,17 +635,45 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 		},
 	}
 
-	patch := []map[string]interface{}{{
-		"op":    "add",
-		"path":  "/spec/ephemeralContainers/-",
-		"value": ec,
-	}}
+	// Use a strategic merge patch — the apiserver merges by container name and
+	// handles the case where /spec/ephemeralContainers does not yet exist on the
+	// pod (a JSONPatch `add /spec/ephemeralContainers/-` fails with a bare 422
+	// when the field is absent).
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"ephemeralContainers": []corev1.EphemeralContainer{ec},
+		},
+	}
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
 		return fmt.Errorf("marshal ephemeral container patch: %w", err)
 	}
 
-	return r.SubResource("ephemeralcontainers").Patch(ctx, pod, client.RawPatch(types.JSONPatchType, patchBytes))
+	if err := r.SubResource("ephemeralcontainers").Patch(ctx, pod, client.RawPatch(types.StrategicMergePatchType, patchBytes)); err != nil {
+		// Surface the full K8s status (controller-runtime trims it to a generic message).
+		if statusErr, ok := err.(*apierrors.StatusError); ok {
+			return fmt.Errorf("inject ephemeral container %q: %s (reason=%s, code=%d, details=%v)",
+				agent.Name, statusErr.ErrStatus.Message, statusErr.ErrStatus.Reason, statusErr.ErrStatus.Code, statusErr.ErrStatus.Details)
+		}
+		return fmt.Errorf("inject ephemeral container %q: %w", agent.Name, err)
+	}
+
+	// Patch the per-member pod label so the per-agent Service
+	// (selector: komputer.ai/member-<name>=true) starts routing to this container.
+	// Without this, the EC is reachable on the pod IP but the Service has no endpoints.
+	memberLabel := "komputer.ai/member-" + agent.Name
+	if pod.Labels[memberLabel] != "true" {
+		labelPatch := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"labels": map[string]string{memberLabel: "true"},
+			},
+		}
+		labelBytes, _ := json.Marshal(labelPatch)
+		if err := r.Patch(ctx, pod, client.RawPatch(types.StrategicMergePatchType, labelBytes)); err != nil {
+			return fmt.Errorf("patch pod label %s: %w", memberLabel, err)
+		}
+	}
+	return nil
 }
 
 // cancelTaskViaAPI calls POST /api/v1/agents/<name>/cancel on the running komputer-api.
@@ -869,6 +925,17 @@ func (r *KomputerSquadReconciler) updateSquadMemberStatus(ctx context.Context, s
 				if cs.Name == agent.Name && cs.Ready {
 					ready = true
 					break
+				}
+			}
+			// Ephemeral containers (members adopted into a running squad pod) cannot
+			// have readiness probes — K8s rejects them — so cs.Ready is always false.
+			// Treat ephemeral container as ready when its state is "running".
+			if !ready {
+				for _, cs := range pod.Status.EphemeralContainerStatuses {
+					if cs.Name == agent.Name && cs.State.Running != nil {
+						ready = true
+						break
+					}
 				}
 			}
 		}

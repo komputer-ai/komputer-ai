@@ -37,15 +37,36 @@ The squad spec requires at least two members. Each member is either a `ref` (nam
 
 Adding an agent to a squad that is already Running injects it as an **ephemeral container** — no Pod restart, existing members are unaffected.
 
+**The agent being adopted must be asleep.** This prevents leaving its solo Pod stranded next to the new squad container. The API returns `409 Conflict` with `agent "<name>" must be asleep in order to team up` if the partner is in any other phase. The UI Team Up dialog surfaces this preflight and offers an inline Sleep button per non-sleeping agent.
+
 CLI: `komputer squad add <squad> <agent>`
 API: `POST /api/v1/squads/<name>/members`
 
-### Removing a member
+### Sleep & wake (per-member)
 
-The removed agent's in-flight task is cancelled immediately. The container remains in the Pod until the next restart (Kubernetes cannot remove containers from a running Pod). The agent CR reverts to normal solo lifecycle on the next Pod restart.
+Sleep on a squad member cancels its task and sets `Phase=Sleeping`. The member's container keeps running idle inside the squad pod (Kubernetes can't selectively stop one container in a pod). Once **every** member is Sleeping, the operator deletes the squad pod entirely (PVCs are preserved).
 
+Waking a sleeping member sends a task to it normally — the API forwards the task and clears `Phase=Sleeping`. If the squad pod was deleted (all members were sleeping), the operator rebuilds it; the woken member runs its task, while still-sleeping siblings come up with `KOMPUTER_WAKE_IDLE=true` so their containers expose HTTP without auto-running prior instructions.
+
+UI: Sleep button on the agent detail page or "Sleep all" on the squad detail page.
+CLI: `komputer agent patch <name> --lifecycle Sleep`
+API: `PATCH /api/v1/agents/<name>` with `{"lifecycle": "Sleep"}`
+
+### Leave squad (single agent)
+
+Removing one agent from a squad — the agent stays alive as a solo agent, its workspace is preserved, and any in-flight task on that member is cancelled.
+
+UI: Leave Squad button on the agent detail page (replaces Team Up when in a squad).
 CLI: `komputer squad remove <squad> <agent>`
 API: `DELETE /api/v1/squads/<name>/members/<agent>`
+
+### Break up the squad
+
+Marks the squad for dissolution. The squad CR is deleted **once every member is asleep**; members then revert to solo agents (PVCs kept). Sending tasks to sleeping members in the meantime is allowed — they wake, run, return to Sleeping, and the break-up eventually completes.
+
+UI: Break Up button on the squad detail page; the squad header shows a "Break-up pending" badge while waiting.
+CLI: `komputer squad break-up <name>`
+API: `POST /api/v1/squads/<name>/break-up`
 
 ### Empty squad — orphan TTL
 
@@ -66,6 +87,7 @@ If a squad is reduced to exactly one member, it auto-dissolves: the squad Pod is
 - **Ephemeral container volume limitation.** When an agent is injected into a running Pod as an ephemeral container, Kubernetes does not allow adding new volumes to a running Pod. As a result the newly-added agent cannot mount its own PVC at `/workspace`. It *can* see all original members' workspaces at `/agents/<sibling>/workspace`. The agent's own `/workspace` becomes available after the next Pod restart (e.g. when another membership change triggers a recreate).
 - **No resource requests for late-added members.** Ephemeral containers cannot declare resource requests/limits. Resources are only allocated on the next Pod restart when the agent becomes a regular container.
 - **Pod name is the squad name.** `kubectl get pod` shows the squad Pod as `<squad-name>-pod`, not the individual agent names. Use `kubectl get pod <squad>-pod` to inspect it.
+- **Cleanup finalizer.** Each squad carries a `komputer.ai/squad-cleanup` finalizer. Kubernetes blocks the actual deletion of a squad until the operator clears `Status.Squad` on every member — preventing orphaned members if the operator was down at delete time.
 
 ## GitOps
 

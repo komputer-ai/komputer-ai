@@ -564,6 +564,17 @@ func (k *K8sClient) execInContainerWithOutput(ctx context.Context, ns, podName, 
 				break
 			}
 		}
+		// Also check ephemeral containers — squad members adopted into a running
+		// pod live there. Without this, exec falls back to pod.Spec.Containers[0]
+		// and silently runs in the wrong container, crossing tasks between agents.
+		if resolved == "" {
+			for _, c := range pod.Spec.EphemeralContainers {
+				if c.Name == containerName {
+					resolved = containerName
+					break
+				}
+			}
+		}
 	}
 	if resolved == "" {
 		resolved = pod.Spec.Containers[0].Name
@@ -613,6 +624,17 @@ func (k *K8sClient) execInContainerWithStdin(ctx context.Context, ns, podName, c
 			if c.Name == containerName {
 				resolved = containerName
 				break
+			}
+		}
+		// Also check ephemeral containers — squad members adopted into a running
+		// pod live there. Without this, exec falls back to pod.Spec.Containers[0]
+		// and silently runs in the wrong container, crossing tasks between agents.
+		if resolved == "" {
+			for _, c := range pod.Spec.EphemeralContainers {
+				if c.Name == containerName {
+					resolved = containerName
+					break
+				}
 			}
 		}
 	}

@@ -43,6 +43,9 @@ definitions:
     type: object
   main.AddSquadMemberRequest:
     properties:
+      name:
+        description: Name is the desired KomputerAgent name when Spec is set. Optional.
+        type: string
       ref:
         $ref: '#/definitions/v1alpha1.KomputerSquadMemberRef'
       spec:
@@ -112,6 +115,12 @@ definitions:
         items:
           type: string
         type: array
+      squad:
+        description: True when this agent is managed by a KomputerSquad
+        type: boolean
+      squadName:
+        description: Name of the squad managing this agent (when Squad=true)
+        type: string
       status:
         type: string
       storage:
@@ -596,6 +605,8 @@ definitions:
     type: object
   main.SquadResponse:
     properties:
+      breakUpRequested:
+        type: boolean
       createdAt:
         type: string
       members:
@@ -6059,6 +6070,12 @@ definitions:
     type: object
   v1alpha1.KomputerSquadMember:
     properties:
+      name:
+        description: |-
+          Name is the desired KomputerAgent name when Spec is provided. When empty, the
+          operator generates "<squad>-member-<index>". Ignored when Ref is set.
+          +optional
+        type: string
       ref:
         allOf:
         - $ref: '#/definitions/v1alpha1.KomputerSquadMemberRef'
@@ -7426,8 +7443,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new squad with the given members.
-      operationId: createSquad
       parameters:
       - description: Squad creation request
         in: body
@@ -7460,7 +7475,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Create squad
       tags:
       - squads
   /squads/{name}:
@@ -7584,6 +7598,42 @@ paths:
               type: string
             type: object
       summary: Patch squad
+      tags:
+      - squads
+  /squads/{name}/break-up:
+    post:
+      description: Marks the squad for dissolution once all members are asleep.
+      operationId: breakUpSquad
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Squad with break-up flag set
+          schema:
+            $ref: '#/definitions/main.SquadResponse'
+        "404":
+          description: Squad not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Request squad break-up
       tags:
       - squads
   /squads/{name}/members:

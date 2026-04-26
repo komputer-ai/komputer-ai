@@ -1959,7 +1959,6 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Creates a new squad with the given members.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1969,8 +1968,6 @@ const docTemplate = `{
                 "tags": [
                     "squads"
                 ],
-                "summary": "Create squad",
-                "operationId": "createSquad",
                 "parameters": [
                     {
                         "description": "Squad creation request",
@@ -2178,6 +2175,60 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "404": {
+                        "description": "Squad not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/squads/{name}/break-up": {
+            "post": {
+                "description": "Marks the squad for dissolution once all members are asleep.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "squads"
+                ],
+                "summary": "Request squad break-up",
+                "operationId": "breakUpSquad",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Squad name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Squad with break-up flag set",
+                        "schema": {
+                            "$ref": "#/definitions/main.SquadResponse"
                         }
                     },
                     "404": {
@@ -2428,6 +2479,10 @@ const docTemplate = `{
         "main.AddSquadMemberRequest": {
             "type": "object",
             "properties": {
+                "name": {
+                    "description": "Name is the desired KomputerAgent name when Spec is set. Optional.",
+                    "type": "string"
+                },
                 "ref": {
                     "$ref": "#/definitions/v1alpha1.KomputerSquadMemberRef"
                 },
@@ -2524,6 +2579,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "squad": {
+                    "description": "True when this agent is managed by a KomputerSquad",
+                    "type": "boolean"
+                },
+                "squadName": {
+                    "description": "Name of the squad managing this agent (when Squad=true)",
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -3248,6 +3311,9 @@ const docTemplate = `{
         "main.SquadResponse": {
             "type": "object",
             "properties": {
+                "breakUpRequested": {
+                    "type": "boolean"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -7554,6 +7620,10 @@ const docTemplate = `{
         "v1alpha1.KomputerSquadMember": {
             "type": "object",
             "properties": {
+                "name": {
+                    "description": "Name is the desired KomputerAgent name when Spec is provided. When empty, the\noperator generates \"\u003csquad\u003e-member-\u003cindex\u003e\". Ignored when Ref is set.\n+optional",
+                    "type": "string"
+                },
                 "ref": {
                     "description": "Exactly one of Ref or Spec must be set.",
                     "allOf": [
