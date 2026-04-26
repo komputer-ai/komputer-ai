@@ -1,4 +1,5 @@
 .gitignore
+docs/AddSquadMemberRequest.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
@@ -11,6 +12,7 @@ docs/CreateScheduleAgentSpec.md
 docs/CreateScheduleRequest.md
 docs/CreateSecretRequest.md
 docs/CreateSkillRequest.md
+docs/CreateSquadRequest.md
 docs/IntstrIntOrString.md
 docs/IntstrType.md
 docs/K8sIoApiCoreV1ResourceClaim.md
@@ -24,6 +26,7 @@ docs/PatchAgentRequest.md
 docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
+docs/PatchSquadRequest.md
 docs/ResourceQuantity.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
@@ -33,6 +36,10 @@ docs/SecretResponse.md
 docs/SecretsApi.md
 docs/SkillResponse.md
 docs/SkillsApi.md
+docs/SquadListResponse.md
+docs/SquadMemberResponse.md
+docs/SquadResponse.md
+docs/SquadsApi.md
 docs/TemplatesApi.md
 docs/UpdateSecretRequest.md
 docs/V1AWSElasticBlockStoreVolumeSource.md
@@ -179,6 +186,10 @@ docs/V1VsphereVirtualDiskVolumeSource.md
 docs/V1WeightedPodAffinityTerm.md
 docs/V1WindowsSecurityContextOptions.md
 docs/V1WorkloadReference.md
+docs/V1alpha1AgentLifecycle.md
+docs/V1alpha1KomputerAgentSpec.md
+docs/V1alpha1KomputerSquadMember.md
+docs/V1alpha1KomputerSquadMemberRef.md
 docs/V1alpha1StorageSpec.md
 src/apis/AgentsApi.ts
 src/apis/ConnectorsApi.ts
@@ -187,8 +198,10 @@ src/apis/OfficesApi.ts
 src/apis/SchedulesApi.ts
 src/apis/SecretsApi.ts
 src/apis/SkillsApi.ts
+src/apis/SquadsApi.ts
 src/apis/TemplatesApi.ts
 src/apis/index.ts
+src/models/AddSquadMemberRequest.ts
 src/models/AgentListResponse.ts
 src/models/AgentResponse.ts
 src/models/ConnectorResponse.ts
@@ -199,6 +212,7 @@ src/models/CreateScheduleAgentSpec.ts
 src/models/CreateScheduleRequest.ts
 src/models/CreateSecretRequest.ts
 src/models/CreateSkillRequest.ts
+src/models/CreateSquadRequest.ts
 src/models/IntstrIntOrString.ts
 src/models/IntstrType.ts
 src/models/K8sIoApiCoreV1ResourceClaim.ts
@@ -210,12 +224,16 @@ src/models/PatchAgentRequest.ts
 src/models/PatchMemoryRequest.ts
 src/models/PatchScheduleRequest.ts
 src/models/PatchSkillRequest.ts
+src/models/PatchSquadRequest.ts
 src/models/ResourceQuantity.ts
 src/models/ScheduleListResponse.ts
 src/models/ScheduleResponse.ts
 src/models/SecretListResponse.ts
 src/models/SecretResponse.ts
 src/models/SkillResponse.ts
+src/models/SquadListResponse.ts
+src/models/SquadMemberResponse.ts
+src/models/SquadResponse.ts
 src/models/UpdateSecretRequest.ts
 src/models/V1AWSElasticBlockStoreVolumeSource.ts
 src/models/V1Affinity.ts
@@ -361,6 +379,10 @@ src/models/V1VsphereVirtualDiskVolumeSource.ts
 src/models/V1WeightedPodAffinityTerm.ts
 src/models/V1WindowsSecurityContextOptions.ts
 src/models/V1WorkloadReference.ts
+src/models/V1alpha1AgentLifecycle.ts
+src/models/V1alpha1KomputerAgentSpec.ts
+src/models/V1alpha1KomputerSquadMember.ts
+src/models/V1alpha1KomputerSquadMemberRef.ts
 src/models/V1alpha1StorageSpec.ts
 src/models/index.ts
 src/runtime.ts

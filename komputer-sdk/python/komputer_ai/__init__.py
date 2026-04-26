@@ -25,6 +25,7 @@ __all__ = [
     "SchedulesApi",
     "SecretsApi",
     "SkillsApi",
+    "SquadsApi",
     "TemplatesApi",
     "ApiResponse",
     "ApiClient",
@@ -35,6 +36,7 @@ __all__ = [
     "ApiKeyError",
     "ApiAttributeError",
     "ApiException",
+    "AddSquadMemberRequest",
     "AgentListResponse",
     "AgentResponse",
     "ConnectorResponse",
@@ -45,6 +47,7 @@ __all__ = [
     "CreateScheduleRequest",
     "CreateSecretRequest",
     "CreateSkillRequest",
+    "CreateSquadRequest",
     "IntstrIntOrString",
     "IntstrType",
     "K8sIoApiCoreV1ResourceClaim",
@@ -56,12 +59,16 @@ __all__ = [
     "PatchMemoryRequest",
     "PatchScheduleRequest",
     "PatchSkillRequest",
+    "PatchSquadRequest",
     "ResourceQuantity",
     "ScheduleListResponse",
     "ScheduleResponse",
     "SecretListResponse",
     "SecretResponse",
     "SkillResponse",
+    "SquadListResponse",
+    "SquadMemberResponse",
+    "SquadResponse",
     "UpdateSecretRequest",
     "V1AWSElasticBlockStoreVolumeSource",
     "V1Affinity",
@@ -207,6 +214,10 @@ __all__ = [
     "V1WeightedPodAffinityTerm",
     "V1WindowsSecurityContextOptions",
     "V1WorkloadReference",
+    "V1alpha1AgentLifecycle",
+    "V1alpha1KomputerAgentSpec",
+    "V1alpha1KomputerSquadMember",
+    "V1alpha1KomputerSquadMemberRef",
     "V1alpha1StorageSpec",
 ]
 
@@ -218,6 +229,7 @@ from komputer_ai.api.offices_api import OfficesApi as OfficesApi
 from komputer_ai.api.schedules_api import SchedulesApi as SchedulesApi
 from komputer_ai.api.secrets_api import SecretsApi as SecretsApi
 from komputer_ai.api.skills_api import SkillsApi as SkillsApi
+from komputer_ai.api.squads_api import SquadsApi as SquadsApi
 from komputer_ai.api.templates_api import TemplatesApi as TemplatesApi
 
 # import ApiClient
@@ -232,6 +244,7 @@ from komputer_ai.exceptions import ApiAttributeError as ApiAttributeError
 from komputer_ai.exceptions import ApiException as ApiException
 
 # import models into sdk package
+from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest as AddSquadMemberRequest
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse as AgentResponse
 from komputer_ai.models.connector_response import ConnectorResponse as ConnectorResponse
@@ -242,6 +255,7 @@ from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpe
 from komputer_ai.models.create_schedule_request import CreateScheduleRequest as CreateScheduleRequest
 from komputer_ai.models.create_secret_request import CreateSecretRequest as CreateSecretRequest
 from komputer_ai.models.create_skill_request import CreateSkillRequest as CreateSkillRequest
+from komputer_ai.models.create_squad_request import CreateSquadRequest as CreateSquadRequest
 from komputer_ai.models.intstr_int_or_string import IntstrIntOrString as IntstrIntOrString
 from komputer_ai.models.intstr_type import IntstrType as IntstrType
 from komputer_ai.models.k8s_io_api_core_v1_resource_claim import K8sIoApiCoreV1ResourceClaim as K8sIoApiCoreV1ResourceClaim
@@ -253,12 +267,16 @@ from komputer_ai.models.patch_agent_request import PatchAgentRequest as PatchAge
 from komputer_ai.models.patch_memory_request import PatchMemoryRequest as PatchMemoryRequest
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest as PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest as PatchSkillRequest
+from komputer_ai.models.patch_squad_request import PatchSquadRequest as PatchSquadRequest
 from komputer_ai.models.resource_quantity import ResourceQuantity as ResourceQuantity
 from komputer_ai.models.schedule_list_response import ScheduleListResponse as ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse as ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse as SecretListResponse
 from komputer_ai.models.secret_response import SecretResponse as SecretResponse
 from komputer_ai.models.skill_response import SkillResponse as SkillResponse
+from komputer_ai.models.squad_list_response import SquadListResponse as SquadListResponse
+from komputer_ai.models.squad_member_response import SquadMemberResponse as SquadMemberResponse
+from komputer_ai.models.squad_response import SquadResponse as SquadResponse
 from komputer_ai.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
 from komputer_ai.models.v1_aws_elastic_block_store_volume_source import V1AWSElasticBlockStoreVolumeSource as V1AWSElasticBlockStoreVolumeSource
 from komputer_ai.models.v1_affinity import V1Affinity as V1Affinity
@@ -404,5 +422,9 @@ from komputer_ai.models.v1_vsphere_virtual_disk_volume_source import V1VsphereVi
 from komputer_ai.models.v1_weighted_pod_affinity_term import V1WeightedPodAffinityTerm as V1WeightedPodAffinityTerm
 from komputer_ai.models.v1_windows_security_context_options import V1WindowsSecurityContextOptions as V1WindowsSecurityContextOptions
 from komputer_ai.models.v1_workload_reference import V1WorkloadReference as V1WorkloadReference
+from komputer_ai.models.v1alpha1_agent_lifecycle import V1alpha1AgentLifecycle as V1alpha1AgentLifecycle
+from komputer_ai.models.v1alpha1_komputer_agent_spec import V1alpha1KomputerAgentSpec as V1alpha1KomputerAgentSpec
+from komputer_ai.models.v1alpha1_komputer_squad_member import V1alpha1KomputerSquadMember as V1alpha1KomputerSquadMember
+from komputer_ai.models.v1alpha1_komputer_squad_member_ref import V1alpha1KomputerSquadMemberRef as V1alpha1KomputerSquadMemberRef
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec as V1alpha1StorageSpec
 

@@ -7,4 +7,5 @@ export * from './OfficesApi';
 export * from './SchedulesApi';
 export * from './SecretsApi';
 export * from './SkillsApi';
+export * from './SquadsApi';
 export * from './TemplatesApi';

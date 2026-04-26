@@ -13,6 +13,7 @@
 """  # noqa: E501
 
 # import models into model package
+from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest
 from komputer_ai.models.agent_list_response import AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse
 from komputer_ai.models.connector_response import ConnectorResponse
@@ -23,6 +24,7 @@ from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpe
 from komputer_ai.models.create_schedule_request import CreateScheduleRequest
 from komputer_ai.models.create_secret_request import CreateSecretRequest
 from komputer_ai.models.create_skill_request import CreateSkillRequest
+from komputer_ai.models.create_squad_request import CreateSquadRequest
 from komputer_ai.models.intstr_int_or_string import IntstrIntOrString
 from komputer_ai.models.intstr_type import IntstrType
 from komputer_ai.models.k8s_io_api_core_v1_resource_claim import K8sIoApiCoreV1ResourceClaim
@@ -34,12 +36,16 @@ from komputer_ai.models.patch_agent_request import PatchAgentRequest
 from komputer_ai.models.patch_memory_request import PatchMemoryRequest
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest
+from komputer_ai.models.patch_squad_request import PatchSquadRequest
 from komputer_ai.models.resource_quantity import ResourceQuantity
 from komputer_ai.models.schedule_list_response import ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse
 from komputer_ai.models.secret_response import SecretResponse
 from komputer_ai.models.skill_response import SkillResponse
+from komputer_ai.models.squad_list_response import SquadListResponse
+from komputer_ai.models.squad_member_response import SquadMemberResponse
+from komputer_ai.models.squad_response import SquadResponse
 from komputer_ai.models.update_secret_request import UpdateSecretRequest
 from komputer_ai.models.v1_aws_elastic_block_store_volume_source import V1AWSElasticBlockStoreVolumeSource
 from komputer_ai.models.v1_affinity import V1Affinity
@@ -185,5 +191,9 @@ from komputer_ai.models.v1_vsphere_virtual_disk_volume_source import V1VsphereVi
 from komputer_ai.models.v1_weighted_pod_affinity_term import V1WeightedPodAffinityTerm
 from komputer_ai.models.v1_windows_security_context_options import V1WindowsSecurityContextOptions
 from komputer_ai.models.v1_workload_reference import V1WorkloadReference
+from komputer_ai.models.v1alpha1_agent_lifecycle import V1alpha1AgentLifecycle
+from komputer_ai.models.v1alpha1_komputer_agent_spec import V1alpha1KomputerAgentSpec
+from komputer_ai.models.v1alpha1_komputer_squad_member import V1alpha1KomputerSquadMember
+from komputer_ai.models.v1alpha1_komputer_squad_member_ref import V1alpha1KomputerSquadMemberRef
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
 
