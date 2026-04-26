@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check } from "lucide-react";
+import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/kit/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatCost, formatRelativeTime } from "@/lib/utils";
-import type { AgentResponse } from "@/lib/types";
+import type { AgentResponse, Squad } from "@/lib/types";
+import { useSquads } from "@/hooks/use-squads";
+import { deleteSquad } from "@/lib/api";
 
 export const agentKey = (a: { name: string; namespace: string }) => `${a.namespace}/${a.name}`;
 
@@ -30,6 +32,16 @@ const defaultStatus = { color: "#8899A6", icon: Bot };
 
 export function AgentCards({ agents, onDelete, selected, onToggleSelect }: AgentCardsProps) {
   const selectionMode = !!selected && selected.size > 0;
+  const { squads } = useSquads();
+
+  // Build agent-name → squad map
+  const agentSquadMap = new Map<string, Squad>();
+  for (const squad of squads) {
+    for (const member of squad.members) {
+      agentSquadMap.set(member.name, squad);
+    }
+  }
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
       <AnimatePresence mode="popLayout">
@@ -39,6 +51,7 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
           const isActive = agent.taskStatus === "InProgress";
           const key = agentKey(agent);
           const isSelected = !!selected?.has(key);
+          const squad = agentSquadMap.get(agent.name);
 
           const handleCardClick = (e: React.MouseEvent) => {
             if (selectionMode && onToggleSelect) {
@@ -112,15 +125,11 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ConfirmDialog
-                            title={`Delete ${agent.name}?`}
-                            description="This will permanently delete this agent and its workspace."
+                          <AgentDeleteButton
+                            agentName={agent.name}
+                            agentNamespace={agent.namespace}
+                            squad={squad}
                             onConfirm={() => onDelete(agent.name, agent.namespace)}
-                            trigger={
-                              <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
-                                <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
-                              </Button>
-                            }
                           />
                         </div>
                         <span
@@ -137,6 +146,20 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
 
                     {/* Bottom: fields */}
                     <div className="mt-4 space-y-1">
+                      {squad && (
+                        <div
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="mb-1.5"
+                        >
+                          <Link
+                            href={`/squads/${squad.name}?namespace=${squad.namespace}`}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors truncate max-w-full"
+                          >
+                            <Users className="size-2.5 shrink-0" />
+                            <span className="truncate">{squad.name}</span>
+                          </Link>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">status</span>
                         <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
@@ -171,6 +194,121 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
         })}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Squad-aware delete button: shows extra options when agent is in a squad.
+function AgentDeleteButton({
+  agentName,
+  agentNamespace,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad?: Squad;
+  onConfirm: () => void;
+}) {
+  if (!squad) {
+    return (
+      <ConfirmDialog
+        title={`Delete ${agentName}?`}
+        description="This will permanently delete this agent and its workspace."
+        onConfirm={onConfirm}
+        trigger={
+          <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+            <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <SquadAwareDeleteButton
+      agentName={agentName}
+      agentNamespace={agentNamespace}
+      squad={squad}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function SquadAwareDeleteButton({
+  agentName,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad: Squad;
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [deleteSquadChecked, setDeleteSquadChecked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      if (deleteSquadChecked) {
+        await deleteSquad(squad.name, squad.namespace);
+      }
+      onConfirm();
+    } finally {
+      setSubmitting(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <Button variant="ghost" size="icon" className="h-5 w-5 p-0" onClick={() => setOpen(true)}>
+        <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
+      </Button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setOpen(false)}
+        >
+          <div className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md" />
+          <div
+            className="relative z-10 w-full max-w-sm mx-4 rounded-[var(--radius-xl)] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-[var(--color-text)]">Delete {agentName}?</h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                This agent is part of squad <span className="font-medium text-[var(--color-brand-blue)]">{squad.name}</span>.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-start gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={deleteSquadChecked}
+                  onChange={(e) => setDeleteSquadChecked(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-brand-blue)]"
+                />
+                <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors">
+                  Delete squad too (all members will revert to solo)
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleConfirm} disabled={submitting}>
+                {submitting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

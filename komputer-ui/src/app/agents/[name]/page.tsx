@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users } from "lucide-react";
+import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -15,7 +16,10 @@ import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { useSquads } from "@/hooks/use-squads";
+import { TeamUpDialog } from "@/components/agents/team-up-dialog";
+import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
@@ -65,6 +69,8 @@ export default function AgentDetailPage() {
   const showLoading = useDelayedLoading(loading);
   const [error, setError] = useState<string | null>(null);
   const [sleeping, setSleeping] = useState(false);
+  const [teamUpOpen, setTeamUpOpen] = useState(false);
+  const { squads, refresh: refreshSquads } = useSquads();
 
   const { events: wsEvents } = useWebSocket(agentName);
   const [historyEvents, setHistoryEvents] = useState<AgentEvent[]>([]);
@@ -215,6 +221,11 @@ export default function AgentDetailPage() {
       fetchAgent();
     }
   }, [lastEventType, fetchAgent]);
+
+  // Find the squad this agent belongs to (if any)
+  const agentSquad = agent
+    ? squads.find((s) => s.members.some((m) => m.name === agent.name))
+    : undefined;
 
   // Actions
   const handleCancel = async () => {
@@ -378,17 +389,30 @@ export default function AgentDetailPage() {
                     </Button>
                   </>
                 )}
-                <ConfirmDialog
-                  title="Delete Agent"
-                  description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
-                  onConfirm={handleDelete}
-                  trigger={
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="size-3" data-icon="inline-start" />
-                      Delete
-                    </Button>
-                  }
-                />
+                <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
+                  <Users className="size-3" data-icon="inline-start" />
+                  Team Up
+                </Button>
+                {agentSquad ? (
+                  <SquadAwareDeleteButton
+                    agentName={agent.name}
+                    agentNamespace={agent.namespace}
+                    squad={agentSquad}
+                    onConfirm={handleDelete}
+                  />
+                ) : (
+                  <ConfirmDialog
+                    title="Delete Agent"
+                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
+                    onConfirm={handleDelete}
+                    trigger={
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="size-3" data-icon="inline-start" />
+                        Delete
+                      </Button>
+                    }
+                  />
+                )}
                 <Tooltip
                   content={view === "settings" ? "Back to chat" : "Settings"}
                   side="bottom"
@@ -444,6 +468,7 @@ export default function AgentDetailPage() {
               hasNewerEvents={hasNewerEvents}
               loadingNewer={loadingNewer}
               onLoadNewer={loadNewerEvents}
+              squadMembers={agentSquad?.members.map((m) => ({ name: m.name, namespace: agentNs || "default" }))}
             />
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
@@ -482,11 +507,32 @@ export default function AgentDetailPage() {
                 <InfoRow label="Name" value={agent.name} />
                 <InfoRow label="Namespace" value={agent.namespace} />
                 <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
+                {agentSquad && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">Squad</span>
+                    <Link
+                      href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                    >
+                      <Users className="size-3 shrink-0" />
+                      {agentSquad.name}
+                    </Link>
+                  </div>
+                )}
               </motion.div>
             </div>
           </div>
         )}
       </div>
+
+      <TeamUpDialog
+        open={teamUpOpen}
+        onOpenChange={setTeamUpOpen}
+        agentName={agent.name}
+        agentNamespace={agent.namespace || agentNs || "default"}
+        squads={squads}
+        onSuccess={refreshSquads}
+      />
     </motion.div>
   );
 }
@@ -889,6 +935,94 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </Button>
       </div>
     </motion.div>
+  );
+}
+
+function SquadAwareDeleteButton({
+  agentName,
+  agentNamespace,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad: Squad;
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [deleteSquadChecked, setDeleteSquadChecked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      if (deleteSquadChecked) {
+        await deleteSquad(squad.name, squad.namespace);
+      }
+      onConfirm();
+    } finally {
+      setSubmitting(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
+        <Trash2 className="size-3" data-icon="inline-start" />
+        Delete
+      </Button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setOpen(false)}
+        >
+          <div className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md" />
+          <div
+            className="relative z-10 w-full max-w-sm mx-4 rounded-[var(--radius-xl)] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-[var(--color-text)]">Delete {agentName}?</h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                This agent is part of squad{" "}
+                <Link
+                  href={`/squads/${squad.name}?namespace=${squad.namespace}`}
+                  className="font-medium text-[var(--color-brand-blue)] hover:underline"
+                  onClick={() => setOpen(false)}
+                >
+                  {squad.name}
+                </Link>
+                .
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-start gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={deleteSquadChecked}
+                  onChange={(e) => setDeleteSquadChecked(e.target.checked)}
+                  className="mt-0.5 accent-[var(--color-brand-blue)]"
+                />
+                <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors">
+                  Delete squad too (all members will revert to solo)
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleConfirm} disabled={submitting}>
+                {submitting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

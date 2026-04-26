@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,6 +28,11 @@ import {
   Sparkles,
 } from "lucide-react";
 
+type SquadTabMember = {
+  name: string;
+  namespace: string;
+};
+
 type AgentChatProps = {
   agentName: string;
   agentNamespace?: string;
@@ -46,6 +52,7 @@ type AgentChatProps = {
   hasNewerEvents?: boolean;
   loadingNewer?: boolean;
   onLoadNewer?: () => void;
+  squadMembers?: SquadTabMember[];
 };
 
 // --- Message types derived from events ---
@@ -851,7 +858,9 @@ export function AgentChat({
   hasNewerEvents,
   loadingNewer,
   onLoadNewer,
+  squadMembers,
 }: AgentChatProps) {
+  const searchParams = useSearchParams();
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(`draft:${agentName}`) ?? "";
@@ -1161,6 +1170,32 @@ export function AgentChat({
 
   return (
     <div className="flex h-full flex-1 min-w-0 flex-col">
+      {/* Squad member tabs — only shown when agent is in a squad */}
+      {squadMembers && squadMembers.length > 1 && (
+        <div className="shrink-0 flex items-center gap-0.5 px-4 pt-2 border-b border-[var(--color-border)]">
+          {squadMembers.map((member) => {
+            const isActive = member.name === agentName;
+            const ns = member.namespace || agentNamespace || searchParams?.get("namespace") || "default";
+            return isActive ? (
+              <span
+                key={member.name}
+                className="relative px-3 py-2 text-sm font-medium text-[var(--color-text)] cursor-default pb-[calc(0.5rem+3px)]"
+              >
+                {member.name}
+                <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--color-brand-blue)] rounded-full" />
+              </span>
+            ) : (
+              <Link
+                key={member.name}
+                href={`/agents/${member.name}?namespace=${ns}`}
+                className="px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+              >
+                {member.name}
+              </Link>
+            );
+          })}
+        </div>
+      )}
       {/* Messages area */}
       <div className="relative flex-1 overflow-hidden">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto px-4 pt-4 pb-4">
