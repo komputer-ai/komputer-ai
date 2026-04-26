@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -80,6 +81,12 @@ func (r *KomputerSquadReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := r.normalizeMembers(ctx, squad); err != nil {
 		log.Error(err, "Failed to normalize squad members")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	// Re-fetch squad after normalizeMembers to get the latest resourceVersion,
+	// avoiding stale-resourceVersion 409s on subsequent status patches.
+	if err := r.Get(ctx, req.NamespacedName, squad); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// 4. Empty squad handling (after normalization so we count refs only).
@@ -239,12 +246,9 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 			agent.Status.Phase = komputerv1alpha1.KomputerAgentPhaseSquad
 			agent.Status.Message = fmt.Sprintf("Managed by squad %s", squad.Name)
 			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
-				if !apierrors.IsConflict(err) {
-					return nil, fmt.Errorf("patch agent %s phase to Squad: %w", agent.Name, err)
-				}
-				// Conflict: re-fetch on next reconcile
-				log.Info("Conflict patching agent phase, will retry", "agent", agent.Name)
-				continue
+				// Any error (including conflict) means we have a partial set — return
+				// immediately so controller-runtime requeues the entire reconcile.
+				return nil, fmt.Errorf("patch agent %s phase to Squad: %w", agent.Name, err)
 			}
 		}
 
@@ -300,6 +304,11 @@ func (r *KomputerSquadReconciler) ensureMemberPVCs(ctx context.Context, squad *k
 				},
 			},
 		}
+		// Set the agent as owner so the PVC is GC'd when the agent is deleted
+		// (matches the solo agent flow in ensurePVC).
+		if err := ctrl.SetControllerReference(agent, newPVC, r.Scheme); err != nil {
+			return fmt.Errorf("set owner ref on pvc %s: %w", pvcName, err)
+		}
 		if createErr := r.Create(ctx, newPVC); createErr != nil && !apierrors.IsAlreadyExists(createErr) {
 			return fmt.Errorf("create pvc %s: %w", pvcName, createErr)
 		}
@@ -344,6 +353,11 @@ func (r *KomputerSquadReconciler) reconcileSquadPod(ctx context.Context, squad *
 	desired, buildErr := r.buildSquadPodSpec(ctx, squad, agents, config)
 	if buildErr != nil {
 		return fmt.Errorf("build squad pod spec: %w", buildErr)
+	}
+
+	// Set the squad CR as owner so the pod is GC'd if the squad is deleted.
+	if err := controllerutil.SetControllerReference(squad, desired, r.Scheme); err != nil {
+		return fmt.Errorf("set owner ref on squad pod %s: %w", podName, err)
 	}
 
 	log.Info("Creating squad pod", "pod", podName)
@@ -584,22 +598,24 @@ func (r *KomputerSquadReconciler) handleSingleMemberShrinkage(ctx context.Contex
 
 	log.Info("Squad has only 1 member, dissolving", "squad", squad.Name, "agent", ref.Name)
 
-	// Clear Phase=Squad on the lone agent BEFORE deleting the squad
-	if err := r.clearSquadPhase(ctx, ref.Name, ns); err != nil {
-		log.Error(err, "Failed to clear Squad phase on lone member", "agent", ref.Name)
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
-	}
-
-	// Delete the squad pod
+	// 1. Delete the squad pod FIRST so the RWO PVC is released before the agent
+	//    controller tries to schedule a new solo pod for the lone agent.
 	podName := squad.Name + "-pod"
 	pod := &corev1.Pod{}
 	if err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: squad.Namespace}, pod); err == nil {
 		if delErr := r.Delete(ctx, pod); delErr != nil && !apierrors.IsNotFound(delErr) {
 			log.Error(delErr, "Failed to delete squad pod during single-member shrinkage", "pod", podName)
-			// Non-fatal: proceed to delete the squad anyway; pod will be orphaned and GC'd
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
 	}
 
+	// 2. Clear Phase=Squad on the lone agent so the agent controller picks it up.
+	if err := r.clearSquadPhase(ctx, ref.Name, ns); err != nil {
+		log.Error(err, "Failed to clear Squad phase on lone member", "agent", ref.Name)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	// 3. Delete the squad CR.
 	return ctrl.Result{}, r.Delete(ctx, squad)
 }
 
