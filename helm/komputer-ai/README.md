@@ -7,6 +7,7 @@ Deploys the komputer.ai platform — distributed Claude AI agents on Kubernetes.
 - Kubernetes 1.24+
 - Helm 3.x
 - An [Anthropic API key](https://console.anthropic.com/)
+- [cert-manager](https://cert-manager.io/docs/installation/) (recommended) — required when `webhooks.enabled=true` (default), which validates `KomputerSquad` resources. See [Squad admission webhook](#squad-admission-webhook) below to opt out.
 
 ## Installation
 
@@ -129,6 +130,24 @@ helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
   --set externalRedis.passwordSecret.name=redis-secret \
   --namespace komputer-ai
 ```
+
+### Squad admission webhook
+
+The chart enables a `ValidatingWebhookConfiguration` for `KomputerSquad` by default (`webhooks.enabled: true`). It enforces that an agent can belong to **at most one squad** at a time.
+
+**Default (recommended):** keep enabled. Requires [cert-manager](https://cert-manager.io/) — the chart automatically provisions a self-signed `Issuer` + `Certificate` and injects the CA bundle into the webhook configuration.
+
+**Without cert-manager:**
+
+```yaml
+# values-no-webhook.yaml
+webhooks:
+  enabled: false
+```
+
+When disabled, two squads can claim the same agent. The squad controller will race over `Phase=Squad` and Pod ownership, causing the agent to flip between Pods and neither squad to stabilize. Only disable if cert-manager is genuinely unavailable.
+
+See [docs/squads.md](../../docs/squads.md) for the full squad feature guide.
 
 ### Ingress
 

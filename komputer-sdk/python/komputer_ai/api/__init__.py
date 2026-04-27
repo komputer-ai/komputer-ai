@@ -8,5 +8,6 @@ from komputer_ai.api.offices_api import OfficesApi
 from komputer_ai.api.schedules_api import SchedulesApi
 from komputer_ai.api.secrets_api import SecretsApi
 from komputer_ai.api.skills_api import SkillsApi
+from komputer_ai.api.squads_api import SquadsApi
 from komputer_ai.api.templates_api import TemplatesApi
 

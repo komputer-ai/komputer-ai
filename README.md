@@ -106,9 +106,10 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 5. [Local Development](docs/local-development.md) — Build and run from source on a local cluster
 6. [Monitoring & Metrics](docs/monitoring.md) — Prometheus endpoints, ServiceMonitor setup, agent remote-write, sample Grafana dashboard
 7. [Logging](docs/logging.md) — Structured JSON logging, `LOG_LEVEL` / `LOG_FORMAT`, common fields
-8. [Examples](examples/) — 10 end-to-end examples: hello world, secrets, managers, schedules, CI/CD, Slack, and more
-9. [Architecture](#architecture) — System diagram and component interactions
-10. Komputer Components
+8. [Squads](docs/squads.md) — Multi-agent shared workspace via co-located Pods
+9. [Examples](examples/) — 10 end-to-end examples: hello world, secrets, managers, schedules, CI/CD, Slack, and more
+10. [Architecture](#architecture) — System diagram and component interactions
+11. Komputer Components
    1. [komputer-api](komputer-api/README.md) — REST & WebSocket API reference, Swagger UI, configuration
    2. [komputer-operator](komputer-operator/README.md) — CRD definitions, reconciliation logic, operator development guide
    3. [komputer-agent](komputer-agent/README.md) — Agent runtime, Claude SDK integration, manager tools, event format

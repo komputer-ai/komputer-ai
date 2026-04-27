@@ -55,6 +55,22 @@ rules:
 - apiGroups:
   - komputer.komputer.ai
   resources:
+  - komputersquads
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - delete
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputersquads/status
+  verbs:
+  - get
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
   - komputeroffices
   verbs:
   - get

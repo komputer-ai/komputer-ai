@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users } from "lucide-react";
+import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -11,11 +12,17 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
+import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { useSquads } from "@/hooks/use-squads";
+import { TeamUpDialog } from "@/components/agents/team-up-dialog";
+import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
+import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
 import { MODELS, LIFECYCLES } from "@/lib/constants";
@@ -28,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
+import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent } from "@/lib/types";
 
 function fmtTokens(n: number): string {
@@ -65,6 +73,8 @@ export default function AgentDetailPage() {
   const showLoading = useDelayedLoading(loading);
   const [error, setError] = useState<string | null>(null);
   const [sleeping, setSleeping] = useState(false);
+  const [teamUpOpen, setTeamUpOpen] = useState(false);
+  const { squads, refresh: refreshSquads } = useSquads();
 
   const { events: wsEvents } = useWebSocket(agentName);
   const [historyEvents, setHistoryEvents] = useState<AgentEvent[]>([]);
@@ -216,6 +226,11 @@ export default function AgentDetailPage() {
     }
   }, [lastEventType, fetchAgent]);
 
+  // Find the squad this agent belongs to (if any)
+  const agentSquad = agent
+    ? squads.find((s) => s.members.some((m) => m.name === agent.name))
+    : undefined;
+
   // Actions
   const handleCancel = async () => {
     if (!agentName) return;
@@ -227,10 +242,10 @@ export default function AgentDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (opts?: { recreatePod?: boolean }) => {
     if (!agentName) return;
     try {
-      await deleteAgent(agentName, agentNs);
+      await deleteAgent(agentName, agentNs, opts);
       router.push("/agents");
     } catch {
       // Will be reflected in next poll
@@ -324,6 +339,18 @@ export default function AgentDetailPage() {
                     <StatusBadge status={agent.taskStatus} size="sm" />
                   </>
                 )}
+                {agent.squad && agent.squadName && (
+                  <>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">Squad</span>
+                    <Link
+                      href={`/squads/${agent.squadName}?namespace=${agent.namespace}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                    >
+                      <Users className="size-3" />
+                      <span>{agent.squadName}</span>
+                    </Link>
+                  </>
+                )}
                 <Badge variant="outline" className="text-xs font-mono">
                   {agent.model}
                 </Badge>
@@ -378,17 +405,42 @@ export default function AgentDetailPage() {
                     </Button>
                   </>
                 )}
-                <ConfirmDialog
-                  title="Delete Agent"
-                  description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
-                  onConfirm={handleDelete}
-                  trigger={
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="size-3" data-icon="inline-start" />
-                      Delete
-                    </Button>
-                  }
-                />
+                {agentSquad ? (
+                  <LeaveSquadButton
+                    agentName={agent.name}
+                    agentNamespace={agent.namespace}
+                    squad={agentSquad}
+                    onSuccess={() => {
+                      refreshSquads();
+                      fetchAgent();
+                    }}
+                  />
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
+                    <Users className="size-3" data-icon="inline-start" />
+                    Team Up
+                  </Button>
+                )}
+                {agentSquad ? (
+                  <SquadAwareDeleteButton
+                    agentName={agent.name}
+                    agentNamespace={agent.namespace}
+                    squad={agentSquad}
+                    onConfirm={handleDelete}
+                  />
+                ) : (
+                  <ConfirmDialog
+                    title="Delete Agent"
+                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
+                    onConfirm={handleDelete}
+                    trigger={
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="size-3" data-icon="inline-start" />
+                        Delete
+                      </Button>
+                    }
+                  />
+                )}
                 <Tooltip
                   content={view === "settings" ? "Back to chat" : "Settings"}
                   side="bottom"
@@ -425,26 +477,41 @@ export default function AgentDetailPage() {
 
         {view === "chat" ? (
           <div className="flex-1 overflow-hidden flex">
-            <AgentChat
-              agentName={agent.name}
-              agentNamespace={agentNs}
-              agentStatus={agent.status}
-              agentLifecycle={agent.lifecycle}
-              agentContextWindow={agent.modelContextWindow}
-              events={events}
-              taskStatus={agent.taskStatus}
-              initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
-              hasMoreEvents={hasMoreEvents}
-              loadingOlder={loadingOlder}
-              onLoadOlder={loadOlderEvents}
-              scrollContainerRef={scrollContainerRef}
-              scrollSnapshotRef={scrollSnapshotRef}
-              highlightTaskFrom={taskFrom}
-              highlightTaskTo={taskTo}
-              hasNewerEvents={hasNewerEvents}
-              loadingNewer={loadingNewer}
-              onLoadNewer={loadNewerEvents}
-            />
+            {(() => {
+              const primaryChat = (
+                <AgentChat
+                  agentName={agent.name}
+                  agentNamespace={agentNs}
+                  agentStatus={agent.status}
+                  agentLifecycle={agent.lifecycle}
+                  agentContextWindow={agent.modelContextWindow}
+                  events={events}
+                  taskStatus={agent.taskStatus}
+                  initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
+                  hasMoreEvents={hasMoreEvents}
+                  loadingOlder={loadingOlder}
+                  onLoadOlder={loadOlderEvents}
+                  scrollContainerRef={scrollContainerRef}
+                  scrollSnapshotRef={scrollSnapshotRef}
+                  highlightTaskFrom={taskFrom}
+                  highlightTaskTo={taskTo}
+                  hasNewerEvents={hasNewerEvents}
+                  loadingNewer={loadingNewer}
+                  onLoadNewer={loadNewerEvents}
+                />
+              );
+              if (agentSquad && agentSquad.members.length > 1) {
+                return (
+                  <SquadChatView
+                    squadName={agentSquad.name}
+                    members={agentSquad.members.map((m) => ({ name: m.name, namespace: agentNs || "default" }))}
+                    primaryAgentName={agent.name}
+                    primaryChat={primaryChat}
+                  />
+                );
+              }
+              return primaryChat;
+            })()}
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
         ) : (
@@ -482,11 +549,33 @@ export default function AgentDetailPage() {
                 <InfoRow label="Name" value={agent.name} />
                 <InfoRow label="Namespace" value={agent.namespace} />
                 <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
+                {agentSquad && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">Squad</span>
+                    <Link
+                      href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                    >
+                      <Users className="size-3 shrink-0" />
+                      {agentSquad.name}
+                    </Link>
+                  </div>
+                )}
               </motion.div>
             </div>
           </div>
         )}
       </div>
+
+      <TeamUpDialog
+        open={teamUpOpen}
+        onOpenChange={setTeamUpOpen}
+        agentName={agent.name}
+        agentNamespace={agent.namespace || agentNs || "default"}
+        agentStatus={agent.status}
+        squads={squads}
+        onSuccess={refreshSquads}
+      />
     </motion.div>
   );
 }
@@ -726,152 +815,111 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </Select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
           <Label>Secrets</Label>
-          <button
-            type="button"
-            onClick={() => setShowAllSecrets((v) => !v)}
-            className={`text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-              showAllSecrets
-                ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-            }`}
-          >
-            Show all
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {availableSecrets.map((s) => {
-            const attached = agentSecretRefs.includes(s.name);
-            return (
+          <MultiSelect
+            options={availableSecrets.map<MultiSelectOption>((s) => ({
+              value: s.name,
+              label: s.name,
+              secondary: showAllSecrets ? s.namespace : null,
+              searchTerms: [s.namespace],
+            }))}
+            value={agentSecretRefs}
+            onChange={setAgentSecretRefs}
+            placeholder="Select secrets..."
+            noun="secrets"
+            searchPlaceholder="Search secrets..."
+            emptyText="No secrets available"
+            headerExtra={
               <button
-                key={s.name}
                 type="button"
-                onClick={() => setAgentSecretRefs(prev =>
-                  attached ? prev.filter(n => n !== s.name) : [...prev, s.name]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                onClick={() => setShowAllSecrets((v) => !v)}
+                className={`w-full text-xs px-2 py-1 rounded border transition-colors cursor-pointer ${
+                  showAllSecrets
+                    ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
                 }`}
               >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {s.name}
+                {showAllSecrets ? "Showing all namespaces" : "Show all namespaces"}
               </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setCreateSecretOpen(true)}
-            className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer"
-          >
-            <Plus className="inline size-2.5 mr-1" />
-            New Secret
-          </button>
+            }
+            footerExtra={
+              <button
+                type="button"
+                onClick={() => setCreateSecretOpen(true)}
+                className="flex w-full items-center justify-center gap-1 text-xs px-2 py-1 rounded border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+              >
+                <Plus className="size-3" />
+                New Secret
+              </button>
+            }
+          />
+          <CreateSecretModal
+            open={createSecretOpen}
+            onOpenChange={setCreateSecretOpen}
+            onCreated={() => {
+              listSecrets(agentNs || undefined, showAllSecrets).then((res) => {
+                setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
+              }).catch(() => {});
+            }}
+          />
         </div>
-        <CreateSecretModal
-          open={createSecretOpen}
-          onOpenChange={setCreateSecretOpen}
-          onCreated={() => {
-            listSecrets(agentNs || undefined, showAllSecrets).then((res) => {
-              setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
-            }).catch(() => {});
-          }}
-        />
-      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Memories</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableMemories.map((m) => {
-            const attached = agentMemories.includes(m.ref);
-            const isCrossNs = m.ref.includes("/");
-            return (
-              <button
-                key={m.ref}
-                type="button"
-                onClick={() => setAgentMemories(prev =>
-                  attached ? prev.filter(n => n !== m.ref) : [...prev, m.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {m.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{m.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableMemories.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No memories available</p>
-          )}
+        <div className="flex flex-col gap-1.5">
+          <Label>Connectors</Label>
+          <MultiSelect
+            options={availableConnectors.map<MultiSelectOption>((c) => ({
+              value: c.ref,
+              label: c.name,
+              secondary: c.ref.includes("/") ? c.namespace : null,
+              searchTerms: [c.namespace, c.ref],
+            }))}
+            value={agentConnectors}
+            onChange={setAgentConnectors}
+            placeholder="Select connectors..."
+            noun="connectors"
+            searchPlaceholder="Search connectors..."
+            emptyText="No connectors available"
+          />
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Skills</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableSkills.map((s) => {
-            const attached = agentSkills.includes(s.ref);
-            const isCrossNs = s.ref.includes("/");
-            return (
-              <button
-                key={s.ref}
-                type="button"
-                onClick={() => setAgentSkills(prev =>
-                  attached ? prev.filter(n => n !== s.ref) : [...prev, s.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {s.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{s.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableSkills.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
-          )}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Memories</Label>
+          <MultiSelect
+            options={availableMemories.map<MultiSelectOption>((m) => ({
+              value: m.ref,
+              label: m.name,
+              secondary: m.ref.includes("/") ? m.namespace : null,
+              searchTerms: [m.namespace, m.ref],
+            }))}
+            value={agentMemories}
+            onChange={setAgentMemories}
+            placeholder="Select memories..."
+            noun="memories"
+            searchPlaceholder="Search memories..."
+            emptyText="No memories available"
+          />
         </div>
-      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Connectors</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableConnectors.map((c) => {
-            const attached = agentConnectors.includes(c.ref);
-            const isCrossNs = c.ref.includes("/");
-            return (
-              <button
-                key={c.ref}
-                type="button"
-                onClick={() => setAgentConnectors(prev =>
-                  attached ? prev.filter(n => n !== c.ref) : [...prev, c.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {c.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{c.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableConnectors.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
-          )}
+        <div className="flex flex-col gap-1.5">
+          <Label>Skills</Label>
+          <MultiSelect
+            options={availableSkills.map<MultiSelectOption>((s) => ({
+              value: s.ref,
+              label: s.name,
+              secondary: s.ref.includes("/") ? s.namespace : null,
+              searchTerms: [s.namespace, s.ref],
+            }))}
+            value={agentSkills}
+            onChange={setAgentSkills}
+            placeholder="Select skills..."
+            noun="skills"
+            searchPlaceholder="Search skills..."
+            emptyText="No skills available"
+          />
         </div>
       </div>
 
@@ -889,6 +937,36 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </Button>
       </div>
     </motion.div>
+  );
+}
+
+function SquadAwareDeleteButton({
+  agentName,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad: Squad;
+  onConfirm: (opts?: { recreatePod?: boolean }) => void;
+}) {
+  return (
+    <SquadAwareDeleteDialog
+      title={`Delete ${agentName}?`}
+      squad={{ name: squad.name, namespace: squad.namespace }}
+      onConfirm={async ({ recreatePod, deleteSquads }) => {
+        if (deleteSquads) {
+          await deleteSquad(squad.name, squad.namespace);
+        }
+        onConfirm({ recreatePod });
+      }}
+      trigger={
+        <Button variant="destructive" size="sm">
+          <Trash2 className="size-3" data-icon="inline-start" />
+          Delete
+        </Button>
+      }
+    />
   );
 }
 

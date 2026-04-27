@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check } from "lucide-react";
+import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/kit/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { formatCost, formatRelativeTime } from "@/lib/utils";
-import type { AgentResponse } from "@/lib/types";
+import type { AgentResponse, Squad } from "@/lib/types";
+import { useSquads } from "@/hooks/use-squads";
+import { deleteSquad } from "@/lib/api";
 
 export const agentKey = (a: { name: string; namespace: string }) => `${a.namespace}/${a.name}`;
 
 type AgentCardsProps = {
   agents: AgentResponse[];
-  onDelete: (name: string, namespace: string) => void;
+  onDelete: (name: string, namespace: string, opts?: { recreatePod?: boolean }) => void;
   selected?: Set<string>;
   onToggleSelect?: (key: string) => void;
 };
@@ -30,6 +33,16 @@ const defaultStatus = { color: "#8899A6", icon: Bot };
 
 export function AgentCards({ agents, onDelete, selected, onToggleSelect }: AgentCardsProps) {
   const selectionMode = !!selected && selected.size > 0;
+  const { squads } = useSquads();
+
+  // Build agent-name → squad map
+  const agentSquadMap = new Map<string, Squad>();
+  for (const squad of squads) {
+    for (const member of squad.members) {
+      agentSquadMap.set(member.name, squad);
+    }
+  }
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
       <AnimatePresence mode="popLayout">
@@ -39,6 +52,7 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
           const isActive = agent.taskStatus === "InProgress";
           const key = agentKey(agent);
           const isSelected = !!selected?.has(key);
+          const squad = agentSquadMap.get(agent.name);
 
           const handleCardClick = (e: React.MouseEvent) => {
             if (selectionMode && onToggleSelect) {
@@ -86,6 +100,7 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                         }`}
                         style={!isSelected ? { backgroundColor: `${cfg.color}15` } : undefined}
                         aria-label={isSelected ? "Deselect agent" : "Select agent"}
+                        title={squad ? `In squad: ${squad.name}` : undefined}
                       >
                         {isSelected ? (
                           <Check
@@ -106,21 +121,22 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                             )}
                           </span>
                         )}
+                        {squad && (
+                          <span className="absolute -bottom-1 -right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[var(--color-brand-violet)] border border-[var(--color-surface)] shadow-sm pointer-events-none">
+                            <Users className="w-2 h-2 text-white" strokeWidth={3} />
+                          </span>
+                        )}
                       </button>
                       <span className="text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight flex-1 min-w-0">
                         {agent.name}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ConfirmDialog
-                            title={`Delete ${agent.name}?`}
-                            description="This will permanently delete this agent and its workspace."
-                            onConfirm={() => onDelete(agent.name, agent.namespace)}
-                            trigger={
-                              <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
-                                <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
-                              </Button>
-                            }
+                          <AgentDeleteButton
+                            agentName={agent.name}
+                            agentNamespace={agent.namespace}
+                            squad={squad}
+                            onConfirm={(opts) => onDelete(agent.name, agent.namespace, opts)}
                           />
                         </div>
                         <span
@@ -171,6 +187,72 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
         })}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Squad-aware delete button: shows extra options when agent is in a squad.
+function AgentDeleteButton({
+  agentName,
+  agentNamespace,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad?: Squad;
+  onConfirm: (opts?: { recreatePod?: boolean }) => void;
+}) {
+  if (!squad) {
+    return (
+      <ConfirmDialog
+        title={`Delete ${agentName}?`}
+        description="This will permanently delete this agent and its workspace."
+        onConfirm={() => onConfirm()}
+        trigger={
+          <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+            <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <SquadAwareDeleteButton
+      agentName={agentName}
+      agentNamespace={agentNamespace}
+      squad={squad}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function SquadAwareDeleteButton({
+  agentName,
+  squad,
+  onConfirm,
+}: {
+  agentName: string;
+  agentNamespace: string;
+  squad: Squad;
+  onConfirm: (opts?: { recreatePod?: boolean }) => void;
+}) {
+  return (
+    <SquadAwareDeleteDialog
+      title={`Delete ${agentName}?`}
+      squad={{ name: squad.name, namespace: squad.namespace }}
+      onConfirm={async ({ recreatePod, deleteSquads }) => {
+        if (deleteSquads) {
+          await deleteSquad(squad.name, squad.namespace);
+        }
+        onConfirm({ recreatePod });
+      }}
+      trigger={
+        <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+          <Trash2 className="w-2.5 h-2.5 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors" />
+        </Button>
+      }
+    />
   );
 }
 

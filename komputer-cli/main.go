@@ -20,6 +20,7 @@ func main() {
 	registerMemoryCommands(root)
 	registerSkillCommands(root)
 	registerConnectorCommands(root)
+	registerSquadCommands(root)
 
 	root.Execute()
 }

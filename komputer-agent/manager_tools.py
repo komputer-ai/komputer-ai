@@ -42,7 +42,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
 
 @tool(
     name="create_agent",
-    description="Create a sub-agent to handle a task. Default role is 'worker' (Bash+WebSearch only). Set role='manager' for complex tasks that need their own sub-agents. Use lifecycle='AutoDelete' for one-shot tasks.",
+    description="Create a solo sub-agent (its own PVC, its own pod). Default role is 'worker' (Bash+WebSearch only). Set role='manager' for complex tasks that need their own sub-agents. Use lifecycle='AutoDelete' for one-shot tasks. To put new agents into a shared workspace, use create_squad instead — don't create solo and then group.",
     input_schema={
         "type": "object",
         "properties": {
@@ -1000,9 +1000,243 @@ async def list_templates(args):
     return await _request("GET", "/api/v1/templates")
 
 
+@tool(
+    name="create_squad",
+    description=(
+        "Create a new squad — a named group of agents that run together in one pod and can read/write each "
+        "other's workspaces. Each member still has its OWN PVC mounted at /agents/<name>/workspace; what a "
+        "squad gives you is that every member's pod also mounts every sibling's PVC at /agents/<sibling>/workspace, "
+        "so members can edit each other's files directly. Use a squad when agents must collaborate on the same "
+        "files in real time (e.g. coder + reviewer + tester). For independent parallel work, prefer solo agents "
+        "on git branches instead. "
+        "\n\n"
+        "This is the ONLY way to spin up a squad with brand-new agents in one shot. Each entry in `members` "
+        "is either an inline spec (creates a new agent as part of the squad) or a ref to an existing, sleeping agent. "
+        "You can mix both in the same call. "
+        "\n\n"
+        "Inline specs let you set name, instructions, role, model, lifecycle, systemPrompt, secrets, memories, "
+        "skills, connectors, templateRef, priority, and resources up-front — no need for separate attach_* calls. "
+        "Inherited from this manager: connectors, secrets (same as create_agent). "
+        "\n\n"
+        "Refs to existing agents must be asleep (Phase=Sleeping); running solo agents are rejected with 409. "
+        "Don't call add_to_squad afterwards for these initial members — they're created/adopted in one shot here."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Unique squad name (lowercase, hyphens, no spaces)."},
+            "members": {
+                "type": "array",
+                "minItems": 1,
+                "description": (
+                    "List of squad members. Each entry is either {\"agent\": \"<existing-sleeping-agent-name>\"} "
+                    "to adopt an existing agent, OR a full inline spec like "
+                    "{\"name\": \"coder\", \"instructions\": \"...\", \"role\": \"worker\", ...} to create a new "
+                    "agent as part of the squad."
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "agent": {"type": "string", "description": "Adopt an existing agent by name. Mutually exclusive with the inline-spec fields below."},
+                        "name": {"type": "string", "description": "Name for a new agent (required when not using `agent`). Lowercase, hyphens, no spaces."},
+                        "instructions": {"type": "string", "description": "Detailed task instructions for this agent."},
+                        "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
+                        "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
+                        "model": {"type": "string", "description": "Claude model override (optional)."},
+                        "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
+                        "systemPrompt": {"type": "string", "description": "Custom system prompt for this agent (optional)."},
+                        "priority": {"type": "integer", "description": "Queue priority. Higher = admitted first under template caps. Default: 0."},
+                        "secrets": {"type": "array", "items": {"type": "string"}, "description": "Names of existing secrets to attach (envFrom). e.g. ['github-token']."},
+                        "memories": {"type": "array", "items": {"type": "string"}, "description": "Memory refs to attach. Same-namespace: 'name'. Cross-namespace: 'namespace/name'."},
+                        "skills": {"type": "array", "items": {"type": "string"}, "description": "Skill refs to attach. Same format as memories."},
+                        "connectors": {"type": "array", "items": {"type": "string"}, "description": "Connector refs to attach. Same format as memories."},
+                        "storage_size": {"type": "string", "description": "PVC size for this agent before squad adoption, e.g. '20Gi'. Squads share one PVC per pod, so this is mostly relevant when the squad later breaks up."},
+                        "cpu": {"type": "string", "description": "CPU request/limit override, e.g. '2' or '500m'."},
+                        "memory_limit": {"type": "string", "description": "Memory request/limit override, e.g. '4Gi'."},
+                        "image": {"type": "string", "description": "Container image override, e.g. 'custom:latest'."},
+                    },
+                },
+            },
+            "orphan_ttl": {"type": "string", "description": "How long to keep the squad's shared PVC after all members leave (e.g. '10m', '1h'). Defaults to '10m'."},
+        },
+        "required": ["name", "members"],
+    },
+)
+async def create_squad(args):
+    squad_name = _sanitize_name(args["name"])
+    raw_members = args.get("members") or []
+    members: list[dict] = []
+    for m in raw_members:
+        if not isinstance(m, dict):
+            return _err(f"each member must be an object, got: {m!r}")
+
+        # Adoption form: {"agent": "name"}
+        existing = m.get("agent")
+        if existing:
+            members.append({"ref": {"name": _sanitize_name(existing)}})
+            continue
+
+        # Inline-spec form: build a KomputerAgentSpec from the flat args.
+        member_name = m.get("name")
+        instructions = m.get("instructions")
+        if not member_name:
+            return _err("inline-spec member is missing required field: name")
+        if not instructions:
+            return _err(f"inline-spec member '{member_name}' is missing required field: instructions")
+
+        spec: dict = {
+            "instructions": instructions.strip(),
+            "model": m.get("model") or "claude-sonnet-4-6",
+        }
+        if m.get("role"):
+            spec["role"] = m["role"]
+        if m.get("lifecycle"):
+            spec["lifecycle"] = m["lifecycle"]
+        if m.get("templateRef"):
+            spec["templateRef"] = m["templateRef"]
+        if m.get("systemPrompt"):
+            spec["systemPrompt"] = m["systemPrompt"]
+        if m.get("priority") is not None:
+            spec["priority"] = m["priority"]
+        if m.get("secrets"):
+            spec["secrets"] = list(m["secrets"])
+        if m.get("memories"):
+            spec["memories"] = list(m["memories"])
+        if m.get("skills"):
+            spec["skills"] = list(m["skills"])
+        if m.get("connectors"):
+            spec["connectors"] = list(m["connectors"])
+        if m.get("storage_size"):
+            spec["storage"] = {"size": m["storage_size"]}
+
+        cpu = m.get("cpu")
+        mem_limit = m.get("memory_limit")
+        image = m.get("image")
+        if cpu or mem_limit or image:
+            container: dict = {"name": "agent"}
+            if image:
+                container["image"] = image
+            if cpu or mem_limit:
+                rl: dict = {}
+                if cpu:
+                    rl["cpu"] = cpu
+                if mem_limit:
+                    rl["memory"] = mem_limit
+                container["resources"] = {"requests": rl, "limits": rl}
+            spec["podSpec"] = {"containers": [container]}
+
+        members.append({"name": _sanitize_name(member_name), "spec": spec})
+
+    if not members:
+        return _err("create_squad requires at least one member")
+
+    payload = {
+        "name": squad_name,
+        "namespace": NAMESPACE,
+        "members": members,
+        "orphanTTL": args.get("orphan_ttl", "10m"),
+    }
+    return await _request("POST", "/api/v1/squads", timeout=30, json=payload)
+
+
+@tool(
+    name="add_to_squad",
+    description=(
+        "Add an existing agent to an already-created squad. Once joined, the agent's PVC becomes visible "
+        "read/write to every other member at /agents/<this-agent>/workspace, and this agent gains the same "
+        "access to every sibling's PVC. The agent keeps its own PVC; squads don't merge volumes. "
+        "Use this only to grow a squad after it exists; for the initial members, pass them to create_squad instead. "
+        "The agent must already exist and be asleep (Phase=Sleeping) — running solo agents are rejected with 409. "
+        "Idempotent: if the agent is already a member of this squad, this returns the current squad and changes nothing."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "squad_name": {"type": "string", "description": "Name of the existing squad."},
+            "agent_name": {"type": "string", "description": "Name of the existing, sleeping agent to add."},
+        },
+        "required": ["squad_name", "agent_name"],
+    },
+)
+async def add_to_squad(args):
+    squad_name = _sanitize_name(args["squad_name"])
+    agent_name = _sanitize_name(args["agent_name"])
+    return await _request(
+        "POST", f"/api/v1/squads/{squad_name}/members",
+        timeout=30, json={"ref": {"name": agent_name}},
+    )
+
+
+@tool(
+    name="remove_from_squad",
+    description=(
+        "Remove one agent from a squad while keeping the squad alive for the other members. "
+        "The agent returns to running solo with its own PVC; the remaining squad members lose visibility "
+        "into this agent's workspace, and vice versa. "
+        "Use when one member is done but the rest still need to collaborate on each other's files. "
+        "To dissolve the squad entirely, use delete_squad instead."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "squad_name": {"type": "string", "description": "Name of the squad."},
+            "agent_name": {"type": "string", "description": "Name of the member agent to remove."},
+        },
+        "required": ["squad_name", "agent_name"],
+    },
+)
+async def remove_from_squad(args):
+    squad_name = _sanitize_name(args["squad_name"])
+    agent_name = _sanitize_name(args["agent_name"])
+    return await _request("DELETE", f"/api/v1/squads/{squad_name}/members/{agent_name}")
+
+
+@tool(
+    name="delete_squad",
+    description=(
+        "Dissolve a squad. All members leave the joint pod and return to running solo, each with its own PVC "
+        "(no data loss — squads never owned the data, only cross-mounted it between members). "
+        "Use when the collaborative phase is done and the agents no longer need to see each other's files. "
+        "To delete the agents too, call delete_agent on each one separately afterwards. "
+        "The orphan_ttl set at create time governs lingering empty squad cleanup, not member PVC retention."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Name of the squad to dissolve."},
+        },
+        "required": ["name"],
+    },
+)
+async def delete_squad(args):
+    squad_name = _sanitize_name(args["name"])
+    return await _request("DELETE", f"/api/v1/squads/{squad_name}")
+
+
+@tool(
+    name="list_squads",
+    description=(
+        "List all squads in the current namespace, with their members and pod status. "
+        "Call this before create_squad/add_to_squad to check whether a squad already exists, "
+        "and to see which agents are already grouped together."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "namespace": {"type": "string", "description": "Namespace to list squads from. Defaults to the current namespace."},
+        },
+    },
+)
+async def list_squads(args):
+    params = {}
+    if args.get("namespace"):
+        params["namespace"] = args["namespace"]
+    return await _request("GET", "/api/v1/squads", params=params)
+
+
 def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )

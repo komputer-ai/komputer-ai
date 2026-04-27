@@ -54,6 +54,7 @@ export function usePageHeaderSlot(node: React.ReactNode | null) {
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/agents": "Agents",
+  "/squads": "Squads",
   "/memories": "Memories",
   "/skills": "Skills",
   "/secrets": "Secrets",
@@ -70,6 +71,7 @@ function getPageTitle(pathname: string): string {
   if (segments.length >= 2) {
     const name = decodeURIComponent(segments[1]);
     if (segments[0] === "agents") return name;
+    if (segments[0] === "squads") return name;
     if (segments[0] === "offices") return name;
     if (segments[0] === "schedules") return name;
     if (segments[0] === "memories") return name;
@@ -297,7 +299,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </RefreshContext.Provider>
         </main>
       </div>
-      <CreateAgentModal open={createAgentOpen} onOpenChange={handleAgentOpenChange} initialValues={agentInitialValues} />
+      <CreateAgentModal open={createAgentOpen} onOpenChange={handleAgentOpenChange} initialValues={agentInitialValues} onCreated={() => refreshFn?.()} />
       <CreateScheduleModal open={createScheduleOpen} onOpenChange={setCreateScheduleOpen} />
       <CreateMemoryModal open={createMemoryOpen} onOpenChange={setCreateMemoryOpen} onCreated={() => refreshFn?.()} />
       <CreateSkillModal open={createSkillOpen} onOpenChange={setCreateSkillOpen} onCreated={() => refreshFn?.()} />

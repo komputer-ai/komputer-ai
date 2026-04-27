@@ -1,0 +1,87 @@
+{{- if .Values.webhooks.enabled }}
+---
+# Self-signed Issuer — signs the operator's webhook serving certificate.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ .Release.Name }}-operator-selfsigned
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  selfSigned: {}
+---
+# Certificate for the operator's webhook server (port 9443).
+# cert-manager injects the CA bundle into the ValidatingWebhookConfiguration
+# via the cert-manager.io/inject-ca-from annotation below.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Release.Name }}-operator-serving-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  dnsNames:
+  - {{ .Release.Name }}-operator-webhook.{{ .Release.Namespace }}.svc
+  - {{ .Release.Name }}-operator-webhook.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ .Release.Name }}-operator-selfsigned
+  secretName: {{ .Release.Name }}-operator-webhook-tls
+---
+# Service exposing the operator's webhook port so the API server can reach it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-operator-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  type: ClusterIP
+  ports:
+  - name: webhook-server
+    port: 443
+    targetPort: webhook-server
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: komputer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: operator
+---
+# ValidatingWebhookConfiguration — intercepts KomputerSquad create/update calls.
+# cert-manager injects the CA bundle automatically via the annotation.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-komputersquad-validator
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Release.Name }}-operator-serving-cert
+webhooks:
+- name: vkomputersquad.kb.io
+  admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ .Release.Name }}-operator-webhook
+      namespace: {{ .Release.Namespace }}
+      path: /validate-komputer-komputer-ai-v1alpha1-komputersquad
+  failurePolicy: Fail
+  rules:
+  - apiGroups:
+    - komputer.komputer.ai
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - komputersquads
+  sideEffects: None
+{{- end }}

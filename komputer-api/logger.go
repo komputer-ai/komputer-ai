@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"time"
@@ -60,10 +61,27 @@ func InitLogger() {
 	Logger = logger.Sugar()
 }
 
+// errorCaptureWriter wraps gin's ResponseWriter to capture the response body
+// when the status code indicates an error, so the access log can surface it.
+type errorCaptureWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w *errorCaptureWriter) Write(b []byte) (int, error) {
+	if w.body != nil {
+		w.body.Write(b)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
 // accessLogMiddleware emits one structured Debug log per HTTP request, with
 // method, path, status, latency, and client IP. At INFO and above this is
 // silent — Prometheus already records the same data. Set LOG_LEVEL=debug to
 // see access lines (replaces gin's default `[GIN] ...` line printer).
+//
+// For 4xx/5xx responses, the response body is captured and included as `error`
+// so failures are diagnosable from logs (otherwise the error JSON only reaches the client).
 //
 // Skips noisy paths (metrics, health probes) so debug mode stays useful.
 func accessLogMiddleware() gin.HandlerFunc {
@@ -75,17 +93,30 @@ func accessLogMiddleware() gin.HandlerFunc {
 	}
 	return func(c *gin.Context) {
 		start := time.Now()
+		capture := &errorCaptureWriter{ResponseWriter: c.Writer, body: &bytes.Buffer{}}
+		c.Writer = capture
 		c.Next()
 		path := c.Request.URL.Path
 		if _, isSkipped := skip[path]; isSkipped {
 			return
 		}
-		Logger.Debugw("http request",
+		status := c.Writer.Status()
+		fields := []interface{}{
 			"method", c.Request.Method,
 			"path", path,
-			"status", c.Writer.Status(),
+			"status", status,
 			"duration_ms", time.Since(start).Milliseconds(),
 			"client_ip", c.ClientIP(),
-		)
+		}
+		if status >= 400 && capture.body.Len() > 0 {
+			body := capture.body.String()
+			if len(body) > 1024 {
+				body = body[:1024] + "...(truncated)"
+			}
+			fields = append(fields, "error", body)
+			Logger.Warnw("http request error", fields...)
+			return
+		}
+		Logger.Debugw("http request", fields...)
 	}
 }

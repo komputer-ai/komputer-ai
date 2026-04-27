@@ -8173,6 +8173,14 @@ spec:
               podName:
                 description: PodName is the name of the agent pod.
                 type: string
+              port:
+                description: |-
+                  Port is the agent's HTTP server port inside its container. Defaults to 8000
+                  for solo agents. For squad members, the squad controller assigns 8000 + index
+                  so multiple members can co-exist in the same pod's network namespace.
+                  Owned by the controller that owns the pod (agent for solo, squad for squad members).
+                format: int32
+                type: integer
               pvcName:
                 description: PvcName is the name of the agent PVC.
                 type: string
@@ -8193,6 +8201,13 @@ spec:
                   SessionID is the Claude session ID for conversation continuity.
                   Set by the API worker when a task completes, read by the agent on startup.
                 type: string
+              squad:
+                description: |-
+                  Squad indicates the agent is managed by a KomputerSquad. When true, the squad
+                  controller owns the agent's pod lifecycle; the agent controller skips reconciliation.
+                  Phase, PodName, etc. continue to reflect the real pod state (set by the squad controller).
+                  Owned by squad controller.
+                type: boolean
               startTime:
                 description: StartTime is when the agent was started.
                 format: date-time

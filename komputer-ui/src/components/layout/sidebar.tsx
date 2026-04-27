@@ -19,6 +19,7 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  Users,
 } from "lucide-react";
 import { TooltipProvider } from "@/components/kit/tooltip";
 
@@ -30,6 +31,7 @@ const navItems = [
   { label: "Secrets", icon: KeyRound, href: "/secrets" },
   { label: "Connectors", icon: Plug, href: "/connectors" },
   { label: "Offices", icon: Building2, href: "/offices" },
+  { label: "Squads", icon: Users, href: "/squads" },
   { label: "Schedules", icon: Clock, href: "/schedules" },
   { label: "Topology", icon: Network, href: "/topology" },
   { label: "Cost", icon: DollarSign, href: "/costs" },

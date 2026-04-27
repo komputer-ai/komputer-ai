@@ -99,6 +99,14 @@ var (
 		[]string{"action", "result"},
 	)
 
+	squadActionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_squad_actions_total",
+			Help: "Squad management actions taken via the API (create/update/delete/add_member/remove_member).",
+		},
+		[]string{"action", "result"},
+	)
+
 	httpRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "komputer_api_http_request_duration_seconds",
@@ -178,6 +186,7 @@ func newMetricsRegistries(perAgentLabels bool) (*prometheus.Registry, *prometheu
 	agentRegistry.MustRegister(agentToolInvocations)
 	agentRegistry.MustRegister(agentToolDuration)
 	agentRegistry.MustRegister(agentActionsTotal)
+	agentRegistry.MustRegister(squadActionsTotal)
 	agentRegistry.MustRegister(agentBuildInfo)
 	agentRegistry.MustRegister(crCollectorErrorsTotal)
 

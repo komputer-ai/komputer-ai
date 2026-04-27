@@ -1487,6 +1487,331 @@ paths:
       tags:
       - skills
       x-codegen-request-body-name: request
+  /squads:
+    get:
+      description: Returns all squads with their current status. Pass ?namespace=
+        to filter; omit for all namespaces.
+      operationId: listSquads
+      parameters:
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadListResponse"
+          description: List of squads
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: List squads
+      tags:
+      - squads
+    post:
+      description: Creates a new squad with the given members.
+      operationId: createSquad
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSquadRequest"
+        description: Squad creation request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Created squad
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad already exists
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Create squad
+      tags:
+      - squads
+      x-codegen-request-body-name: request
+  /squads/{name}:
+    delete:
+      description: Deletes the squad CR. The operator will clean up the shared pod.
+      operationId: deleteSquad
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Delete squad
+      tags:
+      - squads
+    get:
+      description: Returns the current status and member list for a single squad.
+      operationId: getSquad
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Squad details
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get squad details
+      tags:
+      - squads
+    patch:
+      description: Replaces the member list and/or orphanTTL on an existing squad.
+        Retries once on 409 conflict.
+      operationId: patchSquad
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchSquadRequest"
+        description: Fields to update
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Updated squad
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Patch squad
+      tags:
+      - squads
+      x-codegen-request-body-name: request
+  /squads/{name}/members:
+    post:
+      description: Appends a member (by ref or inline spec) to the squad's member
+        list.
+      operationId: addSquadMember
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSquadMemberRequest"
+        description: Member to add
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Updated squad
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Add squad member
+      tags:
+      - squads
+      x-codegen-request-body-name: request
+  /squads/{name}/members/{agent}:
+    delete:
+      description: Removes the named member from the squad's member list (matched
+        by ref.name or spec-based name).
+      operationId: removeSquadMember
+      parameters:
+      - description: Squad name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Agent name to remove
+        in: path
+        name: agent
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Updated squad
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad or member not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Remove squad member
+      tags:
+      - squads
   /templates:
     get:
       description: Returns all agent templates (both namespace-scoped and cluster-scoped)
@@ -1559,6 +1884,13 @@ components:
 
             +optional
           type: string
+      type: object
+    AddSquadMemberRequest:
+      properties:
+        ref:
+          $ref: "#/components/schemas/v1alpha1.KomputerSquadMemberRef"
+        spec:
+          $ref: "#/components/schemas/v1alpha1.KomputerAgentSpec"
       type: object
     AgentListResponse:
       example:
@@ -3825,6 +4157,23 @@ components:
       - description
       - name
       type: object
+    CreateSquadRequest:
+      properties:
+        members:
+          items:
+            $ref: "#/components/schemas/v1alpha1.KomputerSquadMember"
+          type: array
+        name:
+          type: string
+        namespace:
+          type: string
+        orphanTTL:
+          description: duration string e.g. "10m"
+          type: string
+      required:
+      - members
+      - name
+      type: object
     MemoryResponse:
       example:
         createdAt: createdAt
@@ -4022,6 +4371,15 @@ components:
         content:
           type: string
         description:
+          type: string
+      type: object
+    PatchSquadRequest:
+      properties:
+        members:
+          items:
+            $ref: "#/components/schemas/v1alpha1.KomputerSquadMember"
+          type: array
+        orphanTTL:
           type: string
       type: object
     ScheduleListResponse:
@@ -4231,6 +4589,97 @@ components:
         name:
           type: string
         namespace:
+          type: string
+      type: object
+    SquadListResponse:
+      example:
+        squads:
+        - phase: phase
+          createdAt: createdAt
+          members:
+          - ready: true
+            name: name
+            taskStatus: taskStatus
+          - ready: true
+            name: name
+            taskStatus: taskStatus
+          name: name
+          namespace: namespace
+          orphanedSince: orphanedSince
+          podName: podName
+          orphanTTL: orphanTTL
+          message: message
+        - phase: phase
+          createdAt: createdAt
+          members:
+          - ready: true
+            name: name
+            taskStatus: taskStatus
+          - ready: true
+            name: name
+            taskStatus: taskStatus
+          name: name
+          namespace: namespace
+          orphanedSince: orphanedSince
+          podName: podName
+          orphanTTL: orphanTTL
+          message: message
+      properties:
+        squads:
+          items:
+            $ref: "#/components/schemas/SquadResponse"
+          type: array
+      type: object
+    SquadMemberResponse:
+      example:
+        ready: true
+        name: name
+        taskStatus: taskStatus
+      properties:
+        name:
+          type: string
+        ready:
+          type: boolean
+        taskStatus:
+          type: string
+      type: object
+    SquadResponse:
+      example:
+        phase: phase
+        createdAt: createdAt
+        members:
+        - ready: true
+          name: name
+          taskStatus: taskStatus
+        - ready: true
+          name: name
+          taskStatus: taskStatus
+        name: name
+        namespace: namespace
+        orphanedSince: orphanedSince
+        podName: podName
+        orphanTTL: orphanTTL
+        message: message
+      properties:
+        createdAt:
+          type: string
+        members:
+          items:
+            $ref: "#/components/schemas/SquadMemberResponse"
+          type: array
+        message:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        orphanTTL:
+          type: string
+        orphanedSince:
+          type: string
+        phase:
+          type: string
+        podName:
           type: string
       type: object
     UpdateSecretRequest:
@@ -10588,6 +11037,143 @@ components:
             When set, it must be a DNS label.
 
             +optional
+          type: string
+      type: object
+    v1alpha1.AgentLifecycle:
+      enum:
+      - ""
+      - Sleep
+      - AutoDelete
+      type: string
+      x-enum-varnames:
+      - AgentLifecycleDefault
+      - AgentLifecycleSleep
+      - AgentLifecycleAutoDelete
+    v1alpha1.KomputerAgentSpec:
+      properties:
+        connectors:
+          description: |-
+            Connectors is a list of KomputerConnector names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        instructions:
+          description: Instructions is the user's task for the Claude agent.
+          type: string
+        internalSystemPrompt:
+          description: |-
+            InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories).
+            +optional
+          type: string
+        lifecycle:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.AgentLifecycle"
+          description: |-
+            Lifecycle controls what happens after task completion.
+            Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
+            "AutoDelete" deletes the entire agent after task completion.
+            +kubebuilder:validation:Enum="";Sleep;AutoDelete
+            +optional
+          type: object
+        memories:
+          description: |-
+            Memories is a list of KomputerMemory names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        model:
+          description: |-
+            Model is the Claude model to use.
+            +kubebuilder:default="claude-sonnet-4-6"
+          type: string
+        officeManager:
+          description: |-
+            OfficeManager is the name of the manager agent that created this sub-agent.
+            When set, the operator creates/joins a KomputerOffice for the group.
+            +optional
+          type: string
+        podSpec:
+          allOf:
+          - $ref: "#/components/schemas/v1.PodSpec"
+          description: |-
+            PodSpec, when set, overrides the template's PodSpec for this agent.
+            Container fields are merged by name; non-zero fields from this PodSpec
+            override the template's container fields. Takes effect on next pod start
+            (existing pods are not mutated).
+            +optional
+          type: object
+        priority:
+          description: |-
+            Priority controls admission order when the template's maxConcurrentAgents
+            limit is reached. Higher number = admitted first (matches K8s PodPriority).
+            Ties broken by creationTimestamp (older first). Defaults to 0.
+            +kubebuilder:default=0
+            +optional
+          type: integer
+        role:
+          description: |-
+            Role is "manager" or "worker". Managers get orchestration tools.
+            Role is "manager" or "worker". Defaults to "manager" for top-level agents.
+            Sub-agents created by managers are explicitly set to "worker".
+            +kubebuilder:default="manager"
+            +kubebuilder:validation:Enum=worker;manager
+            +optional
+          type: string
+        secrets:
+          description: |-
+            Secrets is a list of K8s Secret names containing agent-specific secrets.
+            Each key in each secret is injected as an env var into the agent pod.
+            +optional
+          items:
+            type: string
+          type: array
+        skills:
+          description: |-
+            Skills is a list of KomputerSkill names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        storage:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.StorageSpec"
+          description: |-
+            Storage, when set, overrides the template's storage settings for this agent.
+            Existing PVCs are expanded in place when the storage class supports it.
+            +optional
+          type: object
+        systemPrompt:
+          description: |-
+            SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
+            +optional
+          type: string
+        templateRef:
+          description: |-
+            TemplateRef is the name of the KomputerAgentTemplate to use.
+            +kubebuilder:default="default"
+          type: string
+      type: object
+    v1alpha1.KomputerSquadMember:
+      properties:
+        ref:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.KomputerSquadMemberRef"
+          description: Exactly one of Ref or Spec must be set.
+          type: object
+        spec:
+          $ref: "#/components/schemas/v1alpha1.KomputerAgentSpec"
+      type: object
+    v1alpha1.KomputerSquadMemberRef:
+      properties:
+        name:
+          type: string
+        namespace:
+          description: defaults to squad's namespace
           type: string
       type: object
     v1alpha1.StorageSpec:

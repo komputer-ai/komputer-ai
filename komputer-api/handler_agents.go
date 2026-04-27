@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,12 +56,79 @@ type AgentResponse struct {
 	Priority        int32    `json:"priority"`
 	QueuePosition   int32    `json:"queuePosition,omitempty"`
 	QueueReason     string   `json:"queueReason,omitempty"`
+	Squad           bool     `json:"squad,omitempty"`     // True when this agent is managed by a KomputerSquad
+	SquadName       string   `json:"squadName,omitempty"` // Name of the squad managing this agent (when Squad=true)
 	PodSpec         *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage         *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
 	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched
 	// but live-pod sync failed). The CR change still took effect; the UI can surface these
 	// as toasts so the user knows something didn't fully apply.
 	Errors          []string                      `json:"errors,omitempty"`
+}
+
+// buildAgentInternalSystemPrompt assembles the internal system prompt for an
+// agent. It is the shared logic used both when creating a solo agent and when
+// creating a squad (inline member specs need this too — otherwise squad
+// agents start with empty KOMPUTER_INTERNAL_SYSTEM_PROMPT).
+//
+// squadName/squadMembers describe the squad the agent belongs to (if any).
+// Pass squadName="" for a solo agent.
+func buildAgentInternalSystemPrompt(
+	ctx context.Context,
+	k8s *K8sClient,
+	ns, agentName, role string,
+	memories []string,
+	squadName string,
+	squadSiblings []string, // member names other than agentName
+) string {
+	memorySection, _ := k8s.ResolveMemoryContent(ctx, ns, memories)
+	agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s", agentName)
+	base := workerSystemPrompt
+	if role == "manager" {
+		base = managerSystemPrompt
+	}
+	prompt := base + memorySection + agentHeader
+	if squadName != "" {
+		prompt += fmt.Sprintf("\nYou are part of squad %q with members: %s. Their workspaces are mounted read/write at /agents/<name>/workspace.", squadName, strings.Join(squadSiblings, ", "))
+	}
+	return prompt
+}
+
+// resolveSquadName returns the squad name managing this agent, or "" if not in a squad.
+// Uses agent.Status.Squad as the gate (cheap), then looks up the name via the API client.
+// Returns "" silently on lookup failure (the Squad bool flag is the source of truth).
+func resolveSquadName(ctx context.Context, k8s *K8sClient, agent *komputerv1alpha1.KomputerAgent) string {
+	if !agent.Status.Squad {
+		return ""
+	}
+	squad, err := k8s.FindSquadForAgent(ctx, agent.Namespace, agent.Name)
+	if err != nil || squad == nil {
+		return ""
+	}
+	return squad.Name
+}
+
+// buildSquadNameMap groups all squads by member name for cheap O(1) lookup during list endpoints.
+// Returns map[namespace/agentName] -> squadName.
+func buildSquadNameMap(ctx context.Context, k8s *K8sClient, ns string) map[string]string {
+	out := make(map[string]string)
+	squads, err := k8s.ListSquads(ctx, ns)
+	if err != nil {
+		return out
+	}
+	for _, s := range squads {
+		for _, m := range s.Spec.Members {
+			if m.Ref == nil {
+				continue
+			}
+			memberNs := m.Ref.Namespace
+			if memberNs == "" {
+				memberNs = s.Namespace
+			}
+			out[memberNs+"/"+m.Ref.Name] = s.Name
+		}
+	}
+	return out
 }
 
 // mergeDefaultSkills adds default skill names to the explicit list, deduplicating.
@@ -146,14 +214,20 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		instructions := req.Instructions
 
 		// Build internal system prompt — memory resolution happens after we know if agent exists
-		// (existing agents use CR memories, new agents use request memories)
+		// (existing agents use CR memories, new agents use request memories).
+		// Looks up the agent's squad (if any) so the prompt mentions siblings.
 		buildInternalSystemPrompt := func(memories []string) string {
-			memorySection, _ := k8s.ResolveMemoryContent(c.Request.Context(), ns, memories)
-			agentHeader := fmt.Sprintf("\n---\n\n**Agent Name:** %s", req.Name)
-			if role == "manager" {
-				return managerSystemPrompt + memorySection + agentHeader
+			squadName := ""
+			var siblings []string
+			if squad, err := k8s.FindSquadForAgent(c.Request.Context(), ns, req.Name); err == nil && squad != nil {
+				squadName = squad.Name
+				for _, m := range squad.Spec.Members {
+					if m.Ref != nil && m.Ref.Name != req.Name {
+						siblings = append(siblings, m.Ref.Name)
+					}
+				}
 			}
-			return workerSystemPrompt + memorySection + agentHeader
+			return buildAgentInternalSystemPrompt(c.Request.Context(), k8s, ns, req.Name, role, memories, squadName, siblings)
 		}
 
 		existing, err := k8s.GetAgent(c.Request.Context(), ns, req.Name)
@@ -178,6 +252,16 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					agentActionsTotal.WithLabelValues("wake", "error").Inc()
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
+				}
+				// Squad-member wake: if the squad pod is still up (other members weren't
+				// sleeping), this member's container is running idle (KOMPUTER_WAKE_IDLE=true).
+				// Push the task over HTTP since it won't auto-start. If the pod was deleted,
+				// the squad controller will rebuild it and the new container picks up
+				// instructions from env vars on startup.
+				if existing.Status.Squad && existing.Status.PodName != "" {
+					if _, fwdErr := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(wakeMemories), wakeSystemPrompt); fwdErr != nil {
+						Logger.Warnw("squad-wake task forward failed (will rely on pod rebuild)", "agent_name", req.Name, "error", fwdErr)
+					}
 				}
 				Logger.Infow("waking sleeping agent", "namespace", ns, "agent_name", req.Name)
 				agentActionsTotal.WithLabelValues("wake", "success").Inc()
@@ -215,12 +299,6 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// If the agent is busy, the message is queued as a steer (follow-up).
 			// The agent's /task endpoint handles both new tasks and steers.
 
-			podIP, err := k8s.GetAgentPodIP(c.Request.Context(), ns, existing.Status.PodName)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get agent pod IP: " + err.Error()})
-				return
-			}
-
 			// Use CR memories for existing agents (may have been updated via PATCH)
 			forwardMemories := existing.Spec.Memories
 			if len(req.Memories) > 0 {
@@ -230,7 +308,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if forwardSystemPrompt == "" {
 				forwardSystemPrompt = existing.Spec.SystemPrompt
 			}
-			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, podIP, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt)
+			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt)
 			if err != nil {
 				agentActionsTotal.WithLabelValues("wake", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
@@ -352,6 +430,22 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		ns := resolveNamespace(c, k8s)
+
+		// Optional flag: when the agent is a squad member, also delete the squad pod
+		// after removing the agent. The squad reconciler rebuilds the pod fresh on
+		// the next loop so any stale ephemeral container from the removed member is gone.
+		recreatePod := c.Query("recreatePod") == "true"
+
+		// Look up squad membership BEFORE deleting the agent — once the CR is gone
+		// the FindSquadForAgent lookup would still work via the squad's spec, but
+		// resolving it up front keeps the squad-pod delete logic simple.
+		var squadName string
+		if recreatePod {
+			if squad, err := k8s.FindSquadForAgent(c.Request.Context(), ns, name); err == nil && squad != nil {
+				squadName = squad.Name
+			}
+		}
+
 		if err := k8s.DeleteAgent(c.Request.Context(), ns, name); err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
@@ -365,6 +459,16 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 		if err := DeleteAgentStream(c.Request.Context(), worker.Rdb, name, worker.StreamPrefix); err != nil {
 			Logger.Warnw("failed to delete event stream", "agent_name", name, "error", err)
 		}
+
+		// Best-effort: delete the squad pod so the reconciler rebuilds it.
+		if squadName != "" {
+			if err := k8s.DeletePod(c.Request.Context(), ns, squadName+"-pod"); err != nil && !errors.IsNotFound(err) {
+				Logger.Warnw("failed to delete squad pod for recreate", "squad_name", squadName, "error", err)
+			} else {
+				Logger.Infow("deleted squad pod for recreate", "namespace", ns, "squad_name", squadName)
+			}
+		}
+
 		Logger.Infow("deleted agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("delete", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "deleted", "name": name})
@@ -404,13 +508,7 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		podIP, err := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get pod IP: " + err.Error()})
-			return
-		}
-
-		if err := k8s.CancelAgentTask(c.Request.Context(), ns, agent.Status.PodName, podIP); err != nil {
+		if err := k8s.CancelAgentTask(c.Request.Context(), ns, agent.Status.PodName, agent.Name); err != nil {
 			agentActionsTotal.WithLabelValues("cancel", "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel: " + err.Error()})
 			return
@@ -472,6 +570,8 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			QueueReason:        agent.Status.QueueReason,
 			PodSpec:            agent.Spec.PodSpec,
 			Storage:            agent.Spec.Storage,
+			Squad:              agent.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
 		})
 	}
 }
@@ -574,6 +674,8 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		squadByAgent := buildSquadNameMap(c.Request.Context(), k8s, ns)
+
 		resp := AgentListResponse{Agents: make([]AgentResponse, 0, len(agents))}
 		for _, a := range agents {
 			if statusFilter != "" && !strings.EqualFold(statusFilter, string(a.Status.Phase)) {
@@ -603,6 +705,8 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				QueueReason:        a.Status.QueueReason,
 				PodSpec:            a.Spec.PodSpec,
 				Storage:            a.Spec.Storage,
+				Squad:              a.Status.Squad,
+				SquadName:          squadByAgent[a.Namespace+"/"+a.Name],
 			})
 		}
 
@@ -655,6 +759,25 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// 1-sleep-squad. Sleep on a squad member: the agent controller skips squad-managed
+		// agents, so Lifecycle=Sleep alone wouldn't take effect. Cancel any in-flight task
+		// (best effort) and set Status.Phase=Sleeping directly. The squad controller then
+		// deletes the squad pod once *all* members are Sleeping.
+		if patchAction == "sleep" {
+			if cur, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && cur.Status.Squad {
+				if cur.Status.PodName != "" {
+					if cancelErr := k8s.CancelAgentTask(c.Request.Context(), ns, cur.Status.PodName, name); cancelErr != nil {
+						Logger.Warnw("squad-sleep cancel failed (continuing)", "agent_name", name, "error", cancelErr)
+					}
+				}
+				if patchErr := k8s.PatchAgentPhase(c.Request.Context(), ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — set by user"); patchErr != nil {
+					agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to set sleeping phase: " + patchErr.Error()})
+					return
+				}
+			}
+		}
+
 		// 1a-override. Patch podSpec / storage overrides if provided.
 		if req.PodSpec != nil || req.Storage != nil {
 			if err := k8s.PatchAgentOverrides(c.Request.Context(), ns, name, req.PodSpec, req.Storage); err != nil {
@@ -685,12 +808,9 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				if configJSON, err := json.Marshal(map[string]interface{}{"skills": skillFiles}); err == nil {
 					agentForSkills, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
 					if getErr == nil && agentForSkills.Status.PodName != "" && agentForSkills.Status.Phase == "Running" {
-						podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agentForSkills.Status.PodName)
-						if ipErr == nil {
-							if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agentForSkills.Status.PodName, podIP, string(configJSON)); applyErr != nil {
-								Logger.Errorw("skills config apply to pod failed", "agent_name", name, "error", applyErr)
-								nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("skills sync to running pod failed: %v", applyErr))
-							}
+						if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agentForSkills.Status.PodName, agentForSkills.Name, string(configJSON)); applyErr != nil {
+							Logger.Errorw("skills config apply to pod failed", "agent_name", name, "error", applyErr)
+							nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("skills sync to running pod failed: %v", applyErr))
 						}
 					}
 				}
@@ -736,18 +856,17 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				payload.Instructions != nil || payload.TemplateRef != nil ||
 				payload.Secrets != nil || payload.McpServers != nil
 			configPayload, _ := json.Marshal(payload)
-			podIP, ipErr := k8s.GetAgentPodIP(c.Request.Context(), ns, agent.Status.PodName)
-			if ipErr == nil && hasPayloadFields {
+			if hasPayloadFields {
 				if req.Model != nil && *req.Model != "" {
 					// Read response to capture context_window
-					if cw := k8s.ApplyAgentConfigGetContextWindow(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); cw > 0 {
+					if cw := k8s.ApplyAgentConfigGetContextWindow(c.Request.Context(), ns, agent.Status.PodName, agent.Name, string(configPayload)); cw > 0 {
 						freshContextWindow = cw
 						if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, name, cw); patchErr != nil {
 							Logger.Warnw("failed to patch context window", "agent_name", name, "error", patchErr)
 						}
 					}
 				} else {
-					if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, podIP, string(configPayload)); applyErr != nil {
+					if applyErr := k8s.ApplyAgentConfig(c.Request.Context(), ns, agent.Status.PodName, agent.Name, string(configPayload)); applyErr != nil {
 						Logger.Errorw("CR patched but config apply to pod failed", "agent_name", name, "error", applyErr)
 						nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("config sync to running pod failed: %v", applyErr))
 					}
@@ -792,6 +911,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			QueueReason:        updated.Status.QueueReason,
 			PodSpec:            updated.Spec.PodSpec,
 			Storage:            updated.Spec.Storage,
+			Squad:              updated.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, updated),
 			Errors:             nonFatalErrors,
 		})
 	}

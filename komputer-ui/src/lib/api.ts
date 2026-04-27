@@ -24,6 +24,9 @@ import type {
   CreateConnectorRequest,
   ConnectorTemplateListResponse,
   CostBreakdownResponse,
+  Squad,
+  SquadListResponse,
+  CreateSquadRequest,
 } from './types';
 import { getConfig } from './config';
 
@@ -58,8 +61,13 @@ export const getAgent = (name: string, ns?: string) =>
 export const createAgent = (data: CreateAgentRequest) =>
   request<AgentResponse>('/agents', { method: 'POST', body: JSON.stringify(data) });
 
-export const deleteAgent = (name: string, ns?: string) =>
-  request<void>(`/agents/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
+export const deleteAgent = (name: string, ns?: string, opts?: { recreatePod?: boolean }) => {
+  const params = new URLSearchParams();
+  if (ns) params.set('namespace', ns);
+  if (opts?.recreatePod) params.set('recreatePod', 'true');
+  const qs = params.toString();
+  return request<void>(`/agents/${name}${qs ? `?${qs}` : ''}`, { method: 'DELETE' });
+};
 
 export const cancelAgent = (name: string, ns?: string) =>
   request<void>(`/agents/${name}/cancel${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
@@ -205,6 +213,37 @@ export const listTemplates = (ns?: string) =>
 // Connector templates
 export const listConnectorTemplates = () =>
   request<ConnectorTemplateListResponse>('/connector-templates');
+
+// Squads
+export const listSquads = (ns?: string) =>
+  MOCK_EMPTY
+    ? Promise.resolve({ squads: [] } as SquadListResponse)
+    : request<SquadListResponse>(`/squads${ns ? `?namespace=${ns}` : ''}`);
+
+export const getSquad = (name: string, ns?: string) =>
+  request<Squad>(`/squads/${name}${ns ? `?namespace=${ns}` : ''}`);
+
+export const createSquad = (data: CreateSquadRequest) =>
+  request<Squad>('/squads', { method: 'POST', body: JSON.stringify(data) });
+
+export const deleteSquad = (name: string, ns?: string) =>
+  request<void>(`/squads/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
+
+export const addSquadMember = (
+  squadName: string,
+  ns: string,
+  member: { ref?: { name: string; namespace?: string }; spec?: unknown; name?: string },
+) =>
+  request<Squad>(`/squads/${squadName}/members?namespace=${ns}`, {
+    method: 'POST',
+    body: JSON.stringify(member),
+  });
+
+export const removeSquadMember = (squadName: string, ns: string, agentName: string) =>
+  request<Squad>(`/squads/${squadName}/members/${agentName}?namespace=${ns}`, { method: 'DELETE' });
+
+export const breakUpSquad = (squadName: string, ns?: string) =>
+  request<Squad>(`/squads/${squadName}/break-up${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
 // Health
 export const listNamespaces = () =>

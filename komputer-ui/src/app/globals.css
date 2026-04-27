@@ -124,6 +124,11 @@
   /* Markdown prose inside chat bubbles */
   .prose-chat {
     line-height: 1.6;
+    /* Allow long URLs and unbroken tokens to wrap so the chat never forces
+       horizontal scroll on its container. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
   }
   .prose-chat > :first-child { margin-top: 0; }
   .prose-chat > :last-child { margin-bottom: 0; }
@@ -149,13 +154,19 @@
     padding: 0.75em 1em;
     background: var(--color-bg);
     border-radius: var(--radius-sm);
-    overflow-x: auto;
+    /* Wrap long lines instead of inducing horizontal scroll on the pane. */
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
     font-size: 0.85em;
   }
   .prose-chat pre code {
     background: none;
     padding: 0;
     color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .prose-chat ul, .prose-chat ol {
@@ -198,6 +209,7 @@
 
   .prose-chat table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     margin: 0.5em 0;
     font-size: 0.9em;
@@ -206,6 +218,8 @@
     border: 1px solid var(--color-border);
     padding: 0.3em 0.6em;
     text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   .prose-chat th {
     background: var(--color-bg);

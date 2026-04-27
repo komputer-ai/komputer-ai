@@ -74,6 +74,15 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
 		v1.GET("/agents/:name/download/*filepath", downloadAgentFile(k8s))
 
+		v1.POST("/squads", createSquad(k8s))
+		v1.GET("/squads", listSquads(k8s))
+		v1.GET("/squads/:name", getSquad(k8s))
+		v1.PATCH("/squads/:name", patchSquad(k8s))
+		v1.DELETE("/squads/:name", deleteSquad(k8s))
+		v1.POST("/squads/:name/members", addSquadMember(k8s))
+		v1.DELETE("/squads/:name/members/:agent", removeSquadMember(k8s))
+		v1.POST("/squads/:name/break-up", breakUpSquad(k8s))
+
 		v1.GET("/offices", listOffices(k8s))
 		v1.GET("/offices/:name", getOffice(k8s))
 		v1.DELETE("/offices/:name", deleteOffice(k8s, worker))

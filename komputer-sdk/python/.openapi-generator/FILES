@@ -1,4 +1,5 @@
 .gitignore
+docs/AddSquadMemberRequest.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
@@ -11,6 +12,7 @@ docs/CreateScheduleAgentSpec.md
 docs/CreateScheduleRequest.md
 docs/CreateSecretRequest.md
 docs/CreateSkillRequest.md
+docs/CreateSquadRequest.md
 docs/IntstrIntOrString.md
 docs/IntstrType.md
 docs/K8sIoApiCoreV1ResourceClaim.md
@@ -24,6 +26,7 @@ docs/PatchAgentRequest.md
 docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
+docs/PatchSquadRequest.md
 docs/ResourceQuantity.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
@@ -33,6 +36,10 @@ docs/SecretResponse.md
 docs/SecretsApi.md
 docs/SkillResponse.md
 docs/SkillsApi.md
+docs/SquadListResponse.md
+docs/SquadMemberResponse.md
+docs/SquadResponse.md
+docs/SquadsApi.md
 docs/TemplatesApi.md
 docs/UpdateSecretRequest.md
 docs/V1AWSElasticBlockStoreVolumeSource.md
@@ -179,6 +186,10 @@ docs/V1VsphereVirtualDiskVolumeSource.md
 docs/V1WeightedPodAffinityTerm.md
 docs/V1WindowsSecurityContextOptions.md
 docs/V1WorkloadReference.md
+docs/V1alpha1AgentLifecycle.md
+docs/V1alpha1KomputerAgentSpec.md
+docs/V1alpha1KomputerSquadMember.md
+docs/V1alpha1KomputerSquadMemberRef.md
 docs/V1alpha1StorageSpec.md
 komputer_ai/__init__.py
 komputer_ai/api/__init__.py
@@ -189,12 +200,14 @@ komputer_ai/api/offices_api.py
 komputer_ai/api/schedules_api.py
 komputer_ai/api/secrets_api.py
 komputer_ai/api/skills_api.py
+komputer_ai/api/squads_api.py
 komputer_ai/api/templates_api.py
 komputer_ai/api_client.py
 komputer_ai/api_response.py
 komputer_ai/configuration.py
 komputer_ai/exceptions.py
 komputer_ai/models/__init__.py
+komputer_ai/models/add_squad_member_request.py
 komputer_ai/models/agent_list_response.py
 komputer_ai/models/agent_response.py
 komputer_ai/models/connector_response.py
@@ -205,6 +218,7 @@ komputer_ai/models/create_schedule_agent_spec.py
 komputer_ai/models/create_schedule_request.py
 komputer_ai/models/create_secret_request.py
 komputer_ai/models/create_skill_request.py
+komputer_ai/models/create_squad_request.py
 komputer_ai/models/intstr_int_or_string.py
 komputer_ai/models/intstr_type.py
 komputer_ai/models/k8s_io_api_core_v1_resource_claim.py
@@ -216,12 +230,16 @@ komputer_ai/models/patch_agent_request.py
 komputer_ai/models/patch_memory_request.py
 komputer_ai/models/patch_schedule_request.py
 komputer_ai/models/patch_skill_request.py
+komputer_ai/models/patch_squad_request.py
 komputer_ai/models/resource_quantity.py
 komputer_ai/models/schedule_list_response.py
 komputer_ai/models/schedule_response.py
 komputer_ai/models/secret_list_response.py
 komputer_ai/models/secret_response.py
 komputer_ai/models/skill_response.py
+komputer_ai/models/squad_list_response.py
+komputer_ai/models/squad_member_response.py
+komputer_ai/models/squad_response.py
 komputer_ai/models/update_secret_request.py
 komputer_ai/models/v1_affinity.py
 komputer_ai/models/v1_app_armor_profile.py
@@ -367,6 +385,10 @@ komputer_ai/models/v1_vsphere_virtual_disk_volume_source.py
 komputer_ai/models/v1_weighted_pod_affinity_term.py
 komputer_ai/models/v1_windows_security_context_options.py
 komputer_ai/models/v1_workload_reference.py
+komputer_ai/models/v1alpha1_agent_lifecycle.py
+komputer_ai/models/v1alpha1_komputer_agent_spec.py
+komputer_ai/models/v1alpha1_komputer_squad_member.py
+komputer_ai/models/v1alpha1_komputer_squad_member_ref.py
 komputer_ai/models/v1alpha1_storage_spec.py
 komputer_ai/py.typed
 komputer_ai/rest.py

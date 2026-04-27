@@ -108,12 +108,20 @@ Class | Method | HTTP request | Description
 *SkillsAPI* | [**GetSkill**](docs/SkillsAPI.md#getskill) | **Get** /skills/{name} | Get skill details
 *SkillsAPI* | [**ListSkills**](docs/SkillsAPI.md#listskills) | **Get** /skills | List skills
 *SkillsAPI* | [**PatchSkill**](docs/SkillsAPI.md#patchskill) | **Patch** /skills/{name} | Patch skill
+*SquadsAPI* | [**AddSquadMember**](docs/SquadsAPI.md#addsquadmember) | **Post** /squads/{name}/members | Add squad member
+*SquadsAPI* | [**CreateSquad**](docs/SquadsAPI.md#createsquad) | **Post** /squads | Create squad
+*SquadsAPI* | [**DeleteSquad**](docs/SquadsAPI.md#deletesquad) | **Delete** /squads/{name} | Delete squad
+*SquadsAPI* | [**GetSquad**](docs/SquadsAPI.md#getsquad) | **Get** /squads/{name} | Get squad details
+*SquadsAPI* | [**ListSquads**](docs/SquadsAPI.md#listsquads) | **Get** /squads | List squads
+*SquadsAPI* | [**PatchSquad**](docs/SquadsAPI.md#patchsquad) | **Patch** /squads/{name} | Patch squad
+*SquadsAPI* | [**RemoveSquadMember**](docs/SquadsAPI.md#removesquadmember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
 *TemplatesAPI* | [**ListTemplates**](docs/TemplatesAPI.md#listtemplates) | **Get** /templates | List agent templates
 *TemplatesAPI* | [**NamespacesGet**](docs/TemplatesAPI.md#namespacesget) | **Get** /namespaces | List namespaces
 
 
 ## Documentation For Models
 
+ - [AddSquadMemberRequest](docs/AddSquadMemberRequest.md)
  - [AgentListResponse](docs/AgentListResponse.md)
  - [AgentResponse](docs/AgentResponse.md)
  - [ConnectorResponse](docs/ConnectorResponse.md)
@@ -124,6 +132,7 @@ Class | Method | HTTP request | Description
  - [CreateScheduleRequest](docs/CreateScheduleRequest.md)
  - [CreateSecretRequest](docs/CreateSecretRequest.md)
  - [CreateSkillRequest](docs/CreateSkillRequest.md)
+ - [CreateSquadRequest](docs/CreateSquadRequest.md)
  - [IntstrIntOrString](docs/IntstrIntOrString.md)
  - [IntstrType](docs/IntstrType.md)
  - [K8sIoApiCoreV1ResourceClaim](docs/K8sIoApiCoreV1ResourceClaim.md)
@@ -135,12 +144,16 @@ Class | Method | HTTP request | Description
  - [PatchMemoryRequest](docs/PatchMemoryRequest.md)
  - [PatchScheduleRequest](docs/PatchScheduleRequest.md)
  - [PatchSkillRequest](docs/PatchSkillRequest.md)
+ - [PatchSquadRequest](docs/PatchSquadRequest.md)
  - [ResourceQuantity](docs/ResourceQuantity.md)
  - [ScheduleListResponse](docs/ScheduleListResponse.md)
  - [ScheduleResponse](docs/ScheduleResponse.md)
  - [SecretListResponse](docs/SecretListResponse.md)
  - [SecretResponse](docs/SecretResponse.md)
  - [SkillResponse](docs/SkillResponse.md)
+ - [SquadListResponse](docs/SquadListResponse.md)
+ - [SquadMemberResponse](docs/SquadMemberResponse.md)
+ - [SquadResponse](docs/SquadResponse.md)
  - [UpdateSecretRequest](docs/UpdateSecretRequest.md)
  - [V1AWSElasticBlockStoreVolumeSource](docs/V1AWSElasticBlockStoreVolumeSource.md)
  - [V1Affinity](docs/V1Affinity.md)
@@ -286,6 +299,10 @@ Class | Method | HTTP request | Description
  - [V1WeightedPodAffinityTerm](docs/V1WeightedPodAffinityTerm.md)
  - [V1WindowsSecurityContextOptions](docs/V1WindowsSecurityContextOptions.md)
  - [V1WorkloadReference](docs/V1WorkloadReference.md)
+ - [V1alpha1AgentLifecycle](docs/V1alpha1AgentLifecycle.md)
+ - [V1alpha1KomputerAgentSpec](docs/V1alpha1KomputerAgentSpec.md)
+ - [V1alpha1KomputerSquadMember](docs/V1alpha1KomputerSquadMember.md)
+ - [V1alpha1KomputerSquadMemberRef](docs/V1alpha1KomputerSquadMemberRef.md)
  - [V1alpha1StorageSpec](docs/V1alpha1StorageSpec.md)
 
 

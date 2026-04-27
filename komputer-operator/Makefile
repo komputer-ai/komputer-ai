@@ -95,6 +95,9 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@mkdir -p ../helm/komputer-ai/crds
+	@cp config/crd/bases/*.yaml ../helm/komputer-ai/crds/
+	@echo "Copied CRDs to helm/komputer-ai/crds/"
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -160,8 +163,8 @@ build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+run: manifests generate fmt vet ## Run a controller from your host (webhooks disabled — cert-manager certs aren't available out-of-cluster).
+	DISABLE_WEBHOOKS=true go run ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.

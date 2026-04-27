@@ -172,6 +172,18 @@ type KomputerAgentStatus struct {
 	// Owned by operator.
 	// +optional
 	QueueReason string `json:"queueReason,omitempty"`
+	// Squad indicates the agent is managed by a KomputerSquad. When true, the squad
+	// controller owns the agent's pod lifecycle; the agent controller skips reconciliation.
+	// Phase, PodName, etc. continue to reflect the real pod state (set by the squad controller).
+	// Owned by squad controller.
+	// +optional
+	Squad bool `json:"squad,omitempty"`
+	// Port is the agent's HTTP server port inside its container. Defaults to 8000
+	// for solo agents. For squad members, the squad controller assigns 8000 + index
+	// so multiple members can co-exist in the same pod's network namespace.
+	// Owned by the controller that owns the pod (agent for solo, squad for squad members).
+	// +optional
+	Port int32 `json:"port,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -29,6 +29,8 @@ export interface AgentResponse {
   queueReason?: string;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  squad?: boolean;
+  squadName?: string;
   errors?: string[];
 }
 
@@ -270,6 +272,39 @@ export interface ConnectorTemplate {
 
 export interface ConnectorTemplateListResponse {
   templates: ConnectorTemplate[];
+}
+
+export interface SquadMember {
+  name: string;
+  ready: boolean;
+  taskStatus?: string;
+}
+
+export interface Squad {
+  name: string;
+  namespace: string;
+  phase: 'Pending' | 'Running' | 'Orphaned' | 'Failed';
+  podName?: string;
+  members: SquadMember[];
+  orphanTTL?: string;
+  orphanedSince?: string;
+  message?: string;
+  breakUpRequested?: boolean;
+  createdAt: string;
+}
+
+export interface SquadListResponse {
+  squads: Squad[];
+}
+
+export interface CreateSquadRequest {
+  name: string;
+  namespace?: string;
+  members: Array<
+    | { ref: { name: string; namespace?: string }; name?: string }
+    | { spec: unknown; name?: string }
+  >;
+  orphanTTL?: string;
 }
 
 export interface TaskBreakdown {

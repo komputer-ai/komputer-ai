@@ -318,6 +318,123 @@ async def test_list_templates(mock_api):
     assert not result.get("isError")
 
 
+# --- create_agent with squad param ---
+
+@pytest.mark.asyncio
+async def test_create_agent_with_squad_joins_squad(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "worker-1"})
+    mock_api.set("POST", "/api/v1/squads/my-squad/members", {"ok": True})
+    result = await manager_tools.create_agent.handler(
+        {"name": "worker-1", "instructions": "do the work", "squad": "my-squad"}
+    )
+    assert not result.get("isError")
+    # Both calls must have been made.
+    assert ("POST", "/api/v1/agents") in mock_api.calls
+    assert ("POST", "/api/v1/squads/my-squad/members") in mock_api.calls
+
+
+@pytest.mark.asyncio
+async def test_create_agent_without_squad_skips_squad_call(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "solo"})
+    result = await manager_tools.create_agent.handler(
+        {"name": "solo", "instructions": "work alone"}
+    )
+    assert not result.get("isError")
+    # No squad membership call should have been made.
+    squad_calls = [c for c in mock_api.calls if "squads" in c[1]]
+    assert not squad_calls
+
+
+@pytest.mark.asyncio
+async def test_create_agent_squad_join_failure_returns_error(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "worker-2"})
+    mock_api.set("POST", "/api/v1/squads/missing-squad/members", {"error": "not found"}, status=404)
+    result = await manager_tools.create_agent.handler(
+        {"name": "worker-2", "instructions": "do it", "squad": "missing-squad"}
+    )
+    assert result.get("isError")
+
+
+# --- create_squad ---
+
+@pytest.mark.asyncio
+async def test_create_squad(mock_api):
+    mock_api.set("POST", "/api/v1/squads", {"name": "team-alpha"})
+    result = await manager_tools.create_squad.handler(
+        {"name": "team-alpha", "agents": ["agent-a", "agent-b"]}
+    )
+    assert not result.get("isError")
+    assert mock_api.last_json["name"] == "team-alpha"
+    assert mock_api.last_json["members"] == [
+        {"ref": {"name": "agent-a"}},
+        {"ref": {"name": "agent-b"}},
+    ]
+    assert mock_api.last_json["orphanTTL"] == "10m"
+
+
+@pytest.mark.asyncio
+async def test_create_squad_custom_ttl(mock_api):
+    mock_api.set("POST", "/api/v1/squads", {"name": "team-beta"})
+    result = await manager_tools.create_squad.handler(
+        {"name": "team-beta", "agents": [], "orphan_ttl": "1h"}
+    )
+    assert not result.get("isError")
+    assert mock_api.last_json["orphanTTL"] == "1h"
+
+
+# --- add_to_squad ---
+
+@pytest.mark.asyncio
+async def test_add_to_squad(mock_api):
+    mock_api.set("POST", "/api/v1/squads/team-alpha/members", {"ok": True})
+    result = await manager_tools.add_to_squad.handler(
+        {"squad_name": "team-alpha", "agent_name": "agent-c"}
+    )
+    assert not result.get("isError")
+    assert mock_api.last_json == {"ref": {"name": "agent-c"}}
+    assert ("POST", "/api/v1/squads/team-alpha/members") in mock_api.calls
+
+
+# --- remove_from_squad ---
+
+@pytest.mark.asyncio
+async def test_remove_from_squad(mock_api):
+    mock_api.set("DELETE", "/api/v1/squads/team-alpha/members/agent-c", {"ok": True})
+    result = await manager_tools.remove_from_squad.handler(
+        {"squad_name": "team-alpha", "agent_name": "agent-c"}
+    )
+    assert not result.get("isError")
+    assert ("DELETE", "/api/v1/squads/team-alpha/members/agent-c") in mock_api.calls
+
+
+# --- delete_squad ---
+
+@pytest.mark.asyncio
+async def test_delete_squad(mock_api):
+    mock_api.set("DELETE", "/api/v1/squads/team-alpha", {"ok": True})
+    result = await manager_tools.delete_squad.handler({"name": "team-alpha"})
+    assert not result.get("isError")
+    assert ("DELETE", "/api/v1/squads/team-alpha") in mock_api.calls
+
+
+# --- list_squads ---
+
+@pytest.mark.asyncio
+async def test_list_squads(mock_api):
+    mock_api.set("GET", "/api/v1/squads", {"squads": [{"name": "team-alpha"}]})
+    result = await manager_tools.list_squads.handler({})
+    assert not result.get("isError")
+    body = json.loads(result["content"][0]["text"])
+    assert len(body["squads"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_squads_with_namespace(mock_api):
+    mock_api.set("GET", "/api/v1/squads", {"squads": []})
+    result = await manager_tools.list_squads.handler({"namespace": "team-ns"})
+    assert not result.get("isError")
+
+
 def test_manager_server_registers_all_new_tools():
     server_dict = manager_tools.create_manager_server()
     # create_manager_server() returns a dict {"type": "sdk", "name": ..., "instance": <Server>}.
@@ -343,6 +460,7 @@ def test_manager_server_registers_all_new_tools():
         "list_connectors", "attach_connector", "detach_connector",
         "list_secrets", "create_secret", "attach_secret",
         "list_namespaces", "list_templates",
+        "create_squad", "add_to_squad", "remove_from_squad", "delete_squad", "list_squads",
     }
     missing = expected - tool_names
     assert not missing, f"Missing tools in MCP server registration: {missing}"
