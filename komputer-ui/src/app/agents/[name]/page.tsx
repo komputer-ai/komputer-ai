@@ -322,7 +322,7 @@ export default function AgentDetailPage() {
       {/* Unified header */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-6 pr-2">
-          <div className="flex items-center gap-4 h-11">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-h-11 py-1.5">
             {/* Left: back button on settings view, otherwise status + model */}
             {view === "settings" ? (
               <Button variant="ghost" size="sm" onClick={() => setViewAndUrl("chat")}>
@@ -330,7 +330,7 @@ export default function AgentDetailPage() {
                 Back to chat
               </Button>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
                 <StatusBadge status={agent.status} />
                 {agent.taskStatus && (
@@ -363,8 +363,8 @@ export default function AgentDetailPage() {
             )}
 
             {/* Right: costs + actions */}
-            <div className="ml-auto flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+            <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 [&_button]:whitespace-nowrap">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
                 <span>Last</span>
                 <CostBadge cost={agent.lastTaskCostUSD} />
                 <span>Total</span>
