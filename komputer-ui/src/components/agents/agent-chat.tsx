@@ -317,10 +317,10 @@ function UserBubble({ text, timestamp }: { text: string; timestamp: string }) {
   );
 }
 
-// Replace /files/ paths in agent text with clickable download links.
+// Replace /workspace/files/ paths in agent text with clickable download links.
 function linkifyFiles(text: string, agentName: string, namespace: string): string {
   return text.replace(
-    /(?:`)?\/files\/([\w.\-\/]+)(?:`)?/g,
+    /(?:`)?\/workspace\/files\/([\w.\-\/]+)(?:`)?/g,
     (_, filePath) => `[📥 ${filePath}](${getConfig().apiUrl}/api/v1/agents/${agentName}/download/${filePath}?namespace=${namespace})`
   );
 }

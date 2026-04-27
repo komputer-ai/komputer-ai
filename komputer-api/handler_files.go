@@ -13,9 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const agentFilesDir = "/files"
+const agentFilesDir = "/workspace/files"
 
-// downloadAgentFile proxies a file download from the agent pod's /files directory.
+// downloadAgentFile proxies a file download from the agent pod's /workspace/files directory.
 // Primary: HTTP GET to the agent's /download endpoint.
 // Fallback: kubectl exec cat (for local dev when pod IP is unreachable).
 // GET /api/v1/agents/:name/download/*filepath

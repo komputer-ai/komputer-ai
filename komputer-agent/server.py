@@ -362,11 +362,11 @@ async def get_history(limit: int = 50, session_id: str = None):
 
 @app.get("/download/{file_path:path}")
 async def download_file(file_path: str):
-    """Serve a file from /files/ directory."""
+    """Serve a file from /workspace/files/ directory."""
     import os
     from fastapi.responses import FileResponse
 
-    FILES_DIR = "/files"
+    FILES_DIR = "/workspace/files"
     # Prevent directory traversal.
     safe_path = os.path.normpath(os.path.join(FILES_DIR, file_path))
     if not safe_path.startswith(FILES_DIR + "/") and safe_path != FILES_DIR:
