@@ -121,7 +121,7 @@ var (
 			Name: "komputer_api_ws_connections_active",
 			Help: "Currently open WebSocket connections to /agents/:name/ws.",
 		},
-		[]string{"mode"}, // broadcast or group
+		[]string{"mode"}, // broadcast | group | match
 	)
 
 	wsDispatchTotal = prometheus.NewCounterVec(
@@ -129,7 +129,15 @@ var (
 			Name: "komputer_api_ws_dispatch_total",
 			Help: "Events dispatched to WebSocket clients.",
 		},
-		[]string{"mode", "result"}, // mode=broadcast|group, result=delivered|claimed_by_other|write_failed
+		[]string{"mode", "result"}, // mode=broadcast|group|match, result=delivered|claimed_by_other|write_failed
+	)
+
+	wsSendQueueDroppedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "komputer_api_ws_send_queue_dropped_total",
+			Help: "Messages dropped from per-connection send queues due to overflow (slow client).",
+		},
+		[]string{"mode"}, // broadcast|group|match
 	)
 
 	redisXreadMessagesTotal = prometheus.NewCounter(
@@ -177,6 +185,7 @@ func newMetricsRegistries(perAgentLabels bool) (*prometheus.Registry, *prometheu
 	apiRegistry.MustRegister(httpRequestDuration)
 	apiRegistry.MustRegister(wsConnectionsActive)
 	apiRegistry.MustRegister(wsDispatchTotal)
+	apiRegistry.MustRegister(wsSendQueueDroppedTotal)
 	apiRegistry.MustRegister(redisXreadMessagesTotal)
 	apiRegistry.MustRegister(apiBuildInfo)
 	agentRegistry.MustRegister(agentTasksTotal)

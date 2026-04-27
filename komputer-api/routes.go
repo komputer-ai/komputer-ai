@@ -25,7 +25,7 @@ func resolveNamespace(c *gin.Context, k8s *K8sClient) string {
 }
 
 // collectSecretKeys gathers all key names from the agent's referenced K8s Secrets.
-func collectSecretKeys(ctx gin.Context, k8s *K8sClient, ns string, secretNames []string) []string {
+func collectSecretKeys(ctx *gin.Context, k8s *K8sClient, ns string, secretNames []string) []string {
 	var keys []string
 	for _, name := range secretNames {
 		k, err := k8s.GetSecretKeys(ctx.Request.Context(), ns, name)
@@ -72,6 +72,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.PATCH("/agents/:name", patchAgent(k8s))
 		v1.POST("/agents/:name/cancel", cancelAgentTask(k8s))
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
+		v1.GET("/agents/events/ws", HandleMultiAgentWS(hub))
 		v1.GET("/agents/:name/download/*filepath", downloadAgentFile(k8s))
 
 		v1.POST("/squads", createSquad(k8s))

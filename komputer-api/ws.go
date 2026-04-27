@@ -12,65 +12,72 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// sendQueueCapacity is how many messages can be buffered per WS connection
+// before older ones are dropped. ~3-4 seconds of typical agent output at
+// peak rates.
+const sendQueueCapacity = 256
+
 // Hub manages WebSocket connections per agent name.
 //
-// Connections are split into two buckets:
+// Connections are split into three buckets:
 //   - broadcast: every event is delivered to every client (legacy fan-out).
 //   - groups: each group is a queue — exactly one client per group receives
 //     each event. Coordination across replicas is done via Redis SET NX
 //     claim keys, so adding clients does not add Redis connections.
+//   - matchers: per-connection matcher list for multi-agent subscriptions.
 type Hub struct {
-	mu         sync.RWMutex
-	broadcast  map[string]map[*websocket.Conn]struct{}            // agentName -> conns
-	groups     map[string]map[string]map[*websocket.Conn]struct{} // agentName -> group -> conns
-	rdb        *redis.Client
-	replicaID  string
-	claimTTL   time.Duration
+	mu        sync.RWMutex
+	broadcast map[string]map[*sendQueue]struct{}            // agentName -> queues
+	groups    map[string]map[string]map[*sendQueue]struct{} // agentName -> group -> queues
+	matchers  map[*sendQueue]*agentMatcher                  // queue -> matcher
+	rdb       *redis.Client
+	replicaID string
+	claimTTL  time.Duration
 }
 
 func NewHub(rdb *redis.Client, replicaID string) *Hub {
 	return &Hub{
-		broadcast: make(map[string]map[*websocket.Conn]struct{}),
-		groups:    make(map[string]map[string]map[*websocket.Conn]struct{}),
+		broadcast: make(map[string]map[*sendQueue]struct{}),
+		groups:    make(map[string]map[string]map[*sendQueue]struct{}),
+		matchers:  make(map[*sendQueue]*agentMatcher),
 		rdb:       rdb,
 		replicaID: replicaID,
 		claimTTL:  30 * time.Second,
 	}
 }
 
-// SubscribeBroadcast adds a connection that receives every event.
-func (h *Hub) SubscribeBroadcast(agentName string, conn *websocket.Conn) {
+// SubscribeBroadcast adds a queue that receives every event for agentName.
+func (h *Hub) SubscribeBroadcast(agentName string, q *sendQueue) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.broadcast[agentName] == nil {
-		h.broadcast[agentName] = make(map[*websocket.Conn]struct{})
+		h.broadcast[agentName] = make(map[*sendQueue]struct{})
 	}
-	h.broadcast[agentName][conn] = struct{}{}
+	h.broadcast[agentName][q] = struct{}{}
 	wsConnectionsActive.WithLabelValues("broadcast").Inc()
 }
 
-// SubscribeGroup adds a connection to a named group. Within the group, each
-// event is delivered to exactly one client (across all API replicas).
-func (h *Hub) SubscribeGroup(agentName, group string, conn *websocket.Conn) {
+// SubscribeGroup adds a queue to a named group.
+func (h *Hub) SubscribeGroup(agentName, group string, q *sendQueue) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.groups[agentName] == nil {
-		h.groups[agentName] = make(map[string]map[*websocket.Conn]struct{})
+		h.groups[agentName] = make(map[string]map[*sendQueue]struct{})
 	}
 	if h.groups[agentName][group] == nil {
-		h.groups[agentName][group] = make(map[*websocket.Conn]struct{})
+		h.groups[agentName][group] = make(map[*sendQueue]struct{})
 	}
-	h.groups[agentName][group][conn] = struct{}{}
+	h.groups[agentName][group][q] = struct{}{}
 	wsConnectionsActive.WithLabelValues("group").Inc()
 }
 
-// Unsubscribe removes a connection from broadcast and any groups for the agent.
-func (h *Hub) Unsubscribe(agentName string, conn *websocket.Conn) {
+// Unsubscribe removes the queue from broadcast and any groups for the agent.
+func (h *Hub) Unsubscribe(agentName string, q *sendQueue) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if clients, ok := h.broadcast[agentName]; ok {
-		if _, had := clients[conn]; had {
-			delete(clients, conn)
+		if _, had := clients[q]; had {
+			delete(clients, q)
 			wsConnectionsActive.WithLabelValues("broadcast").Dec()
 			if len(clients) == 0 {
 				delete(h.broadcast, agentName)
@@ -79,8 +86,8 @@ func (h *Hub) Unsubscribe(agentName string, conn *websocket.Conn) {
 	}
 	if perGroup, ok := h.groups[agentName]; ok {
 		for group, clients := range perGroup {
-			if _, has := clients[conn]; has {
-				delete(clients, conn)
+			if _, has := clients[q]; has {
+				delete(clients, q)
 				wsConnectionsActive.WithLabelValues("group").Dec()
 				if len(clients) == 0 {
 					delete(perGroup, group)
@@ -93,44 +100,62 @@ func (h *Hub) Unsubscribe(agentName string, conn *websocket.Conn) {
 	}
 }
 
-// Dispatch sends a message to the broadcast bucket and to one client per group.
-// Group routing is coordinated across replicas via SET NX on a per-(group, msgID)
-// claim key. The first replica to claim wins and delivers; others skip.
-//
-// msgID should be a stable identifier for the event (e.g. the Redis stream ID)
-// so all replicas race on the same key.
-func (h *Hub) Dispatch(ctx context.Context, agentName, msgID string, message []byte) {
-	// Snapshot connections under read lock, write outside the lock.
-	h.mu.RLock()
-	bcast := make([]*websocket.Conn, 0, len(h.broadcast[agentName]))
-	for c := range h.broadcast[agentName] {
-		bcast = append(bcast, c)
+// SubscribeMatch adds a queue that receives every event whose (agentName, namespace)
+// satisfies the given matcher.
+func (h *Hub) SubscribeMatch(q *sendQueue, m *agentMatcher) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.matchers[q] = m
+	wsConnectionsActive.WithLabelValues("match").Inc()
+}
+
+// UnsubscribeMatch removes a queue from the match bucket.
+func (h *Hub) UnsubscribeMatch(q *sendQueue) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, had := h.matchers[q]; had {
+		delete(h.matchers, q)
+		wsConnectionsActive.WithLabelValues("match").Dec()
 	}
-	groupMembers := make(map[string][]*websocket.Conn, len(h.groups[agentName]))
+}
+
+// Dispatch fans an event into the broadcast bucket and the group bucket.
+//
+// msgID is a stable identifier for the event (e.g. the Redis stream ID) used
+// for cross-replica deduplication of group deliveries.
+func (h *Hub) Dispatch(ctx context.Context, agentName, namespace, msgID string, message []byte) {
+	// Snapshot under read lock; iterate (and Enqueue, which is non-blocking)
+	// outside the lock.
+	h.mu.RLock()
+	bcast := make([]*sendQueue, 0, len(h.broadcast[agentName]))
+	for q := range h.broadcast[agentName] {
+		bcast = append(bcast, q)
+	}
+	groupMembers := make(map[string][]*sendQueue, len(h.groups[agentName]))
 	for group, clients := range h.groups[agentName] {
-		conns := make([]*websocket.Conn, 0, len(clients))
-		for c := range clients {
-			conns = append(conns, c)
+		conns := make([]*sendQueue, 0, len(clients))
+		for q := range clients {
+			conns = append(conns, q)
 		}
 		if len(conns) > 0 {
 			groupMembers[group] = conns
 		}
 	}
-	h.mu.RUnlock()
-
-	// Broadcast bucket: send to all.
-	for _, conn := range bcast {
-		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			wsDispatchTotal.WithLabelValues("broadcast", "write_failed").Inc()
-			conn.Close()
-			h.Unsubscribe(agentName, conn)
-		} else {
-			wsDispatchTotal.WithLabelValues("broadcast", "delivered").Inc()
+	matchTargets := make([]*sendQueue, 0, len(h.matchers))
+	for q, m := range h.matchers {
+		if m.matches(agentName, namespace) {
+			matchTargets = append(matchTargets, q)
 		}
 	}
+	h.mu.RUnlock()
 
-	// Group buckets: per group, claim then deliver to one local member.
-	// On write failure, try other local members in the same group before giving up.
+	// Broadcast bucket: enqueue to all.
+	for _, q := range bcast {
+		q.Enqueue(message)
+		wsDispatchTotal.WithLabelValues("broadcast", "delivered").Inc()
+	}
+
+	// Group buckets.
 	for group, members := range groupMembers {
 		claimKey := "wsclaim:" + agentName + ":" + group + ":" + msgID
 		ok, err := h.rdb.SetNX(ctx, claimKey, h.replicaID, h.claimTTL).Result()
@@ -138,32 +163,19 @@ func (h *Hub) Dispatch(ctx context.Context, agentName, msgID string, message []b
 			wsDispatchTotal.WithLabelValues("group", "claimed_by_other").Inc()
 			continue
 		}
+		// Pick a random member to deliver to. Enqueue is non-blocking, so we
+		// can't observe write failure here — the writer goroutine on a dead
+		// queue will close the connection and the read loop will Unsubscribe.
+		// That's acceptable: at-most-once with reconcile via REST history.
+		idx := rand.Intn(len(members))
+		members[idx].Enqueue(message)
+		wsDispatchTotal.WithLabelValues("group", "delivered").Inc()
+	}
 
-		// Shuffle a copy so we try members in random order — spreads load and avoids
-		// always retrying the same head-of-list candidate.
-		order := make([]*websocket.Conn, len(members))
-		copy(order, members)
-		rand.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
-
-		delivered := false
-		for _, pick := range order {
-			if err := pick.WriteMessage(websocket.TextMessage, message); err != nil {
-				pick.Close()
-				h.Unsubscribe(agentName, pick)
-				continue // try next member in this group
-			}
-			wsDispatchTotal.WithLabelValues("group", "delivered").Inc()
-			delivered = true
-			break
-		}
-
-		if !delivered {
-			wsDispatchTotal.WithLabelValues("group", "write_failed").Inc()
-			// All local members failed. Release the claim so a future event
-			// re-evaluates routing (a different replica may have live members).
-			// This event itself is lost for the group; clients reconcile via REST history.
-			h.rdb.Del(ctx, claimKey)
-		}
+	// Match bucket: enqueue to every matching subscription.
+	for _, q := range matchTargets {
+		q.Enqueue(message)
+		wsDispatchTotal.WithLabelValues("match", "delivered").Inc()
 	}
 }
 
@@ -188,50 +200,60 @@ func HandleAgentWS(hub *Hub) gin.HandlerFunc {
 			Logger.Errorw("ws upgrade failed", "error", err)
 			return
 		}
-		defer conn.Close()
+
+		mode := "broadcast"
+		if group != "" {
+			mode = "group"
+		}
+		q := newSendQueueWithMode(conn, sendQueueCapacity, mode)
+		defer q.Close()
 
 		if group != "" {
-			hub.SubscribeGroup(agentName, group, conn)
+			hub.SubscribeGroup(agentName, group, q)
 			Logger.Infow("ws client connected", "agent_name", agentName, "group", group)
 		} else {
-			hub.SubscribeBroadcast(agentName, conn)
+			hub.SubscribeBroadcast(agentName, q)
 			Logger.Infow("ws client connected", "agent_name", agentName, "group", "broadcast")
 		}
-		defer hub.Unsubscribe(agentName, conn)
+		defer hub.Unsubscribe(agentName, q)
 
-		// Ping/pong keepalive: detect silently-dropped clients (browser tab killed,
-		// network blip) so they don't leak in the connections gauge forever.
-		const (
-			pongWait   = 60 * time.Second
-			pingPeriod = 30 * time.Second
-		)
+		runReadLoop(conn)
+	}
+}
+
+// runReadLoop installs ping/pong and blocks until the connection closes,
+// returning so the caller's defers fire (Unsubscribe, Close).
+func runReadLoop(conn *websocket.Conn) {
+	const (
+		pongWait   = 60 * time.Second
+		pingPeriod = 30 * time.Second
+	)
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(pongWait))
-		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(pongWait))
-			return nil
-		})
+		return nil
+	})
 
-		done := make(chan struct{})
-		go func() {
-			ticker := time.NewTicker(pingPeriod)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
-						return
-					}
-				case <-done:
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
 					return
 				}
+			case <-done:
+				return
 			}
-		}()
-		defer close(done)
+		}
+	}()
+	defer close(done)
 
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				break
-			}
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
 		}
 	}
 }
