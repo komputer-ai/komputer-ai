@@ -19,6 +19,8 @@ var _ MappedNullable = &AddSquadMemberRequest{}
 
 // AddSquadMemberRequest struct for AddSquadMemberRequest
 type AddSquadMemberRequest struct {
+	// Name is the desired KomputerAgent name when Spec is set. Optional.
+	Name *string `json:"name,omitempty"`
 	Ref *V1alpha1KomputerSquadMemberRef `json:"ref,omitempty"`
 	Spec *V1alpha1KomputerAgentSpec `json:"spec,omitempty"`
 }
@@ -38,6 +40,38 @@ func NewAddSquadMemberRequest() *AddSquadMemberRequest {
 func NewAddSquadMemberRequestWithDefaults() *AddSquadMemberRequest {
 	this := AddSquadMemberRequest{}
 	return &this
+}
+
+// GetName returns the Name field value if set, zero value otherwise.
+func (o *AddSquadMemberRequest) GetName() string {
+	if o == nil || IsNil(o.Name) {
+		var ret string
+		return ret
+	}
+	return *o.Name
+}
+
+// GetNameOk returns a tuple with the Name field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AddSquadMemberRequest) GetNameOk() (*string, bool) {
+	if o == nil || IsNil(o.Name) {
+		return nil, false
+	}
+	return o.Name, true
+}
+
+// HasName returns a boolean if a field has been set.
+func (o *AddSquadMemberRequest) HasName() bool {
+	if o != nil && !IsNil(o.Name) {
+		return true
+	}
+
+	return false
+}
+
+// SetName gets a reference to the given string and assigns it to the Name field.
+func (o *AddSquadMemberRequest) SetName(v string) {
+	o.Name = &v
 }
 
 // GetRef returns the Ref field value if set, zero value otherwise.
@@ -114,6 +148,9 @@ func (o AddSquadMemberRequest) MarshalJSON() ([]byte, error) {
 
 func (o AddSquadMemberRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Name) {
+		toSerialize["name"] = o.Name
+	}
 	if !IsNil(o.Ref) {
 		toSerialize["ref"] = o.Ref
 	}

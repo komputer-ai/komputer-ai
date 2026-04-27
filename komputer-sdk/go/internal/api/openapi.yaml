@@ -1665,8 +1665,6 @@ paths:
       tags:
       - squads
     post:
-      description: Creates a new squad with the given members.
-      operationId: createSquad
       requestBody:
         content:
           application/json:
@@ -1705,7 +1703,6 @@ paths:
                   type: string
                 type: object
           description: Internal error
-      summary: Create squad
       tags:
       - squads
       x-codegen-request-body-name: request
@@ -1867,6 +1864,53 @@ paths:
       tags:
       - squads
       x-codegen-request-body-name: request
+  /squads/{name}/break-up:
+    post:
+      description: Marks the squad for dissolution once all members are asleep.
+      operationId: breakUpSquad
+      parameters:
+      - description: Squad name
+        explode: false
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Kubernetes namespace
+        explode: true
+        in: query
+        name: namespace
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+          description: Squad with break-up flag set
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Squad not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Request squad break-up
+      tags:
+      - squads
   /squads/{name}/members:
     post:
       description: Appends a member (by ref or inline spec) to the squad's member
@@ -2068,6 +2112,7 @@ components:
         ref:
           name: name
           namespace: namespace
+        name: name
         spec:
           instructions: instructions
           connectors:
@@ -2093,6 +2138,9 @@ components:
           model: model
           internalSystemPrompt: internalSystemPrompt
       properties:
+        name:
+          description: Name is the desired KomputerAgent name when Spec is set. Optional.
+          type: string
         ref:
           $ref: "#/components/schemas/v1alpha1.KomputerSquadMemberRef"
         spec:
@@ -2105,11 +2153,26 @@ components:
           connectors:
           - connectors
           - connectors
-          queuePosition: 4
           totalCostUSD: totalCostUSD
           storage:
             size: size
             storageClassName: storageClassName
+          lifecycle: lifecycle
+          skills:
+          - skills
+          - skills
+          createdAt: createdAt
+          memories:
+          - memories
+          - memories
+          modelContextWindow: 0
+          queueReason: queueReason
+          model: model
+          lastTaskCostUSD: lastTaskCostUSD
+          lastTaskMessage: lastTaskMessage
+          taskStatus: taskStatus
+          squadName: squadName
+          queuePosition: 4
           podSpec:
             dnsPolicy: "{}"
             nodeName: nodeName
@@ -2735,36 +2798,38 @@ components:
           - secrets
           - secrets
           totalTokens: 7
-          lifecycle: lifecycle
-          skills:
-          - skills
-          - skills
-          createdAt: createdAt
           systemPrompt: systemPrompt
-          memories:
-          - memories
-          - memories
+          squad: true
           name: name
           namespace: namespace
-          modelContextWindow: 0
-          queueReason: queueReason
-          model: model
-          lastTaskCostUSD: lastTaskCostUSD
           errors:
           - errors
           - errors
-          lastTaskMessage: lastTaskMessage
-          taskStatus: taskStatus
           status: status
         - instructions: instructions
           connectors:
           - connectors
           - connectors
-          queuePosition: 4
           totalCostUSD: totalCostUSD
           storage:
             size: size
             storageClassName: storageClassName
+          lifecycle: lifecycle
+          skills:
+          - skills
+          - skills
+          createdAt: createdAt
+          memories:
+          - memories
+          - memories
+          modelContextWindow: 0
+          queueReason: queueReason
+          model: model
+          lastTaskCostUSD: lastTaskCostUSD
+          lastTaskMessage: lastTaskMessage
+          taskStatus: taskStatus
+          squadName: squadName
+          queuePosition: 4
           podSpec:
             dnsPolicy: "{}"
             nodeName: nodeName
@@ -3390,26 +3455,13 @@ components:
           - secrets
           - secrets
           totalTokens: 7
-          lifecycle: lifecycle
-          skills:
-          - skills
-          - skills
-          createdAt: createdAt
           systemPrompt: systemPrompt
-          memories:
-          - memories
-          - memories
+          squad: true
           name: name
           namespace: namespace
-          modelContextWindow: 0
-          queueReason: queueReason
-          model: model
-          lastTaskCostUSD: lastTaskCostUSD
           errors:
           - errors
           - errors
-          lastTaskMessage: lastTaskMessage
-          taskStatus: taskStatus
           status: status
       properties:
         agents:
@@ -3423,11 +3475,26 @@ components:
         connectors:
         - connectors
         - connectors
-        queuePosition: 4
         totalCostUSD: totalCostUSD
         storage:
           size: size
           storageClassName: storageClassName
+        lifecycle: lifecycle
+        skills:
+        - skills
+        - skills
+        createdAt: createdAt
+        memories:
+        - memories
+        - memories
+        modelContextWindow: 0
+        queueReason: queueReason
+        model: model
+        lastTaskCostUSD: lastTaskCostUSD
+        lastTaskMessage: lastTaskMessage
+        taskStatus: taskStatus
+        squadName: squadName
+        queuePosition: 4
         podSpec:
           dnsPolicy: "{}"
           nodeName: nodeName
@@ -4053,26 +4120,13 @@ components:
         - secrets
         - secrets
         totalTokens: 7
-        lifecycle: lifecycle
-        skills:
-        - skills
-        - skills
-        createdAt: createdAt
         systemPrompt: systemPrompt
-        memories:
-        - memories
-        - memories
+        squad: true
         name: name
         namespace: namespace
-        modelContextWindow: 0
-        queueReason: queueReason
-        model: model
-        lastTaskCostUSD: lastTaskCostUSD
         errors:
         - errors
         - errors
-        lastTaskMessage: lastTaskMessage
-        taskStatus: taskStatus
         status: status
       properties:
         connectors:
@@ -4130,6 +4184,12 @@ components:
           items:
             type: string
           type: array
+        squad:
+          description: True when this agent is managed by a KomputerSquad
+          type: boolean
+        squadName:
+          description: Name of the squad managing this agent (when Squad=true)
+          type: string
         status:
           type: string
         storage:
@@ -5065,6 +5125,7 @@ components:
       example:
         members:
         - ref: "{}"
+          name: name
           spec:
             instructions: instructions
             connectors:
@@ -5090,6 +5151,7 @@ components:
             model: model
             internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
+          name: name
           spec:
             instructions: instructions
             connectors:
@@ -5986,6 +6048,7 @@ components:
       example:
         members:
         - ref: "{}"
+          name: name
           spec:
             instructions: instructions
             connectors:
@@ -6011,6 +6074,7 @@ components:
             model: model
             internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
+          name: name
           spec:
             instructions: instructions
             connectors:
@@ -6258,6 +6322,7 @@ components:
         squads:
         - phase: phase
           createdAt: createdAt
+          breakUpRequested: true
           members:
           - ready: true
             name: name
@@ -6273,6 +6338,7 @@ components:
           message: message
         - phase: phase
           createdAt: createdAt
+          breakUpRequested: true
           members:
           - ready: true
             name: name
@@ -6309,6 +6375,7 @@ components:
       example:
         phase: phase
         createdAt: createdAt
+        breakUpRequested: true
         members:
         - ready: true
           name: name
@@ -6323,6 +6390,8 @@ components:
         orphanTTL: orphanTTL
         message: message
       properties:
+        breakUpRequested:
+          type: boolean
         createdAt:
           type: string
         members:
@@ -12851,6 +12920,7 @@ components:
     v1alpha1.KomputerSquadMember:
       example:
         ref: "{}"
+        name: name
         spec:
           instructions: instructions
           connectors:
@@ -12876,6 +12946,12 @@ components:
           model: model
           internalSystemPrompt: internalSystemPrompt
       properties:
+        name:
+          description: |-
+            Name is the desired KomputerAgent name when Spec is provided. When empty, the
+            operator generates "<squad>-member-<index>". Ignored when Ref is set.
+            +optional
+          type: string
         ref:
           allOf:
           - $ref: "#/components/schemas/v1alpha1.KomputerSquadMemberRef"

@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from komputer_ai.models.squad_member_response import SquadMemberResponse
 from typing import Optional, Set
@@ -28,6 +28,7 @@ class SquadResponse(BaseModel):
     """
     SquadResponse
     """ # noqa: E501
+    break_up_requested: Optional[StrictBool] = Field(default=None, alias="breakUpRequested")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
     members: Optional[List[SquadMemberResponse]] = None
     message: Optional[StrictStr] = None
@@ -37,7 +38,7 @@ class SquadResponse(BaseModel):
     orphaned_since: Optional[StrictStr] = Field(default=None, alias="orphanedSince")
     phase: Optional[StrictStr] = None
     pod_name: Optional[StrictStr] = Field(default=None, alias="podName")
-    __properties: ClassVar[List[str]] = ["createdAt", "members", "message", "name", "namespace", "orphanTTL", "orphanedSince", "phase", "podName"]
+    __properties: ClassVar[List[str]] = ["breakUpRequested", "createdAt", "members", "message", "name", "namespace", "orphanTTL", "orphanedSince", "phase", "podName"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -97,6 +98,7 @@ class SquadResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "breakUpRequested": obj.get("breakUpRequested"),
             "createdAt": obj.get("createdAt"),
             "members": [SquadMemberResponse.from_dict(_item) for _item in obj["members"]] if obj.get("members") is not None else None,
             "message": obj.get("message"),

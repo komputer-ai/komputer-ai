@@ -35,6 +35,14 @@ import {
  */
 export interface V1alpha1KomputerSquadMember {
     /**
+     * Name is the desired KomputerAgent name when Spec is provided. When empty, the
+     * operator generates "<squad>-member-<index>". Ignored when Ref is set.
+     * +optional
+     * @type {string}
+     * @memberof V1alpha1KomputerSquadMember
+     */
+    name?: string;
+    /**
      * Exactly one of Ref or Spec must be set.
      * @type {V1alpha1KomputerSquadMemberRef}
      * @memberof V1alpha1KomputerSquadMember
@@ -65,6 +73,7 @@ export function V1alpha1KomputerSquadMemberFromJSONTyped(json: any, ignoreDiscri
     }
     return {
         
+        'name': json['name'] == null ? undefined : json['name'],
         'ref': json['ref'] == null ? undefined : V1alpha1KomputerSquadMemberRefFromJSON(json['ref']),
         'spec': json['spec'] == null ? undefined : V1alpha1KomputerAgentSpecFromJSON(json['spec']),
     };
@@ -81,6 +90,7 @@ export function V1alpha1KomputerSquadMemberToJSONTyped(value?: V1alpha1KomputerS
 
     return {
         
+        'name': value['name'],
         'ref': V1alpha1KomputerSquadMemberRefToJSON(value['ref']),
         'spec': V1alpha1KomputerAgentSpecToJSON(value['spec']),
     };

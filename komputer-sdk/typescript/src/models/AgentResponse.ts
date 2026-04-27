@@ -145,6 +145,18 @@ export interface AgentResponse {
      */
     skills?: Array<string>;
     /**
+     * True when this agent is managed by a KomputerSquad
+     * @type {boolean}
+     * @memberof AgentResponse
+     */
+    squad?: boolean;
+    /**
+     * Name of the squad managing this agent (when Squad=true)
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    squadName?: string;
+    /**
      * 
      * @type {string}
      * @memberof AgentResponse
@@ -217,6 +229,8 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'queueReason': json['queueReason'] == null ? undefined : json['queueReason'],
         'secrets': json['secrets'] == null ? undefined : json['secrets'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'squad': json['squad'] == null ? undefined : json['squad'],
+        'squadName': json['squadName'] == null ? undefined : json['squadName'],
         'status': json['status'] == null ? undefined : json['status'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
@@ -255,6 +269,8 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'queueReason': value['queueReason'],
         'secrets': value['secrets'],
         'skills': value['skills'],
+        'squad': value['squad'],
+        'squadName': value['squadName'],
         'status': value['status'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],

@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`breakUpRequested` | boolean
 `createdAt` | string
 `members` | [Array&lt;SquadMemberResponse&gt;](SquadMemberResponse.md)
 `message` | string
@@ -23,6 +24,7 @@ import type { SquadResponse } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "breakUpRequested": null,
   "createdAt": null,
   "members": null,
   "message": null,

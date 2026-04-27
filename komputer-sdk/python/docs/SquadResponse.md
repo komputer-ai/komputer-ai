@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**break_up_requested** | **bool** |  | [optional] 
 **created_at** | **str** |  | [optional] 
 **members** | [**List[SquadMemberResponse]**](SquadMemberResponse.md) |  | [optional] 
 **message** | **str** |  | [optional] 

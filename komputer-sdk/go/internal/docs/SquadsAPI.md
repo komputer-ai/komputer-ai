@@ -5,12 +5,13 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**AddSquadMember**](SquadsAPI.md#AddSquadMember) | **Post** /squads/{name}/members | Add squad member
-[**CreateSquad**](SquadsAPI.md#CreateSquad) | **Post** /squads | Create squad
+[**BreakUpSquad**](SquadsAPI.md#BreakUpSquad) | **Post** /squads/{name}/break-up | Request squad break-up
 [**DeleteSquad**](SquadsAPI.md#DeleteSquad) | **Delete** /squads/{name} | Delete squad
 [**GetSquad**](SquadsAPI.md#GetSquad) | **Get** /squads/{name} | Get squad details
 [**ListSquads**](SquadsAPI.md#ListSquads) | **Get** /squads | List squads
 [**PatchSquad**](SquadsAPI.md#PatchSquad) | **Patch** /squads/{name} | Patch squad
 [**RemoveSquadMember**](SquadsAPI.md#RemoveSquadMember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
+[**SquadsPost**](SquadsAPI.md#SquadsPost) | **Post** /squads | 
 
 
 
@@ -88,11 +89,11 @@ No authorization required
 [[Back to README]](../README.md)
 
 
-## CreateSquad
+## BreakUpSquad
 
-> SquadResponse CreateSquad(ctx).Request(request).Execute()
+> SquadResponse BreakUpSquad(ctx, name).Namespace(namespace).Execute()
 
-Create squad
+Request squad break-up
 
 
 
@@ -109,32 +110,38 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewCreateSquadRequest([]openapiclient.V1alpha1KomputerSquadMember{*openapiclient.NewV1alpha1KomputerSquadMember()}, "Name_example") // CreateSquadRequest | Squad creation request
+	name := "name_example" // string | Squad name
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.SquadsAPI.CreateSquad(context.Background()).Request(request).Execute()
+	resp, r, err := apiClient.SquadsAPI.BreakUpSquad(context.Background(), name).Namespace(namespace).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `SquadsAPI.CreateSquad``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `SquadsAPI.BreakUpSquad``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `CreateSquad`: SquadResponse
-	fmt.Fprintf(os.Stdout, "Response from `SquadsAPI.CreateSquad`: %v\n", resp)
+	// response from `BreakUpSquad`: SquadResponse
+	fmt.Fprintf(os.Stdout, "Response from `SquadsAPI.BreakUpSquad`: %v\n", resp)
 }
 ```
 
 ### Path Parameters
 
 
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Squad name | 
 
 ### Other Parameters
 
-Other parameters are passed through a pointer to a apiCreateSquadRequest struct via the builder pattern
+Other parameters are passed through a pointer to a apiBreakUpSquadRequest struct via the builder pattern
 
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**CreateSquadRequest**](CreateSquadRequest.md) | Squad creation request | 
+
+ **namespace** | **string** | Kubernetes namespace | 
 
 ### Return type
 
@@ -146,7 +153,7 @@ No authorization required
 
 ### HTTP request headers
 
-- **Content-Type**: application/json
+- **Content-Type**: Not defined
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
@@ -506,6 +513,70 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## SquadsPost
+
+> SquadResponse SquadsPost(ctx).Request(request).Execute()
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	request := *openapiclient.NewCreateSquadRequest([]openapiclient.V1alpha1KomputerSquadMember{*openapiclient.NewV1alpha1KomputerSquadMember()}, "Name_example") // CreateSquadRequest | Squad creation request
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.SquadsAPI.SquadsPost(context.Background()).Request(request).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `SquadsAPI.SquadsPost``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `SquadsPost`: SquadResponse
+	fmt.Fprintf(os.Stdout, "Response from `SquadsAPI.SquadsPost`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiSquadsPostRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**CreateSquadRequest**](CreateSquadRequest.md) | Squad creation request | 
+
+### Return type
+
+[**SquadResponse**](SquadResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

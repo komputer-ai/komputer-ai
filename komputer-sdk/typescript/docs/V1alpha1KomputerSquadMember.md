@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`name` | string
 `ref` | [V1alpha1KomputerSquadMemberRef](V1alpha1KomputerSquadMemberRef.md)
 `spec` | [V1alpha1KomputerAgentSpec](V1alpha1KomputerAgentSpec.md)
 
@@ -16,6 +17,7 @@ import type { V1alpha1KomputerSquadMember } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "name": null,
   "ref": null,
   "spec": null,
 } satisfies V1alpha1KomputerSquadMember

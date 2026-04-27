@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**name** | **str** | Name is the desired KomputerAgent name when Spec is provided. When empty, the operator generates \&quot;&lt;squad&gt;-member-&lt;index&gt;\&quot;. Ignored when Ref is set. +optional | [optional] 
 **ref** | [**V1alpha1KomputerSquadMemberRef**](V1alpha1KomputerSquadMemberRef.md) | Exactly one of Ref or Spec must be set. | [optional] 
 **spec** | [**V1alpha1KomputerAgentSpec**](V1alpha1KomputerAgentSpec.md) |  | [optional] 
 

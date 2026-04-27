@@ -5,12 +5,13 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
 | [**addSquadMember**](SquadsApi.md#addsquadmemberoperation) | **POST** /squads/{name}/members | Add squad member |
-| [**createSquad**](SquadsApi.md#createsquadoperation) | **POST** /squads | Create squad |
+| [**breakUpSquad**](SquadsApi.md#breakupsquad) | **POST** /squads/{name}/break-up | Request squad break-up |
 | [**deleteSquad**](SquadsApi.md#deletesquad) | **DELETE** /squads/{name} | Delete squad |
 | [**getSquad**](SquadsApi.md#getsquad) | **GET** /squads/{name} | Get squad details |
 | [**listSquads**](SquadsApi.md#listsquads) | **GET** /squads | List squads |
 | [**patchSquad**](SquadsApi.md#patchsquadoperation) | **PATCH** /squads/{name} | Patch squad |
 | [**removeSquadMember**](SquadsApi.md#removesquadmember) | **DELETE** /squads/{name}/members/{agent} | Remove squad member |
+| [**squadsPost**](SquadsApi.md#squadspost) | **POST** /squads |  |
 
 
 
@@ -90,13 +91,13 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## createSquad
+## breakUpSquad
 
-> SquadResponse createSquad(request)
+> SquadResponse breakUpSquad(name, namespace)
 
-Create squad
+Request squad break-up
 
-Creates a new squad with the given members.
+Marks the squad for dissolution once all members are asleep.
 
 ### Example
 
@@ -105,19 +106,21 @@ import {
   Configuration,
   SquadsApi,
 } from '@komputer-ai/sdk';
-import type { CreateSquadOperationRequest } from '@komputer-ai/sdk';
+import type { BreakUpSquadRequest } from '@komputer-ai/sdk';
 
 async function example() {
   console.log("🚀 Testing @komputer-ai/sdk SDK...");
   const api = new SquadsApi();
 
   const body = {
-    // CreateSquadRequest | Squad creation request
-    request: ...,
-  } satisfies CreateSquadOperationRequest;
+    // string | Squad name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+  } satisfies BreakUpSquadRequest;
 
   try {
-    const data = await api.createSquad(body);
+    const data = await api.breakUpSquad(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -133,7 +136,8 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **request** | [CreateSquadRequest](CreateSquadRequest.md) | Squad creation request | |
+| **name** | `string` | Squad name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -145,16 +149,15 @@ No authorization required
 
 ### HTTP request headers
 
-- **Content-Type**: `application/json`
+- **Content-Type**: Not defined
 - **Accept**: `application/json`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Created squad |  -  |
-| **400** | Bad request |  -  |
-| **409** | Squad already exists |  -  |
+| **200** | Squad with break-up flag set |  -  |
+| **404** | Squad not found |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
@@ -518,6 +521,74 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Updated squad |  -  |
 | **404** | Squad or member not found |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## squadsPost
+
+> SquadResponse squadsPost(request)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  SquadsApi,
+} from '@komputer-ai/sdk';
+import type { SquadsPostRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new SquadsApi();
+
+  const body = {
+    // CreateSquadRequest | Squad creation request
+    request: ...,
+  } satisfies SquadsPostRequest;
+
+  try {
+    const data = await api.squadsPost(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **request** | [CreateSquadRequest](CreateSquadRequest.md) | Squad creation request | |
+
+### Return type
+
+[**SquadResponse**](SquadResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Created squad |  -  |
+| **400** | Bad request |  -  |
+| **409** | Squad already exists |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

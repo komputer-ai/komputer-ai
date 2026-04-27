@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**Name** | Pointer to **string** | Name is the desired KomputerAgent name when Spec is provided. When empty, the operator generates \&quot;&lt;squad&gt;-member-&lt;index&gt;\&quot;. Ignored when Ref is set. +optional | [optional] 
 **Ref** | Pointer to [**V1alpha1KomputerSquadMemberRef**](V1alpha1KomputerSquadMemberRef.md) | Exactly one of Ref or Spec must be set. | [optional] 
 **Spec** | Pointer to [**V1alpha1KomputerAgentSpec**](V1alpha1KomputerAgentSpec.md) |  | [optional] 
 
@@ -25,6 +26,31 @@ will change when the set of required properties is changed
 NewV1alpha1KomputerSquadMemberWithDefaults instantiates a new V1alpha1KomputerSquadMember object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetName
+
+`func (o *V1alpha1KomputerSquadMember) GetName() string`
+
+GetName returns the Name field if non-nil, zero value otherwise.
+
+### GetNameOk
+
+`func (o *V1alpha1KomputerSquadMember) GetNameOk() (*string, bool)`
+
+GetNameOk returns a tuple with the Name field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetName
+
+`func (o *V1alpha1KomputerSquadMember) SetName(v string)`
+
+SetName sets Name field to given value.
+
+### HasName
+
+`func (o *V1alpha1KomputerSquadMember) HasName() bool`
+
+HasName returns a boolean if a field has been set.
 
 ### GetRef
 

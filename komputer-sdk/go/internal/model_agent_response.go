@@ -43,6 +43,10 @@ type AgentResponse struct {
 	Secrets []string `json:"secrets,omitempty"`
 	// KomputerSkill names attached to this agent
 	Skills []string `json:"skills,omitempty"`
+	// True when this agent is managed by a KomputerSquad
+	Squad *bool `json:"squad,omitempty"`
+	// Name of the squad managing this agent (when Squad=true)
+	SquadName *string `json:"squadName,omitempty"`
 	Status *string `json:"status,omitempty"`
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// Custom system prompt (spec.systemPrompt)
@@ -645,6 +649,70 @@ func (o *AgentResponse) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetSquad returns the Squad field value if set, zero value otherwise.
+func (o *AgentResponse) GetSquad() bool {
+	if o == nil || IsNil(o.Squad) {
+		var ret bool
+		return ret
+	}
+	return *o.Squad
+}
+
+// GetSquadOk returns a tuple with the Squad field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetSquadOk() (*bool, bool) {
+	if o == nil || IsNil(o.Squad) {
+		return nil, false
+	}
+	return o.Squad, true
+}
+
+// HasSquad returns a boolean if a field has been set.
+func (o *AgentResponse) HasSquad() bool {
+	if o != nil && !IsNil(o.Squad) {
+		return true
+	}
+
+	return false
+}
+
+// SetSquad gets a reference to the given bool and assigns it to the Squad field.
+func (o *AgentResponse) SetSquad(v bool) {
+	o.Squad = &v
+}
+
+// GetSquadName returns the SquadName field value if set, zero value otherwise.
+func (o *AgentResponse) GetSquadName() string {
+	if o == nil || IsNil(o.SquadName) {
+		var ret string
+		return ret
+	}
+	return *o.SquadName
+}
+
+// GetSquadNameOk returns a tuple with the SquadName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetSquadNameOk() (*string, bool) {
+	if o == nil || IsNil(o.SquadName) {
+		return nil, false
+	}
+	return o.SquadName, true
+}
+
+// HasSquadName returns a boolean if a field has been set.
+func (o *AgentResponse) HasSquadName() bool {
+	if o != nil && !IsNil(o.SquadName) {
+		return true
+	}
+
+	return false
+}
+
+// SetSquadName gets a reference to the given string and assigns it to the SquadName field.
+func (o *AgentResponse) SetSquadName(v string) {
+	o.SquadName = &v
+}
+
 // GetStatus returns the Status field value if set, zero value otherwise.
 func (o *AgentResponse) GetStatus() string {
 	if o == nil || IsNil(o.Status) {
@@ -900,6 +968,12 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.Squad) {
+		toSerialize["squad"] = o.Squad
+	}
+	if !IsNil(o.SquadName) {
+		toSerialize["squadName"] = o.SquadName
 	}
 	if !IsNil(o.Status) {
 		toSerialize["status"] = o.Status

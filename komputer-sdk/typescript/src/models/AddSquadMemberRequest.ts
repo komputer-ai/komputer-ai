@@ -35,6 +35,12 @@ import {
  */
 export interface AddSquadMemberRequest {
     /**
+     * Name is the desired KomputerAgent name when Spec is set. Optional.
+     * @type {string}
+     * @memberof AddSquadMemberRequest
+     */
+    name?: string;
+    /**
      * 
      * @type {V1alpha1KomputerSquadMemberRef}
      * @memberof AddSquadMemberRequest
@@ -65,6 +71,7 @@ export function AddSquadMemberRequestFromJSONTyped(json: any, ignoreDiscriminato
     }
     return {
         
+        'name': json['name'] == null ? undefined : json['name'],
         'ref': json['ref'] == null ? undefined : V1alpha1KomputerSquadMemberRefFromJSON(json['ref']),
         'spec': json['spec'] == null ? undefined : V1alpha1KomputerAgentSpecFromJSON(json['spec']),
     };
@@ -81,6 +88,7 @@ export function AddSquadMemberRequestToJSONTyped(value?: AddSquadMemberRequest |
 
     return {
         
+        'name': value['name'],
         'ref': V1alpha1KomputerSquadMemberRefToJSON(value['ref']),
         'spec': V1alpha1KomputerAgentSpecToJSON(value['spec']),
     };

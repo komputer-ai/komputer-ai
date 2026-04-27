@@ -29,6 +29,12 @@ import {
 export interface SquadResponse {
     /**
      * 
+     * @type {boolean}
+     * @memberof SquadResponse
+     */
+    breakUpRequested?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof SquadResponse
      */
@@ -100,6 +106,7 @@ export function SquadResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
     }
     return {
         
+        'breakUpRequested': json['breakUpRequested'] == null ? undefined : json['breakUpRequested'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
         'members': json['members'] == null ? undefined : ((json['members'] as Array<any>).map(SquadMemberResponseFromJSON)),
         'message': json['message'] == null ? undefined : json['message'],
@@ -123,6 +130,7 @@ export function SquadResponseToJSONTyped(value?: SquadResponse | null, ignoreDis
 
     return {
         
+        'breakUpRequested': value['breakUpRequested'],
         'createdAt': value['createdAt'],
         'members': value['members'] == null ? undefined : ((value['members'] as Array<any>).map(SquadMemberResponseToJSON)),
         'message': value['message'],

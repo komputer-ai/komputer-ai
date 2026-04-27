@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**BreakUpRequested** | Pointer to **bool** |  | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
 **Members** | Pointer to [**[]SquadMemberResponse**](SquadMemberResponse.md) |  | [optional] 
 **Message** | Pointer to **string** |  | [optional] 
@@ -32,6 +33,31 @@ will change when the set of required properties is changed
 NewSquadResponseWithDefaults instantiates a new SquadResponse object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetBreakUpRequested
+
+`func (o *SquadResponse) GetBreakUpRequested() bool`
+
+GetBreakUpRequested returns the BreakUpRequested field if non-nil, zero value otherwise.
+
+### GetBreakUpRequestedOk
+
+`func (o *SquadResponse) GetBreakUpRequestedOk() (*bool, bool)`
+
+GetBreakUpRequestedOk returns a tuple with the BreakUpRequested field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBreakUpRequested
+
+`func (o *SquadResponse) SetBreakUpRequested(v bool)`
+
+SetBreakUpRequested sets BreakUpRequested field to given value.
+
+### HasBreakUpRequested
+
+`func (o *SquadResponse) HasBreakUpRequested() bool`
+
+HasBreakUpRequested returns a boolean if a field has been set.
 
 ### GetCreatedAt
 

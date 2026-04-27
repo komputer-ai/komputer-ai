@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**name** | **str** | Name is the desired KomputerAgent name when Spec is set. Optional. | [optional] 
 **ref** | [**V1alpha1KomputerSquadMemberRef**](V1alpha1KomputerSquadMemberRef.md) |  | [optional] 
 **spec** | [**V1alpha1KomputerAgentSpec**](V1alpha1KomputerAgentSpec.md) |  | [optional] 
 

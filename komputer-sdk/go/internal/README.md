@@ -109,12 +109,13 @@ Class | Method | HTTP request | Description
 *SkillsAPI* | [**ListSkills**](docs/SkillsAPI.md#listskills) | **Get** /skills | List skills
 *SkillsAPI* | [**PatchSkill**](docs/SkillsAPI.md#patchskill) | **Patch** /skills/{name} | Patch skill
 *SquadsAPI* | [**AddSquadMember**](docs/SquadsAPI.md#addsquadmember) | **Post** /squads/{name}/members | Add squad member
-*SquadsAPI* | [**CreateSquad**](docs/SquadsAPI.md#createsquad) | **Post** /squads | Create squad
+*SquadsAPI* | [**BreakUpSquad**](docs/SquadsAPI.md#breakupsquad) | **Post** /squads/{name}/break-up | Request squad break-up
 *SquadsAPI* | [**DeleteSquad**](docs/SquadsAPI.md#deletesquad) | **Delete** /squads/{name} | Delete squad
 *SquadsAPI* | [**GetSquad**](docs/SquadsAPI.md#getsquad) | **Get** /squads/{name} | Get squad details
 *SquadsAPI* | [**ListSquads**](docs/SquadsAPI.md#listsquads) | **Get** /squads | List squads
 *SquadsAPI* | [**PatchSquad**](docs/SquadsAPI.md#patchsquad) | **Patch** /squads/{name} | Patch squad
 *SquadsAPI* | [**RemoveSquadMember**](docs/SquadsAPI.md#removesquadmember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
+*SquadsAPI* | [**SquadsPost**](docs/SquadsAPI.md#squadspost) | **Post** /squads | 
 *TemplatesAPI* | [**ListTemplates**](docs/TemplatesAPI.md#listtemplates) | **Get** /templates | List agent templates
 *TemplatesAPI* | [**NamespacesGet**](docs/TemplatesAPI.md#namespacesget) | **Get** /namespaces | List namespaces
 

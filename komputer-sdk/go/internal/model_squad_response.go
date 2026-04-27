@@ -19,6 +19,7 @@ var _ MappedNullable = &SquadResponse{}
 
 // SquadResponse struct for SquadResponse
 type SquadResponse struct {
+	BreakUpRequested *bool `json:"breakUpRequested,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
 	Members []SquadMemberResponse `json:"members,omitempty"`
 	Message *string `json:"message,omitempty"`
@@ -45,6 +46,38 @@ func NewSquadResponse() *SquadResponse {
 func NewSquadResponseWithDefaults() *SquadResponse {
 	this := SquadResponse{}
 	return &this
+}
+
+// GetBreakUpRequested returns the BreakUpRequested field value if set, zero value otherwise.
+func (o *SquadResponse) GetBreakUpRequested() bool {
+	if o == nil || IsNil(o.BreakUpRequested) {
+		var ret bool
+		return ret
+	}
+	return *o.BreakUpRequested
+}
+
+// GetBreakUpRequestedOk returns a tuple with the BreakUpRequested field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SquadResponse) GetBreakUpRequestedOk() (*bool, bool) {
+	if o == nil || IsNil(o.BreakUpRequested) {
+		return nil, false
+	}
+	return o.BreakUpRequested, true
+}
+
+// HasBreakUpRequested returns a boolean if a field has been set.
+func (o *SquadResponse) HasBreakUpRequested() bool {
+	if o != nil && !IsNil(o.BreakUpRequested) {
+		return true
+	}
+
+	return false
+}
+
+// SetBreakUpRequested gets a reference to the given bool and assigns it to the BreakUpRequested field.
+func (o *SquadResponse) SetBreakUpRequested(v bool) {
+	o.BreakUpRequested = &v
 }
 
 // GetCreatedAt returns the CreatedAt field value if set, zero value otherwise.
@@ -345,6 +378,9 @@ func (o SquadResponse) MarshalJSON() ([]byte, error) {
 
 func (o SquadResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.BreakUpRequested) {
+		toSerialize["breakUpRequested"] = o.BreakUpRequested
+	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
 	}

@@ -24,6 +24,8 @@ Name | Type
 `queueReason` | string
 `secrets` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`squad` | boolean
+`squadName` | string
 `status` | string
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
@@ -56,6 +58,8 @@ const example = {
   "queueReason": null,
   "secrets": null,
   "skills": null,
+  "squad": null,
+  "squadName": null,
   "status": null,
   "storage": null,
   "systemPrompt": null,

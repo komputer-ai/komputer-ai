@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**Name** | Pointer to **string** | Name is the desired KomputerAgent name when Spec is set. Optional. | [optional] 
 **Ref** | Pointer to [**V1alpha1KomputerSquadMemberRef**](V1alpha1KomputerSquadMemberRef.md) |  | [optional] 
 **Spec** | Pointer to [**V1alpha1KomputerAgentSpec**](V1alpha1KomputerAgentSpec.md) |  | [optional] 
 
@@ -25,6 +26,31 @@ will change when the set of required properties is changed
 NewAddSquadMemberRequestWithDefaults instantiates a new AddSquadMemberRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetName
+
+`func (o *AddSquadMemberRequest) GetName() string`
+
+GetName returns the Name field if non-nil, zero value otherwise.
+
+### GetNameOk
+
+`func (o *AddSquadMemberRequest) GetNameOk() (*string, bool)`
+
+GetNameOk returns a tuple with the Name field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetName
+
+`func (o *AddSquadMemberRequest) SetName(v string)`
+
+SetName sets Name field to given value.
+
+### HasName
+
+`func (o *AddSquadMemberRequest) HasName() bool`
+
+HasName returns a boolean if a field has been set.
 
 ### GetRef
 

@@ -23,6 +23,8 @@ Name | Type | Description | Notes
 **queue_reason** | **str** |  | [optional] 
 **secrets** | **List[str]** | Key names from K8s Secrets (not values) | [optional] 
 **skills** | **List[str]** | KomputerSkill names attached to this agent | [optional] 
+**squad** | **bool** | True when this agent is managed by a KomputerSquad | [optional] 
+**squad_name** | **str** | Name of the squad managing this agent (when Squad&#x3D;true) | [optional] 
 **status** | **str** |  | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | Custom system prompt (spec.systemPrompt) | [optional] 

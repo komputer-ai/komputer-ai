@@ -22,6 +22,8 @@ Name | Type | Description | Notes
 **QueueReason** | Pointer to **string** |  | [optional] 
 **Secrets** | Pointer to **[]string** | Key names from K8s Secrets (not values) | [optional] 
 **Skills** | Pointer to **[]string** | KomputerSkill names attached to this agent | [optional] 
+**Squad** | Pointer to **bool** | True when this agent is managed by a KomputerSquad | [optional] 
+**SquadName** | Pointer to **string** | Name of the squad managing this agent (when Squad&#x3D;true) | [optional] 
 **Status** | Pointer to **string** |  | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | Custom system prompt (spec.systemPrompt) | [optional] 
@@ -497,6 +499,56 @@ SetSkills sets Skills field to given value.
 `func (o *AgentResponse) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetSquad
+
+`func (o *AgentResponse) GetSquad() bool`
+
+GetSquad returns the Squad field if non-nil, zero value otherwise.
+
+### GetSquadOk
+
+`func (o *AgentResponse) GetSquadOk() (*bool, bool)`
+
+GetSquadOk returns a tuple with the Squad field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSquad
+
+`func (o *AgentResponse) SetSquad(v bool)`
+
+SetSquad sets Squad field to given value.
+
+### HasSquad
+
+`func (o *AgentResponse) HasSquad() bool`
+
+HasSquad returns a boolean if a field has been set.
+
+### GetSquadName
+
+`func (o *AgentResponse) GetSquadName() string`
+
+GetSquadName returns the SquadName field if non-nil, zero value otherwise.
+
+### GetSquadNameOk
+
+`func (o *AgentResponse) GetSquadNameOk() (*string, bool)`
+
+GetSquadNameOk returns a tuple with the SquadName field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSquadName
+
+`func (o *AgentResponse) SetSquadName(v string)`
+
+SetSquadName sets SquadName field to given value.
+
+### HasSquadName
+
+`func (o *AgentResponse) HasSquadName() bool`
+
+HasSquadName returns a boolean if a field has been set.
 
 ### GetStatus
 

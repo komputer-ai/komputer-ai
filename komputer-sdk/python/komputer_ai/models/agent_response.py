@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from komputer_ai.models.v1_pod_spec import V1PodSpec
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
@@ -47,13 +47,15 @@ class AgentResponse(BaseModel):
     queue_reason: Optional[StrictStr] = Field(default=None, alias="queueReason")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Key names from K8s Secrets (not values)")
     skills: Optional[List[StrictStr]] = Field(default=None, description="KomputerSkill names attached to this agent")
+    squad: Optional[StrictBool] = Field(default=None, description="True when this agent is managed by a KomputerSquad")
+    squad_name: Optional[StrictStr] = Field(default=None, description="Name of the squad managing this agent (when Squad=true)", alias="squadName")
     status: Optional[StrictStr] = None
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="Custom system prompt (spec.systemPrompt)", alias="systemPrompt")
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["connectors", "createdAt", "errors", "instructions", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["connectors", "createdAt", "errors", "instructions", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -130,6 +132,8 @@ class AgentResponse(BaseModel):
             "queueReason": obj.get("queueReason"),
             "secrets": obj.get("secrets"),
             "skills": obj.get("skills"),
+            "squad": obj.get("squad"),
+            "squadName": obj.get("squadName"),
             "status": obj.get("status"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),

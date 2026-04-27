@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from komputer_ai.models.v1alpha1_komputer_agent_spec import V1alpha1KomputerAgentSpec
 from komputer_ai.models.v1alpha1_komputer_squad_member_ref import V1alpha1KomputerSquadMemberRef
@@ -29,9 +29,10 @@ class V1alpha1KomputerSquadMember(BaseModel):
     """
     V1alpha1KomputerSquadMember
     """ # noqa: E501
+    name: Optional[StrictStr] = Field(default=None, description="Name is the desired KomputerAgent name when Spec is provided. When empty, the operator generates \"<squad>-member-<index>\". Ignored when Ref is set. +optional")
     ref: Optional[V1alpha1KomputerSquadMemberRef] = Field(default=None, description="Exactly one of Ref or Spec must be set.")
     spec: Optional[V1alpha1KomputerAgentSpec] = None
-    __properties: ClassVar[List[str]] = ["ref", "spec"]
+    __properties: ClassVar[List[str]] = ["name", "ref", "spec"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -90,6 +91,7 @@ class V1alpha1KomputerSquadMember(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "name": obj.get("name"),
             "ref": V1alpha1KomputerSquadMemberRef.from_dict(obj["ref"]) if obj.get("ref") is not None else None,
             "spec": V1alpha1KomputerAgentSpec.from_dict(obj["spec"]) if obj.get("spec") is not None else None
         })
