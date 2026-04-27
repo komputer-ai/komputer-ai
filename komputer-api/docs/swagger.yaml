@@ -6407,6 +6407,25 @@ paths:
       summary: Stream agent events (WebSocket)
       tags:
       - agents
+  /agents/events/ws:
+    get:
+      parameters:
+      - description: Comma-separated glob patterns
+        in: query
+        name: match
+        type: string
+      - description: Comma-separated agent names
+        in: query
+        name: agents
+        type: string
+      - description: Optional namespace filter
+        in: query
+        name: namespace
+        type: string
+      responses: {}
+      summary: Stream events from multiple agents (WebSocket)
+      tags:
+      - agents
   /connectors:
     get:
       description: Returns all connectors with attached agent counts in the specified

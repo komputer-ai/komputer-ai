@@ -113,6 +113,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/events/ws": {
+            "get": {
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Stream events from multiple agents (WebSocket)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated glob patterns",
+                        "name": "match",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated agent names",
+                        "name": "agents",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional namespace filter",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/agents/{name}": {
             "get": {
                 "description": "Returns the current status and metadata for a single agent.",
