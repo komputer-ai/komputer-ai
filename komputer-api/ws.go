@@ -19,15 +19,17 @@ const sendQueueCapacity = 256
 
 // Hub manages WebSocket connections per agent name.
 //
-// Connections are split into two buckets:
+// Connections are split into three buckets:
 //   - broadcast: every event is delivered to every client (legacy fan-out).
 //   - groups: each group is a queue — exactly one client per group receives
 //     each event. Coordination across replicas is done via Redis SET NX
 //     claim keys, so adding clients does not add Redis connections.
+//   - matchers: per-connection matcher list for multi-agent subscriptions.
 type Hub struct {
 	mu        sync.RWMutex
 	broadcast map[string]map[*sendQueue]struct{}            // agentName -> queues
 	groups    map[string]map[string]map[*sendQueue]struct{} // agentName -> group -> queues
+	matchers  map[*sendQueue]*agentMatcher                  // queue -> matcher
 	rdb       *redis.Client
 	replicaID string
 	claimTTL  time.Duration
@@ -37,6 +39,7 @@ func NewHub(rdb *redis.Client, replicaID string) *Hub {
 	return &Hub{
 		broadcast: make(map[string]map[*sendQueue]struct{}),
 		groups:    make(map[string]map[string]map[*sendQueue]struct{}),
+		matchers:  make(map[*sendQueue]*agentMatcher),
 		rdb:       rdb,
 		replicaID: replicaID,
 		claimTTL:  30 * time.Second,
@@ -97,6 +100,25 @@ func (h *Hub) Unsubscribe(agentName string, q *sendQueue) {
 	}
 }
 
+// SubscribeMatch adds a queue that receives every event whose (agentName, namespace)
+// satisfies the given matcher.
+func (h *Hub) SubscribeMatch(q *sendQueue, m *agentMatcher) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.matchers[q] = m
+	wsConnectionsActive.WithLabelValues("match").Inc()
+}
+
+// UnsubscribeMatch removes a queue from the match bucket.
+func (h *Hub) UnsubscribeMatch(q *sendQueue) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, had := h.matchers[q]; had {
+		delete(h.matchers, q)
+		wsConnectionsActive.WithLabelValues("match").Dec()
+	}
+}
+
 // Dispatch fans an event into the broadcast bucket and the group bucket.
 //
 // msgID is a stable identifier for the event (e.g. the Redis stream ID) used
@@ -117,6 +139,12 @@ func (h *Hub) Dispatch(ctx context.Context, agentName, namespace, msgID string, 
 		}
 		if len(conns) > 0 {
 			groupMembers[group] = conns
+		}
+	}
+	matchTargets := make([]*sendQueue, 0, len(h.matchers))
+	for q, m := range h.matchers {
+		if m.matches(agentName, namespace) {
+			matchTargets = append(matchTargets, q)
 		}
 	}
 	h.mu.RUnlock()
@@ -144,8 +172,11 @@ func (h *Hub) Dispatch(ctx context.Context, agentName, namespace, msgID string, 
 		wsDispatchTotal.WithLabelValues("group", "delivered").Inc()
 	}
 
-	// namespace is used by the match bucket (added in Task 7).
-	_ = namespace
+	// Match bucket: enqueue to every matching subscription.
+	for _, q := range matchTargets {
+		q.Enqueue(message)
+		wsDispatchTotal.WithLabelValues("match", "delivered").Inc()
+	}
 }
 
 var upgrader = websocket.Upgrader{

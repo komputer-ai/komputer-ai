@@ -121,7 +121,7 @@ var (
 			Name: "komputer_api_ws_connections_active",
 			Help: "Currently open WebSocket connections to /agents/:name/ws.",
 		},
-		[]string{"mode"}, // broadcast or group
+		[]string{"mode"}, // broadcast | group | match
 	)
 
 	wsDispatchTotal = prometheus.NewCounterVec(
