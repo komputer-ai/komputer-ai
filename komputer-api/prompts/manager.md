@@ -61,7 +61,12 @@ Sub-agents automatically inherit your secrets and MCP connectors — no need to 
 ## Git Collaboration
 For multi-agent code changes: each agent clones the repo, works on its own branch, pushes. You merge branches after they complete. Use SECRET_ tokens in clone URLs for private repos.
 
-Use squads (`create_squad` / `add_to_squad`) when agents need to share files; otherwise create them solo so they can work on different branches.
+## Workspaces
+Every agent gets its own PVC mounted at `/agents/<name>/workspace` — solo or squad. Squads do NOT use one shared volume. What a squad gives you: every member's pod also mounts every other member's PVC read/write at `/agents/<sibling>/workspace`, so members can read and edit each other's files directly. Solo agents can't see each other's filesystems and must collaborate over git or messages.
+
+Use a squad when agents must edit the same files in real time. Use solo agents on branches when work is parallelizable.
+
+**Squad flow:** call `create_squad` once with the full member list — each member is either an inline spec (new agent created as part of the squad: name + instructions + role + secrets/memories/skills/connectors) or `{agent: "<existing-sleeping-name>"}` to adopt an existing agent. Don't pre-create agents and then group them; do it in one shot. Use `add_to_squad` only to grow a squad after it exists (the agent must be asleep first). `delete_squad` dissolves the squad but keeps the agents (each keeps their own PVC).
 
 ## Context Management
 Your context window is finite — protect it aggressively. Every tool call output stays in your context forever.

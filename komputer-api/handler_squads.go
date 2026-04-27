@@ -412,6 +412,50 @@ func deleteSquad(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// isAlreadyMember reports whether the squad already contains the given member.
+// For ref-based members it compares ref name + effective namespace. For inline-spec
+// members it compares the explicit Name (the desired agent name). squadNs is the
+// namespace of the squad itself, used as the default for refs without a namespace.
+func isAlreadyMember(squad *komputerv1alpha1.KomputerSquad, candidate *komputerv1alpha1.KomputerSquadMember, squadNs string) bool {
+	if candidate.Ref != nil {
+		candNs := candidate.Ref.Namespace
+		if candNs == "" {
+			candNs = squadNs
+		}
+		for _, m := range squad.Spec.Members {
+			if m.Ref == nil {
+				continue
+			}
+			existingNs := m.Ref.Namespace
+			if existingNs == "" {
+				existingNs = squadNs
+			}
+			if m.Ref.Name == candidate.Ref.Name && existingNs == candNs {
+				return true
+			}
+		}
+		return false
+	}
+	if candidate.Name == "" {
+		return false
+	}
+	for _, m := range squad.Spec.Members {
+		if m.Name != "" && m.Name == candidate.Name {
+			return true
+		}
+		if m.Ref != nil && m.Ref.Name == candidate.Name {
+			existingNs := m.Ref.Namespace
+			if existingNs == "" {
+				existingNs = squadNs
+			}
+			if existingNs == squadNs {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // addSquadMember appends a member to an existing squad. Retries once on 409 conflict.
 // @ID addSquadMember
 // @Summary Add squad member
@@ -447,19 +491,6 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		// Block adoption of a running agent — must be asleep so the existing solo pod
-		// is gone before the squad pod takes over its PVC.
-		if req.Ref != nil {
-			refNs := req.Ref.Namespace
-			if refNs == "" {
-				refNs = ns
-			}
-			if msg, blocked := validateMemberRefForAdoption(c, k8s, refNs, req.Ref.Name); blocked {
-				c.JSON(http.StatusConflict, gin.H{"error": msg})
-				return
-			}
-		}
-
 		newMember := komputerv1alpha1.KomputerSquadMember{
 			Ref:  req.Ref,
 			Spec: req.Spec,
@@ -468,6 +499,7 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 
 		// Retry once on 409 conflict.
 		var updated *komputerv1alpha1.KomputerSquad
+		adoptionChecked := false
 		for attempt := 0; attempt < 2; attempt++ {
 			squad, err := k8s.GetSquad(c.Request.Context(), ns, name)
 			if err != nil {
@@ -478,6 +510,32 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 				squadActionsTotal.WithLabelValues("add_member", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
+			}
+
+			// Idempotency: if the agent is already a member, return the current squad.
+			// Match by ref name+namespace (for ref members) or by explicit member name (for spec members).
+			// This must run before the adoption validation, otherwise re-adding an existing
+			// member would 409 because its (squad-owned) pod is running.
+			if isAlreadyMember(squad, &newMember, ns) {
+				Logger.Infow("squad add_member skipped — already a member", "squad_name", name, "namespace", ns)
+				squadActionsTotal.WithLabelValues("add_member", "noop").Inc()
+				c.JSON(http.StatusOK, squadToResponse(*squad))
+				return
+			}
+
+			// Block adoption of a running solo agent — must be asleep so the existing
+			// solo pod is gone before the squad pod takes over its PVC. Only check once;
+			// retries on conflict don't change agent state.
+			if !adoptionChecked && req.Ref != nil {
+				refNs := req.Ref.Namespace
+				if refNs == "" {
+					refNs = ns
+				}
+				if msg, blocked := validateMemberRefForAdoption(c, k8s, refNs, req.Ref.Name); blocked {
+					c.JSON(http.StatusConflict, gin.H{"error": msg})
+					return
+				}
+				adoptionChecked = true
 			}
 
 			// If the new member is an inline spec, populate its InternalSystemPrompt
