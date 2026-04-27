@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -28,11 +27,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-type SquadTabMember = {
-  name: string;
-  namespace: string;
-};
-
 type AgentChatProps = {
   agentName: string;
   agentNamespace?: string;
@@ -52,7 +46,6 @@ type AgentChatProps = {
   hasNewerEvents?: boolean;
   loadingNewer?: boolean;
   onLoadNewer?: () => void;
-  squadMembers?: SquadTabMember[];
 };
 
 // --- Message types derived from events ---
@@ -313,7 +306,7 @@ function UserBubble({ text, timestamp }: { text: string; timestamp: string }) {
         <div className="absolute -left-8 top-1 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
           <CopyButton text={text} />
         </div>
-        <div className="prose-chat text-sm text-[var(--color-text)] break-all">
+        <div className="prose-chat text-sm text-[var(--color-text)] break-words">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         </div>
         <p className="mt-1 text-right text-[10px] text-[var(--color-text-secondary)]">
@@ -505,7 +498,7 @@ function ToolCard({
                       <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
                         Input
                       </p>
-                      <pre className="overflow-x-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
+                      <pre className="whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]" style={{ overflowWrap: "anywhere" }}>
                         {typeof input === "string"
                           ? input
                           : JSON.stringify(input, null, 2)}
@@ -517,7 +510,7 @@ function ToolCard({
                       <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
                         Output
                       </p>
-                      <pre className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
+                      <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]" style={{ overflowWrap: "anywhere" }}>
                         {typeof output === "string"
                           ? output
                           : JSON.stringify(output, null, 2)}
@@ -858,9 +851,7 @@ export function AgentChat({
   hasNewerEvents,
   loadingNewer,
   onLoadNewer,
-  squadMembers,
 }: AgentChatProps) {
-  const searchParams = useSearchParams();
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(`draft:${agentName}`) ?? "";
@@ -1170,35 +1161,9 @@ export function AgentChat({
 
   return (
     <div className="flex h-full flex-1 min-w-0 flex-col">
-      {/* Squad member tabs — only shown when agent is in a squad */}
-      {squadMembers && squadMembers.length > 1 && (
-        <div className="shrink-0 flex items-center gap-0.5 px-4 pt-2 border-b border-[var(--color-border)]">
-          {squadMembers.map((member) => {
-            const isActive = member.name === agentName;
-            const ns = member.namespace || agentNamespace || searchParams?.get("namespace") || "default";
-            return isActive ? (
-              <span
-                key={member.name}
-                className="relative px-3 py-2 text-sm font-medium text-[var(--color-text)] cursor-default pb-[calc(0.5rem+3px)]"
-              >
-                {member.name}
-                <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--color-brand-blue)] rounded-full" />
-              </span>
-            ) : (
-              <Link
-                key={member.name}
-                href={`/agents/${member.name}?namespace=${ns}`}
-                className="px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
-              >
-                {member.name}
-              </Link>
-            );
-          })}
-        </div>
-      )}
       {/* Messages area */}
       <div className="relative flex-1 overflow-hidden">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto px-4 pt-4 pb-4">
+      <div ref={scrollContainerRef} className="h-full overflow-x-hidden overflow-y-auto px-4 pt-4 pb-4">
         {messages.length === 0 && !showThinking ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-secondary)]">
             {agentStatus === "Sleeping"
@@ -1206,7 +1171,7 @@ export function AgentChat({
               : "No messages yet. Waiting for events..."}
           </div>
         ) : (
-          <div data-messages className="flex flex-col gap-3">
+          <div data-messages className="flex flex-col gap-3 min-w-0">
             {/* Sentinel for infinite scroll */}
             <div ref={sentinelRef} className="h-1 shrink-0" />
             {loadingOlder && (

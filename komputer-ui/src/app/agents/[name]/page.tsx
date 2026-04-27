@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { Tooltip } from "@/components/kit/tooltip";
 import { AgentChat } from "@/components/agents/agent-chat";
+import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
@@ -476,27 +477,41 @@ export default function AgentDetailPage() {
 
         {view === "chat" ? (
           <div className="flex-1 overflow-hidden flex">
-            <AgentChat
-              agentName={agent.name}
-              agentNamespace={agentNs}
-              agentStatus={agent.status}
-              agentLifecycle={agent.lifecycle}
-              agentContextWindow={agent.modelContextWindow}
-              events={events}
-              taskStatus={agent.taskStatus}
-              initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
-              hasMoreEvents={hasMoreEvents}
-              loadingOlder={loadingOlder}
-              onLoadOlder={loadOlderEvents}
-              scrollContainerRef={scrollContainerRef}
-              scrollSnapshotRef={scrollSnapshotRef}
-              highlightTaskFrom={taskFrom}
-              highlightTaskTo={taskTo}
-              hasNewerEvents={hasNewerEvents}
-              loadingNewer={loadingNewer}
-              onLoadNewer={loadNewerEvents}
-              squadMembers={agentSquad?.members.map((m) => ({ name: m.name, namespace: agentNs || "default" }))}
-            />
+            {(() => {
+              const primaryChat = (
+                <AgentChat
+                  agentName={agent.name}
+                  agentNamespace={agentNs}
+                  agentStatus={agent.status}
+                  agentLifecycle={agent.lifecycle}
+                  agentContextWindow={agent.modelContextWindow}
+                  events={events}
+                  taskStatus={agent.taskStatus}
+                  initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}
+                  hasMoreEvents={hasMoreEvents}
+                  loadingOlder={loadingOlder}
+                  onLoadOlder={loadOlderEvents}
+                  scrollContainerRef={scrollContainerRef}
+                  scrollSnapshotRef={scrollSnapshotRef}
+                  highlightTaskFrom={taskFrom}
+                  highlightTaskTo={taskTo}
+                  hasNewerEvents={hasNewerEvents}
+                  loadingNewer={loadingNewer}
+                  onLoadNewer={loadNewerEvents}
+                />
+              );
+              if (agentSquad && agentSquad.members.length > 1) {
+                return (
+                  <SquadChatView
+                    squadName={agentSquad.name}
+                    members={agentSquad.members.map((m) => ({ name: m.name, namespace: agentNs || "default" }))}
+                    primaryAgentName={agent.name}
+                    primaryChat={primaryChat}
+                  />
+                );
+              }
+              return primaryChat;
+            })()}
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
         ) : (
