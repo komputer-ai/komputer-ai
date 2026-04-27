@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
+import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent } from "@/lib/types";
 
 function fmtTokens(n: number): string {
@@ -799,152 +800,111 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </Select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
           <Label>Secrets</Label>
-          <button
-            type="button"
-            onClick={() => setShowAllSecrets((v) => !v)}
-            className={`text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-              showAllSecrets
-                ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-            }`}
-          >
-            Show all
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {availableSecrets.map((s) => {
-            const attached = agentSecretRefs.includes(s.name);
-            return (
+          <MultiSelect
+            options={availableSecrets.map<MultiSelectOption>((s) => ({
+              value: s.name,
+              label: s.name,
+              secondary: showAllSecrets ? s.namespace : null,
+              searchTerms: [s.namespace],
+            }))}
+            value={agentSecretRefs}
+            onChange={setAgentSecretRefs}
+            placeholder="Select secrets..."
+            noun="secrets"
+            searchPlaceholder="Search secrets..."
+            emptyText="No secrets available"
+            headerExtra={
               <button
-                key={s.name}
                 type="button"
-                onClick={() => setAgentSecretRefs(prev =>
-                  attached ? prev.filter(n => n !== s.name) : [...prev, s.name]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                onClick={() => setShowAllSecrets((v) => !v)}
+                className={`w-full text-xs px-2 py-1 rounded border transition-colors cursor-pointer ${
+                  showAllSecrets
+                    ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
                 }`}
               >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {s.name}
+                {showAllSecrets ? "Showing all namespaces" : "Show all namespaces"}
               </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setCreateSecretOpen(true)}
-            className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer"
-          >
-            <Plus className="inline size-2.5 mr-1" />
-            New Secret
-          </button>
+            }
+            footerExtra={
+              <button
+                type="button"
+                onClick={() => setCreateSecretOpen(true)}
+                className="flex w-full items-center justify-center gap-1 text-xs px-2 py-1 rounded border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+              >
+                <Plus className="size-3" />
+                New Secret
+              </button>
+            }
+          />
+          <CreateSecretModal
+            open={createSecretOpen}
+            onOpenChange={setCreateSecretOpen}
+            onCreated={() => {
+              listSecrets(agentNs || undefined, showAllSecrets).then((res) => {
+                setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
+              }).catch(() => {});
+            }}
+          />
         </div>
-        <CreateSecretModal
-          open={createSecretOpen}
-          onOpenChange={setCreateSecretOpen}
-          onCreated={() => {
-            listSecrets(agentNs || undefined, showAllSecrets).then((res) => {
-              setAvailableSecrets((res.secrets ?? []).map((s) => ({ name: s.name, namespace: s.namespace })));
-            }).catch(() => {});
-          }}
-        />
-      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Memories</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableMemories.map((m) => {
-            const attached = agentMemories.includes(m.ref);
-            const isCrossNs = m.ref.includes("/");
-            return (
-              <button
-                key={m.ref}
-                type="button"
-                onClick={() => setAgentMemories(prev =>
-                  attached ? prev.filter(n => n !== m.ref) : [...prev, m.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {m.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{m.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableMemories.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No memories available</p>
-          )}
+        <div className="flex flex-col gap-1.5">
+          <Label>Connectors</Label>
+          <MultiSelect
+            options={availableConnectors.map<MultiSelectOption>((c) => ({
+              value: c.ref,
+              label: c.name,
+              secondary: c.ref.includes("/") ? c.namespace : null,
+              searchTerms: [c.namespace, c.ref],
+            }))}
+            value={agentConnectors}
+            onChange={setAgentConnectors}
+            placeholder="Select connectors..."
+            noun="connectors"
+            searchPlaceholder="Search connectors..."
+            emptyText="No connectors available"
+          />
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Skills</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableSkills.map((s) => {
-            const attached = agentSkills.includes(s.ref);
-            const isCrossNs = s.ref.includes("/");
-            return (
-              <button
-                key={s.ref}
-                type="button"
-                onClick={() => setAgentSkills(prev =>
-                  attached ? prev.filter(n => n !== s.ref) : [...prev, s.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {s.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{s.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableSkills.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
-          )}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Memories</Label>
+          <MultiSelect
+            options={availableMemories.map<MultiSelectOption>((m) => ({
+              value: m.ref,
+              label: m.name,
+              secondary: m.ref.includes("/") ? m.namespace : null,
+              searchTerms: [m.namespace, m.ref],
+            }))}
+            value={agentMemories}
+            onChange={setAgentMemories}
+            placeholder="Select memories..."
+            noun="memories"
+            searchPlaceholder="Search memories..."
+            emptyText="No memories available"
+          />
         </div>
-      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Connectors</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {availableConnectors.map((c) => {
-            const attached = agentConnectors.includes(c.ref);
-            const isCrossNs = c.ref.includes("/");
-            return (
-              <button
-                key={c.ref}
-                type="button"
-                onClick={() => setAgentConnectors(prev =>
-                  attached ? prev.filter(n => n !== c.ref) : [...prev, c.ref]
-                )}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  attached
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {attached && <Check className="inline size-2.5 mr-1" />}
-                {c.name}
-                {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{c.namespace}</span>}
-              </button>
-            );
-          })}
-          {availableConnectors.length === 0 && (
-            <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
-          )}
+        <div className="flex flex-col gap-1.5">
+          <Label>Skills</Label>
+          <MultiSelect
+            options={availableSkills.map<MultiSelectOption>((s) => ({
+              value: s.ref,
+              label: s.name,
+              secondary: s.ref.includes("/") ? s.namespace : null,
+              searchTerms: [s.namespace, s.ref],
+            }))}
+            value={agentSkills}
+            onChange={setAgentSkills}
+            placeholder="Select skills..."
+            noun="skills"
+            searchPlaceholder="Search skills..."
+            emptyText="No skills available"
+          />
         </div>
       </div>
 

@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
-import { ChevronRight, Check, Plus } from "lucide-react";
+import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
+import { ChevronRight, Plus } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
@@ -137,12 +138,6 @@ export function AgentFieldsForm({
     onChange({ ...values, [key]: value });
   }
 
-  function toggleSelection(key: "selectedMemories" | "selectedSkills" | "selectedConnectors" | "selectedSecretRefs", item: string) {
-    const cur = values[key];
-    const next = cur.includes(item) ? cur.filter((x) => x !== item) : [...cur, item];
-    patch(key, next);
-  }
-
   return (
     <div ref={scrollRef} className="flex flex-col gap-4">
       {!hideNameAndNamespace && (
@@ -252,48 +247,44 @@ export function AgentFieldsForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <Label>Secrets</Label>
-          <button
-            type="button"
-            onClick={() => patch("showAllSecrets", !values.showAllSecrets)}
-            className={`text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-              values.showAllSecrets
-                ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-            }`}
-          >
-            Show all
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {availableSecrets.map((s) => {
-            const selected = values.selectedSecretRefs.includes(s.name);
-            return (
-              <button
-                key={s.name}
-                type="button"
-                onClick={() => toggleSelection("selectedSecretRefs", s.name)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                  selected
-                    ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                }`}
-              >
-                {selected && <Check className="inline size-2.5 mr-1" />}
-                {s.name}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setCreateSecretOpen(true)}
-            className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] transition-colors cursor-pointer"
-          >
-            <Plus className="inline size-2.5 mr-1" />
-            New Secret
-          </button>
-        </div>
+        <Label>Secrets</Label>
+        <MultiSelect
+          options={availableSecrets.map<MultiSelectOption>((s) => ({
+            value: s.name,
+            label: s.name,
+            secondary: values.showAllSecrets ? s.namespace : null,
+            searchTerms: [s.namespace],
+          }))}
+          value={values.selectedSecretRefs}
+          onChange={(next) => patch("selectedSecretRefs", next)}
+          placeholder="Select secrets..."
+          noun="secrets"
+          searchPlaceholder="Search secrets..."
+          emptyText="No secrets available"
+          headerExtra={
+            <button
+              type="button"
+              onClick={() => patch("showAllSecrets", !values.showAllSecrets)}
+              className={`w-full text-xs px-2 py-1 rounded border transition-colors cursor-pointer ${
+                values.showAllSecrets
+                  ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                  : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+              }`}
+            >
+              {values.showAllSecrets ? "Showing all namespaces" : "Show all namespaces"}
+            </button>
+          }
+          footerExtra={
+            <button
+              type="button"
+              onClick={() => setCreateSecretOpen(true)}
+              className="flex w-full items-center justify-center gap-1 text-xs px-2 py-1 rounded border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
+            >
+              <Plus className="size-3" />
+              New Secret
+            </button>
+          }
+        />
       </div>
       <CreateSecretModal
         open={createSecretOpen}
@@ -326,114 +317,85 @@ export function AgentFieldsForm({
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <div className="border-t border-[var(--color-border)] px-3 py-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Template</Label>
-                  <Select value={values.templateRef} onValueChange={(v) => v && patch("templateRef", v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates.map((t) => (
-                        <SelectItem key={`${t.scope}-${t.name}`} value={t.name}>
-                          <span className="flex items-center gap-2">
-                            {t.name}
-                            <span className={`text-[10px] tracking-wider px-1.5 py-0.5 rounded ${t.scope === "cluster" ? "bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]" : "bg-emerald-500/10 text-emerald-400"}`}>
-                              {t.scope === "cluster" ? "cluster" : t.namespace}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Template</Label>
+                    <Select value={values.templateRef} onValueChange={(v) => v && patch("templateRef", v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((t) => (
+                          <SelectItem key={`${t.scope}-${t.name}`} value={t.name}>
+                            <span className="flex items-center gap-2">
+                              {t.name}
+                              <span className={`text-[10px] tracking-wider px-1.5 py-0.5 rounded ${t.scope === "cluster" ? "bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]" : "bg-emerald-500/10 text-emerald-400"}`}>
+                                {t.scope === "cluster" ? "cluster" : t.namespace}
+                              </span>
                             </span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Memories */}
-                <div className="flex flex-col gap-1.5">
-                  <Label>Memories</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableMemories.map((m) => {
-                      const selected = values.selectedMemories.includes(m.ref);
-                      const isCrossNs = m.ref.includes("/");
-                      return (
-                        <button
-                          key={m.ref}
-                          type="button"
-                          onClick={() => toggleSelection("selectedMemories", m.ref)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                            selected
-                              ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                          }`}
-                        >
-                          {selected && <Check className="inline size-2.5 mr-1" />}
-                          {m.name}
-                          {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{m.namespace}</span>}
-                        </button>
-                      );
-                    })}
-                    {availableMemories.length === 0 && (
-                      <p className="text-xs text-[var(--color-text-muted)]">No memories available</p>
-                    )}
+                  {/* Connectors */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Connectors</Label>
+                    <MultiSelect
+                      options={availableConnectors.map<MultiSelectOption>((c) => ({
+                        value: c.ref,
+                        label: c.name,
+                        secondary: c.ref.includes("/") ? c.namespace : null,
+                        searchTerms: [c.namespace, c.ref],
+                      }))}
+                      value={values.selectedConnectors}
+                      onChange={(next) => patch("selectedConnectors", next)}
+                      placeholder="Select connectors..."
+                      noun="connectors"
+                      searchPlaceholder="Search connectors..."
+                      emptyText="No connectors available"
+                    />
                   </div>
                 </div>
 
-                {/* Skills */}
-                <div className="flex flex-col gap-1.5">
-                  <Label>Skills</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableSkills.map((s) => {
-                      const selected = values.selectedSkills.includes(s.ref);
-                      const isCrossNs = s.ref.includes("/");
-                      return (
-                        <button
-                          key={s.ref}
-                          type="button"
-                          onClick={() => toggleSelection("selectedSkills", s.ref)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                            selected
-                              ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                          }`}
-                        >
-                          {selected && <Check className="inline size-2.5 mr-1" />}
-                          {s.name}
-                          {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{s.namespace}</span>}
-                        </button>
-                      );
-                    })}
-                    {availableSkills.length === 0 && (
-                      <p className="text-xs text-[var(--color-text-muted)]">No skills available</p>
-                    )}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Memories */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Memories</Label>
+                    <MultiSelect
+                      options={availableMemories.map<MultiSelectOption>((m) => ({
+                        value: m.ref,
+                        label: m.name,
+                        secondary: m.ref.includes("/") ? m.namespace : null,
+                        searchTerms: [m.namespace, m.ref],
+                      }))}
+                      value={values.selectedMemories}
+                      onChange={(next) => patch("selectedMemories", next)}
+                      placeholder="Select memories..."
+                      noun="memories"
+                      searchPlaceholder="Search memories..."
+                      emptyText="No memories available"
+                    />
                   </div>
-                </div>
 
-                {/* Connectors */}
-                <div className="flex flex-col gap-1.5">
-                  <Label>Connectors</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableConnectors.map((c) => {
-                      const selected = values.selectedConnectors.includes(c.ref);
-                      const isCrossNs = c.ref.includes("/");
-                      return (
-                        <button
-                          key={c.ref}
-                          type="button"
-                          onClick={() => toggleSelection("selectedConnectors", c.ref)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
-                            selected
-                              ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
-                              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
-                          }`}
-                        >
-                          {selected && <Check className="inline size-2.5 mr-1" />}
-                          {c.name}
-                          {isCrossNs && <span className="ml-1 text-[9px] text-[var(--color-brand-blue-light)]">{c.namespace}</span>}
-                        </button>
-                      );
-                    })}
-                    {availableConnectors.length === 0 && (
-                      <p className="text-xs text-[var(--color-text-muted)]">No connectors available</p>
-                    )}
+                  {/* Skills */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Skills</Label>
+                    <MultiSelect
+                      options={availableSkills.map<MultiSelectOption>((s) => ({
+                        value: s.ref,
+                        label: s.name,
+                        secondary: s.ref.includes("/") ? s.namespace : null,
+                        searchTerms: [s.namespace, s.ref],
+                      }))}
+                      value={values.selectedSkills}
+                      onChange={(next) => patch("selectedSkills", next)}
+                      placeholder="Select skills..."
+                      noun="skills"
+                      searchPlaceholder="Search skills..."
+                      emptyText="No skills available"
+                    />
                   </div>
                 </div>
 
