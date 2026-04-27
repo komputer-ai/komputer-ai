@@ -109,12 +109,10 @@ spec:
 Manager agents can orchestrate squads using these MCP tools:
 
 - `create_squad` — create a new squad
-- `add_to_squad` — add an existing agent to a squad
+- `add_to_squad` — add an existing (sleeping) agent to a squad
 - `remove_from_squad` — remove an agent from a squad
 - `delete_squad` — delete a squad
 - `list_squads` — list all squads
-
-The `create_agent` tool also accepts an optional `squad` parameter to add the new agent to a squad immediately after creation.
 
 ## Configuration
 

@@ -103,28 +103,37 @@ When `KOMPUTER_ROLE=manager`, the agent additionally registers MCP orchestration
 | Tool | Description |
 |------|-------------|
 | `create_agent` | Create a sub-agent (always a worker) to handle a task. Optional `priority` (int, higher = admitted first under template `maxConcurrentAgents` cap) |
-| `update_agent` | Patch an existing sub-agent: change `model`, `instructions`, `cpu`, `memory`, `storage`, or `image`. Pass an empty string (e.g. `storage=""`) to remove an override and revert to the template default. Changes apply on next pod start |
-| `schedule_agent` | Schedule an agent to run on a cron schedule |
-| `get_agent_status` | Check the status of a sub-agent |
-| `get_agent_events` | Get recent events/results from a sub-agent |
+| `update_agent` | Patch an existing sub-agent: change `model`, `instructions`, `cpu`, `memory`, `storage`, or `image`. Pass `""` to remove an override. Changes apply on next pod start |
+| `list_agents` | List agents in a namespace (optionally across all namespaces) |
+| `get_agent` | Get full agent details by name |
+| `get_agent_status` / `get_agent_events` | Check status / fetch recent events from a sub-agent |
+| `cancel_agent` | Cancel an in-flight task without deleting the agent |
+| `sleep_agent` / `wake_agent` | Sleep an agent (cancel + tear down pod, keep PVC) or wake it back up |
 | `delete_agent` | Delete a sub-agent and clean up resources |
-| `delete_schedule` | Delete a schedule |
 
-**Memory tools:**
+**Schedule tools:** `schedule_agent`, `list_schedules`, `get_schedule`, `update_schedule`, `delete_schedule`.
 
-| Tool | Description |
-|------|-------------|
-| `create_memory` | Create a `KomputerMemory` CR with the given name and content. Pass `attach: true` to also attach it to the current agent immediately. |
-| `attach_memory` | Attach an existing `KomputerMemory` to an agent (defaults to the current agent). The memory content will be injected into the agent's system prompt on its next task. |
-
-**Skill tools:**
+**Squad tools:**
 
 | Tool | Description |
 |------|-------------|
-| `create_skill` | Create a `KomputerSkill` CR with the given name, description, and content. Pass `attach: true` to also attach it to the current agent immediately. |
-| `attach_skill` | Attach an existing `KomputerSkill` to an agent (defaults to the current agent). The skill will be written as a slash command file on the agent's next task. |
+| `create_squad` | Create a squad of agents that share a single Pod and each other's workspaces |
+| `add_to_squad` / `remove_from_squad` | Add or remove a member (the agent must be asleep to be adopted) |
+| `list_squads` / `delete_squad` | List squads in a namespace; delete a squad |
 
-This allows manager agents to autonomously delegate work, build up shared knowledge as memories, and codify repeatable workflows as skills.
+See [docs/squads.md](../docs/squads.md) for semantics.
+
+**Memory tools:** `create_memory`, `list_memories`, `get_memory`, `update_memory`, `attach_memory`, `detach_memory`, `delete_memory`. `create_memory` and `attach_memory` accept `attach: true` / a target agent name; the content is injected into the target's system prompt on next task.
+
+**Skill tools:** `create_skill`, `list_skills`, `get_skill`, `update_skill`, `attach_skill`, `detach_skill`, `delete_skill`. Skills are written as slash command files on the target agent's next task.
+
+**Connector tools:** `list_connectors`, `get_connector`, `list_connector_templates`, `attach_connector`, `detach_connector`. Use templates to spin up new MCP connectors and attach them to agents.
+
+**Secret tools:** `list_secrets`, `create_secret`, `attach_secret`, `detach_secret`, `delete_secret`. Secret values are write-only — listing returns names and namespaces, never values.
+
+**Discovery:** `list_namespaces`, `list_templates`.
+
+This allows manager agents to autonomously delegate work, form squads, build up shared knowledge as memories, codify repeatable workflows as skills, and wire in connectors/secrets without operator intervention.
 
 ## Development
 
