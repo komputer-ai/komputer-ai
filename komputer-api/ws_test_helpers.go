@@ -37,6 +37,8 @@ type wsTestServer struct {
 // The caller is responsible for calling Close().
 func newWSTestServer(t *testing.T) *wsTestServer {
 	t.Helper()
+	// InitLogger must be called before handlers that use Logger are exercised.
+	InitLogger()
 	mr, err := miniredis.Run()
 	if err != nil {
 		t.Fatalf("miniredis: %v", err)
