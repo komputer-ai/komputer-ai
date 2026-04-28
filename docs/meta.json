@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "getting-started",
+    "architecture",
     "concepts",
     "observability",
     "integration",

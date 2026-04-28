@@ -237,7 +237,7 @@ const features: { icon: LucideIcon; title: string; desc: string }[] = [
 
 const quickLinks = [
   { title: 'Installation', desc: 'Helm install on any Kubernetes cluster.', href: '/docs/getting-started/installation' },
-  { title: 'Architecture', desc: 'How the operator, API, and agents fit together.', href: '/docs/concepts/architecture' },
+  { title: 'Architecture', desc: 'How the operator, API, and agents fit together.', href: '/docs/architecture' },
   { title: 'Squads', desc: 'Co-located multi-agent pods.', href: '/docs/concepts/squads' },
   { title: 'Integration overview', desc: 'Drive komputer.ai with REST + WebSocket.', href: '/docs/integration/overview' },
 ];
