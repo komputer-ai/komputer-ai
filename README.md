@@ -80,49 +80,33 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 - **Skills and memories** — attach reusable knowledge and capabilities to agents as Kubernetes CRDs
 - **Custom system prompts** — configure agent behavior, persona, and constraints separately from task instructions
 - **Per-agent overrides** — override resources, image, or PVC size on a single agent without forking a new template; managers can also patch sub-agents at runtime via the `update_agent` tool
-- **Concurrency control** — cap how many agents per template can run at once with `maxConcurrentAgents`; excess agents are queued and admitted in priority order
+- **Concurrency control** — cap how many agents per template can run at once with `maxConcurrentAgents`; excess agents are queued and admitted based on priority setting
 - **Scheduling** — cron-based recurring tasks with timezone support and auto-cleanup
 - **Cost tracking and analysis** — real-time cost per task, context window monitoring, per-agent cost breakdown with task-level drill-down
-- **Session history resilience** — if Redis is wiped, full conversation history is recovered from the agent's session data with proper event conversion
 - **SDKs for Python, Go, and TypeScript** — create agents, send tasks, and stream results with a few lines of code
 - **CLI, UI, and API** — manage everything from the terminal, browser, or programmatically
 
 ---
 
-## Components
-
-| Component | Language | Description |
-|-----------|----------|-------------|
-| [komputer-operator](komputer-operator/) | Go | Kubernetes operator that manages agent lifecycle — creates pods, PVCs, and config for each agent |
-| [komputer-api](komputer-api/) | Go | REST + WebSocket API for creating agents, listing status, and streaming real-time events |
-| [komputer-agent](komputer-agent/) | Python | The agent runtime — runs Claude with bash/web tools in a persistent workspace |
-| [komputer-cli](komputer-cli/) | Go | Beautiful CLI for interacting with the platform |
-| [komputer-ui](komputer-ui/) | TypeScript | Web dashboard for managing agents, offices, schedules, memories, skills, connectors, and costs |
-| [komputer-sdk](komputer-sdk/) | Python, Go, TypeScript | Typed SDKs for the REST API + WebSocket streaming |
-
-
 ## Documentation
 
-> 📖 **The full documentation site is at [komputer-ai.github.io/komputer-ai](https://komputer-ai.github.io/komputer-ai/)** — searchable, navigable, with the same content as the markdown below.
+> 📖 **The full documentation site is at [komputer-ai.github.io/komputer-ai](https://komputer-ai.github.io/komputer-ai/)**
 
 1. [Concepts](docs/concepts/) — Agents, templates, config, secrets, namespaces — how the system fits together
 2. [Installation](#installation) — Deploy to any Kubernetes cluster in minutes
 3. [Integration Guide](docs/integration/) — How to connect external systems via HTTP API and WebSocket events
 4. [Custom Agent Images](docs/integration/custom-agent-image.md) — Build custom agent images with your own packages and tools
-5. [Local Development](docs/contribution/local-development.md) — Build and run from source on a local cluster
-6. [Monitoring & Metrics](docs/observability/monitoring/) — Prometheus endpoints, ServiceMonitor setup, agent remote-write, sample Grafana dashboard
-7. [Logging](docs/observability/logging.md) — Structured JSON logging, `LOG_LEVEL` / `LOG_FORMAT`, common fields
-8. [Squads](docs/concepts/squads/) — Multi-agent shared workspace via co-located Pods
-9. [Examples](examples/) — 10 end-to-end examples: hello world, secrets, managers, schedules, CI/CD, Slack, and more
-10. [Architecture](#architecture) — System diagram and component interactions
-11. Komputer Components
-   1. [komputer-api](komputer-api/README.md) — REST & WebSocket API reference, Swagger UI, configuration
-   2. [komputer-operator](komputer-operator/README.md) — CRD definitions, reconciliation logic, operator development guide
-   3. [komputer-agent](komputer-agent/README.md) — Agent runtime, Claude SDK integration, manager tools, event format
-   4. [komputer-cli](komputer-cli/README.md) — CLI commands, flags, usage examples
-   5. [komputer-ui](komputer-ui/README.md) — Web dashboard, pages, configuration, development
-   6. [komputer-sdk](komputer-sdk/README.md) — Python, Go, TypeScript SDKs, generation pipeline, testing
-   7. [Helm Chart](helm/komputer-ai/README.md) — Chart values, custom installation, external Redis
+5. [Monitoring & Metrics](docs/observability/monitoring/) — Prometheus endpoints, ServiceMonitor setup, agent remote-write, sample Grafana dashboard
+6. [Examples](examples/) — 10 end-to-end examples: hello world, secrets, managers, schedules, CI/CD, Slack, and more
+7. [Architecture](#architecture) — System diagram and component interactions
+8. Komputer Components
+    - [komputer-api](komputer-api/README.md) (Go) — REST + WebSocket API for creating agents, listing status, and streaming real-time events
+    - [komputer-operator](komputer-operator/README.md) (Go) — Kubernetes operator that manages agent lifecycle — creates pods, PVCs, and config for each agent
+    - [komputer-agent](komputer-agent/README.md) (Python) — The agent runtime — runs Claude with bash/web tools in a persistent workspace
+    - [komputer-cli](komputer-cli/README.md) (Go) — Beautiful CLI for interacting with the platform
+    - [komputer-ui](komputer-ui/README.md) (TypeScript) — Web dashboard for managing agents, offices, schedules, memories, skills, connectors, and costs
+    - [komputer-sdk](komputer-sdk/README.md) (Python, Go, TypeScript) — Typed SDKs for the REST API + WebSocket streaming
+    - [Helm Chart](helm/komputer-ai/README.md) — Chart values, custom installation, external Redis
 
 ## Installation
 
