@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     url: '/',
     images: [
       {
-        url: '/komputer-ai/og-image.jpg',
+        url: 'og-image.jpg',
         width: 1200,
         height: 630,
         type: 'image/jpeg',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Komputer.AI — Distributed Claude AI agents on Kubernetes',
     description: 'Open-source platform for running persistent Claude AI agents on Kubernetes.',
-    images: ['/komputer-ai/og-image.jpg'],
+    images: ['og-image.jpg'],
   },
   robots: {
     index: true,
