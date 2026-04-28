@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="https://komputer-ai.github.io/komputer-ai/"><strong>📖 Documentation</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/komputer-ai/komputer-ai/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white" alt="Go 1.22+" /></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white" alt="Python 3.12+" /></a>
