@@ -437,27 +437,6 @@ Events published by agents and streamed via WebSocket:
        └─────────────────────┘
 ```
 
-## Project Structure
-
-```
-komputer-ai/
-├── komputer-operator/     # K8s operator (Go, operator-sdk)
-│   ├── api/v1alpha1/      # CRD types (Config, Agent, Templates)
-│   ├── internal/          # Controller logic
-│   └── config/            # RBAC, CRDs, samples
-├── komputer-api/          # HTTP + WebSocket API (Go, Gin)
-│   ├── handler.go         # REST endpoints
-│   ├── worker.go          # Redis event consumer
-│   └── ws.go              # WebSocket hub
-├── komputer-agent/        # Agent runtime (Python)
-│   ├── agent.py           # Claude Agent SDK integration
-│   ├── server.py          # FastAPI task endpoint
-│   └── events.py          # Redis event publisher
-├── komputer-cli/          # CLI (Go, Cobra + Lipgloss)
-│   └── main.go            # All commands in one file
-└── docs/                  # Design specs and plans
-```
-
 ## License
 
 [MIT](LICENSE)
