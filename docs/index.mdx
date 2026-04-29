@@ -1,33 +1,67 @@
 ---
-title: Komputer.AI
+title: Welcome
 description: Distributed Claude AI agents on Kubernetes — first-class cluster resources via CRDs and operators.
 ---
 
-# Komputer.AI
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Rocket, Code2, Boxes, Users, Plug, FileText, BookOpen, BarChart3, Calendar, DollarSign, Network, Radio, Container, Activity, ScrollText, Layers, Sparkles, Brain } from 'lucide-react';
 
-**Distributed Claude AI agents on Kubernetes.** Stateless, Kubernetes-native platform for running persistent Claude AI agents — built on CRDs, operators, and the Kubernetes API. Agents are first-class cluster resources, driven externally via REST + WebSocket.
+**komputer.ai** is a Kubernetes-native platform for running persistent Claude AI agents as first-class cluster resources. No external database — `KomputerAgent` CRs live in etcd, the operator reconciles them into Pods, and the API streams every event back over WebSocket.
+
+## Quick start
+
+```bash
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
+  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --namespace komputer-ai --create-namespace
+```
+
+That deploys the operator, API, UI, Redis, and a default agent template. From there: port-forward, open the dashboard, create your first agent. Full walkthrough in [Installation](/docs/getting-started/installation).
 
 ## Get started
 
-- [Installation](/getting-started/installation) — deploy to any Kubernetes cluster with Helm in 5 minutes.
-- [Local development](/contribution/local-development) — build and run from source on a kind cluster.
-- [Architecture](/architecture) — Kubernetes as the database, operator + API + agent split.
-- [Integration overview](/integration/overview) — drive Komputer.AI from your own services.
+<Cards>
+  <Card icon={<Rocket />} title="Installation" href="/docs/getting-started/installation" description="Helm install on any Kubernetes cluster — five minutes from zero to running agent." />
+  <Card icon={<Network />} title="Architecture" href="/docs/architecture" description="Components, data flow, protocols, tech stack, and the design choices behind the platform." />
+  <Card icon={<Code2 />} title="Integration overview" href="/docs/integration/overview" description="Drive komputer.ai from your own services via REST + WebSocket." />
+</Cards>
 
 ## Core concepts
 
-- [Agents](/concepts/agents) — the central entity, lifecycle modes, roles, overrides, concurrency.
-- [Squads](/concepts/squads) — multi-agent shared workspaces via co-located Pods.
-- [Connectors](/concepts/connectors) — MCP server connections; includes the supported-services compatibility matrix.
+<Cards>
+  <Card icon={<Boxes />} title="Agents" href="/docs/concepts/agents" description="The central entity — lifecycle modes, roles, overrides, concurrency control." />
+  <Card icon={<Users />} title="Squads" href="/docs/concepts/squads" description="Multi-agent shared workspaces via co-located Pods. Manager + worker collaboration." />
+  <Card icon={<Layers />} title="Templates" href="/docs/concepts/templates" description="Reusable Pod specs for agents — image, resources, storage, service account." />
+  <Card icon={<Plug />} title="Connectors" href="/docs/concepts/connectors" description="MCP server connections per agent or template; includes the supported-services compatibility matrix." />
+</Cards>
 
-## Observability
+## Power features
 
-- [Logging](/observability/logging) — structured JSON or human-readable logs across all components.
-- [Monitoring](/observability/monitoring) — Prometheus metrics, ServiceMonitors, and a Grafana dashboard.
+<Cards>
+  <Card icon={<Sparkles />} title="Skills" href="/docs/concepts/skills" description="Reusable capabilities attached to agents as Kubernetes CRs — written into the workspace at start." />
+  <Card icon={<Brain />} title="Memories" href="/docs/concepts/memories" description="Persistent knowledge injected into the system prompt. Per-agent or per-namespace." />
+  <Card icon={<Calendar />} title="Schedules" href="/docs/concepts/schedules" description="Cron-based recurring tasks with timezone support and auto-cleanup." />
+  <Card icon={<DollarSign />} title="Cost tracking" href="/docs/concepts/cost-tracking" description="Real-time per-task cost, context window monitoring, per-agent breakdown with task-level drill-down." />
+</Cards>
 
-## Why Komputer.AI
+## Build with it
 
-- **Kubernetes-native** — agents are CRDs reconciled by an operator. Pods, PVCs, lifecycle, GitOps — all standard K8s primitives.
+<Cards>
+  <Card icon={<Code2 />} title="REST API" href="/docs/integration/rest-api" description="Create agents, send tasks, list status, fetch results — full control plane in HTTP." />
+  <Card icon={<Radio />} title="WebSocket events" href="/docs/integration/websocket" description="Stream tokens, tool calls, costs, and lifecycle transitions in real time as agents work." />
+  <Card icon={<Container />} title="Custom agent images" href="/docs/integration/custom-agent-image" description="Bake your own packages, CLIs, or runtimes into the agent image." />
+</Cards>
+
+## Operate it
+
+<Cards>
+  <Card icon={<Activity />} title="Monitoring" href="/docs/observability/monitoring" description="Prometheus metrics, ServiceMonitors, and a Grafana dashboard ship with the chart." />
+  <Card icon={<ScrollText />} title="Logging" href="/docs/observability/logging" description="Structured JSON or human-readable logs across all components." />
+</Cards>
+
+## Why komputer.ai
+
+- **Kubernetes-native** — agents are CRDs reconciled by an operator. Pods, PVCs, lifecycle, GitOps — all standard primitives.
 - **Stateless API** — no database. CR `.status` is the source of truth; Redis is just transport.
 - **Real-time streaming** — REST for control, WebSocket for live token-by-token output, tool calls, and costs.
 - **Squads & sub-agents** — co-located multi-agent pods. Manager agents create and orchestrate workers via MCP tools.
