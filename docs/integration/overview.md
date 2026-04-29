@@ -9,17 +9,7 @@ Whether it's a vibecoding platform running coding agents on Kubernetes, a debugg
 
 ## Architecture
 
-```
-┌──────────────────┐       HTTP REST        ┌─────────────────┐       ┌─────────────────┐
-│  Your System     │ ────────────────────▶   │  komputer-api   │ ────▶ │  Agent Pods     │
-│                  │                         │                 │       │  (Claude AI)    │
-│  Coding platform │ ◀──── WebSocket ──────  │  :8080          │ ◀──── │  on Kubernetes  │
-│  Debugging tools │       (real-time)       └─────────────────┘       └─────────────────┘
-│  Marketing apps  │
-│  DevOps systems  │
-│  Custom apps     │
-└──────────────────┘
-```
+![komputer.ai integration architecture](/integration.png)
 
 Two integration surfaces:
 
