@@ -24,7 +24,6 @@ export * from './PatchMemoryRequest';
 export * from './PatchScheduleRequest';
 export * from './PatchSkillRequest';
 export * from './PatchSquadRequest';
-export * from './ResourceQuantity';
 export * from './ScheduleListResponse';
 export * from './ScheduleResponse';
 export * from './SecretListResponse';

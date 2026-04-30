@@ -19,7 +19,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from komputer_ai.models.resource_quantity import ResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -29,7 +28,7 @@ class V1ResourceFieldSelector(BaseModel):
     V1ResourceFieldSelector
     """ # noqa: E501
     container_name: Optional[StrictStr] = Field(default=None, description="Container name: required for volumes, optional for env vars +optional", alias="containerName")
-    divisor: Optional[ResourceQuantity] = Field(default=None, description="Specifies the output format of the exposed resources, defaults to \"1\" +optional")
+    divisor: Optional[StrictStr] = Field(default=None, description="Specifies the output format of the exposed resources, defaults to \"1\" +optional")
     resource: Optional[StrictStr] = Field(default=None, description="Required: resource to select")
     __properties: ClassVar[List[str]] = ["containerName", "divisor", "resource"]
 
@@ -72,9 +71,6 @@ class V1ResourceFieldSelector(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of divisor
-        if self.divisor:
-            _dict['divisor'] = self.divisor.to_dict()
         return _dict
 
     @classmethod
@@ -88,7 +84,7 @@ class V1ResourceFieldSelector(BaseModel):
 
         _obj = cls.model_validate({
             "containerName": obj.get("containerName"),
-            "divisor": ResourceQuantity.from_dict(obj["divisor"]) if obj.get("divisor") is not None else None,
+            "divisor": obj.get("divisor"),
             "resource": obj.get("resource")
         })
         return _obj

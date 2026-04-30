@@ -26,7 +26,7 @@ from komputer_ai.api.templates_api import TemplatesApi
 from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.exceptions import ApiException
 from komputer_ai.models import (
-    CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest,
+    CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest, V1PodSpec, V1alpha1StorageSpec,
 )
 
 
@@ -57,19 +57,19 @@ class KomputerClient:
     def list_agents(self):
         return self.agents.list_agents()
 
-    def create_agent(self, name: str, instructions: str, *, connectors: Optional[List[str]] = None, lifecycle: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, namespace: Optional[str] = None, office_manager: Optional[str] = None, role: Optional[str] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
+    def create_agent(self, name: str, instructions: str, *, connectors: Optional[List[str]] = None, lifecycle: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, namespace: Optional[str] = None, office_manager: Optional[str] = None, pod_spec: Optional[V1PodSpec] = None, priority: Optional[int] = None, role: Optional[str] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, storage: Optional[V1alpha1StorageSpec] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
         try:
-            return self.agents.create_agent(CreateAgentRequest(connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, name=name, namespace=namespace, office_manager=office_manager, role=role, secret_refs=secret_refs, skills=skills, system_prompt=system_prompt, template_ref=template_ref))
+            return self.agents.create_agent(CreateAgentRequest(connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, name=name, namespace=namespace, office_manager=office_manager, pod_spec=pod_spec, priority=priority, role=role, secret_refs=secret_refs, skills=skills, storage=storage, system_prompt=system_prompt, template_ref=template_ref))
         except ApiException as e:
             if e.status == 409:
-                return self.patch_agent(name, connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, secret_refs=secret_refs, skills=skills, system_prompt=system_prompt, template_ref=template_ref)
+                return self.patch_agent(name, connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, pod_spec=pod_spec, priority=priority, secret_refs=secret_refs, skills=skills, storage=storage, system_prompt=system_prompt, template_ref=template_ref)
             raise
 
     def get_agent(self, name: str):
         return self.agents.get_agent(name)
 
-    def patch_agent(self, name: str, *, connectors: Optional[List[str]] = None, instructions: Optional[str] = None, lifecycle: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
-        return self.agents.patch_agent(name, PatchAgentRequest(connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, secret_refs=secret_refs, skills=skills, system_prompt=system_prompt, template_ref=template_ref))
+    def patch_agent(self, name: str, *, connectors: Optional[List[str]] = None, instructions: Optional[str] = None, lifecycle: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, pod_spec: Optional[V1PodSpec] = None, priority: Optional[int] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, storage: Optional[V1alpha1StorageSpec] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
+        return self.agents.patch_agent(name, PatchAgentRequest(connectors=connectors, instructions=instructions, lifecycle=lifecycle, memories=memories, model=model, pod_spec=pod_spec, priority=priority, secret_refs=secret_refs, skills=skills, storage=storage, system_prompt=system_prompt, template_ref=template_ref))
 
     def delete_agent(self, name: str):
         return self.agents.delete_agent(name)

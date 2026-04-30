@@ -60,7 +60,6 @@ __all__ = [
     "PatchScheduleRequest",
     "PatchSkillRequest",
     "PatchSquadRequest",
-    "ResourceQuantity",
     "ScheduleListResponse",
     "ScheduleResponse",
     "SecretListResponse",
@@ -268,7 +267,6 @@ from komputer_ai.models.patch_memory_request import PatchMemoryRequest as PatchM
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest as PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest as PatchSkillRequest
 from komputer_ai.models.patch_squad_request import PatchSquadRequest as PatchSquadRequest
-from komputer_ai.models.resource_quantity import ResourceQuantity as ResourceQuantity
 from komputer_ai.models.schedule_list_response import ScheduleListResponse as ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse as ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse as SecretListResponse

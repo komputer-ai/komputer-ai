@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **container_name** | **str** | Container name: required for volumes, optional for env vars +optional | [optional] 
-**divisor** | [**ResourceQuantity**](ResourceQuantity.md) | Specifies the output format of the exposed resources, defaults to \&quot;1\&quot; +optional | [optional] 
+**divisor** | **str** | Specifies the output format of the exposed resources, defaults to \&quot;1\&quot; +optional | [optional] 
 **resource** | **str** | Required: resource to select | [optional] 
 
 ## Example

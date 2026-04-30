@@ -639,27 +639,6 @@ definitions:
     required:
     - data
     type: object
-  resource.Quantity:
-    properties:
-      Format:
-        enum:
-        - DecimalExponent
-        - BinarySI
-        - DecimalSI
-        type: string
-        x-enum-comments:
-          BinarySI: e.g., 12Mi (12 * 2^20)
-          DecimalExponent: e.g., 12e6
-          DecimalSI: e.g., 12M  (12 * 10^6)
-        x-enum-descriptions:
-        - e.g., 12e6
-        - e.g., 12Mi (12 * 2^20)
-        - e.g., 12M  (12 * 10^6)
-        x-enum-varnames:
-        - DecimalExponent
-        - BinarySI
-        - DecimalSI
-    type: object
   v1.AWSElasticBlockStoreVolumeSource:
     properties:
       fsType:
@@ -1592,8 +1571,6 @@ definitions:
           More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
           +optional
       sizeLimit:
-        allOf:
-        - $ref: '#/definitions/resource.Quantity'
         description: |-
           sizeLimit is the total amount of local storage required for this EmptyDir volume.
           The size limit is also applicable for memory medium.
@@ -1602,6 +1579,7 @@ definitions:
           The default is nil which means that the limit is undefined.
           More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
           +optional
+        type: string
     type: object
   v1.EnvFromSource:
     properties:
@@ -4427,18 +4405,17 @@ definitions:
           +optional
         type: string
       divisor:
-        allOf:
-        - $ref: '#/definitions/resource.Quantity'
         description: |-
           Specifies the output format of the exposed resources, defaults to "1"
           +optional
+        type: string
       resource:
         description: 'Required: resource to select'
         type: string
     type: object
   v1.ResourceList:
     additionalProperties:
-      $ref: '#/definitions/resource.Quantity'
+      type: string
     type: object
   v1.ResourceName:
     enum:

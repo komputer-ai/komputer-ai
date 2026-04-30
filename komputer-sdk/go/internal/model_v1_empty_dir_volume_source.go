@@ -22,7 +22,7 @@ type V1EmptyDirVolumeSource struct {
 	// medium represents what type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional
 	Medium *V1StorageMedium `json:"medium,omitempty"`
 	// sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional
-	SizeLimit *ResourceQuantity `json:"sizeLimit,omitempty"`
+	SizeLimit *string `json:"sizeLimit,omitempty"`
 }
 
 // NewV1EmptyDirVolumeSource instantiates a new V1EmptyDirVolumeSource object
@@ -75,9 +75,9 @@ func (o *V1EmptyDirVolumeSource) SetMedium(v V1StorageMedium) {
 }
 
 // GetSizeLimit returns the SizeLimit field value if set, zero value otherwise.
-func (o *V1EmptyDirVolumeSource) GetSizeLimit() ResourceQuantity {
+func (o *V1EmptyDirVolumeSource) GetSizeLimit() string {
 	if o == nil || IsNil(o.SizeLimit) {
-		var ret ResourceQuantity
+		var ret string
 		return ret
 	}
 	return *o.SizeLimit
@@ -85,7 +85,7 @@ func (o *V1EmptyDirVolumeSource) GetSizeLimit() ResourceQuantity {
 
 // GetSizeLimitOk returns a tuple with the SizeLimit field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1EmptyDirVolumeSource) GetSizeLimitOk() (*ResourceQuantity, bool) {
+func (o *V1EmptyDirVolumeSource) GetSizeLimitOk() (*string, bool) {
 	if o == nil || IsNil(o.SizeLimit) {
 		return nil, false
 	}
@@ -101,8 +101,8 @@ func (o *V1EmptyDirVolumeSource) HasSizeLimit() bool {
 	return false
 }
 
-// SetSizeLimit gets a reference to the given ResourceQuantity and assigns it to the SizeLimit field.
-func (o *V1EmptyDirVolumeSource) SetSizeLimit(v ResourceQuantity) {
+// SetSizeLimit gets a reference to the given string and assigns it to the SizeLimit field.
+func (o *V1EmptyDirVolumeSource) SetSizeLimit(v string) {
 	o.SizeLimit = &v
 }
 

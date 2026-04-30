@@ -20,13 +20,6 @@ import {
     V1StorageMediumToJSON,
     V1StorageMediumToJSONTyped,
 } from './V1StorageMedium';
-import type { ResourceQuantity } from './ResourceQuantity';
-import {
-    ResourceQuantityFromJSON,
-    ResourceQuantityFromJSONTyped,
-    ResourceQuantityToJSON,
-    ResourceQuantityToJSONTyped,
-} from './ResourceQuantity';
 
 /**
  * 
@@ -52,10 +45,10 @@ export interface V1EmptyDirVolumeSource {
      * The default is nil which means that the limit is undefined.
      * More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
      * +optional
-     * @type {ResourceQuantity}
+     * @type {string}
      * @memberof V1EmptyDirVolumeSource
      */
-    sizeLimit?: ResourceQuantity;
+    sizeLimit?: string;
 }
 
 
@@ -78,7 +71,7 @@ export function V1EmptyDirVolumeSourceFromJSONTyped(json: any, ignoreDiscriminat
     return {
         
         'medium': json['medium'] == null ? undefined : V1StorageMediumFromJSON(json['medium']),
-        'sizeLimit': json['sizeLimit'] == null ? undefined : ResourceQuantityFromJSON(json['sizeLimit']),
+        'sizeLimit': json['sizeLimit'] == null ? undefined : json['sizeLimit'],
     };
 }
 
@@ -94,7 +87,7 @@ export function V1EmptyDirVolumeSourceToJSONTyped(value?: V1EmptyDirVolumeSource
     return {
         
         'medium': V1StorageMediumToJSON(value['medium']),
-        'sizeLimit': ResourceQuantityToJSON(value['sizeLimit']),
+        'sizeLimit': value['sizeLimit'],
     };
 }
 

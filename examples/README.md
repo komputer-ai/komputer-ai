@@ -23,6 +23,7 @@ All examples assume you have:
 | [08](08-python-integration/) | **Python Integration** | HTTP + WebSocket client using `httpx` + `websockets` |
 | [09](09-slack-bot/) | **Slack Bot** | Slash command → agent → stream response back to Slack |
 | [10](10-ci-cd-integration/) | **CI/CD Integration** | GitHub Actions workflow that triggers an agent and waits for completion |
+| [11](11-python-sdk-advanced/) | **Advanced Python SDK** | Use every `create_agent()` field — template, model, role, lifecycle, skills, memories, connectors, secrets |
 
 ## Concepts covered
 

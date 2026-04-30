@@ -104,13 +104,6 @@ import {
     V1VolumeToJSON,
     V1VolumeToJSONTyped,
 } from './V1Volume';
-import type { ResourceQuantity } from './ResourceQuantity';
-import {
-    ResourceQuantityFromJSON,
-    ResourceQuantityFromJSONTyped,
-    ResourceQuantityToJSON,
-    ResourceQuantityToJSONTyped,
-} from './ResourceQuantity';
 import type { V1Affinity } from './V1Affinity';
 import {
     V1AffinityFromJSON,
@@ -427,10 +420,10 @@ export interface V1PodSpec {
      * defined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero.
      * More info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md
      * +optional
-     * @type {{ [key: string]: ResourceQuantity; }}
+     * @type {{ [key: string]: string; }}
      * @memberof V1PodSpec
      */
-    overhead?: { [key: string]: ResourceQuantity; };
+    overhead?: { [key: string]: string; };
     /**
      * PreemptionPolicy is the Policy for preempting pods with lower priority.
      * One of Never, PreemptLowerPriority.
@@ -718,7 +711,7 @@ export function V1PodSpecFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'nodeName': json['nodeName'] == null ? undefined : json['nodeName'],
         'nodeSelector': json['nodeSelector'] == null ? undefined : json['nodeSelector'],
         'os': json['os'] == null ? undefined : V1PodOSFromJSON(json['os']),
-        'overhead': json['overhead'] == null ? undefined : (mapValues(json['overhead'], ResourceQuantityFromJSON)),
+        'overhead': json['overhead'] == null ? undefined : json['overhead'],
         'preemptionPolicy': json['preemptionPolicy'] == null ? undefined : V1PreemptionPolicyFromJSON(json['preemptionPolicy']),
         'priority': json['priority'] == null ? undefined : json['priority'],
         'priorityClassName': json['priorityClassName'] == null ? undefined : json['priorityClassName'],
@@ -774,7 +767,7 @@ export function V1PodSpecToJSONTyped(value?: V1PodSpec | null, ignoreDiscriminat
         'nodeName': value['nodeName'],
         'nodeSelector': value['nodeSelector'],
         'os': V1PodOSToJSON(value['os']),
-        'overhead': value['overhead'] == null ? undefined : (mapValues(value['overhead'], ResourceQuantityToJSON)),
+        'overhead': value['overhead'],
         'preemptionPolicy': V1PreemptionPolicyToJSON(value['preemptionPolicy']),
         'priority': value['priority'],
         'priorityClassName': value['priorityClassName'],

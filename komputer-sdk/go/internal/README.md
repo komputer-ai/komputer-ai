@@ -146,7 +146,6 @@ Class | Method | HTTP request | Description
  - [PatchScheduleRequest](docs/PatchScheduleRequest.md)
  - [PatchSkillRequest](docs/PatchSkillRequest.md)
  - [PatchSquadRequest](docs/PatchSquadRequest.md)
- - [ResourceQuantity](docs/ResourceQuantity.md)
  - [ScheduleListResponse](docs/ScheduleListResponse.md)
  - [ScheduleResponse](docs/ScheduleResponse.md)
  - [SecretListResponse](docs/SecretListResponse.md)

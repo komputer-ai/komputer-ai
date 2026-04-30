@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ContainerName** | Pointer to **string** | Container name: required for volumes, optional for env vars +optional | [optional] 
-**Divisor** | Pointer to [**ResourceQuantity**](ResourceQuantity.md) | Specifies the output format of the exposed resources, defaults to \&quot;1\&quot; +optional | [optional] 
+**Divisor** | Pointer to **string** | Specifies the output format of the exposed resources, defaults to \&quot;1\&quot; +optional | [optional] 
 **Resource** | Pointer to **string** | Required: resource to select | [optional] 
 
 ## Methods
@@ -54,20 +54,20 @@ HasContainerName returns a boolean if a field has been set.
 
 ### GetDivisor
 
-`func (o *V1ResourceFieldSelector) GetDivisor() ResourceQuantity`
+`func (o *V1ResourceFieldSelector) GetDivisor() string`
 
 GetDivisor returns the Divisor field if non-nil, zero value otherwise.
 
 ### GetDivisorOk
 
-`func (o *V1ResourceFieldSelector) GetDivisorOk() (*ResourceQuantity, bool)`
+`func (o *V1ResourceFieldSelector) GetDivisorOk() (*string, bool)`
 
 GetDivisorOk returns a tuple with the Divisor field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetDivisor
 
-`func (o *V1ResourceFieldSelector) SetDivisor(v ResourceQuantity)`
+`func (o *V1ResourceFieldSelector) SetDivisor(v string)`
 
 SetDivisor sets Divisor field to given value.
 

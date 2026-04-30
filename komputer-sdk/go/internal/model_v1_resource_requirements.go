@@ -22,9 +22,9 @@ type V1ResourceRequirements struct {
 	// Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
 	Claims []K8sIoApiCoreV1ResourceClaim `json:"claims,omitempty"`
 	// Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional
-	Limits *map[string]ResourceQuantity `json:"limits,omitempty"`
+	Limits *map[string]string `json:"limits,omitempty"`
 	// Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional
-	Requests *map[string]ResourceQuantity `json:"requests,omitempty"`
+	Requests *map[string]string `json:"requests,omitempty"`
 }
 
 // NewV1ResourceRequirements instantiates a new V1ResourceRequirements object
@@ -77,9 +77,9 @@ func (o *V1ResourceRequirements) SetClaims(v []K8sIoApiCoreV1ResourceClaim) {
 }
 
 // GetLimits returns the Limits field value if set, zero value otherwise.
-func (o *V1ResourceRequirements) GetLimits() map[string]ResourceQuantity {
+func (o *V1ResourceRequirements) GetLimits() map[string]string {
 	if o == nil || IsNil(o.Limits) {
-		var ret map[string]ResourceQuantity
+		var ret map[string]string
 		return ret
 	}
 	return *o.Limits
@@ -87,7 +87,7 @@ func (o *V1ResourceRequirements) GetLimits() map[string]ResourceQuantity {
 
 // GetLimitsOk returns a tuple with the Limits field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1ResourceRequirements) GetLimitsOk() (*map[string]ResourceQuantity, bool) {
+func (o *V1ResourceRequirements) GetLimitsOk() (*map[string]string, bool) {
 	if o == nil || IsNil(o.Limits) {
 		return nil, false
 	}
@@ -103,15 +103,15 @@ func (o *V1ResourceRequirements) HasLimits() bool {
 	return false
 }
 
-// SetLimits gets a reference to the given map[string]ResourceQuantity and assigns it to the Limits field.
-func (o *V1ResourceRequirements) SetLimits(v map[string]ResourceQuantity) {
+// SetLimits gets a reference to the given map[string]string and assigns it to the Limits field.
+func (o *V1ResourceRequirements) SetLimits(v map[string]string) {
 	o.Limits = &v
 }
 
 // GetRequests returns the Requests field value if set, zero value otherwise.
-func (o *V1ResourceRequirements) GetRequests() map[string]ResourceQuantity {
+func (o *V1ResourceRequirements) GetRequests() map[string]string {
 	if o == nil || IsNil(o.Requests) {
-		var ret map[string]ResourceQuantity
+		var ret map[string]string
 		return ret
 	}
 	return *o.Requests
@@ -119,7 +119,7 @@ func (o *V1ResourceRequirements) GetRequests() map[string]ResourceQuantity {
 
 // GetRequestsOk returns a tuple with the Requests field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1ResourceRequirements) GetRequestsOk() (*map[string]ResourceQuantity, bool) {
+func (o *V1ResourceRequirements) GetRequestsOk() (*map[string]string, bool) {
 	if o == nil || IsNil(o.Requests) {
 		return nil, false
 	}
@@ -135,8 +135,8 @@ func (o *V1ResourceRequirements) HasRequests() bool {
 	return false
 }
 
-// SetRequests gets a reference to the given map[string]ResourceQuantity and assigns it to the Requests field.
-func (o *V1ResourceRequirements) SetRequests(v map[string]ResourceQuantity) {
+// SetRequests gets a reference to the given map[string]string and assigns it to the Requests field.
+func (o *V1ResourceRequirements) SetRequests(v map[string]string) {
 	o.Requests = &v
 }
 

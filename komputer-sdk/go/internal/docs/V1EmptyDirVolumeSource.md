@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Medium** | Pointer to [**V1StorageMedium**](V1StorageMedium.md) | medium represents what type of storage medium should back this directory. The default is \&quot;\&quot; which means to use the node&#39;s default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional | [optional] 
-**SizeLimit** | Pointer to [**ResourceQuantity**](ResourceQuantity.md) | sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional | [optional] 
+**SizeLimit** | Pointer to **string** | sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional | [optional] 
 
 ## Methods
 
@@ -53,20 +53,20 @@ HasMedium returns a boolean if a field has been set.
 
 ### GetSizeLimit
 
-`func (o *V1EmptyDirVolumeSource) GetSizeLimit() ResourceQuantity`
+`func (o *V1EmptyDirVolumeSource) GetSizeLimit() string`
 
 GetSizeLimit returns the SizeLimit field if non-nil, zero value otherwise.
 
 ### GetSizeLimitOk
 
-`func (o *V1EmptyDirVolumeSource) GetSizeLimitOk() (*ResourceQuantity, bool)`
+`func (o *V1EmptyDirVolumeSource) GetSizeLimitOk() (*string, bool)`
 
 GetSizeLimitOk returns a tuple with the SizeLimit field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetSizeLimit
 
-`func (o *V1EmptyDirVolumeSource) SetSizeLimit(v ResourceQuantity)`
+`func (o *V1EmptyDirVolumeSource) SetSizeLimit(v string)`
 
 SetSizeLimit sets SizeLimit field to given value.
 

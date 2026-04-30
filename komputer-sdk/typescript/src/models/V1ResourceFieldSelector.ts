@@ -13,14 +13,6 @@
  */
 
 import { mapValues } from '../runtime';
-import type { ResourceQuantity } from './ResourceQuantity';
-import {
-    ResourceQuantityFromJSON,
-    ResourceQuantityFromJSONTyped,
-    ResourceQuantityToJSON,
-    ResourceQuantityToJSONTyped,
-} from './ResourceQuantity';
-
 /**
  * 
  * @export
@@ -37,10 +29,10 @@ export interface V1ResourceFieldSelector {
     /**
      * Specifies the output format of the exposed resources, defaults to "1"
      * +optional
-     * @type {ResourceQuantity}
+     * @type {string}
      * @memberof V1ResourceFieldSelector
      */
-    divisor?: ResourceQuantity;
+    divisor?: string;
     /**
      * Required: resource to select
      * @type {string}
@@ -67,7 +59,7 @@ export function V1ResourceFieldSelectorFromJSONTyped(json: any, ignoreDiscrimina
     return {
         
         'containerName': json['containerName'] == null ? undefined : json['containerName'],
-        'divisor': json['divisor'] == null ? undefined : ResourceQuantityFromJSON(json['divisor']),
+        'divisor': json['divisor'] == null ? undefined : json['divisor'],
         'resource': json['resource'] == null ? undefined : json['resource'],
     };
 }
@@ -84,7 +76,7 @@ export function V1ResourceFieldSelectorToJSONTyped(value?: V1ResourceFieldSelect
     return {
         
         'containerName': value['containerName'],
-        'divisor': ResourceQuantityToJSON(value['divisor']),
+        'divisor': value['divisor'],
         'resource': value['resource'],
     };
 }

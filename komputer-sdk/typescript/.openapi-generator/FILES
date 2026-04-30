@@ -27,7 +27,6 @@ docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
 docs/PatchSquadRequest.md
-docs/ResourceQuantity.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
 docs/SchedulesApi.md
@@ -225,7 +224,6 @@ src/models/PatchMemoryRequest.ts
 src/models/PatchScheduleRequest.ts
 src/models/PatchSkillRequest.ts
 src/models/PatchSquadRequest.ts
-src/models/ResourceQuantity.ts
 src/models/ScheduleListResponse.ts
 src/models/ScheduleResponse.ts
 src/models/SecretListResponse.ts

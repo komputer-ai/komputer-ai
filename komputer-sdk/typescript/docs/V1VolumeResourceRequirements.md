@@ -6,8 +6,8 @@
 
 Name | Type
 ------------ | -------------
-`limits` | [{ [key: string]: ResourceQuantity; }](ResourceQuantity.md)
-`requests` | [{ [key: string]: ResourceQuantity; }](ResourceQuantity.md)
+`limits` | { [key: string]: string; }
+`requests` | { [key: string]: string; }
 
 ## Example
 

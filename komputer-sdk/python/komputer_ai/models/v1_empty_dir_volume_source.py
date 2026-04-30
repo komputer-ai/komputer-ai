@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from komputer_ai.models.resource_quantity import ResourceQuantity
 from komputer_ai.models.v1_storage_medium import V1StorageMedium
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,7 +29,7 @@ class V1EmptyDirVolumeSource(BaseModel):
     V1EmptyDirVolumeSource
     """ # noqa: E501
     medium: Optional[V1StorageMedium] = Field(default=None, description="medium represents what type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional")
-    size_limit: Optional[ResourceQuantity] = Field(default=None, description="sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional", alias="sizeLimit")
+    size_limit: Optional[StrictStr] = Field(default=None, description="sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir +optional", alias="sizeLimit")
     __properties: ClassVar[List[str]] = ["medium", "sizeLimit"]
 
     model_config = ConfigDict(
@@ -72,9 +71,6 @@ class V1EmptyDirVolumeSource(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of size_limit
-        if self.size_limit:
-            _dict['sizeLimit'] = self.size_limit.to_dict()
         return _dict
 
     @classmethod
@@ -88,7 +84,7 @@ class V1EmptyDirVolumeSource(BaseModel):
 
         _obj = cls.model_validate({
             "medium": obj.get("medium"),
-            "sizeLimit": ResourceQuantity.from_dict(obj["sizeLimit"]) if obj.get("sizeLimit") is not None else None
+            "sizeLimit": obj.get("sizeLimit")
         })
         return _obj
 

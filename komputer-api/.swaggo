@@ -1,0 +1,6 @@
+// swag global type overrides — see https://github.com/swaggo/swag#use-with-golang-internal-package
+//
+// Kubernetes' resource.Quantity is *string-shaped at the wire level* (e.g. "1", "2Gi"),
+// but its Go struct exposes a `Format` enum field that swag introspects, producing an
+// unusable nested object in the generated SDKs. Treat it as a plain string everywhere.
+replace k8s.io/apimachinery/pkg/api/resource.Quantity string

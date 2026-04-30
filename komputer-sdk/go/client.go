@@ -44,9 +44,12 @@ type CreateAgentOpts struct {
 	Model *string
 	Namespace *string
 	OfficeManager *string
+	PodSpec *komputer.V1PodSpec
+	Priority *int32
 	Role *string
 	SecretRefs []string
 	Skills []string
+	Storage *komputer.V1alpha1StorageSpec
 	SystemPrompt *string
 	TemplateRef *string
 }
@@ -76,6 +79,12 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		if o.OfficeManager != nil {
 			req.OfficeManager = o.OfficeManager
 		}
+		if o.PodSpec != nil {
+			req.PodSpec = o.PodSpec
+		}
+		if o.Priority != nil {
+			req.Priority = o.Priority
+		}
 		if o.Role != nil {
 			req.Role = o.Role
 		}
@@ -84,6 +93,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.Skills != nil {
 			req.Skills = o.Skills
+		}
+		if o.Storage != nil {
+			req.Storage = o.Storage
 		}
 		if o.SystemPrompt != nil {
 			req.SystemPrompt = o.SystemPrompt
@@ -103,8 +115,11 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 				Lifecycle:    o.Lifecycle,
 				Memories:     o.Memories,
 				Model:        o.Model,
+				PodSpec:      o.PodSpec,
+				Priority:     o.Priority,
 				SecretRefs:   o.SecretRefs,
 				Skills:       o.Skills,
+				Storage:      o.Storage,
 				SystemPrompt: o.SystemPrompt,
 				TemplateRef:  o.TemplateRef,
 			}
@@ -126,8 +141,11 @@ type PatchAgentOpts struct {
 	Lifecycle *string
 	Memories []string
 	Model *string
+	PodSpec *komputer.V1PodSpec
+	Priority *int32
 	SecretRefs []string
 	Skills []string
+	Storage *komputer.V1alpha1StorageSpec
 	SystemPrompt *string
 	TemplateRef *string
 }
@@ -152,11 +170,20 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		if o.Model != nil {
 			req.Model = o.Model
 		}
+		if o.PodSpec != nil {
+			req.PodSpec = o.PodSpec
+		}
+		if o.Priority != nil {
+			req.Priority = o.Priority
+		}
 		if o.SecretRefs != nil {
 			req.SecretRefs = o.SecretRefs
 		}
 		if o.Skills != nil {
 			req.Skills = o.Skills
+		}
+		if o.Storage != nil {
+			req.Storage = o.Storage
 		}
 		if o.SystemPrompt != nil {
 			req.SystemPrompt = o.SystemPrompt

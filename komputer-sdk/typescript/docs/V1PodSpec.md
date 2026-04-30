@@ -26,7 +26,7 @@ Name | Type
 `nodeName` | string
 `nodeSelector` | { [key: string]: string; }
 `os` | [V1PodOS](V1PodOS.md)
-`overhead` | [{ [key: string]: ResourceQuantity; }](ResourceQuantity.md)
+`overhead` | { [key: string]: string; }
 `preemptionPolicy` | [V1PreemptionPolicy](V1PreemptionPolicy.md)
 `priority` | number
 `priorityClassName` | string

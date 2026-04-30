@@ -13,13 +13,6 @@
  */
 
 import { mapValues } from '../runtime';
-import type { ResourceQuantity } from './ResourceQuantity';
-import {
-    ResourceQuantityFromJSON,
-    ResourceQuantityFromJSONTyped,
-    ResourceQuantityToJSON,
-    ResourceQuantityToJSONTyped,
-} from './ResourceQuantity';
 import type { K8sIoApiCoreV1ResourceClaim } from './K8sIoApiCoreV1ResourceClaim';
 import {
     K8sIoApiCoreV1ResourceClaimFromJSON,
@@ -55,20 +48,20 @@ export interface V1ResourceRequirements {
      * Limits describes the maximum amount of compute resources allowed.
      * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
      * +optional
-     * @type {{ [key: string]: ResourceQuantity; }}
+     * @type {{ [key: string]: string; }}
      * @memberof V1ResourceRequirements
      */
-    limits?: { [key: string]: ResourceQuantity; };
+    limits?: { [key: string]: string; };
     /**
      * Requests describes the minimum amount of compute resources required.
      * If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
      * otherwise to an implementation-defined value. Requests cannot exceed Limits.
      * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
      * +optional
-     * @type {{ [key: string]: ResourceQuantity; }}
+     * @type {{ [key: string]: string; }}
      * @memberof V1ResourceRequirements
      */
-    requests?: { [key: string]: ResourceQuantity; };
+    requests?: { [key: string]: string; };
 }
 
 /**
@@ -89,8 +82,8 @@ export function V1ResourceRequirementsFromJSONTyped(json: any, ignoreDiscriminat
     return {
         
         'claims': json['claims'] == null ? undefined : ((json['claims'] as Array<any>).map(K8sIoApiCoreV1ResourceClaimFromJSON)),
-        'limits': json['limits'] == null ? undefined : (mapValues(json['limits'], ResourceQuantityFromJSON)),
-        'requests': json['requests'] == null ? undefined : (mapValues(json['requests'], ResourceQuantityFromJSON)),
+        'limits': json['limits'] == null ? undefined : json['limits'],
+        'requests': json['requests'] == null ? undefined : json['requests'],
     };
 }
 
@@ -106,8 +99,8 @@ export function V1ResourceRequirementsToJSONTyped(value?: V1ResourceRequirements
     return {
         
         'claims': value['claims'] == null ? undefined : ((value['claims'] as Array<any>).map(K8sIoApiCoreV1ResourceClaimToJSON)),
-        'limits': value['limits'] == null ? undefined : (mapValues(value['limits'], ResourceQuantityToJSON)),
-        'requests': value['requests'] == null ? undefined : (mapValues(value['requests'], ResourceQuantityToJSON)),
+        'limits': value['limits'],
+        'requests': value['requests'],
     };
 }
 

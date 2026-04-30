@@ -22,7 +22,7 @@ type V1ResourceFieldSelector struct {
 	// Container name: required for volumes, optional for env vars +optional
 	ContainerName *string `json:"containerName,omitempty"`
 	// Specifies the output format of the exposed resources, defaults to \"1\" +optional
-	Divisor *ResourceQuantity `json:"divisor,omitempty"`
+	Divisor *string `json:"divisor,omitempty"`
 	// Required: resource to select
 	Resource *string `json:"resource,omitempty"`
 }
@@ -77,9 +77,9 @@ func (o *V1ResourceFieldSelector) SetContainerName(v string) {
 }
 
 // GetDivisor returns the Divisor field value if set, zero value otherwise.
-func (o *V1ResourceFieldSelector) GetDivisor() ResourceQuantity {
+func (o *V1ResourceFieldSelector) GetDivisor() string {
 	if o == nil || IsNil(o.Divisor) {
-		var ret ResourceQuantity
+		var ret string
 		return ret
 	}
 	return *o.Divisor
@@ -87,7 +87,7 @@ func (o *V1ResourceFieldSelector) GetDivisor() ResourceQuantity {
 
 // GetDivisorOk returns a tuple with the Divisor field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1ResourceFieldSelector) GetDivisorOk() (*ResourceQuantity, bool) {
+func (o *V1ResourceFieldSelector) GetDivisorOk() (*string, bool) {
 	if o == nil || IsNil(o.Divisor) {
 		return nil, false
 	}
@@ -103,8 +103,8 @@ func (o *V1ResourceFieldSelector) HasDivisor() bool {
 	return false
 }
 
-// SetDivisor gets a reference to the given ResourceQuantity and assigns it to the Divisor field.
-func (o *V1ResourceFieldSelector) SetDivisor(v ResourceQuantity) {
+// SetDivisor gets a reference to the given string and assigns it to the Divisor field.
+func (o *V1ResourceFieldSelector) SetDivisor(v string) {
 	o.Divisor = &v
 }
 

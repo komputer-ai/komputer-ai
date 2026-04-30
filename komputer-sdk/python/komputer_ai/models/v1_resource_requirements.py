@@ -17,10 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from komputer_ai.models.k8s_io_api_core_v1_resource_claim import K8sIoApiCoreV1ResourceClaim
-from komputer_ai.models.resource_quantity import ResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -30,8 +29,8 @@ class V1ResourceRequirements(BaseModel):
     V1ResourceRequirements
     """ # noqa: E501
     claims: Optional[List[K8sIoApiCoreV1ResourceClaim]] = Field(default=None, description="Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional")
-    limits: Optional[Dict[str, ResourceQuantity]] = Field(default=None, description="Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional")
-    requests: Optional[Dict[str, ResourceQuantity]] = Field(default=None, description="Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional")
+    limits: Optional[Dict[str, StrictStr]] = Field(default=None, description="Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional")
+    requests: Optional[Dict[str, StrictStr]] = Field(default=None, description="Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional")
     __properties: ClassVar[List[str]] = ["claims", "limits", "requests"]
 
     model_config = ConfigDict(
@@ -80,20 +79,6 @@ class V1ResourceRequirements(BaseModel):
                 if _item_claims:
                     _items.append(_item_claims.to_dict())
             _dict['claims'] = _items
-        # override the default output from pydantic by calling `to_dict()` of each value in limits (dict)
-        _field_dict = {}
-        if self.limits:
-            for _key_limits in self.limits:
-                if self.limits[_key_limits]:
-                    _field_dict[_key_limits] = self.limits[_key_limits].to_dict()
-            _dict['limits'] = _field_dict
-        # override the default output from pydantic by calling `to_dict()` of each value in requests (dict)
-        _field_dict = {}
-        if self.requests:
-            for _key_requests in self.requests:
-                if self.requests[_key_requests]:
-                    _field_dict[_key_requests] = self.requests[_key_requests].to_dict()
-            _dict['requests'] = _field_dict
         return _dict
 
     @classmethod
@@ -107,18 +92,8 @@ class V1ResourceRequirements(BaseModel):
 
         _obj = cls.model_validate({
             "claims": [K8sIoApiCoreV1ResourceClaim.from_dict(_item) for _item in obj["claims"]] if obj.get("claims") is not None else None,
-            "limits": dict(
-                (_k, ResourceQuantity.from_dict(_v))
-                for _k, _v in obj["limits"].items()
-            )
-            if obj.get("limits") is not None
-            else None,
-            "requests": dict(
-                (_k, ResourceQuantity.from_dict(_v))
-                for _k, _v in obj["requests"].items()
-            )
-            if obj.get("requests") is not None
-            else None
+            "limits": obj.get("limits"),
+            "requests": obj.get("requests")
         })
         return _obj
 

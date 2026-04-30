@@ -7,8 +7,8 @@
 Name | Type
 ------------ | -------------
 `claims` | [Array&lt;K8sIoApiCoreV1ResourceClaim&gt;](K8sIoApiCoreV1ResourceClaim.md)
-`limits` | [{ [key: string]: ResourceQuantity; }](ResourceQuantity.md)
-`requests` | [{ [key: string]: ResourceQuantity; }](ResourceQuantity.md)
+`limits` | { [key: string]: string; }
+`requests` | { [key: string]: string; }
 
 ## Example
 

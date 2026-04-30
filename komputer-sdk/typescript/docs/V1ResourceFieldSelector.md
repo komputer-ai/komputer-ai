@@ -7,7 +7,7 @@
 Name | Type
 ------------ | -------------
 `containerName` | string
-`divisor` | [ResourceQuantity](ResourceQuantity.md)
+`divisor` | string
 `resource` | string
 
 ## Example

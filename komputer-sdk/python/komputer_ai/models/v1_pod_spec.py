@@ -19,7 +19,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from komputer_ai.models.resource_quantity import ResourceQuantity
 from komputer_ai.models.v1_affinity import V1Affinity
 from komputer_ai.models.v1_container import V1Container
 from komputer_ai.models.v1_dns_policy import V1DNSPolicy
@@ -67,7 +66,7 @@ class V1PodSpec(BaseModel):
     node_name: Optional[StrictStr] = Field(default=None, description="NodeName indicates in which node this pod is scheduled. If empty, this pod is a candidate for scheduling by the scheduler defined in schedulerName. Once this field is set, the kubelet for this node becomes responsible for the lifecycle of this pod. This field should not be used to express a desire for the pod to be scheduled on a specific node. https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodename +optional", alias="nodeName")
     node_selector: Optional[Dict[str, StrictStr]] = Field(default=None, description="NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ +optional +mapType=atomic", alias="nodeSelector")
     os: Optional[V1PodOS] = Field(default=None, description="Specifies the OS of the containers in the pod. Some pod and container fields are restricted if this is set.  If the OS field is set to linux, the following fields must be unset: -securityContext.windowsOptions  If the OS field is set to windows, following fields must be unset: - spec.hostPID - spec.hostIPC - spec.hostUsers - spec.resources - spec.securityContext.appArmorProfile - spec.securityContext.seLinuxOptions - spec.securityContext.seccompProfile - spec.securityContext.fsGroup - spec.securityContext.fsGroupChangePolicy - spec.securityContext.sysctls - spec.shareProcessNamespace - spec.securityContext.runAsUser - spec.securityContext.runAsGroup - spec.securityContext.supplementalGroups - spec.securityContext.supplementalGroupsPolicy - spec.containers[*].securityContext.appArmorProfile - spec.containers[*].securityContext.seLinuxOptions - spec.containers[*].securityContext.seccompProfile - spec.containers[*].securityContext.capabilities - spec.containers[*].securityContext.readOnlyRootFilesystem - spec.containers[*].securityContext.privileged - spec.containers[*].securityContext.allowPrivilegeEscalation - spec.containers[*].securityContext.procMount - spec.containers[*].securityContext.runAsUser - spec.containers[*].securityContext.runAsGroup +optional")
-    overhead: Optional[Dict[str, ResourceQuantity]] = Field(default=None, description="Overhead represents the resource overhead associated with running a pod for a given RuntimeClass. This field will be autopopulated at admission time by the RuntimeClass admission controller. If the RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests. The RuntimeClass admission controller will reject Pod create requests which have the overhead already set. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value defined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero. More info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md +optional")
+    overhead: Optional[Dict[str, StrictStr]] = Field(default=None, description="Overhead represents the resource overhead associated with running a pod for a given RuntimeClass. This field will be autopopulated at admission time by the RuntimeClass admission controller. If the RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests. The RuntimeClass admission controller will reject Pod create requests which have the overhead already set. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value defined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero. More info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md +optional")
     preemption_policy: Optional[V1PreemptionPolicy] = Field(default=None, description="PreemptionPolicy is the Policy for preempting pods with lower priority. One of Never, PreemptLowerPriority. Defaults to PreemptLowerPriority if unset. +optional", alias="preemptionPolicy")
     priority: Optional[StrictInt] = Field(default=None, description="The priority value. Various system components use this field to find the priority of the pod. When Priority Admission Controller is enabled, it prevents users from setting this field. The admission controller populates this field from PriorityClassName. The higher the value, the higher the priority. +optional")
     priority_class_name: Optional[StrictStr] = Field(default=None, description="If specified, indicates the pod's priority. \"system-node-critical\" and \"system-cluster-critical\" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. +optional", alias="priorityClassName")
@@ -174,13 +173,6 @@ class V1PodSpec(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of os
         if self.os:
             _dict['os'] = self.os.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each value in overhead (dict)
-        _field_dict = {}
-        if self.overhead:
-            for _key_overhead in self.overhead:
-                if self.overhead[_key_overhead]:
-                    _field_dict[_key_overhead] = self.overhead[_key_overhead].to_dict()
-            _dict['overhead'] = _field_dict
         # override the default output from pydantic by calling `to_dict()` of each item in readiness_gates (list)
         _items = []
         if self.readiness_gates:
@@ -264,12 +256,7 @@ class V1PodSpec(BaseModel):
             "nodeName": obj.get("nodeName"),
             "nodeSelector": obj.get("nodeSelector"),
             "os": V1PodOS.from_dict(obj["os"]) if obj.get("os") is not None else None,
-            "overhead": dict(
-                (_k, ResourceQuantity.from_dict(_v))
-                for _k, _v in obj["overhead"].items()
-            )
-            if obj.get("overhead") is not None
-            else None,
+            "overhead": obj.get("overhead"),
             "preemptionPolicy": obj.get("preemptionPolicy"),
             "priority": obj.get("priority"),
             "priorityClassName": obj.get("priorityClassName"),

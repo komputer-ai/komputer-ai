@@ -7,7 +7,7 @@
 Name | Type
 ------------ | -------------
 `medium` | [V1StorageMedium](V1StorageMedium.md)
-`sizeLimit` | [ResourceQuantity](ResourceQuantity.md)
+`sizeLimit` | string
 
 ## Example
 

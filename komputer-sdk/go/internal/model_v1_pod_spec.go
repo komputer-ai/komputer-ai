@@ -60,7 +60,7 @@ type V1PodSpec struct {
 	// Specifies the OS of the containers in the pod. Some pod and container fields are restricted if this is set.  If the OS field is set to linux, the following fields must be unset: -securityContext.windowsOptions  If the OS field is set to windows, following fields must be unset: - spec.hostPID - spec.hostIPC - spec.hostUsers - spec.resources - spec.securityContext.appArmorProfile - spec.securityContext.seLinuxOptions - spec.securityContext.seccompProfile - spec.securityContext.fsGroup - spec.securityContext.fsGroupChangePolicy - spec.securityContext.sysctls - spec.shareProcessNamespace - spec.securityContext.runAsUser - spec.securityContext.runAsGroup - spec.securityContext.supplementalGroups - spec.securityContext.supplementalGroupsPolicy - spec.containers[*].securityContext.appArmorProfile - spec.containers[*].securityContext.seLinuxOptions - spec.containers[*].securityContext.seccompProfile - spec.containers[*].securityContext.capabilities - spec.containers[*].securityContext.readOnlyRootFilesystem - spec.containers[*].securityContext.privileged - spec.containers[*].securityContext.allowPrivilegeEscalation - spec.containers[*].securityContext.procMount - spec.containers[*].securityContext.runAsUser - spec.containers[*].securityContext.runAsGroup +optional
 	Os *V1PodOS `json:"os,omitempty"`
 	// Overhead represents the resource overhead associated with running a pod for a given RuntimeClass. This field will be autopopulated at admission time by the RuntimeClass admission controller. If the RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests. The RuntimeClass admission controller will reject Pod create requests which have the overhead already set. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value defined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero. More info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md +optional
-	Overhead *map[string]ResourceQuantity `json:"overhead,omitempty"`
+	Overhead *map[string]string `json:"overhead,omitempty"`
 	// PreemptionPolicy is the Policy for preempting pods with lower priority. One of Never, PreemptLowerPriority. Defaults to PreemptLowerPriority if unset. +optional
 	PreemptionPolicy *V1PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 	// The priority value. Various system components use this field to find the priority of the pod. When Priority Admission Controller is enabled, it prevents users from setting this field. The admission controller populates this field from PriorityClassName. The higher the value, the higher the priority. +optional
@@ -763,9 +763,9 @@ func (o *V1PodSpec) SetOs(v V1PodOS) {
 }
 
 // GetOverhead returns the Overhead field value if set, zero value otherwise.
-func (o *V1PodSpec) GetOverhead() map[string]ResourceQuantity {
+func (o *V1PodSpec) GetOverhead() map[string]string {
 	if o == nil || IsNil(o.Overhead) {
-		var ret map[string]ResourceQuantity
+		var ret map[string]string
 		return ret
 	}
 	return *o.Overhead
@@ -773,7 +773,7 @@ func (o *V1PodSpec) GetOverhead() map[string]ResourceQuantity {
 
 // GetOverheadOk returns a tuple with the Overhead field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1PodSpec) GetOverheadOk() (*map[string]ResourceQuantity, bool) {
+func (o *V1PodSpec) GetOverheadOk() (*map[string]string, bool) {
 	if o == nil || IsNil(o.Overhead) {
 		return nil, false
 	}
@@ -789,8 +789,8 @@ func (o *V1PodSpec) HasOverhead() bool {
 	return false
 }
 
-// SetOverhead gets a reference to the given map[string]ResourceQuantity and assigns it to the Overhead field.
-func (o *V1PodSpec) SetOverhead(v map[string]ResourceQuantity) {
+// SetOverhead gets a reference to the given map[string]string and assigns it to the Overhead field.
+func (o *V1PodSpec) SetOverhead(v map[string]string) {
 	o.Overhead = &v
 }
 

@@ -27,7 +27,6 @@ docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
 docs/PatchSquadRequest.md
-docs/ResourceQuantity.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
 docs/SchedulesApi.md
@@ -231,7 +230,6 @@ komputer_ai/models/patch_memory_request.py
 komputer_ai/models/patch_schedule_request.py
 komputer_ai/models/patch_skill_request.py
 komputer_ai/models/patch_squad_request.py
-komputer_ai/models/resource_quantity.py
 komputer_ai/models/schedule_list_response.py
 komputer_ai/models/schedule_response.py
 komputer_ai/models/secret_list_response.py

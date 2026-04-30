@@ -5,8 +5,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Claims** | Pointer to [**[]K8sIoApiCoreV1ResourceClaim**](K8sIoApiCoreV1ResourceClaim.md) | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType&#x3D;map +listMapKey&#x3D;name +featureGate&#x3D;DynamicResourceAllocation +optional | [optional] 
-**Limits** | Pointer to [**map[string]ResourceQuantity**](ResourceQuantity.md) | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional | [optional] 
-**Requests** | Pointer to [**map[string]ResourceQuantity**](ResourceQuantity.md) | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional | [optional] 
+**Limits** | Pointer to **map[string]string** | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional | [optional] 
+**Requests** | Pointer to **map[string]string** | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional | [optional] 
 
 ## Methods
 
@@ -54,20 +54,20 @@ HasClaims returns a boolean if a field has been set.
 
 ### GetLimits
 
-`func (o *V1ResourceRequirements) GetLimits() map[string]ResourceQuantity`
+`func (o *V1ResourceRequirements) GetLimits() map[string]string`
 
 GetLimits returns the Limits field if non-nil, zero value otherwise.
 
 ### GetLimitsOk
 
-`func (o *V1ResourceRequirements) GetLimitsOk() (*map[string]ResourceQuantity, bool)`
+`func (o *V1ResourceRequirements) GetLimitsOk() (*map[string]string, bool)`
 
 GetLimitsOk returns a tuple with the Limits field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetLimits
 
-`func (o *V1ResourceRequirements) SetLimits(v map[string]ResourceQuantity)`
+`func (o *V1ResourceRequirements) SetLimits(v map[string]string)`
 
 SetLimits sets Limits field to given value.
 
@@ -79,20 +79,20 @@ HasLimits returns a boolean if a field has been set.
 
 ### GetRequests
 
-`func (o *V1ResourceRequirements) GetRequests() map[string]ResourceQuantity`
+`func (o *V1ResourceRequirements) GetRequests() map[string]string`
 
 GetRequests returns the Requests field if non-nil, zero value otherwise.
 
 ### GetRequestsOk
 
-`func (o *V1ResourceRequirements) GetRequestsOk() (*map[string]ResourceQuantity, bool)`
+`func (o *V1ResourceRequirements) GetRequestsOk() (*map[string]string, bool)`
 
 GetRequestsOk returns a tuple with the Requests field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetRequests
 
-`func (o *V1ResourceRequirements) SetRequests(v map[string]ResourceQuantity)`
+`func (o *V1ResourceRequirements) SetRequests(v map[string]string)`
 
 SetRequests sets Requests field to given value.
 

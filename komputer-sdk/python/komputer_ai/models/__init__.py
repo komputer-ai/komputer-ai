@@ -37,7 +37,6 @@ from komputer_ai.models.patch_memory_request import PatchMemoryRequest
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest
 from komputer_ai.models.patch_squad_request import PatchSquadRequest
-from komputer_ai.models.resource_quantity import ResourceQuantity
 from komputer_ai.models.schedule_list_response import ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse

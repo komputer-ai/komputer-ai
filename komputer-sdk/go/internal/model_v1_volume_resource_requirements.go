@@ -20,9 +20,9 @@ var _ MappedNullable = &V1VolumeResourceRequirements{}
 // V1VolumeResourceRequirements struct for V1VolumeResourceRequirements
 type V1VolumeResourceRequirements struct {
 	// Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional
-	Limits *map[string]ResourceQuantity `json:"limits,omitempty"`
+	Limits *map[string]string `json:"limits,omitempty"`
 	// Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ +optional
-	Requests *map[string]ResourceQuantity `json:"requests,omitempty"`
+	Requests *map[string]string `json:"requests,omitempty"`
 }
 
 // NewV1VolumeResourceRequirements instantiates a new V1VolumeResourceRequirements object
@@ -43,9 +43,9 @@ func NewV1VolumeResourceRequirementsWithDefaults() *V1VolumeResourceRequirements
 }
 
 // GetLimits returns the Limits field value if set, zero value otherwise.
-func (o *V1VolumeResourceRequirements) GetLimits() map[string]ResourceQuantity {
+func (o *V1VolumeResourceRequirements) GetLimits() map[string]string {
 	if o == nil || IsNil(o.Limits) {
-		var ret map[string]ResourceQuantity
+		var ret map[string]string
 		return ret
 	}
 	return *o.Limits
@@ -53,7 +53,7 @@ func (o *V1VolumeResourceRequirements) GetLimits() map[string]ResourceQuantity {
 
 // GetLimitsOk returns a tuple with the Limits field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1VolumeResourceRequirements) GetLimitsOk() (*map[string]ResourceQuantity, bool) {
+func (o *V1VolumeResourceRequirements) GetLimitsOk() (*map[string]string, bool) {
 	if o == nil || IsNil(o.Limits) {
 		return nil, false
 	}
@@ -69,15 +69,15 @@ func (o *V1VolumeResourceRequirements) HasLimits() bool {
 	return false
 }
 
-// SetLimits gets a reference to the given map[string]ResourceQuantity and assigns it to the Limits field.
-func (o *V1VolumeResourceRequirements) SetLimits(v map[string]ResourceQuantity) {
+// SetLimits gets a reference to the given map[string]string and assigns it to the Limits field.
+func (o *V1VolumeResourceRequirements) SetLimits(v map[string]string) {
 	o.Limits = &v
 }
 
 // GetRequests returns the Requests field value if set, zero value otherwise.
-func (o *V1VolumeResourceRequirements) GetRequests() map[string]ResourceQuantity {
+func (o *V1VolumeResourceRequirements) GetRequests() map[string]string {
 	if o == nil || IsNil(o.Requests) {
-		var ret map[string]ResourceQuantity
+		var ret map[string]string
 		return ret
 	}
 	return *o.Requests
@@ -85,7 +85,7 @@ func (o *V1VolumeResourceRequirements) GetRequests() map[string]ResourceQuantity
 
 // GetRequestsOk returns a tuple with the Requests field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *V1VolumeResourceRequirements) GetRequestsOk() (*map[string]ResourceQuantity, bool) {
+func (o *V1VolumeResourceRequirements) GetRequestsOk() (*map[string]string, bool) {
 	if o == nil || IsNil(o.Requests) {
 		return nil, false
 	}
@@ -101,8 +101,8 @@ func (o *V1VolumeResourceRequirements) HasRequests() bool {
 	return false
 }
 
-// SetRequests gets a reference to the given map[string]ResourceQuantity and assigns it to the Requests field.
-func (o *V1VolumeResourceRequirements) SetRequests(v map[string]ResourceQuantity) {
+// SetRequests gets a reference to the given map[string]string and assigns it to the Requests field.
+func (o *V1VolumeResourceRequirements) SetRequests(v map[string]string) {
 	o.Requests = &v
 }
 
