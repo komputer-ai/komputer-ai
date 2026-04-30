@@ -24,6 +24,7 @@ export interface AgentResponse {
   instructions?: string;
   systemPrompt?: string;
   createdAt: string;
+  completionTime?: string;
   priority?: number;
   queuePosition?: number;
   queueReason?: string;
@@ -32,6 +33,7 @@ export interface AgentResponse {
   squad?: boolean;
   squadName?: string;
   errors?: string[];
+  labels?: Record<string, string>;
 }
 
 export interface AgentListResponse {
@@ -113,6 +115,7 @@ export interface CreateAgentRequest {
   priority?: number;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  labels?: Record<string, string>;
 }
 
 export interface CreateScheduleRequest {
@@ -144,6 +147,7 @@ export interface PatchAgentRequest {
   priority?: number;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  labels?: Record<string, string>;
 }
 
 export interface ConnectorResponse {
