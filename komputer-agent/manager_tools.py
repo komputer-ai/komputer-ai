@@ -494,11 +494,58 @@ async def wake_agent(args):
 
 @tool(
     name="list_agents",
-    description="List all agents in the current namespace, with name, status, lifecycle, model, and last task summary.",
-    input_schema={"type": "object", "properties": {}},
+    description="List all agents in the current namespace, with name, status, lifecycle, model, and last task summary. Filter by labels using label_selectors.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "label_selectors": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of 'key=value' label filters; results match all (AND). E.g. ['team=core', 'env=prod'].",
+            },
+        },
+    },
 )
 async def list_agents(args):
+    params = []
+    for ls in args.get("label_selectors") or []:
+        params.append(("label", ls))
+    if params:
+        # Build query string manually since _request merges params as a dict.
+        from urllib.parse import urlencode
+        qs = urlencode(params)
+        return await _request("GET", f"/api/v1/agents?{qs}")
     return await _request("GET", "/api/v1/agents")
+
+
+@tool(
+    name="patch_agent",
+    description=(
+        "Patch an existing agent's mutable settings. Currently supports adding "
+        "or updating labels. Existing labels are merged additively; this never "
+        "removes labels."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Agent name."},
+            "labels": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+                "description": "Labels to add or update. Existing keys are overwritten; no keys are removed.",
+            },
+        },
+        "required": ["name"],
+    },
+)
+async def patch_agent(args):
+    name = _sanitize_name(args["name"])
+    body = {}
+    if args.get("labels"):
+        body["labels"] = args["labels"]
+    if not body:
+        return _err("patch_agent requires at least one field to update (e.g. labels).")
+    return await _request("PATCH", f"/api/v1/agents/{name}", timeout=10, json=body)
 
 
 @tool(
@@ -1245,5 +1292,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )
