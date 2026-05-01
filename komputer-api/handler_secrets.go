@@ -57,7 +57,7 @@ func listSecrets(k8s *K8sClient) gin.HandlerFunc {
 		}
 		// Count how many agents reference each secret and collect their names.
 		secretUsage := make(map[string][]string)
-		agents, _ := k8s.ListAgents(c.Request.Context(), "")
+		agents, _ := k8s.ListAgents(c.Request.Context(), "", nil)
 		for _, a := range agents {
 			for _, s := range a.Spec.Secrets {
 				key := a.Namespace + "/" + s

@@ -368,7 +368,7 @@ func (k *K8sClient) GetAgent(ctx context.Context, ns, name string) (*komputerv1a
 	return agent, nil
 }
 
-func (k *K8sClient) ListAgents(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerAgent, error) {
+func (k *K8sClient) ListAgents(ctx context.Context, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
 	list := &komputerv1alpha1.KomputerAgentList{}
 	var opts []client.ListOption
 	if ns != "" {
@@ -377,7 +377,25 @@ func (k *K8sClient) ListAgents(ctx context.Context, ns string) ([]komputerv1alph
 	if err := k.client.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	if len(labelFilter) == 0 {
+		return list.Items, nil
+	}
+	out := make([]komputerv1alpha1.KomputerAgent, 0, len(list.Items))
+	for _, a := range list.Items {
+		if matchesAllLabels(a.Spec.Labels, labelFilter) {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+func matchesAllLabels(have, want map[string]string) bool {
+	for k, v := range want {
+		if got, ok := have[k]; !ok || got != v {
+			return false
+		}
+	}
+	return true
 }
 
 type TemplateInfo struct {

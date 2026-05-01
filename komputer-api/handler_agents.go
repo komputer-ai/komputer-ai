@@ -704,7 +704,30 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 		ns := c.Query("namespace") // empty = all namespaces
 		statusFilter := c.Query("status")
 		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
-		agents, err := k8s.ListAgents(c.Request.Context(), ns)
+
+		// Parse repeated ?label=k=v query params.
+		rawLabels := c.QueryArray("label")
+		labelFilter := map[string]string{}
+		for _, p := range rawLabels {
+			eq := strings.Index(p, "=")
+			if eq <= 0 || eq == len(p)-1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid label filter %q (expected key=value)", p)})
+				return
+			}
+			k := p[:eq]
+			v := p[eq+1:]
+			if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid label key %q: %s", k, strings.Join(errs, ", "))})
+				return
+			}
+			if errs := validation.IsValidLabelValue(v); len(errs) > 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid label value for %q: %s", k, strings.Join(errs, ", "))})
+				return
+			}
+			labelFilter[k] = v
+		}
+
+		agents, err := k8s.ListAgents(c.Request.Context(), ns, labelFilter)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
 			return

@@ -107,7 +107,7 @@ func listConnectors(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		connUsage := make(map[string][]string)
-		agents, _ := k8s.ListAgents(c.Request.Context(), "")
+		agents, _ := k8s.ListAgents(c.Request.Context(), "", nil)
 		for _, a := range agents {
 			for _, connRef := range a.Spec.Connectors {
 				key := a.Namespace + "/" + connRef
