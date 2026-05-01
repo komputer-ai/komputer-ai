@@ -58,6 +58,15 @@ func registerAgentCommands(root *cobra.Command) {
 					listURL += "?status=" + url.QueryEscape(statusFilter)
 				}
 			}
+			if listLabels, _ := cmd.Flags().GetStringArray("label"); len(listLabels) > 0 {
+				for _, l := range listLabels {
+					if strings.Contains(listURL, "?") {
+						listURL += "&label=" + url.QueryEscape(l)
+					} else {
+						listURL += "?label=" + url.QueryEscape(l)
+					}
+				}
+			}
 			data, status, err := apiRequest("GET", listURL, nil)
 			if err != nil {
 				if jsonMode {
@@ -156,6 +165,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	listCmd.Flags().String("status", "", "Filter by status (e.g. queued, running, pending)")
+	listCmd.Flags().StringArray("label", nil, "Label filter key=value (repeatable, AND'd, e.g. --label team=core)")
 	root.AddCommand(listCmd)
 
 	// ── create ───────────────────────────────────────────────────────────
@@ -221,6 +231,18 @@ func registerAgentCommands(root *cobra.Command) {
 			if storage != "" {
 				body["storage"] = map[string]interface{}{"size": storage}
 			}
+			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
+				labelMap := map[string]string{}
+				for _, l := range labelFlags {
+					eq := strings.Index(l, "=")
+					if eq <= 0 || eq == len(l)-1 {
+						fmt.Println(errorStyle.Render(fmt.Sprintf("invalid --label %q: expected key=value", l)))
+						os.Exit(1)
+					}
+					labelMap[l[:eq]] = l[eq+1:]
+				}
+				body["labels"] = labelMap
+			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
 			if err != nil {
@@ -279,6 +301,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
 	createCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
 	createCmd.Flags().String("image", "", "Override agent container image.")
+	createCmd.Flags().StringArray("label", nil, "Label key=value (repeatable, e.g. --label team=core)")
 	root.AddCommand(createCmd)
 
 	// ── update ───────────────────────────────────────────────────────────
@@ -319,12 +342,24 @@ func registerAgentCommands(root *cobra.Command) {
 					body["podSpec"] = ps
 				}
 			}
+			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
+				labelMap := map[string]string{}
+				for _, l := range labelFlags {
+					eq := strings.Index(l, "=")
+					if eq <= 0 || eq == len(l)-1 {
+						fmt.Println(errorStyle.Render(fmt.Sprintf("invalid --label %q: expected key=value", l)))
+						os.Exit(1)
+					}
+					labelMap[l[:eq]] = l[eq+1:]
+				}
+				body["labels"] = labelMap
+			}
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, or --image.", 400)
+					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, or --label.", 400)
 				}
-				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, or --image."))
+				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, or --label."))
 				os.Exit(1)
 			}
 
@@ -369,6 +404,7 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
 	updateCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
 	updateCmd.Flags().String("image", "", "Override agent container image.")
+	updateCmd.Flags().StringArray("label", nil, "Label key=value to add/update (repeatable, e.g. --label team=core)")
 	root.AddCommand(updateCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────

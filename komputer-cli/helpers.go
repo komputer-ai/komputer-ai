@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -62,6 +63,18 @@ func printAgent(a AgentResponse) {
 	row("Created:", a.CreatedAt)
 	if a.LastTaskMessage != "" {
 		row("Last Message:", a.LastTaskMessage)
+	}
+	if len(a.Labels) > 0 {
+		keys := make([]string, 0, len(a.Labels))
+		for k := range a.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, k := range keys {
+			parts = append(parts, k+"="+a.Labels[k])
+		}
+		row("Labels:", strings.Join(parts, ", "))
 	}
 	fmt.Println()
 }

@@ -3,19 +3,20 @@ package main
 // ─── API Types ───────────────────────────────────────────────────────────────
 
 type AgentResponse struct {
-	Name            string `json:"name"`
-	Namespace       string `json:"namespace"`
-	Model           string `json:"model"`
-	Status          string `json:"status"`
-	TaskStatus      string `json:"taskStatus"`
-	LastTaskMessage string `json:"lastTaskMessage"`
-	Lifecycle       string `json:"lifecycle"`
-	LastTaskCostUSD string `json:"lastTaskCostUSD"`
-	TotalCostUSD    string `json:"totalCostUSD"`
-	CreatedAt       string `json:"createdAt"`
-	Priority        int32  `json:"priority"`
-	QueuePosition   int32  `json:"queuePosition"`
-	QueueReason     string `json:"queueReason"`
+	Name            string            `json:"name"`
+	Namespace       string            `json:"namespace"`
+	Model           string            `json:"model"`
+	Status          string            `json:"status"`
+	TaskStatus      string            `json:"taskStatus"`
+	LastTaskMessage string            `json:"lastTaskMessage"`
+	Lifecycle       string            `json:"lifecycle"`
+	LastTaskCostUSD string            `json:"lastTaskCostUSD"`
+	TotalCostUSD    string            `json:"totalCostUSD"`
+	CreatedAt       string            `json:"createdAt"`
+	Priority        int32             `json:"priority"`
+	QueuePosition   int32             `json:"queuePosition"`
+	QueueReason     string            `json:"queueReason"`
+	Labels          map[string]string `json:"labels,omitempty"`
 }
 
 type AgentListResponse struct {
