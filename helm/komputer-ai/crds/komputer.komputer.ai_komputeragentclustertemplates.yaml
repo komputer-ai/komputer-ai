@@ -42,6 +42,33 @@ spec:
           spec:
             description: KomputerAgentTemplateSpec defines the desired state of KomputerAgentTemplate.
             properties:
+              anthropicKeySecretRef:
+                description: |-
+                  AnthropicKeySecretRef is the absolute reference to the Anthropic API
+                  key secret. The operator mirrors this secret into every agent namespace
+                  and injects the ANTHROPIC_API_KEY env var into the pod automatically —
+                  users MUST NOT add ANTHROPIC_API_KEY to PodSpec env themselves; if they
+                  do, the pod-builder strips it before injecting its own copy.
+
+                  Required. The default cluster template shipped by helm always sets this
+                  from chart values.
+                properties:
+                  key:
+                    description: Key within the Secret.
+                    type: string
+                  name:
+                    description: Name of the Secret.
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of the source Secret. If empty, defaults
+                      to the operator's namespace (the namespace komputer-system was
+                      deployed into).
+                    type: string
+                required:
+                - key
+                - name
+                type: object
               maxConcurrentAgents:
                 default: 0
                 description: |-
@@ -8047,6 +8074,7 @@ spec:
                     type: string
                 type: object
             required:
+            - anthropicKeySecretRef
             - podSpec
             type: object
         type: object

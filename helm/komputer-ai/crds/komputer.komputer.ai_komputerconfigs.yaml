@@ -67,6 +67,12 @@ spec:
                       name:
                         description: Name of the Secret.
                         type: string
+                      namespace:
+                        description: |-
+                          Namespace is the namespace of the source Secret. If empty, defaults
+                          to the operator's namespace (the namespace komputer-system was
+                          deployed into).
+                        type: string
                     required:
                     - key
                     - name

@@ -45,7 +45,8 @@ import (
 // KomputerAgentReconciler reconciles a KomputerAgent object
 type KomputerAgentReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	ControlNamespace string
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents,verbs=get;list;watch;create;update;patch;delete
@@ -229,6 +230,23 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			s.Message = "No KomputerConfig found in the cluster"
 		})
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
+	// 3b. Mirror required secrets into agent.Namespace. The namespace itself
+	// is created by the API before the CR is written (the apiserver rejects
+	// CR writes to non-existent namespaces, so it has to happen there). This
+	// is a prerequisite for pod creation — do not proceed to pod work on failure.
+	if _, mirrorErr := reconcileAgentSecrets(ctx, r.Client, agent, komputerConfig, r.ControlNamespace); mirrorErr != nil {
+		log.Error(mirrorErr, "Failed to mirror secrets into agent namespace")
+		reason := "MirrorFailed"
+		if isMissingSourceError(mirrorErr) {
+			reason = "SourceMissing"
+		}
+		_ = r.setSecretsMirroredCondition(ctx, agent, metav1.ConditionFalse, reason, mirrorErr.Error())
+		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+	}
+	if condErr := r.setSecretsMirroredCondition(ctx, agent, metav1.ConditionTrue, "Synced", "All required secrets mirrored successfully"); condErr != nil {
+		log.Error(condErr, "Failed to set SecretsMirrored condition")
 	}
 
 	// 4. Ensure PVC exists
@@ -659,6 +677,25 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// startup path identical in both modes.
 	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: "8000"})
 
+	// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef.
+	// The mirror for this secret already exists in agent.Namespace (ensured earlier
+	// in Reconcile), so the secretKeyRef resolves within the pod's own namespace.
+	envVars = append(envVars, corev1.EnvVar{
+		Name: "ANTHROPIC_API_KEY",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: template.Spec.AnthropicKeySecretRef.Name,
+				},
+				Key: template.Spec.AnthropicKeySecretRef.Key,
+			},
+		},
+	})
+
+	// Strip any user-supplied ANTHROPIC_API_KEY from the template container env
+	// before merging, so the operator-injected entry (above) always wins.
+	container.Env = stripEnvVar(container.Env, "ANTHROPIC_API_KEY", logf.FromContext(ctx))
+
 	// Merge: new vars replace template vars with the same name.
 	container.Env = mergeEnvVars(container.Env, envVars)
 
@@ -837,8 +874,136 @@ func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&komputerv1alpha1.KomputerAgent{}, handler.EnqueueRequestsFromMapFunc(r.enqueueQueuedSiblings)).
 		Watches(&komputerv1alpha1.KomputerAgentTemplate{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForTemplate)).
 		Watches(&komputerv1alpha1.KomputerAgentClusterTemplate{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForTemplate)).
+		// Source-secret watch: when a secret referenced by a template's AnthropicKeySecretRef
+		// or KomputerConfig Redis.PasswordSecret changes, re-enqueue all agents so mirrors
+		// are pushed to agent namespaces.
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForSecret)).
 		Named("komputeragent").
 		Complete(r)
+}
+
+// enqueueAgentsForSecret is called whenever any Secret changes. It handles two cases:
+//  1. Source secrets: list templates to find agents whose Anthropic or Redis source
+//     secret matches (ns, name) — enqueue those agents.
+//  2. Mirror secrets (have label komputer.ai/mirrored-from-ns): drift detected —
+//     enqueue all agents in the secret's namespace so reconcile can push source data back.
+func (r *KomputerAgentReconciler) enqueueAgentsForSecret(ctx context.Context, obj client.Object) []reconcile.Request {
+	secretNs := obj.GetNamespace()
+	secretName := obj.GetName()
+	labels := obj.GetLabels()
+
+	// Case 2: drift watch — mirror was edited externally
+	if _, isMirror := labels[LabelMirroredFromNs]; isMirror {
+		agentList := &komputerv1alpha1.KomputerAgentList{}
+		if err := r.List(ctx, agentList, client.InNamespace(secretNs)); err != nil {
+			return nil
+		}
+		reqs := make([]reconcile.Request, 0, len(agentList.Items))
+		for _, a := range agentList.Items {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: a.Name, Namespace: a.Namespace},
+			})
+		}
+		return reqs
+	}
+
+	// Case 1: source-secret watch — check if any template references this (secretNs, secretName)
+	var reqs []reconcile.Request
+	seen := make(map[types.NamespacedName]bool)
+
+	enqueueIfMatch := func(ref *komputerv1alpha1.SecretKeyRef, controlNs string, agentNs string, agentName string) {
+		if ref == nil {
+			return
+		}
+		refNs := ref.Namespace
+		if refNs == "" {
+			refNs = controlNs
+		}
+		if refNs == secretNs && ref.Name == secretName {
+			key := types.NamespacedName{Name: agentName, Namespace: agentNs}
+			if !seen[key] {
+				seen[key] = true
+				reqs = append(reqs, reconcile.Request{NamespacedName: key})
+			}
+		}
+	}
+
+	// Check KomputerConfig Redis password secret
+	config, err := r.getConfig(ctx)
+	if err == nil && config.Spec.Redis.PasswordSecret != nil {
+		// We need to enqueue agents that would use this config. Since config is singleton,
+		// enqueue all agents whose template doesn't override the redis secret.
+		agentList := &komputerv1alpha1.KomputerAgentList{}
+		if listErr := r.List(ctx, agentList); listErr == nil {
+			for _, a := range agentList.Items {
+				enqueueIfMatch(config.Spec.Redis.PasswordSecret, r.ControlNamespace, a.Namespace, a.Name)
+			}
+		}
+	}
+
+	// Check all namespaced templates
+	templateList := &komputerv1alpha1.KomputerAgentTemplateList{}
+	if err := r.List(ctx, templateList); err == nil {
+		for _, tpl := range templateList.Items {
+			ref := &tpl.Spec.AnthropicKeySecretRef
+			refNs := ref.Namespace
+			if refNs == "" {
+				refNs = r.ControlNamespace
+			}
+			if refNs == secretNs && ref.Name == secretName {
+				// Enqueue all agents in tpl.Namespace using this template
+				agentList := &komputerv1alpha1.KomputerAgentList{}
+				if listErr := r.List(ctx, agentList, client.InNamespace(tpl.Namespace)); listErr == nil {
+					for _, a := range agentList.Items {
+						tRef := a.Spec.TemplateRef
+						if tRef == "" {
+							tRef = "default"
+						}
+						if tRef == tpl.Name {
+							key := types.NamespacedName{Name: a.Name, Namespace: a.Namespace}
+							if !seen[key] {
+								seen[key] = true
+								reqs = append(reqs, reconcile.Request{NamespacedName: key})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check all cluster templates
+	clusterTemplateList := &komputerv1alpha1.KomputerAgentClusterTemplateList{}
+	if err := r.List(ctx, clusterTemplateList); err == nil {
+		for _, tpl := range clusterTemplateList.Items {
+			ref := &tpl.Spec.AnthropicKeySecretRef
+			refNs := ref.Namespace
+			if refNs == "" {
+				refNs = r.ControlNamespace
+			}
+			if refNs == secretNs && ref.Name == secretName {
+				// Enqueue all agents that fall back to this cluster template
+				agentList := &komputerv1alpha1.KomputerAgentList{}
+				if listErr := r.List(ctx, agentList); listErr == nil {
+					for _, a := range agentList.Items {
+						tRef := a.Spec.TemplateRef
+						if tRef == "" {
+							tRef = "default"
+						}
+						if tRef == tpl.Name {
+							key := types.NamespacedName{Name: a.Name, Namespace: a.Namespace}
+							if !seen[key] {
+								seen[key] = true
+								reqs = append(reqs, reconcile.Request{NamespacedName: key})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return reqs
 }
 
 // syncConnectorSecret copies a connector's auth Secret from the connector's
@@ -1006,4 +1171,36 @@ func equalServicePorts(a, b []corev1.ServicePort) bool {
 		}
 	}
 	return true
+}
+
+// setSecretsMirroredCondition sets the SecretsMirrored condition on the agent status.
+func (r *KomputerAgentReconciler) setSecretsMirroredCondition(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, status metav1.ConditionStatus, reason, message string) error {
+	now := metav1.Now()
+	newCond := metav1.Condition{
+		Type:               komputerv1alpha1.ConditionSecretsMirrored,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: now,
+	}
+
+	// Find existing condition to check if it already matches (avoid unnecessary patches).
+	for _, c := range agent.Status.Conditions {
+		if c.Type == komputerv1alpha1.ConditionSecretsMirrored {
+			if c.Status == status && c.Reason == reason && c.Message == message {
+				return nil // no change needed
+			}
+			break
+		}
+	}
+
+	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+		for i, c := range s.Conditions {
+			if c.Type == komputerv1alpha1.ConditionSecretsMirrored {
+				s.Conditions[i] = newCond
+				return
+			}
+		}
+		s.Conditions = append(s.Conditions, newCond)
+	})
 }

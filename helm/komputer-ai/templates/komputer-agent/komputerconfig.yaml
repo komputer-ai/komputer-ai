@@ -13,5 +13,8 @@ spec:
     passwordSecret:
       name: {{ .Values.externalRedis.passwordSecret.name }}
       key: {{ .Values.externalRedis.passwordSecret.key }}
+      {{- if .Values.externalRedis.passwordSecret.namespace }}
+      namespace: {{ .Values.externalRedis.passwordSecret.namespace }}
+      {{- end }}
     {{- end }}
   apiURL: {{ include "komputer.apiURL" . }}

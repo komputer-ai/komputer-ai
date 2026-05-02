@@ -2,6 +2,6 @@
 Validation checks — fail fast on missing required configuration.
 */}}
 
-{{- if and (not .Values.bedrock.enabled) (not .Values.anthropicApiKeySecret.name) }}
-{{- fail "\n\nERROR: anthropicApiKeySecret.name is required (unless bedrock.enabled=true).\n\nYou must create an Anthropic API key secret before installing:\n\n  kubectl create secret generic anthropic-api-key \\\n    --from-literal=api-key=sk-ant-... \\\n    -n komputer-ai\n\nThen install with:\n\n  helm install komputer-ai ... --set anthropicApiKeySecret.name=anthropic-api-key\n\nAlternatively, enable AWS Bedrock:\n\n  helm install komputer-ai ... --set bedrock.enabled=true --set bedrock.region=us-east-1\n" }}
+{{- if and (not .Values.bedrock.enabled) (not .Values.anthropicKeySecret.name) }}
+{{- fail "\n\nERROR: anthropicKeySecret.name is required (unless bedrock.enabled=true).\n\nYou must create an Anthropic API key secret before installing:\n\n  kubectl create secret generic anthropic-api-key \\\n    --from-literal=api-key=sk-ant-... \\\n    -n komputer-ai\n\nThen install with:\n\n  helm install komputer-ai ... --set anthropicKeySecret.name=anthropic-api-key\n\nAlternatively, enable AWS Bedrock:\n\n  helm install komputer-ai ... --set bedrock.enabled=true --set bedrock.region=us-east-1\n" }}
 {{- end }}

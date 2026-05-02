@@ -123,7 +123,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
-		if err := k8s.EnsureNamespace(c.Request.Context(), ns); err != nil {
+		if err := k8s.EnsureNamespaceExists(c.Request.Context(), ns); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ensure namespace: " + err.Error()})
 			return
 		}

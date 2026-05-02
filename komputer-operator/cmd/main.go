@@ -203,9 +203,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Read the operator's own namespace via the downward API. Helm always sets this;
+	// fall back to "default" with a warning if running outside a cluster (e.g. local dev).
+	controlNamespace := os.Getenv("POD_NAMESPACE")
+	if controlNamespace == "" {
+		setupLog.Info("POD_NAMESPACE is unset; defaulting to \"default\". Set via downward API in production.")
+		controlNamespace = "default"
+	}
+
 	if err := (&controller.KomputerAgentReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		ControlNamespace: controlNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerAgent")
 		os.Exit(1)

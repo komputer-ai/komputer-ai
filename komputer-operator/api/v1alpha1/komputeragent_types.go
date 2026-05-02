@@ -21,6 +21,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Condition type constants for KomputerAgentStatus.Conditions.
+const (
+	// ConditionSecretsMirrored indicates whether the operator has successfully
+	// mirrored all required source secrets into the agent's namespace.
+	// Owned by the operator.
+	ConditionSecretsMirrored = "SecretsMirrored"
+)
+
 // KomputerAgentPhase represents the lifecycle phase of a KomputerAgent.
 type KomputerAgentPhase string
 
@@ -190,6 +198,12 @@ type KomputerAgentStatus struct {
 	// Owned by the controller that owns the pod (agent for solo, squad for squad members).
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// Conditions holds the latest observations about the agent's state.
+	// Owned by the operator.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true

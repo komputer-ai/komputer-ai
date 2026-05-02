@@ -39,6 +39,24 @@ var _ = Describe("KomputerAgent Controller", func() {
 	)
 
 	BeforeEach(func() {
+		// Create the Anthropic source secret that the template references.
+		// The reconciler mirrors this into the agent namespace; without it,
+		// reconcileAgentSecrets returns a SourceMissing error and the pod is never created.
+		anthropicSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "anthropic-api-key",
+				Namespace: "default",
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{"api-key": []byte("sk-test")},
+		}
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: "anthropic-api-key", Namespace: "default"}, &corev1.Secret{})
+		if apierrors.IsNotFound(err) {
+			Expect(k8sClient.Create(ctx, anthropicSecret)).To(Succeed())
+		} else {
+			Expect(err).NotTo(HaveOccurred())
+		}
+
 		// Create KomputerAgentTemplate "default"
 		template := &komputerv1alpha1.KomputerAgentTemplate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -57,9 +75,16 @@ var _ = Describe("KomputerAgent Controller", func() {
 				Storage: komputerv1alpha1.StorageSpec{
 					Size: "1Gi",
 				},
+				// Required: operator mirrors this secret into the agent namespace and
+				// injects ANTHROPIC_API_KEY. Source namespace left empty → defaults to
+				// ControlNamespace ("default" in tests).
+				AnthropicKeySecretRef: komputerv1alpha1.SecretKeyRef{
+					Name: "anthropic-api-key",
+					Key:  "api-key",
+				},
 			},
 		}
-		err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerAgentTemplate{})
+		err = k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: "default"}, &komputerv1alpha1.KomputerAgentTemplate{})
 		if apierrors.IsNotFound(err) {
 			Expect(k8sClient.Create(ctx, template)).To(Succeed())
 		} else {

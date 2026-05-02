@@ -24,7 +24,7 @@ kubectl create secret generic anthropic-api-key \
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   --namespace komputer-ai
 ```
 
@@ -83,8 +83,9 @@ templates/
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `anthropicApiKeySecret.name` | **(Required)** Name of the K8s Secret containing your Anthropic API key | `""` |
-| `anthropicApiKeySecret.key` | Key within the secret | `api-key` |
+| `anthropicKeySecret.name` | **(Required)** Name of the K8s Secret containing your Anthropic API key | `""` |
+| `anthropicKeySecret.key` | Key within the secret | `api-key` |
+| `anthropicKeySecret.namespace` | Namespace of the secret. Defaults to the release namespace when empty. The operator mirrors it into every agent namespace. | `""` |
 | `operator.replicas` | Operator replica count | `1` |
 | `operator.image.repository` | Operator image | `ghcr.io/komputer-ai/komputer-operator` |
 | `operator.image.tag` | Operator image tag | `latest` |
@@ -124,7 +125,7 @@ See [`values.yaml`](values.yaml) for all options.
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   --set redis.enabled=false \
   --set externalRedis.address=redis.prod:6379 \
   --set externalRedis.passwordSecret.name=redis-secret \
@@ -195,7 +196,7 @@ ui:
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   -f values-ingress.yaml \
   --namespace komputer-ai
 ```
@@ -214,7 +215,7 @@ kubectl create secret docker-registry ghcr-pull-secret \
   -n komputer-ai
 
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   --set imagePullSecrets[0].name=ghcr-pull-secret \
   --namespace komputer-ai
 ```
@@ -245,7 +246,7 @@ agent:
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   -f values-with-kubectl.yaml \
   --namespace komputer-ai
 ```

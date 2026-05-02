@@ -147,12 +147,22 @@ externalRedis:
   passwordSecret:
     name: ""
     key: password
+    # -- Namespace of the Redis password Secret.
+    # Defaults to the release namespace when empty.
+    namespace: ""
 
-# -- Anthropic API key secret reference (REQUIRED when not using Bedrock)
-# Create it first: kubectl create secret generic anthropic-api-key --from-literal=api-key=sk-ant-...
-anthropicApiKeySecret:
+# -- Anthropic API key secret (REQUIRED when not using Bedrock).
+# -- Reference to the Secret holding the Anthropic API key.
+# You create this secret out-of-band (see README); the operator mirrors it
+# into every agent namespace and injects ANTHROPIC_API_KEY automatically.
+# Required unless bedrock.enabled=true.
+anthropicKeySecret:
+  # -- Name of the Secret containing the Anthropic API key.
   name: ""
+  # -- Key inside the Secret.
   key: api-key
+  # -- Namespace of the Secret. Defaults to the release namespace when empty.
+  namespace: ""
 
 # -- AWS Bedrock configuration. When enabled, agents use Bedrock instead of the Anthropic API.
 # Auth: use IRSA on EKS (recommended) or provide AWS credentials via a secret.

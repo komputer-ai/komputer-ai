@@ -19,19 +19,13 @@ kubectl create secret generic anthropic-api-key \
   -n komputer-ai
 ```
 
-> **Note:** If you deploy agents to namespaces other than `komputer-ai`, you must create the Anthropic API key secret in each of those namespaces too:
-> ```bash
-> kubectl create secret generic anthropic-api-key \
->   --from-literal=api-key=sk-ant-... \
->   -n <your-namespace>
-> ```
-> Agents cannot start without this secret in their namespace.
+> Create this secret once in the install namespace. The operator mirrors it into every agent namespace automatically — you do **not** need to recreate it for each namespace where agents run, and rotations propagate across mirrors.
 
 ## 2. Install with Helm
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   --namespace komputer-ai
 ```
 

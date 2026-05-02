@@ -45,6 +45,15 @@ type KomputerAgentTemplateSpec struct {
 	// +kubebuilder:default=0
 	// +optional
 	MaxConcurrentAgents int32 `json:"maxConcurrentAgents,omitempty"`
+	// AnthropicKeySecretRef is the absolute reference to the Anthropic API
+	// key secret. The operator mirrors this secret into every agent namespace
+	// and injects the ANTHROPIC_API_KEY env var into the pod automatically —
+	// users MUST NOT add ANTHROPIC_API_KEY to PodSpec env themselves; if they
+	// do, the pod-builder strips it before injecting its own copy.
+	//
+	// Required. The default cluster template shipped by helm always sets this
+	// from chart values.
+	AnthropicKeySecretRef SecretKeyRef `json:"anthropicKeySecretRef"`
 }
 
 // KomputerAgentTemplateStatus defines the observed state of KomputerAgentTemplate.

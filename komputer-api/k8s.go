@@ -13,7 +13,7 @@ import (
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +25,28 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// EnsureNamespaceExists creates the namespace if missing. The apiserver
+// rejects writes to a non-existent namespace, so this must run before the
+// agent CR is created. Secret mirroring is owned by the operator — this
+// function does NOT touch secrets.
+func (k *K8sClient) EnsureNamespaceExists(ctx context.Context, ns string) error {
+	namespace := &corev1.Namespace{}
+	err := k.client.Get(ctx, types.NamespacedName{Name: ns}, namespace)
+	if err == nil {
+		return nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("get namespace %s: %w", ns, err)
+	}
+	namespace = &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: ns},
+	}
+	if err := k.client.Create(ctx, namespace); err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create namespace %s: %w", ns, err)
+	}
+	return nil
+}
 
 type K8sClient struct {
 	client           client.Client
@@ -54,53 +76,6 @@ func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
 	}
 
 	return &K8sClient{client: c, clientset: cs, restConfig: config, defaultNamespace: defaultNamespace}, nil
-}
-
-// EnsureNamespace creates the namespace if it doesn't exist, and copies
-// the default KomputerAgentTemplate and required secrets into it.
-func (k *K8sClient) EnsureNamespace(ctx context.Context, ns string) error {
-	namespace := &corev1.Namespace{}
-	err := k.client.Get(ctx, types.NamespacedName{Name: ns}, namespace)
-	if err == nil {
-		return nil // already exists
-	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to check namespace: %w", err)
-	}
-
-	// Create namespace
-	namespace = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-			Labels: map[string]string{
-				"komputer.ai/managed": "true",
-			},
-		},
-	}
-	if err := k.client.Create(ctx, namespace); err != nil {
-		return fmt.Errorf("failed to create namespace: %w", err)
-	}
-
-	// Copy secrets referenced by agent templates (e.g., anthropic-api-key).
-	// Templates don't need copying — the operator falls back to the default namespace.
-	for _, secretName := range []string{"anthropic-api-key", "redis-secret"} {
-		srcSecret := &corev1.Secret{}
-		if err := k.client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: k.defaultNamespace}, srcSecret); err == nil {
-			newSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      secretName,
-					Namespace: ns,
-				},
-				Data: srcSecret.Data,
-				Type: srcSecret.Type,
-			}
-			if createErr := k.client.Create(ctx, newSecret); createErr != nil && !errors.IsAlreadyExists(createErr) {
-				Logger.Warnw("failed to copy secret to namespace", "secret_name", secretName, "namespace", ns, "error", createErr)
-			}
-		}
-	}
-
-	return nil
 }
 
 // WakeAgent wakes a sleeping agent by patching its instructions and setting the lifecycle.

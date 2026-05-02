@@ -403,11 +403,6 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		if err := k8s.EnsureNamespace(c.Request.Context(), ns); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ensure namespace: " + err.Error()})
-			return
-		}
-
 		// Inherit connectors from office manager so sub-agents get the same MCP tools.
 		connectors := req.Connectors
 		if req.OfficeManager != "" {
@@ -423,6 +418,12 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					}
 				}
 			}
+		}
+
+		if err := k8s.EnsureNamespaceExists(c.Request.Context(), ns); err != nil {
+			agentActionsTotal.WithLabelValues("create", "error").Inc()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ensure namespace: " + err.Error()})
+			return
 		}
 
 		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, connectors, req.Lifecycle, req.OfficeManager, req.Priority, req.PodSpec, req.Storage, req.Labels)

@@ -22,7 +22,7 @@ import { Rocket, Code2, Boxes, Users, Plug, FileText, BookOpen, BarChart3, Calen
 
 ```bash
 helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
-  --set anthropicApiKeySecret.name=anthropic-api-key \
+  --set anthropicKeySecret.name=anthropic-api-key \
   --namespace komputer-ai --create-namespace
 ```
 

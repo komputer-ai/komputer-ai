@@ -22,4 +22,9 @@ type SecretKeyRef struct {
 	Name string `json:"name"`
 	// Key within the Secret.
 	Key string `json:"key"`
+	// Namespace is the namespace of the source Secret. If empty, defaults
+	// to the operator's namespace (the namespace komputer-system was
+	// deployed into).
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 }

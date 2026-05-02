@@ -12,4 +12,4 @@ There are two kinds of templates:
 
 When an agent is created, it references a template by name (defaulting to `"default"`). The operator resolves the template — checking the agent's namespace first, then falling back to cluster scope — and uses it to build the pod.
 
-**Important:** The template must include the `ANTHROPIC_API_KEY` environment variable (typically via a Kubernetes Secret reference). Without it, agents cannot communicate with the Claude API and will fail to start. This is the one mandatory piece of configuration in every template.
+**Important:** Every template must set `spec.anthropicKeySecretRef` — a typed reference (`name`, `key`, optional `namespace`) pointing at the Secret holding your Anthropic API key. The operator mirrors that secret into the agent's namespace and injects `ANTHROPIC_API_KEY` into the pod automatically; you must **not** add `ANTHROPIC_API_KEY` to the template's `podSpec.env` yourself (the operator strips it if you do). When `namespace` is empty, the operator reads from the namespace komputer-ai was deployed into.

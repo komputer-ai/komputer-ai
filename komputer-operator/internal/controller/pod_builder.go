@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -359,4 +360,22 @@ func syncConnectorSecretShared(ctx context.Context, c client.Client, srcName, sr
 		}
 	}
 	return syncedName, nil
+}
+
+// stripEnvVar removes all entries with the given name from env and returns the
+// filtered slice. Logs at Info level if any entry was removed.
+func stripEnvVar(env []corev1.EnvVar, name string, log logr.Logger) []corev1.EnvVar {
+	filtered := env[:0:len(env)]
+	stripped := false
+	for _, e := range env {
+		if e.Name == name {
+			stripped = true
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	if stripped {
+		log.Info("Stripped user-supplied env var; operator will inject it from AnthropicKeySecretRef", "envVar", name)
+	}
+	return filtered
 }

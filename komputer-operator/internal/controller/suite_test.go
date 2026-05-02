@@ -96,8 +96,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = (&KomputerAgentReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		ControlNamespace: "default", // default namespace is the control ns in tests
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 

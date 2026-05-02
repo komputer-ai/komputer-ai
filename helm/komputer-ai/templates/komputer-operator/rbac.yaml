@@ -37,6 +37,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
@@ -45,7 +53,6 @@ rules:
   - create
   - update
   - patch
-  - update
 - apiGroups:
   - komputer.komputer.ai
   resources:

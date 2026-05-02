@@ -45,19 +45,19 @@ kind: KomputerAgentClusterTemplate
 metadata:
   name: custom
 spec:
+  anthropicKeySecretRef:
+    name: anthropic-api-key
+    key: api-key
+    # namespace: komputer-ai  # optional — defaults to the install namespace
   podSpec:
     containers:
       - name: agent
         image: my-custom-agent:latest
-        env:
-          - name: ANTHROPIC_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: anthropic-api-key
-                key: api-key
   storage:
     size: "10Gi"
 ```
+
+The `anthropicKeySecretRef` is required. The operator mirrors that Secret into every agent namespace and injects `ANTHROPIC_API_KEY` into the pod automatically — don't add it to `podSpec.env` yourself.
 
 Agents can reference this template with `templateRef: "custom"`.
 

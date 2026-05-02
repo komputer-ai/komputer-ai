@@ -10,4 +10,8 @@ spec:
     passwordSecret:
       name: "redis-secret"
       key: "password"
+      # Namespace where the source Secret lives. The operator mirrors it
+      # into every agent namespace from here. Defaults to the namespace
+      # the operator runs in when omitted.
+      namespace: "default"
   apiURL: "http://localhost:8080"

@@ -23,12 +23,6 @@ spec:
         value: "1"
       - name: AWS_REGION
         value: {{ .Values.bedrock.region | quote }}
-      {{- else }}
-      - name: ANTHROPIC_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: {{ .Values.anthropicApiKeySecret.name }}
-            key: {{ .Values.anthropicApiKeySecret.key }}
       {{- end }}
       {{- if .Values.metrics.perAgentLabels }}
       - name: KOMPUTER_METRICS_PER_AGENT
@@ -53,3 +47,11 @@ spec:
         {{- toYaml .Values.clusterTemplate.resources | nindent 8 }}
   storage:
     size: {{ .Values.clusterTemplate.storageSize }}
+  {{- if not .Values.bedrock.enabled }}
+  anthropicKeySecretRef:
+    name: {{ .Values.anthropicKeySecret.name }}
+    key: {{ .Values.anthropicKeySecret.key }}
+    {{- if .Values.anthropicKeySecret.namespace }}
+    namespace: {{ .Values.anthropicKeySecret.namespace }}
+    {{- end }}
+  {{- end }}

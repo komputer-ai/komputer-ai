@@ -45,8 +45,12 @@ spec:
         {{- if .Values.webhooks.enabled }}
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         {{- end }}
-        {{- if not .Values.webhooks.enabled }}
         env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- if not .Values.webhooks.enabled }}
         - name: DISABLE_WEBHOOKS
           value: "true"
         {{- end }}
