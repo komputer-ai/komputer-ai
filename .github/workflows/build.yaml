@@ -28,6 +28,7 @@ jobs:
       cli: ${{ steps.filter.outputs.cli }}
       helm: ${{ steps.filter.outputs.helm }}
       sdk: ${{ steps.filter.outputs.sdk }}
+      docs: ${{ steps.filter.outputs.docs }}
       is_tag: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +51,9 @@ jobs:
               - 'helm/**'
             sdk:
               - 'komputer-sdk/**'
+            docs:
+              - 'docs/**'
+              - 'docs-site/**'
 
   operator:
     name: Build Operator
@@ -325,6 +329,19 @@ jobs:
     secrets: inherit
     with:
       is_tag: ${{ needs.changes.outputs.is_tag }}
+
+  docs-site:
+    name: Docs Site
+    needs: [changes]
+    # Only deploy from main pushes — PRs run no checks here, tags are
+    # release artifacts handled separately.
+    if: needs.changes.outputs.docs == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/docs-site.yaml
+    secrets: inherit
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
   publish-sdk-python:
     name: Publish Python SDK

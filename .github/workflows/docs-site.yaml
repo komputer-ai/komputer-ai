@@ -1,12 +1,7 @@
-name: Deploy docs site
+name: Docs Site — Build & Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs-site/**'
-      - 'docs/**'
-      - '.github/workflows/docs-site.yaml'
+  workflow_call: {}
   workflow_dispatch:
 
 permissions:
