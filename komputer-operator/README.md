@@ -234,8 +234,7 @@ komputer-operator/
 │   ├── komputeragent_types.go
 │   ├── komputeragenttemplate_types.go
 │   ├── komputeragentclustertemplate_types.go
-│   ├── komputerconfig_types.go
-│   └── komputerredisconfig_types.go  # Legacy, kept for migration
+│   └── komputerconfig_types.go
 ├── internal/controller/
 │   ├── komputeragent_controller.go      # Reconciliation logic
 │   └── komputeragent_controller_test.go # Integration tests
