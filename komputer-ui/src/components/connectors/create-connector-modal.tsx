@@ -352,7 +352,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.2, delay: 0.15 + i * 0.06 }}
                           >
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold shrink-0 mt-0.5" style={{ backgroundColor: `${selectedTemplate.color}20`, color: selectedTemplate.color }}>
+                            <span className="flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold shrink-0 mt-0.5 bg-[var(--color-surface-hover)] text-[var(--color-text)] border border-[var(--color-border)]">
                               {i + 1}
                             </span>
                             <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed pt-0.5">{linkify(guideStep)}</p>
