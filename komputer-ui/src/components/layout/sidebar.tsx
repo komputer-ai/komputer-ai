@@ -24,21 +24,40 @@ import {
 } from "lucide-react";
 import { TooltipProvider } from "@/components/kit/tooltip";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Agents", icon: Bot, href: "/agents" },
-  { label: "Memories", icon: Brain, href: "/memories" },
-  { label: "Skills", icon: Wand2, href: "/skills" },
-  { label: "Secrets", icon: KeyRound, href: "/secrets" },
-  { label: "Connectors", icon: Plug, href: "/connectors" },
-  { label: "Offices", icon: Building2, href: "/offices" },
-  { label: "Squads", icon: Users, href: "/squads" },
-  { label: "Schedules", icon: Clock, href: "/schedules" },
-  { label: "Topology", icon: Network, href: "/topology" },
-  { label: "Cost", icon: DollarSign, href: "/costs" },
+type NavItemDef = { label: string; icon: typeof LayoutDashboard; href: string };
+type NavSection = { title: string | null; items: NavItemDef[] };
+
+const navSections: NavSection[] = [
+  {
+    title: null,
+    items: [{ label: "Dashboard", icon: LayoutDashboard, href: "/" }],
+  },
+  {
+    title: "Core",
+    items: [
+      { label: "Agents", icon: Bot, href: "/agents" },
+      { label: "Memories", icon: Brain, href: "/memories" },
+      { label: "Skills", icon: Wand2, href: "/skills" },
+      { label: "Secrets", icon: KeyRound, href: "/secrets" },
+      { label: "Connectors", icon: Plug, href: "/connectors" },
+    ],
+  },
+  {
+    title: "Orchestration",
+    items: [
+      { label: "Offices", icon: Building2, href: "/offices" },
+      { label: "Squads", icon: Users, href: "/squads" },
+      { label: "Schedules", icon: Clock, href: "/schedules" },
+      { label: "Topology", icon: Network, href: "/topology" },
+    ],
+  },
+  {
+    title: "System",
+    items: [{ label: "Cost", icon: DollarSign, href: "/costs" }],
+  },
 ];
 
-const bottomItems: typeof navItems = [
+const bottomItems: NavItemDef[] = [
   // { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
@@ -47,7 +66,7 @@ function NavItem({
   isActive,
   collapsed,
 }: {
-  item: (typeof navItems)[0];
+  item: NavItemDef;
   isActive: boolean;
   collapsed: boolean;
 }) {
@@ -197,19 +216,37 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Main nav */}
+        {/* Main nav — grouped into Core / Orchestration / System sections.
+            Section headers hide when the sidebar is collapsed (icons only). */}
         <nav className="flex-1 flex flex-col gap-0.5 px-2 py-3 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.href}
-              item={item}
-              isActive={
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(item.href)
-              }
-              collapsed={collapsed}
-            />
+          {navSections.map((section, sectionIdx) => (
+            <div key={section.title ?? `__top-${sectionIdx}`} className="flex flex-col gap-0.5">
+              {section.title && !collapsed && (
+                <>
+                  {sectionIdx > 0 && (
+                    <div className="mx-3 mt-2 border-t border-[var(--color-border)]/50" />
+                  )}
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    {section.title}
+                  </div>
+                </>
+              )}
+              {section.title && collapsed && sectionIdx > 0 && (
+                <div className="my-2 mx-3 border-t border-[var(--color-border)]/50" />
+              )}
+              {section.items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  item={item}
+                  isActive={
+                    item.href === "/"
+                      ? pathname === "/"
+                      : pathname.startsWith(item.href)
+                  }
+                  collapsed={collapsed}
+                />
+              ))}
+            </div>
           ))}
         </nav>
 
