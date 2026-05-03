@@ -806,6 +806,23 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
 			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 		}
+		// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef.
+		// The mirror exists in the squad pod's namespace, so the secretKeyRef
+		// resolves locally. Mirrors are reconciled the same way solo agents do.
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "ANTHROPIC_API_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: template.Spec.AnthropicKeySecretRef.Name,
+					},
+					Key: template.Spec.AnthropicKeySecretRef.Key,
+				},
+			},
+		})
+		// Strip any user-supplied ANTHROPIC_API_KEY from the template before
+		// merging so the operator-injected entry above always wins.
+		c.Env = stripEnvVar(c.Env, "ANTHROPIC_API_KEY", logf.FromContext(ctx))
 		c.Env = mergeEnvVars(c.Env, envVars)
 
 		// Declare the per-member containerPort. Name must be unique across the

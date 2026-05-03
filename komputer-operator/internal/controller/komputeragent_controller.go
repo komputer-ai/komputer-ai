@@ -100,10 +100,22 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	// Skip agents owned by a squad — the squad controller is responsible for their lifecycle.
-	// Defensive: if Status.Squad=true but no parent squad exists (e.g. squad was deleted while
-	// the operator was down and finalizer cleanup didn't run), reclaim the agent as solo so it
-	// doesn't sit orphaned forever.
+	// Squad-managed agents: the squad controller owns their pod lifecycle.
+	// We use the `komputer.ai/squad` label as the race-free signal — it is
+	// written atomically when the squad controller Creates the agent CR, so
+	// the agent controller sees it on its very first reconcile and never
+	// builds a competing solo pod. Status.Squad is a derived field; checking
+	// it alone would race because Status updates require a separate
+	// subresource call after Create.
+	if agent.Labels["komputer.ai/squad"] != "" {
+		return ctrl.Result{}, nil
+	}
+
+	// Defensive fallback: if Status.Squad=true but no parent squad exists
+	// (e.g. squad was deleted while the operator was down and finalizer
+	// cleanup didn't run), reclaim the agent as solo so it doesn't sit
+	// orphaned forever. This path is unreachable under the new label guard
+	// above for healthy squads, but stays in place as a recovery net.
 	if agent.Status.Squad {
 		squadList := &komputerv1alpha1.KomputerSquadList{}
 		if listErr := r.List(ctx, squadList, client.InNamespace(agent.Namespace)); listErr == nil {
