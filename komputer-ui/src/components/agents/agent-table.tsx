@@ -54,7 +54,7 @@ export function AgentTable({ agents, onDelete }: AgentTableProps) {
         <AnimatePresence initial={false}>
           {agents.map((agent, i) => (
             <motion.tr
-              key={agent.name}
+              key={`${agent.namespace}/${agent.name}`}
               className="border-b transition-colors hover:bg-muted/50"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}

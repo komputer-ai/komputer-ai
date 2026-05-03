@@ -524,7 +524,7 @@ export default function DashboardPage() {
                 const color = statusColors[agent.status] ?? "#8899A6";
                 return (
                   <motion.div
-                    key={agent.name}
+                    key={`${agent.namespace}/${agent.name}`}
                     initial={{ opacity: 0, scale: 0.97 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.2, delay: 0.25 + i * 0.03 }}
@@ -586,7 +586,7 @@ export default function DashboardPage() {
               <div className="space-y-1.5 max-h-36 overflow-y-auto">
                 {runningTasks.map((agent) => (
                   <Link
-                    key={agent.name}
+                    key={`${agent.namespace}/${agent.name}`}
                     href={`/agents/${agent.name}?namespace=${agent.namespace}`}
                     className="flex items-start gap-2.5 rounded-md bg-[var(--color-bg)] p-2 transition-colors hover:bg-[var(--color-bg-subtle)] group"
                   >
@@ -639,7 +639,7 @@ export default function DashboardPage() {
 
                   return (
                     <Link
-                      key={agent.name}
+                      key={`${agent.namespace}/${agent.name}`}
                       href={`/agents/${agent.name}?namespace=${agent.namespace}`}
                       className="flex items-center gap-2.5 rounded-md bg-[var(--color-bg)] p-2 transition-colors hover:bg-[var(--color-bg-subtle)] group"
                     >

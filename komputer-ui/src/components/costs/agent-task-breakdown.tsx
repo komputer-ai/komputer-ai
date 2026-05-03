@@ -74,19 +74,21 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
     }
   };
 
-  const sortedTasks = breakdown
-    ? [...breakdown.tasks].sort((a, b) => {
+  // The API may return `tasks: null` when the agent has no tasks yet, even
+  // though the response type says it's a non-nullable array. Defensive-default
+  // to an empty array so sort/reduce don't throw.
+  const tasks = breakdown?.tasks ?? [];
+  const sortedTasks = tasks.length
+    ? [...tasks].sort((a, b) => {
         const cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
         return sortDir === "asc" ? cmp : -cmp;
       })
     : [];
 
-  const mostExpensiveTask = breakdown
-    ? breakdown.tasks.reduce<TaskBreakdown | null>(
-        (best, t) => (!best || t.costUSD > best.costUSD ? t : best),
-        null
-      )
-    : null;
+  const mostExpensiveTask = tasks.reduce<TaskBreakdown | null>(
+    (best, t) => (!best || t.costUSD > best.costUSD ? t : best),
+    null,
+  );
 
   return (
     <Card className="border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -140,7 +142,7 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
           </p>
         ) : error ? (
           <p className="py-8 text-center text-sm text-red-400">{error}</p>
-        ) : breakdown && breakdown.tasks.length === 0 ? (
+        ) : breakdown && tasks.length === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
             No completed tasks found for this agent.
           </p>

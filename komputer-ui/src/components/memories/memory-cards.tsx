@@ -19,7 +19,7 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
       <AnimatePresence>
         {memories.map((memory, i) => (
           <motion.div
-            key={memory.name}
+            key={`${memory.namespace}/${memory.name}`}
             initial={{ opacity: 0, y: 12, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}
