@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThemeToggle } from "./theme-toggle";
 import {
   LayoutDashboard,
   Bot,
@@ -204,8 +205,9 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Bottom: settings + expand button (when collapsed) */}
+        {/* Bottom: theme toggle + settings + expand button (when collapsed) */}
         <div className="border-t border-[var(--color-border)] px-2 py-2 flex flex-col gap-0.5">
+          <ThemeToggle collapsed={collapsed} />
           {bottomItems.map((item) => (
             <NavItem
               key={item.href}

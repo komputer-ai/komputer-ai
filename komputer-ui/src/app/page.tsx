@@ -77,7 +77,7 @@ function StatCard({
       transition={{ duration: 0.3, delay }}
       className="cursor-pointer"
     >
-      <Card className="bg-[var(--color-surface)] border-[var(--color-border)] ring-0 hover:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_var(--color-border-light)] hover:border-[var(--color-border-hover)]">
+      <Card className="bg-[var(--color-surface)] border-[var(--color-border)] ring-0 hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)] hover:border-[var(--color-border-hover)]">
         <CardContent className="flex items-center gap-4 py-4">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconClassName ?? "bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)]"}`}
@@ -212,7 +212,7 @@ export default function DashboardPage() {
           }}
         >
           <h1 className="text-xl font-semibold text-[var(--color-text)]">
-            Welcome to <span className="bg-gradient-to-r from-[#9ca3af] via-[#ffffff] to-[#9ca3af] bg-clip-text text-transparent animate-shine">Komputer.AI</span>
+            Welcome to <span className="bg-gradient-to-r from-[var(--color-text-secondary)] via-[var(--color-text)] to-[var(--color-text-secondary)] bg-clip-text text-transparent animate-shine">Komputer.AI</span>
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
             Your AI agent fleet management at scale.
@@ -324,9 +324,7 @@ export default function DashboardPage() {
                   >
                     <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block group">
                       <div
-                        className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)]"
-                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 0 12px rgba(255,255,255,0.06), 0 0 24px rgba(255,255,255,0.03)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+                        className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)]"
                       >
                         <span className="absolute top-2.5 right-2.5 block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                         <div className="h-full flex flex-col p-3">

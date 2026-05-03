@@ -88,7 +88,7 @@ function AgentNodeComponent({ data }: NodeProps) {
 
   return (
     <div
-      className={`relative cursor-pointer rounded-lg border px-4 py-3 shadow-md transition-shadow hover:shadow-lg ${
+      className={`relative cursor-pointer rounded-lg border px-4 py-3 transition-shadow hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)] ${
         isDeleted
           ? "border-red-400/30 bg-red-400/5 opacity-60"
           : "border-[var(--color-border)] bg-[var(--color-surface)]"
@@ -117,7 +117,7 @@ function AgentNodeComponent({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} className={hasOutgoing ? handleVisible : handleHidden} />
 
       {hovered && !isDeleted && (
-        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.4)] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
+        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(var(--shadow-color),var(--shadow-strength))] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
           <TooltipHeader
             icon={<span className={`inline-block h-2.5 w-2.5 rounded-full ${statusDotClass(status)}`} />}
             title={label}
@@ -161,7 +161,7 @@ function OfficeNodeComponent({ data }: NodeProps) {
 
   return (
     <div
-      className="relative cursor-pointer rounded-lg border border-[var(--color-border)] bg-[#1e2d3d] px-5 py-3.5 shadow-md transition-shadow hover:shadow-lg"
+      className="relative cursor-pointer rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-5 py-3.5 transition-shadow hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)]"
       style={{ width: nodeWidth || 220 }}
       data-hovered={hovered || undefined}
       onClick={() => router.push(`/offices/${label}`)}
@@ -187,7 +187,7 @@ function OfficeNodeComponent({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} className={hasOutgoing ? handleVisible : handleHidden} />
 
       {hovered && (
-        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.4)] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
+        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(var(--shadow-color),var(--shadow-strength))] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
           <TooltipHeader
             icon={<Building2 className="h-3.5 w-3.5 text-[var(--color-brand-blue)]" />}
             title={label}
@@ -256,7 +256,7 @@ function ScheduleNodeComponent({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} className={hasOutgoing ? handleVisible : handleHidden} />
 
       {hovered && (
-        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.4)] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
+        <div className="absolute left-full top-0 ml-3 z-50 min-w-52 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-[0_8px_32px_rgba(var(--shadow-color),var(--shadow-strength))] pointer-events-none animate-[tooltipIn_0.15s_ease-out]">
           <TooltipHeader
             icon={<Clock className="h-3.5 w-3.5 text-cyan-400" />}
             title={label}

@@ -424,7 +424,7 @@ export function PersonalAgentPrompt({ onSessionActiveChange }: PersonalAgentProm
             }}
             placeholder={session !== null ? "Enter another prompt for the agent..." : placeholder}
             rows={2}
-            className={`w-full resize-none min-h-[3.25rem] max-h-[7rem] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.15)] transition-[border-color,background-color,box-shadow,height] duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)] focus:border-[var(--color-brand-blue)]/60 focus:bg-[var(--color-surface)] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.15),0_0_0_3px_rgba(63,133,217,0.15)] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed${blurInToken > 0 ? " animate-text-blur-in" : ""}`}
+            className={`w-full resize-none min-h-[3.25rem] max-h-[7rem] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_rgba(var(--shadow-inset-color),0.15)] transition-[border-color,background-color,box-shadow,height] duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)] focus:border-[var(--color-brand-blue)]/60 focus:bg-[var(--color-surface)] focus:shadow-[inset_0_1px_2px_rgba(var(--shadow-inset-color),0.15),0_0_0_3px_var(--color-brand-blue-glow)] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed${blurInToken > 0 ? " animate-text-blur-in" : ""}`}
             disabled={submitting}
           />
           <Button

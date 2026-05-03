@@ -241,7 +241,7 @@ export function FloatingBubbles({ session, onFirstResponse, onTaskComplete, onCl
     // bubbles cap their own height with internal scroll instead.
     <div
       ref={wrapperRef}
-      className="pointer-events-none absolute left-0 right-0 top-full z-30 mt-4 flex flex-col items-center gap-2"
+      className="pointer-events-none absolute left-0 right-0 top-full z-30 mt-12 flex flex-col items-center gap-2"
     >
       {/* Status bubble — thinking, then "Done ✓" with a one-shot glow pump.
           Wrapped in AnimatePresence so it gets a clean blur-slide-out when
@@ -300,7 +300,7 @@ export function FloatingBubbles({ session, onFirstResponse, onTaskComplete, onCl
                 handleClick();
               }
             }}
-            className="pointer-events-auto group relative flex w-fit max-w-[min(100%,40rem)] cursor-pointer items-start gap-2 rounded-2xl border border-[var(--color-border)]/60 bg-[var(--color-surface)]/40 px-3.5 py-2 text-left text-sm text-[var(--color-text)] shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-md transition-colors hover:border-[var(--color-brand-blue)]/50 hover:bg-[var(--color-surface)]/60"
+            className="pointer-events-auto group relative flex w-fit max-w-[min(100%,40rem)] cursor-pointer items-start gap-2 rounded-2xl border border-[var(--color-border)]/60 bg-[var(--color-surface)]/40 px-3.5 py-2 text-left text-sm text-[var(--color-text)] shadow-[0_4px_24px_rgba(var(--shadow-color),var(--shadow-strength))] backdrop-blur-md transition-colors hover:border-[var(--color-brand-blue)]/50 hover:bg-[var(--color-surface)]/60"
           >
             <BubbleIcon kind={b.kind} />
             <BubbleBody
@@ -326,7 +326,7 @@ export function FloatingBubbles({ session, onFirstResponse, onTaskComplete, onCl
               e.stopPropagation();
               handleClearLocal();
             }}
-            className="pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)]/40 px-2.5 py-0.5 text-[11px] text-[var(--color-text-secondary)] shadow-[0_4px_16px_rgba(0,0,0,0.3)] backdrop-blur-md transition-colors hover:border-red-400/50 hover:text-red-300"
+            className="pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)]/60 bg-[var(--color-surface)]/40 px-2.5 py-0.5 text-[11px] text-[var(--color-text-secondary)] shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength))] backdrop-blur-md transition-colors hover:border-red-400/50 hover:text-red-300"
           >
             <X className="size-3" />
             Clear
@@ -359,7 +359,7 @@ function ToolActionsChip({ actions }: { actions: ToolAction[] }) {
     >
       <button
         type="button"
-        className="relative flex size-5 items-center justify-center overflow-hidden rounded-full border border-white/70 bg-[var(--color-surface-raised)] text-white shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition-colors hover:border-white"
+        className="relative flex size-5 items-center justify-center overflow-hidden rounded-full border border-[var(--color-border-hover)] bg-[var(--color-surface-raised)] text-[var(--color-text)] shadow-[0_2px_8px_rgba(var(--shadow-color),var(--shadow-strength))] transition-colors hover:border-[var(--color-text)]"
         aria-label={`${actions.length} action${actions.length === 1 ? "" : "s"}`}
       >
         <AnimatePresence mode="popLayout" initial={false}>
@@ -370,7 +370,7 @@ function ToolActionsChip({ actions }: { actions: ToolAction[] }) {
             exit={{ y: -6, opacity: 0, filter: "blur(3px)" }}
             transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
             style={{ fontVariantNumeric: "tabular-nums" }}
-            className="text-[10px] font-semibold leading-none text-white"
+            className="text-[10px] font-semibold leading-none text-[var(--color-text)]"
           >
             {actions.length}
           </motion.span>
@@ -383,7 +383,7 @@ function ToolActionsChip({ actions }: { actions: ToolAction[] }) {
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, x: -4, filter: "blur(4px)" }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute bottom-1/2 left-1/2 ml-2 mb-2 w-72 rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-surface-raised)] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            className="absolute bottom-1/2 left-1/2 ml-2 mb-2 w-72 rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-surface-raised)] p-2 shadow-[0_8px_32px_rgba(var(--shadow-color),var(--shadow-strength))]"
             role="tooltip"
           >
             <div className="px-2 pb-1.5 pt-0.5 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -506,7 +506,7 @@ function StatusBubble({ done, onClick }: { done: boolean; onClick: () => void })
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.28, ease: "easeOut" }}
       onClick={onClick}
-      className={`pointer-events-auto inline-flex cursor-pointer items-center gap-2 rounded-full border bg-[var(--color-surface-raised)] px-3 py-1 text-xs text-[var(--color-text-secondary)] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-colors hover:text-[var(--color-text)] ${
+      className={`pointer-events-auto inline-flex cursor-pointer items-center gap-2 rounded-full border bg-[var(--color-surface-raised)] px-3 py-1 text-xs text-[var(--color-text-secondary)] shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength))] transition-colors hover:text-[var(--color-text)] ${
         done
           ? "border-emerald-400/60 hover:border-emerald-300"
           : "border-[var(--color-border)] hover:border-[var(--color-brand-blue)]/50"

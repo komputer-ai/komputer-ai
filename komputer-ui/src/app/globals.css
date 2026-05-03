@@ -39,6 +39,15 @@
   --color-status-success: #34D399;
   --color-status-error: #F87171;
 
+  /*
+   * Outer shadow. On dark surfaces a black drop-shadow is invisible — we use
+   * a soft white outer glow instead. Light theme flips to a black drop-shadow.
+   */
+  --shadow-color: 255, 255, 255;
+  --shadow-strength: 0.06;
+  /* Inset / depth shadow — always darker than the surface, regardless of theme. */
+  --shadow-inset-color: 0, 0, 0;
+
   /* Radii — slightly less round, more industrial */
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -47,9 +56,51 @@
   --radius-full: 9999px;
 }
 
+/*
+ * Light theme — opt-in via <html data-theme="light">.
+ * Overrides only the dark defaults above; everything else inherits.
+ * POC scope: dashboard page. Other pages will look weird; that is expected.
+ */
+:root[data-theme="light"] {
+  --color-brand-blue: #2d6cb8;
+  --color-brand-blue-light: #3f85d9;
+  --color-brand-blue-glow: rgba(45, 108, 184, 0.12);
+  --color-brand-blue-intense: rgba(45, 108, 184, 0.25);
+
+  --color-brand-violet: #6d3fc4;
+  --color-brand-violet-light: #8B5CF6;
+  --color-brand-violet-glow: rgba(109, 63, 196, 0.10);
+  --color-brand-violet-intense: rgba(109, 63, 196, 0.25);
+  --color-brand-violet-subtle: rgba(109, 63, 196, 0.06);
+
+  --color-bg: #fafaf7;
+  --color-bg-subtle: #f3f3ef;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f3f3ef;
+  --color-surface-raised: #ffffff;
+  --color-border: #e2e2dc;
+  --color-border-hover: #c8c8c0;
+  --color-border-light: rgba(0, 0, 0, 0.04);
+
+  --color-text: #1a1a24;
+  --color-text-secondary: #5a5a70;
+  --color-text-muted: #8a8a9c;
+
+  --color-status-running: #059669;
+  --color-status-pending: #d97706;
+  --color-status-sleeping: #d97706;
+  --color-status-success: #059669;
+  --color-status-error: #dc2626;
+
+  /* Outer drop-shadow on light surfaces: neutral hue, soft. */
+  --shadow-color: 0, 0, 0;
+  --shadow-strength: 0.08;
+  --shadow-inset-color: 0, 0, 0;
+}
+
 @layer base {
   body {
-    background: radial-gradient(ellipse 80% 60% at 70% 20%, rgba(139, 92, 246, 0.04), transparent 70%) var(--color-bg);
+    background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;

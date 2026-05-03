@@ -450,7 +450,7 @@ export default function AgentDetailPage() {
                     size="sm"
                     onClick={() => setViewAndUrl(view === "settings" ? "chat" : "settings")}
                     aria-label={view === "settings" ? "Back to chat" : "Settings"}
-                    className="!px-0 w-7 !bg-white !text-[var(--color-bg)] hover:!bg-white/90 border-white/20"
+                    className="!px-0 w-7 !bg-[var(--color-text)] !text-[var(--color-bg)] hover:!bg-[var(--color-text)]/90 border-[var(--color-text)]/20"
                   >
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.span

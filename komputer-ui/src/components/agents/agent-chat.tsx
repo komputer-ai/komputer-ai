@@ -256,10 +256,13 @@ function TokenBadge({ usage }: { usage?: TokenUsage }) {
 function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; contextWindow: number }) {
   if (inputTokens == null || inputTokens === 0) return null;
   const pct = Math.min((inputTokens / contextWindow) * 100, 100);
+  // Hold the bar to the dark-theme palette in both modes — the brand blue
+  // here doubles as a fill on the muted track and stays legible without
+  // re-tuning per theme.
   const color =
-    pct >= 90 ? "var(--color-status-error)" :
-    pct >= 70 ? "var(--color-status-pending)" :
-    "var(--color-brand-blue)";
+    pct >= 90 ? "#F87171" :
+    pct >= 70 ? "#FBBF24" :
+    "#3f85d9";
   return (
     <div className="group relative h-[12px] cursor-default">
       {/* Bar sits 8px above the border edge */}
@@ -270,10 +273,10 @@ function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; cont
         />
       </div>
       <div className="pointer-events-none absolute bottom-full left-1/2 mb-4 -translate-x-1/2 z-20 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] text-[var(--color-text-secondary)] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
-        <span className="text-white">Context window</span>
+        <span className="text-[var(--color-text)]">Context window</span>
         {" · "}
         <span className="font-mono tabular-nums" style={{ color }}>{formatTokenCount(inputTokens)}</span>
-        <span className="text-white"> / {formatTokenCount(contextWindow)} tokens</span>
+        <span className="text-[var(--color-text)]"> / {formatTokenCount(contextWindow)} tokens</span>
       </div>
     </div>
   );
@@ -1273,7 +1276,7 @@ export function AgentChat({
             type="button"
             onClick={handleSend}
             disabled={!input.trim()}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-blue)] text-white transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#3f85d9] text-white transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ArrowUp className="size-4" />
           </button>
