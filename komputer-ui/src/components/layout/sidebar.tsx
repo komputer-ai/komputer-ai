@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -150,6 +150,14 @@ function CollapseButton({ collapsed, onClick }: { collapsed: boolean; onClick: (
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+
+  // Publish the sidebar width as a CSS variable on <html> so portaled
+  // overlays (dialogs) can offset their centering frame and visually align
+  // with the content area instead of the full viewport.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.style.setProperty("--sidebar-width", collapsed ? "56px" : "210px");
+  }, [collapsed]);
 
   return (
     <TooltipProvider>

@@ -12,6 +12,7 @@ import {
 } from "@/components/kit/dialog";
 import { formatRelativeTime } from "@/lib/utils";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
+import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import { getConnectorTools } from "@/lib/api";
 import type { ConnectorResponse } from "@/lib/types";
 
@@ -63,7 +64,7 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
           <DialogTitle className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0">
               {tpl && tpl.logoUrl
-                ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-5 h-5" />
+                ? <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="w-5 h-5" />
                 : <Plug className="w-4 h-4" style={{ color }} />
               }
             </div>

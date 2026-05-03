@@ -35,7 +35,11 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => onOpenChange(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ paddingLeft: "var(--sidebar-width, 0px)" }}
+          onClick={() => onOpenChange(false)}
+        >
           {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md"
@@ -44,9 +48,15 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           />
-          {/* Panel */}
+          {/*
+            Panel — sizes to its child's max-width so dialogs center properly
+            against the content area regardless of how narrow each one is. We
+            still cap at min(100%, 64rem) so very wide DialogContents still fit
+            inside the viewport. Margin guarantees a small breathing gap from
+            the screen edges on small viewports.
+          */}
           <motion.div
-            className="relative z-10 w-full max-w-[min(100%,64rem)] mx-4 flex flex-col items-stretch"
+            className="relative z-10 max-w-[min(100%,64rem)] mx-4 flex flex-col items-stretch"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}

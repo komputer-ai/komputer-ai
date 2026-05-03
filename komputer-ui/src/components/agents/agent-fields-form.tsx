@@ -15,6 +15,8 @@ import {
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import { ChevronRight, Plus } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
+import { ConnectorLogo } from "@/components/connectors/connector-logo";
+import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import type { TemplateResponse } from "@/lib/types";
@@ -94,10 +96,12 @@ export function AgentFieldsForm({
   const advancedRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { getByService: getConnectorTemplate } = useConnectorTemplates();
+
   const [templates, setTemplates] = useState<TemplateResponse[]>([]);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
-  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string }[]>([]);
+  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string; service: string }[]>([]);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [createSecretOpen, setCreateSecretOpen] = useState(false);
 
@@ -130,6 +134,7 @@ export function AgentFieldsForm({
         name: c.name,
         namespace: c.namespace,
         ref: c.namespace === (namespace || "default") ? c.name : `${c.namespace}/${c.name}`,
+        service: c.service,
       }))))
       .catch(() => setAvailableConnectors([]));
   }, [active, namespace, showAllSecrets]);
@@ -343,12 +348,18 @@ export function AgentFieldsForm({
                   <div className="flex flex-col gap-1.5">
                     <Label>Connectors</Label>
                     <MultiSelect
-                      options={availableConnectors.map<MultiSelectOption>((c) => ({
-                        value: c.ref,
-                        label: c.name,
-                        secondary: c.ref.includes("/") ? c.namespace : null,
-                        searchTerms: [c.namespace, c.ref],
-                      }))}
+                      options={availableConnectors.map<MultiSelectOption>((c) => {
+                        const tpl = getConnectorTemplate(c.service);
+                        return {
+                          value: c.ref,
+                          label: c.name,
+                          secondary: c.ref.includes("/") ? c.namespace : null,
+                          searchTerms: [c.namespace, c.ref, c.service],
+                          icon: tpl?.logoUrl ? (
+                            <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="h-4 w-4" />
+                          ) : undefined,
+                        };
+                      })}
                       value={values.selectedConnectors}
                       onChange={(next) => patch("selectedConnectors", next)}
                       placeholder="Select connectors..."

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Plug } from "lucide-react";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
+import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import type { ConnectorTemplate } from "@/lib/types";
 
 type ServiceTemplateGridProps = {
@@ -31,7 +32,7 @@ export function ServiceTemplateGrid({ onSelect }: ServiceTemplateGridProps) {
         >
           <div className="flex items-center justify-center w-12 h-12 rounded-xl transition-transform duration-200 group-hover:scale-110">
             {tpl.logoUrl
-              ? <img src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
+              ? <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
               : <Plug className="w-7 h-7 text-[var(--color-text-muted)]" />
             }
           </div>

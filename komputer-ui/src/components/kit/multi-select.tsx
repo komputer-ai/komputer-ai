@@ -22,6 +22,8 @@ export interface MultiSelectOption {
   secondary?: string | null;
   /** Optional terms added to the search index (e.g. namespace, full ref) */
   searchTerms?: string[];
+  /** Optional leading icon rendered in the dropdown row (e.g. provider logo) */
+  icon?: React.ReactNode;
 }
 
 export interface MultiSelectProps {
@@ -271,6 +273,11 @@ export function MultiSelect({
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <span className="flex items-center gap-2 min-w-0 flex-1">
+                        {opt.icon && (
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                            {opt.icon}
+                          </span>
+                        )}
                         <span className="truncate">{opt.label}</span>
                         {opt.secondary && (
                           <span className="text-[10px] text-[var(--color-brand-blue-light)] shrink-0">

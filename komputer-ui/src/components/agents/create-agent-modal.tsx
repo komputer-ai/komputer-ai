@@ -127,7 +127,7 @@ export function CreateAgentModal({ open, onOpenChange, onCreated, initialValues 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-5xl h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>Create Agent</DialogTitle>
           <DialogDescription>

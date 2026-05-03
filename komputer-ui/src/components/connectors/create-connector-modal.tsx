@@ -17,6 +17,7 @@ import { Label } from "@/components/kit/label";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { createConnector, createSecretResource, getOAuthAuthorizeUrl } from "@/lib/api";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
+import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import type { ConnectorTemplate } from "@/lib/types";
 import { ArrowLeft, Copy, Check, Plug } from "lucide-react";
 
@@ -289,7 +290,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                     <div className="flex items-center justify-center w-12 h-12 rounded-xl transition-transform duration-200 group-hover:scale-110">
                       {tpl.service === "custom"
                         ? <Plug className="w-7 h-7 text-[var(--color-text-secondary)]" />
-                        : <img src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
+                        : <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="w-7 h-7" />
                       }
                     </div>
                     <div>
@@ -322,7 +323,7 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                     </button>
                     {selectedTemplate && (isCustom
                       ? <Plug className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                      : <img src={selectedTemplate.logoUrl} alt={selectedTemplate.displayName} className="w-6 h-6" />
+                      : <ConnectorLogo src={selectedTemplate.logoUrl} alt={selectedTemplate.displayName} className="w-6 h-6" />
                     )}
                     {isCustom ? "Custom Connector" : `Connect ${selectedTemplate?.displayName}`}
                   </DialogTitle>
