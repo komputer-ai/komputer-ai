@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
@@ -10,13 +10,43 @@ import {
   DollarSign,
   Building2,
   CalendarClock,
+  Wrench,
+  Brain,
+  KeyRound,
+  Plug,
+  Users,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/kit/card";
-import { listAgents, listOffices, listSchedules } from "@/lib/api";
+import {
+  listAgents,
+  listOffices,
+  listSchedules,
+  listSkills,
+  listMemories,
+  listSecrets,
+  listConnectors,
+  listSquads,
+} from "@/lib/api";
 import { formatCost, formatRelativeTime } from "@/lib/utils";
-import type { AgentResponse, OfficeResponse, ScheduleResponse } from "@/lib/types";
+import type {
+  AgentResponse,
+  OfficeResponse,
+  ScheduleResponse,
+  SkillResponse,
+  MemoryResponse,
+  SecretResponse,
+  ConnectorResponse,
+  Squad,
+  SkillListResponse,
+  MemoryListResponse,
+  SecretListResponse,
+  ConnectorListResponse,
+  SquadListResponse,
+} from "@/lib/types";
 import { SuggestedTasks } from "@/components/dashboard/suggested-tasks";
 import { PersonalAgentPrompt } from "@/components/dashboard/personal-agent-prompt";
 
@@ -61,6 +91,7 @@ function StatCard({
   delay = 0,
   iconClassName,
   breakdown,
+  href,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -68,45 +99,137 @@ function StatCard({
   delay?: number;
   iconClassName?: string;
   breakdown?: { color: string; count: number; label: string }[];
+  href?: string;
 }) {
+  const inner = (
+    <Card className="bg-[var(--color-surface)] border-[var(--color-border)] ring-0 hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)] hover:border-[var(--color-border-hover)]">
+      <CardContent className="flex items-center gap-4 py-4">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconClassName ?? "bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)]"}`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-[var(--color-text-secondary)]">{label}</p>
+          <div className="flex items-baseline gap-3">
+            <p className="text-2xl font-semibold text-[var(--color-text)] tabular-nums">
+              <AnimatedNumber value={value} />
+            </p>
+            {breakdown && breakdown.some((b) => b.count > 0) && (
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                {breakdown.map((b) =>
+                  b.count > 0 ? (
+                    <span key={b.label} className="inline-flex items-center gap-1 text-xs text-[var(--color-text)]">
+                      <span className="size-1.5 rounded-full" style={{ backgroundColor: b.color }} />
+                      {b.count} {b.label}
+                    </span>
+                  ) : null
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       transition={{ duration: 0.3, delay }}
-      className="cursor-pointer"
+      className={`cursor-pointer w-[260px] shrink-0 ${href ? "" : ""}`}
     >
-      <Card className="bg-[var(--color-surface)] border-[var(--color-border)] ring-0 hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)] hover:border-[var(--color-border-hover)]">
-        <CardContent className="flex items-center gap-4 py-4">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconClassName ?? "bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)]"}`}
-          >
-            {icon}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-[var(--color-text-secondary)]">{label}</p>
-            <div className="flex items-baseline gap-3">
-              <p className="text-2xl font-semibold text-[var(--color-text)] tabular-nums">
-                <AnimatedNumber value={value} />
-              </p>
-              {breakdown && breakdown.some((b) => b.count > 0) && (
-                <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                  {breakdown.map((b) =>
-                    b.count > 0 ? (
-                      <span key={b.label} className="inline-flex items-center gap-1 text-xs text-[var(--color-text)]">
-                        <span className="size-1.5 rounded-full" style={{ backgroundColor: b.color }} />
-                        {b.count} {b.label}
-                      </span>
-                    ) : null
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {href ? <Link href={href}>{inner}</Link> : inner}
     </motion.div>
+  );
+}
+
+// --- Scrollable stats row ---
+
+function StatsScrollRow({ children }: { children: React.ReactNode }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    setShowLeft(el.scrollLeft > 4);
+    setShowRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    updateScrollState();
+    el.addEventListener("scroll", updateScrollState, { passive: true });
+    const ro = new ResizeObserver(updateScrollState);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateScrollState);
+      ro.disconnect();
+    };
+  }, [updateScrollState]);
+
+  const scrollBy = (direction: "left" | "right") => {
+    const el = rowRef.current;
+    if (!el) return;
+    const delta = direction === "right" ? 280 : -280;
+    const target = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + delta));
+    el.scrollTo({ left: target, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative min-w-0">
+      {/* Left fade + chevron */}
+      {showLeft && (
+        <>
+          <div
+            className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10"
+            style={{
+              background: "linear-gradient(to right, var(--color-bg), transparent)",
+            }}
+          />
+          <button
+            onClick={() => scrollBy("left")}
+            className="absolute left-1 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shadow-sm transition-colors"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+        </>
+      )}
+
+      {/* Right fade + chevron */}
+      {showRight && (
+        <>
+          <div
+            className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10"
+            style={{
+              background: "linear-gradient(to left, var(--color-bg), transparent)",
+            }}
+          />
+          <button
+            onClick={() => scrollBy("right")}
+            className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] shadow-sm transition-colors"
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+        </>
+      )}
+
+      <div
+        ref={rowRef}
+        className="flex gap-4 overflow-x-auto pb-1"
+        style={{ scrollbarWidth: "none" }}
+      >
+        <style>{`.stats-row::-webkit-scrollbar { display: none; }`}</style>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -116,6 +239,11 @@ export default function DashboardPage() {
   const [agents, setAgents] = useState<AgentResponse[]>([]);
   const [offices, setOffices] = useState<OfficeResponse[]>([]);
   const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
+  const [skills, setSkills] = useState<SkillResponse[]>([]);
+  const [memories, setMemories] = useState<MemoryResponse[]>([]);
+  const [secrets, setSecrets] = useState<SecretResponse[]>([]);
+  const [connectors, setConnectors] = useState<ConnectorResponse[]>([]);
+  const [squads, setSquads] = useState<Squad[]>([]);
   const [loading, setLoading] = useState(true);
   const showLoading = useDelayedLoading(loading);
   // True while the prompt bar has an active streaming session — used to
@@ -124,14 +252,25 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [agentsRes, officesRes, schedulesRes] = await Promise.all([
-        listAgents(),
-        listOffices(),
-        listSchedules(),
-      ]);
+      const [agentsRes, officesRes, schedulesRes, skillsRes, memoriesRes, secretsRes, connectorsRes, squadsRes] =
+        await Promise.all([
+          listAgents(),
+          listOffices(),
+          listSchedules(),
+          listSkills().catch(() => ({ skills: [] })),
+          listMemories().catch(() => ({ memories: [] })),
+          listSecrets().catch(() => ({ secrets: [] })),
+          listConnectors().catch(() => ({ connectors: [] })),
+          listSquads().catch(() => ({ squads: [] })),
+        ]);
       setAgents(agentsRes.agents ?? []);
       setOffices(officesRes.offices ?? []);
       setSchedules(schedulesRes.schedules ?? []);
+      setSkills((skillsRes as SkillListResponse).skills ?? []);
+      setMemories((memoriesRes as MemoryListResponse).memories ?? []);
+      setSecrets((secretsRes as SecretListResponse).secrets ?? []);
+      setConnectors((connectorsRes as ConnectorListResponse).connectors ?? []);
+      setSquads((squadsRes as SquadListResponse).squads ?? []);
     } catch {
       // silently fail
     } finally {
@@ -172,6 +311,21 @@ export default function DashboardPage() {
     Active: schedules.filter((s) => s.phase === "Active").length,
     Suspended: schedules.filter((s) => s.phase === "Suspended").length,
     Error: schedules.filter((s) => s.phase === "Error").length,
+  };
+
+  // Connector OAuth breakdown
+  const oauthConnectors = connectors.filter((c) => c.authType === "oauth" && c.oauthStatus);
+  const connectorsByOAuth = {
+    connected: oauthConnectors.filter((c) => c.oauthStatus === "connected").length,
+    pending: oauthConnectors.filter((c) => c.oauthStatus === "pending").length,
+  };
+
+  // Squad phase breakdown
+  const squadsByPhase = {
+    Running: squads.filter((s) => s.phase === "Running").length,
+    Pending: squads.filter((s) => s.phase === "Pending").length,
+    Orphaned: squads.filter((s) => s.phase === "Orphaned").length,
+    Failed: squads.filter((s) => s.phase === "Failed").length,
   };
 
   // Running tasks (agents with InProgress task)
@@ -235,13 +389,14 @@ export default function DashboardPage() {
           }}
         >
 
-        {/* Stats row */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats row — horizontally scrollable */}
+        <StatsScrollRow>
           <StatCard
             icon={<Bot className="size-5" />}
             label="Total Agents"
             value={agents.length}
             delay={0}
+            href="/agents"
             breakdown={[
               { color: "#34D399", count: agentsByStatus.Running, label: "Running" },
               { color: "#FBBF24", count: agentsByStatus.Sleeping, label: "Sleeping" },
@@ -254,14 +409,15 @@ export default function DashboardPage() {
             icon={<DollarSign className="size-5" />}
             label="Total Cost"
             value={totalCost}
-            delay={0.05}
+            delay={0.04}
             iconClassName="bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]"
           />
           <StatCard
             icon={<Building2 className="size-5" />}
             label="Offices"
             value={offices.length}
-            delay={0.1}
+            delay={0.08}
+            href="/offices"
             breakdown={[
               { color: "#34D399", count: officesByPhase.InProgress, label: "In Progress" },
               { color: "#34D399", count: officesByPhase.Complete, label: "Complete" },
@@ -272,7 +428,8 @@ export default function DashboardPage() {
             icon={<CalendarClock className="size-5" />}
             label="Schedules"
             value={schedules.length}
-            delay={0.15}
+            delay={0.12}
+            href="/schedules"
             iconClassName="bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]"
             breakdown={[
               { color: "#34D399", count: schedulesByPhase.Active, label: "Active" },
@@ -280,7 +437,54 @@ export default function DashboardPage() {
               { color: "#F87171", count: schedulesByPhase.Error, label: "Error" },
             ]}
           />
-        </div>
+          <StatCard
+            icon={<Wrench className="size-5" />}
+            label="Skills"
+            value={skills.length}
+            delay={0.16}
+            href="/skills"
+          />
+          <StatCard
+            icon={<Brain className="size-5" />}
+            label="Memories"
+            value={memories.length}
+            delay={0.20}
+            href="/memories"
+            iconClassName="bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]"
+          />
+          <StatCard
+            icon={<KeyRound className="size-5" />}
+            label="Secrets"
+            value={secrets.length}
+            delay={0.24}
+            href="/secrets"
+          />
+          <StatCard
+            icon={<Plug className="size-5" />}
+            label="Connectors"
+            value={connectors.length}
+            delay={0.28}
+            href="/connectors"
+            iconClassName="bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]"
+            breakdown={[
+              { color: "#34D399", count: connectorsByOAuth.connected, label: "Connected" },
+              { color: "#FBBF24", count: connectorsByOAuth.pending, label: "Pending" },
+            ]}
+          />
+          <StatCard
+            icon={<Users className="size-5" />}
+            label="Squads"
+            value={squads.length}
+            delay={0.32}
+            href="/squads"
+            breakdown={[
+              { color: "#34D399", count: squadsByPhase.Running, label: "Running" },
+              { color: "#FBBF24", count: squadsByPhase.Pending, label: "Pending" },
+              { color: "#F87171", count: squadsByPhase.Orphaned, label: "Orphaned" },
+              { color: "#F87171", count: squadsByPhase.Failed, label: "Failed" },
+            ]}
+          />
+        </StatsScrollRow>
 
         {/* Suggested Tasks (above when empty) */}
         {!loading && agents.length === 0 && <SuggestedTasks />}
