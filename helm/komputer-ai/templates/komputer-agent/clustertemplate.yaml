@@ -17,6 +17,7 @@ spec:
     - name: agent
       image: {{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}
       imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+      {{- if or .Values.bedrock.enabled .Values.metrics.perAgentLabels .Values.metrics.agent.remoteWrite.enabled }}
       env:
       {{- if .Values.bedrock.enabled }}
       - name: CLAUDE_CODE_USE_BEDROCK
@@ -41,6 +42,7 @@ spec:
           secretKeyRef:
             name: {{ .Values.metrics.agent.remoteWrite.bearerTokenSecret }}
             key: token
+      {{- end }}
       {{- end }}
       {{- end }}
       {{- with .Values.clusterTemplate.resources }}

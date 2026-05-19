@@ -115,6 +115,13 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 - Kubernetes cluster (Docker Desktop, kind, minikube, EKS, GKE, etc.)
 - `kubectl` configured
 - `helm` 3.x installed
+- [cert-manager](https://cert-manager.io/docs/installation/) installed in the cluster (required for the operator's admission webhook):
+  ```bash
+  helm repo add jetstack https://charts.jetstack.io --force-update
+  helm install cert-manager jetstack/cert-manager \
+    --namespace cert-manager --create-namespace \
+    --set crds.enabled=true
+  ```
 - An [Anthropic API key](https://console.anthropic.com/)
 
 ### 1. Create the Anthropic API key secret
