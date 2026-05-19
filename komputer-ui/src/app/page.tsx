@@ -413,6 +413,7 @@ export default function DashboardPage() {
             label="Total Cost"
             value={totalCost}
             delay={0.04}
+            href="/costs"
             iconClassName="bg-[var(--color-brand-violet)]/10 text-[var(--color-brand-violet)]"
           />
           <StatCard
