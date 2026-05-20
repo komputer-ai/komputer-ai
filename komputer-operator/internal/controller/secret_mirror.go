@@ -149,7 +149,7 @@ func reconcileAgentSecrets(
 		templateRef = "default"
 	}
 
-	var anthropicRef komputerv1alpha1.SecretKeyRef
+	var anthropicRef *komputerv1alpha1.SecretKeyRef
 	template := &komputerv1alpha1.KomputerAgentTemplate{}
 	if err := c.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: agent.Namespace}, template); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -165,14 +165,16 @@ func reconcileAgentSecrets(
 		anthropicRef = template.Spec.AnthropicKeySecretRef
 	}
 
-	// Resolve empty Namespace to controlNs.
-	if anthropicRef.Namespace == "" {
-		anthropicRef.Namespace = controlNs
-	}
-
-	// Build the set of sources to mirror.
-	sources := []sourceRef{
-		{Namespace: anthropicRef.Namespace, Name: anthropicRef.Name},
+	// Build the set of sources to mirror. The Anthropic key secret is only
+	// mirrored when configured — when omitted (Bedrock mode), there is no
+	// Anthropic secret to mirror.
+	var sources []sourceRef
+	if anthropicRef != nil {
+		ns := anthropicRef.Namespace
+		if ns == "" {
+			ns = controlNs
+		}
+		sources = append(sources, sourceRef{Namespace: ns, Name: anthropicRef.Name})
 	}
 
 	if config.Spec.Redis.PasswordSecret != nil && config.Spec.Redis.PasswordSecret.Name != "" {

@@ -151,13 +151,17 @@ externalRedis:
     # Defaults to the release namespace when empty.
     namespace: ""
 
-# -- Anthropic API key secret (REQUIRED when not using Bedrock).
-# -- Reference to the Secret holding the Anthropic API key.
-# You create this secret out-of-band (see README); the operator mirrors it
-# into every agent namespace and injects ANTHROPIC_API_KEY automatically.
-# Required unless bedrock.enabled=true.
+# -- Anthropic API key secret.
+# Reference to the Secret holding the Anthropic API key. You create this secret
+# out-of-band (see README); the operator mirrors it into every agent namespace
+# and injects ANTHROPIC_API_KEY automatically.
+#
+# Required UNLESS bedrock.enabled=true. When Bedrock is enabled the chart
+# omits the anthropicKeySecretRef from the cluster template and sets
+# CLAUDE_CODE_USE_BEDROCK on the agent pod instead; agents authenticate to
+# AWS via IRSA (recommended on EKS) or AWS credentials.
 anthropicKeySecret:
-  # -- Name of the Secret containing the Anthropic API key.
+  # -- Name of the Secret containing the Anthropic API key. Required unless bedrock.enabled=true.
   name: ""
   # -- Key inside the Secret.
   key: api-key

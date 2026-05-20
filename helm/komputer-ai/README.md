@@ -6,7 +6,7 @@ Deploys the komputer.ai platform — distributed Claude AI agents on Kubernetes.
 
 - Kubernetes 1.24+
 - Helm 3.x
-- An [Anthropic API key](https://console.anthropic.com/)
+- An [Anthropic API key](https://console.anthropic.com/) — required unless you enable AWS Bedrock (`bedrock.enabled=true`), in which case agents authenticate to Bedrock via IRSA or AWS credentials instead.
 - [cert-manager](https://cert-manager.io/docs/installation/) (recommended) — required when `webhooks.enabled=true` (default), which validates `KomputerSquad` resources. See [Squad admission webhook](#squad-admission-webhook) below to opt out.
 
 ## Installation
@@ -83,7 +83,7 @@ templates/
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `anthropicKeySecret.name` | **(Required)** Name of the K8s Secret containing your Anthropic API key | `""` |
+| `anthropicKeySecret.name` | Name of the K8s Secret containing your Anthropic API key. **Required unless `bedrock.enabled=true`.** | `""` |
 | `anthropicKeySecret.key` | Key within the secret | `api-key` |
 | `anthropicKeySecret.namespace` | Namespace of the secret. Defaults to the release namespace when empty. The operator mirrors it into every agent namespace. | `""` |
 | `operator.replicas` | Operator replica count | `1` |

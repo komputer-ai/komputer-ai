@@ -8,9 +8,12 @@ description: Install komputer.ai on any Kubernetes cluster with Helm in under 5 
 - Kubernetes cluster (Docker Desktop, kind, minikube, EKS, GKE, etc.)
 - `kubectl` configured
 - `helm` 3.x installed
-- An [Anthropic API key](https://console.anthropic.com/)
+- An [Anthropic API key](https://console.anthropic.com/) — or AWS Bedrock access (install with `--set bedrock.enabled=true --set bedrock.region=<region>` instead; auth is via IRSA on EKS or AWS credentials)
 
 ## 1. Create the Anthropic API key secret
+
+> Skip this step if you're using AWS Bedrock — agents will authenticate via IRSA or AWS credentials instead, and no Anthropic key is needed.
+
 
 ```bash
 kubectl create namespace komputer-ai

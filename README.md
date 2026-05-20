@@ -119,9 +119,12 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
   ```bash
   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.2/cert-manager.yaml
   ```
-- An [Anthropic API key](https://console.anthropic.com/)
+- An [Anthropic API key](https://console.anthropic.com/) — or AWS Bedrock access (install with `--set bedrock.enabled=true --set bedrock.region=<region>` and skip step 1; auth is via IRSA on EKS or AWS credentials)
 
 ### 1. Create the Anthropic API key secret
+
+> Skip this step when using AWS Bedrock — no Anthropic key is needed.
+
 
 ```bash
 kubectl create namespace komputer-ai

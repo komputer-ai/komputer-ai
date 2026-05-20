@@ -689,24 +689,27 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// startup path identical in both modes.
 	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: "8000"})
 
-	// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef.
-	// The mirror for this secret already exists in agent.Namespace (ensured earlier
-	// in Reconcile), so the secretKeyRef resolves within the pod's own namespace.
-	envVars = append(envVars, corev1.EnvVar{
-		Name: "ANTHROPIC_API_KEY",
-		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: template.Spec.AnthropicKeySecretRef.Name,
+	// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when
+	// configured. The mirror for this secret already exists in agent.Namespace
+	// (ensured earlier in Reconcile), so the secretKeyRef resolves within the
+	// pod's own namespace. When the ref is nil (Bedrock mode), the template's
+	// podSpec sets CLAUDE_CODE_USE_BEDROCK instead and no Anthropic key is needed.
+	if template.Spec.AnthropicKeySecretRef != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "ANTHROPIC_API_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: template.Spec.AnthropicKeySecretRef.Name,
+					},
+					Key: template.Spec.AnthropicKeySecretRef.Key,
 				},
-				Key: template.Spec.AnthropicKeySecretRef.Key,
 			},
-		},
-	})
-
-	// Strip any user-supplied ANTHROPIC_API_KEY from the template container env
-	// before merging, so the operator-injected entry (above) always wins.
-	container.Env = stripEnvVar(container.Env, "ANTHROPIC_API_KEY", logf.FromContext(ctx))
+		})
+		// Strip any user-supplied ANTHROPIC_API_KEY from the template container env
+		// before merging, so the operator-injected entry (above) always wins.
+		container.Env = stripEnvVar(container.Env, "ANTHROPIC_API_KEY", logf.FromContext(ctx))
+	}
 
 	// Merge: new vars replace template vars with the same name.
 	container.Env = mergeEnvVars(container.Env, envVars)
@@ -957,7 +960,10 @@ func (r *KomputerAgentReconciler) enqueueAgentsForSecret(ctx context.Context, ob
 	templateList := &komputerv1alpha1.KomputerAgentTemplateList{}
 	if err := r.List(ctx, templateList); err == nil {
 		for _, tpl := range templateList.Items {
-			ref := &tpl.Spec.AnthropicKeySecretRef
+			ref := tpl.Spec.AnthropicKeySecretRef
+			if ref == nil {
+				continue
+			}
 			refNs := ref.Namespace
 			if refNs == "" {
 				refNs = r.ControlNamespace
@@ -988,7 +994,10 @@ func (r *KomputerAgentReconciler) enqueueAgentsForSecret(ctx context.Context, ob
 	clusterTemplateList := &komputerv1alpha1.KomputerAgentClusterTemplateList{}
 	if err := r.List(ctx, clusterTemplateList); err == nil {
 		for _, tpl := range clusterTemplateList.Items {
-			ref := &tpl.Spec.AnthropicKeySecretRef
+			ref := tpl.Spec.AnthropicKeySecretRef
+			if ref == nil {
+				continue
+			}
 			refNs := ref.Namespace
 			if refNs == "" {
 				refNs = r.ControlNamespace

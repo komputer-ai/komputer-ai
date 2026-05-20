@@ -51,9 +51,12 @@ type KomputerAgentTemplateSpec struct {
 	// users MUST NOT add ANTHROPIC_API_KEY to PodSpec env themselves; if they
 	// do, the pod-builder strips it before injecting its own copy.
 	//
-	// Required. The default cluster template shipped by helm always sets this
-	// from chart values.
-	AnthropicKeySecretRef SecretKeyRef `json:"anthropicKeySecretRef"`
+	// Optional. Omit when running agents against AWS Bedrock (the chart sets
+	// CLAUDE_CODE_USE_BEDROCK on the template podSpec instead). The default
+	// cluster template shipped by helm sets this from chart values when an
+	// Anthropic key secret is configured.
+	// +optional
+	AnthropicKeySecretRef *SecretKeyRef `json:"anthropicKeySecretRef,omitempty"`
 }
 
 // KomputerAgentTemplateStatus defines the observed state of KomputerAgentTemplate.

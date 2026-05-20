@@ -57,7 +57,7 @@ spec:
     size: "10Gi"
 ```
 
-The `anthropicKeySecretRef` is required. The operator mirrors that Secret into every agent namespace and injects `ANTHROPIC_API_KEY` into the pod automatically — don't add it to `podSpec.env` yourself.
+The `anthropicKeySecretRef` is required when authenticating to the Anthropic API (the default). The operator mirrors that Secret into every agent namespace and injects `ANTHROPIC_API_KEY` into the pod automatically — don't add it to `podSpec.env` yourself. Omit `anthropicKeySecretRef` entirely when you've installed the chart with `bedrock.enabled=true`; the chart then sets `CLAUDE_CODE_USE_BEDROCK` on the template's podSpec and agents authenticate to AWS Bedrock via IRSA / AWS credentials.
 
 Agents can reference this template with `templateRef: "custom"`.
 

@@ -161,7 +161,7 @@ func TestReconcileAgentSecrets_HappyPath(t *testing.T) {
 	clusterTemplate := &komputerv1alpha1.KomputerAgentClusterTemplate{
 		ObjectMeta: metav1.ObjectMeta{Name: "default"},
 		Spec: komputerv1alpha1.KomputerAgentTemplateSpec{
-			AnthropicKeySecretRef: komputerv1alpha1.SecretKeyRef{
+			AnthropicKeySecretRef: &komputerv1alpha1.SecretKeyRef{
 				Name:      "anthropic-api-key",
 				Key:       "api-key",
 				Namespace: "komputer-system",

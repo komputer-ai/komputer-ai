@@ -75,10 +75,10 @@ var _ = Describe("KomputerAgent Controller", func() {
 				Storage: komputerv1alpha1.StorageSpec{
 					Size: "1Gi",
 				},
-				// Required: operator mirrors this secret into the agent namespace and
-				// injects ANTHROPIC_API_KEY. Source namespace left empty → defaults to
-				// ControlNamespace ("default" in tests).
-				AnthropicKeySecretRef: komputerv1alpha1.SecretKeyRef{
+				// Operator mirrors this secret into the agent namespace and injects
+				// ANTHROPIC_API_KEY. Required only when not using Bedrock. Source
+				// namespace left empty → defaults to ControlNamespace ("default" in tests).
+				AnthropicKeySecretRef: &komputerv1alpha1.SecretKeyRef{
 					Name: "anthropic-api-key",
 					Key:  "api-key",
 				},
