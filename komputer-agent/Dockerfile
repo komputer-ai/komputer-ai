@@ -28,7 +28,10 @@ COPY . .
 # Create non-root user with passwordless sudo access.
 # Non-root is required by Claude CLI for --dangerously-skip-permissions.
 # Sudo allows agents to install packages at runtime (apt-get, pip, npm).
-RUN useradd -m -s /bin/bash komputer && \
+# UID/GID 1000 are pinned so the pod's securityContext.fsGroup can chown the
+# mounted /workspace PVC at mount time — without a stable GID we couldn't.
+RUN groupadd --gid 1000 komputer && \
+    useradd --uid 1000 --gid 1000 -m -s /bin/bash komputer && \
     echo "komputer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     mkdir -p /workspace && chown komputer:komputer /workspace
 USER komputer

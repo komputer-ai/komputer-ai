@@ -100,6 +100,17 @@ agent:
     pullPolicy: IfNotPresent
   # -- Default Claude model for new agents
   defaultModel: claude-sonnet-4-6
+  # -- Pod-level securityContext for agent pods. fsGroup makes the mounted
+  # /workspace PVC writable by the agent's group (the bundled komputer image
+  # pins UID/GID 1000). Without this, root-owned PVCs (the default on most
+  # provisioners) cause PermissionError when the agent writes to /workspace.
+  # fsGroupChangePolicy=OnRootMismatch skips the recursive chown when the
+  # volume root already has the right group — keeps wake-from-sleep fast.
+  podSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
   # -- Service account for agent pods (e.g. for kubectl access inside agents)
   serviceAccount:
     # -- Set to true to create a ServiceAccount, Role/ClusterRole, and binding for agent pods
