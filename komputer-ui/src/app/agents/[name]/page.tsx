@@ -486,6 +486,7 @@ export default function AgentDetailPage() {
                   agentStatus={agent.status}
                   agentLifecycle={agent.lifecycle}
                   agentContextWindow={agent.modelContextWindow}
+                  agentModel={agent.model}
                   events={events}
                   taskStatus={agent.taskStatus}
                   initialPending={agent.taskStatus === "Complete" || agent.taskStatus === "Error" ? undefined : initialPending}

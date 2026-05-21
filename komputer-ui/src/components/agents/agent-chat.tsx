@@ -10,6 +10,7 @@ import { createAgent, cancelAgent, patchAgent } from "@/lib/api";
 import { getConfig } from "@/lib/config";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
+import { isBedrockModelId } from "@/lib/model-utils";
 import { cn } from "@/lib/utils";
 import {
   ChevronRight,
@@ -33,6 +34,7 @@ type AgentChatProps = {
   agentStatus: string;
   agentLifecycle?: string;
   agentContextWindow?: number;
+  agentModel?: string;
   events: AgentEvent[];
   taskStatus?: string;
   initialPending?: string;
@@ -253,9 +255,9 @@ function TokenBadge({ usage }: { usage?: TokenUsage }) {
   );
 }
 
-function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; contextWindow: number }) {
+function ContextBar({ inputTokens, contextWindow, isBedrock }: { inputTokens?: number; contextWindow: number; isBedrock?: boolean }) {
   if (inputTokens == null || inputTokens === 0) return null;
-  const pct = Math.min((inputTokens / contextWindow) * 100, 100);
+  const pct = isBedrock ? 0 : Math.min((inputTokens / contextWindow) * 100, 100);
   // Hold the bar to the dark-theme palette in both modes — the brand blue
   // here doubles as a fill on the muted track and stays legible without
   // re-tuning per theme.
@@ -267,16 +269,21 @@ function ContextBar({ inputTokens, contextWindow }: { inputTokens?: number; cont
     <div className="group relative h-[12px] cursor-default">
       {/* Bar sits 8px above the border edge */}
       <div className="absolute bottom-0 left-0 right-0 h-[5px] bg-[var(--color-border)] transition-[height] duration-150 group-hover:h-[12px]">
-        <div
-          className="h-full transition-[width] duration-150 ease-out"
-          style={{ width: `${pct}%`, backgroundColor: color } as React.CSSProperties}
-        />
+        {!isBedrock && (
+          <div
+            className="h-full transition-[width] duration-150 ease-out"
+            style={{ width: `${pct}%`, backgroundColor: color } as React.CSSProperties}
+          />
+        )}
       </div>
       <div className="pointer-events-none absolute bottom-full left-1/2 mb-4 -translate-x-1/2 z-20 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] text-[var(--color-text-secondary)] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
         <span className="text-[var(--color-text)]">Context window</span>
         {" · "}
         <span className="font-mono tabular-nums" style={{ color }}>{formatTokenCount(inputTokens)}</span>
-        <span className="text-[var(--color-text)]"> / {formatTokenCount(contextWindow)} tokens</span>
+        {!isBedrock && (
+          <span className="text-[var(--color-text)]"> / {formatTokenCount(contextWindow)} tokens</span>
+        )}
+        {isBedrock && <span className="text-[var(--color-text)]"> tokens</span>}
       </div>
     </div>
   );
@@ -841,6 +848,7 @@ export function AgentChat({
   agentStatus,
   agentLifecycle,
   agentContextWindow,
+  agentModel,
   events,
   taskStatus,
   initialPending,
@@ -1258,7 +1266,7 @@ export function AgentChat({
 
       {/* Input area */}
       <div className="shrink-0 bg-[var(--color-bg)]">
-        <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} />
+        <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} isBedrock={isBedrockModelId(agentModel ?? "")} />
         <div className="border-t border-[var(--color-border)]" />
         <div className="flex gap-2 p-4">
           <div className="flex-1 min-w-0">

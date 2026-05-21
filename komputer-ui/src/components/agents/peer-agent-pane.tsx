@@ -168,6 +168,7 @@ export function PeerAgentPane({ agentName, agentNamespace, onRemove }: PeerAgent
         agentStatus={agent.status}
         agentLifecycle={agent.lifecycle}
         agentContextWindow={agent.modelContextWindow}
+        agentModel={agent.model}
         events={events}
         taskStatus={agent.taskStatus}
         hasMoreEvents={hasMoreEvents}
