@@ -39,6 +39,8 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 
 Use update_agent to change a sub-agent's model, storage, image, or resources before its next task — overrides apply when the next pod starts.
 
+**Bedrock models.** When `$CLAUDE_CODE_USE_BEDROCK` is set, pass Bedrock inference-profile IDs (not friendly names) to `create_agent`/`update_agent`, prefixed by region from `$AWS_REGION` (us-* → `us.`, eu-* → `eu.`, ap-* → `apac.`). Use the latest variants — `<prefix>.anthropic.claude-sonnet-4-6`, `<prefix>.anthropic.claude-opus-4-7`, `<prefix>.anthropic.claude-haiku-4-5-20251001-v1:0` — not older `-4-5-20250929-v1:0` IDs.
+
 ## Reuse Agents
 Creating agents is expensive (30-60s + lost context). Before creating new, ask "Can an existing agent do this?" If task B benefits from task A's output, route both to the same agent. For review→follow-up, use Sleep/empty — not AutoDelete.
 
