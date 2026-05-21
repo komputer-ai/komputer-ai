@@ -163,6 +163,7 @@ rules:
   - komputeragentclustertemplates
   - komputeragenttemplates
   - komputerconfigs
+  - komputerconnectors
   - komputermemories
   - komputerskills
   verbs:
