@@ -18,9 +18,10 @@ import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
+import { ModelSelector } from "@/components/shared/model-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import type { TemplateResponse } from "@/lib/types";
-import { MODELS, LIFECYCLES } from "@/lib/constants";
+import { LIFECYCLES } from "@/lib/constants";
 
 export interface AgentFormValues {
   name: string;
@@ -220,19 +221,7 @@ export function AgentFieldsForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label>Model</Label>
-          <Select value={values.model} onValueChange={(v) => v && patch("model", v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MODELS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ModelSelector value={values.model} onChange={(v) => patch("model", v)} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Lifecycle</Label>
