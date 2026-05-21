@@ -2,11 +2,7 @@
 the Anthropic /v1/models lookup — there is no API key in that mode and
 the model identifier is a Bedrock ID anyway."""
 
-import os
-import sys
 from unittest.mock import patch
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import agent
 
