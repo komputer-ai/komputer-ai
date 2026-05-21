@@ -3,7 +3,12 @@
 import { useState, useCallback } from "react";
 import { Copy, Check } from "lucide-react";
 
-function fallbackCopy(text: string, done: () => void) {
+/**
+ * Legacy textarea + execCommand path for browsers / contexts where
+ * `navigator.clipboard` is unavailable (notably non-localhost HTTP previews).
+ * Exported so other copy UIs in the codebase can share the fallback.
+ */
+export function fallbackCopy(text: string, done: () => void) {
   const el = document.createElement("textarea");
   el.value = text;
   el.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";

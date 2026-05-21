@@ -15,6 +15,7 @@ import { Button } from "@/components/kit/button";
 import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
+import { fallbackCopy } from "@/components/shared/copy-button";
 import { createConnector, createSecretResource, getOAuthAuthorizeUrl } from "@/lib/api";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { ConnectorLogo } from "@/components/connectors/connector-logo";
@@ -40,9 +41,15 @@ function linkify(text: string) {
 function ManifestBlock({ manifest }: { manifest: string }) {
   const [copied, setCopied] = useState(false);
   function handleCopy() {
-    navigator.clipboard.writeText(manifest);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
+    // navigator.clipboard is undefined when the page isn't a Secure Context
+    // (i.e. not localhost and not HTTPS) — fall back to the legacy textarea
+    // + execCommand path so LAN-IP previews still copy.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(manifest).then(done).catch(() => fallbackCopy(manifest, done));
+    } else {
+      fallbackCopy(manifest, done);
+    }
   }
   return (
     <div className="mt-1 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
