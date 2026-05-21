@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Check, Plus, X } from "lucide-react";
 import { Label } from "@/components/kit/label";
@@ -13,8 +13,9 @@ type ModelSelectorProps = {
   label?: string;
 };
 
+const BUILTIN_MODELS = MODELS.map((m) => m.value);
+
 export function ModelSelector({ value, onChange, label = "Model" }: ModelSelectorProps) {
-  const builtins = MODELS.map((m) => m.value);
   const [custom, setCustom] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -37,6 +38,19 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setAdding(false);
+        setDraft("");
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
 
   useEffect(() => {
@@ -79,7 +93,7 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
 
   // Built-in list + user-added, dedup. Value shows even if not in either list
   // (e.g. user pasted a value once then cleared their localStorage).
-  const allKnown = [...new Set([...builtins, ...custom])];
+  const allKnown = useMemo(() => [...new Set([...BUILTIN_MODELS, ...custom])], [custom]);
   const showCurrentAsExtra = value && !allKnown.includes(value);
 
   return (
