@@ -399,13 +399,14 @@ async def attach_skill(args):
 
 @tool(
     name="update_agent",
-    description="Update a sub-agent's spec (model, instructions, cpu, memory, storage, image). Changes apply to the next pod start — running pods are not mutated. Use Sleep+wake if you want changes to take effect now. To remove an override and revert to the template default, pass the field as an empty string (e.g. cpu='' or storage='').",
+    description="Update a sub-agent's spec (model, instructions, systemPrompt, cpu, memory, storage, image). Changes apply to the next pod start — running pods are not mutated. Use Sleep+wake if you want changes to take effect now. To remove an override and revert to the template default, pass the field as an empty string (e.g. cpu='' or systemPrompt='').",
     input_schema={
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Sub-agent name (as passed to create_agent)."},
             "instructions": {"type": "string", "description": "New task instructions (optional)."},
             "model": {"type": "string", "description": "Override Claude model (optional)."},
+            "systemPrompt": {"type": "string", "description": "Replace the sub-agent's system prompt (persona/role/constraints). Empty string clears the override and reverts to the template default."},
             "cpu": {"type": "string", "description": "CPU (e.g. '2' or '500m'). Sets both requests and limits. Empty string clears the resources override."},
             "memory": {"type": "string", "description": "Memory (e.g. '4Gi'). Sets both requests and limits. Empty string clears the resources override."},
             "storage": {"type": "string", "description": "PVC size (e.g. '20Gi'). Empty string clears the storage override."},
@@ -421,6 +422,8 @@ async def update_agent(args):
         payload["instructions"] = args["instructions"]
     if args.get("model"):
         payload["model"] = args["model"]
+    if "systemPrompt" in args:
+        payload["systemPrompt"] = args["systemPrompt"]
 
     # Storage: empty string ("") = clear; non-empty = set; missing key = no change.
     if "storage" in args:
