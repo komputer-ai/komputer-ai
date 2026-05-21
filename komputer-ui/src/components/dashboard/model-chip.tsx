@@ -35,22 +35,6 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
     if (adding) inputRef.current?.focus();
   }, [adding]);
 
-  const handleConfirmAdd = useCallback(() => {
-    const trimmed = draft.trim();
-    if (trimmed) {
-      const next = addCustomModel(trimmed);
-      setCustom(next);
-      onChange(trimmed);
-    }
-    setAdding(false);
-    setDraft("");
-  }, [draft, onChange]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") { e.preventDefault(); handleConfirmAdd(); }
-    if (e.key === "Escape") { e.preventDefault(); setAdding(false); setDraft(""); }
-  }, [handleConfirmAdd]);
-
   const allKnown = useMemo(
     () => [...new Set([...BUILTIN_MODELS, ...custom])],
     [custom],
@@ -81,7 +65,7 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
     </>
   );
 
-  const footer = (
+  const renderFooter = useCallback(({ close }: { close: () => void }) => (
     <div className="px-2 py-1.5">
       {adding ? (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -90,13 +74,40 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const trimmed = draft.trim();
+                if (trimmed) {
+                  const next = addCustomModel(trimmed);
+                  setCustom(next);
+                  onChange(trimmed);
+                }
+                setAdding(false);
+                setDraft("");
+                close();
+              }
+              if (e.key === "Escape") {
+                setAdding(false);
+                setDraft("");
+              }
+            }}
             placeholder="model id (friendly or Bedrock)"
             className="flex-1 h-6 rounded px-2 text-[12px] font-mono bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-blue)]/60"
           />
           <button
             type="button"
-            onClick={handleConfirmAdd}
+            onClick={() => {
+              const trimmed = draft.trim();
+              if (trimmed) {
+                const next = addCustomModel(trimmed);
+                setCustom(next);
+                onChange(trimmed);
+              }
+              setAdding(false);
+              setDraft("");
+              close();
+            }}
             className="flex items-center justify-center h-6 w-6 rounded text-green-400 hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             <Check className="h-3.5 w-3.5" />
@@ -120,9 +131,9 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
         </button>
       )}
     </div>
-  );
+  ), [adding, draft, onChange]);
 
-  return <ChipSelect value={value} options={options} onChange={onChange} trigger={trigger} footer={footer} />;
+  return <ChipSelect value={value} options={options} onChange={onChange} trigger={trigger} footer={renderFooter} />;
 }
 
 export function shortModelLabel(model: string): string {

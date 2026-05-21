@@ -27,8 +27,12 @@ export interface ChipSelectProps {
   onChange: (value: string) => void;
   /** Trigger contents — typically an icon + label. */
   trigger: ReactNode;
-  /** Optional content rendered below the option list (e.g. an "Add" form). */
-  footer?: ReactNode;
+  /** Optional content rendered below the option list (e.g. an "Add" form).
+   *
+   * Pass a `ReactNode` for static content, or a render-prop that receives
+   * an imperative `close` so the footer can dismiss the dropdown after
+   * committing a value (e.g. after confirming an inline "Add" form). */
+  footer?: ReactNode | ((api: { close: () => void }) => ReactNode);
   /** Optional className for the trigger button. */
   triggerClassName?: string;
 }
@@ -123,7 +127,9 @@ export function ChipSelect({
               );
             })}
             {footer ? (
-              <div className="border-t border-[var(--color-border)]">{footer}</div>
+              <div className="border-t border-[var(--color-border)]">
+                {typeof footer === "function" ? footer({ close: () => setOpen(false) }) : footer}
+              </div>
             ) : null}
           </motion.div>
         )}
