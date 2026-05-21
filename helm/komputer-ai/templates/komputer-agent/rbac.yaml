@@ -1,4 +1,5 @@
 {{- if .Values.agent.serviceAccount.create }}
+{{- $saName := include "komputer.agent.serviceAccountName" . }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.agent.serviceAccount.clusterWide }}
 kind: ClusterRole
@@ -6,7 +7,7 @@ kind: ClusterRole
 kind: Role
 {{- end }}
 metadata:
-  name: {{ .Release.Name }}-agent
+  name: {{ $saName }}
   {{- if not .Values.agent.serviceAccount.clusterWide }}
   namespace: {{ .Release.Namespace }}
   {{- end }}
@@ -23,7 +24,7 @@ kind: ClusterRoleBinding
 kind: RoleBinding
 {{- end }}
 metadata:
-  name: {{ .Release.Name }}-agent
+  name: {{ $saName }}
   {{- if not .Values.agent.serviceAccount.clusterWide }}
   namespace: {{ .Release.Namespace }}
   {{- end }}
@@ -37,9 +38,9 @@ roleRef:
   {{- else }}
   kind: Role
   {{- end }}
-  name: {{ .Release.Name }}-agent
+  name: {{ $saName }}
 subjects:
 - kind: ServiceAccount
-  name: {{ .Release.Name }}-agent
+  name: {{ $saName }}
   namespace: {{ .Release.Namespace }}
 {{- end }}

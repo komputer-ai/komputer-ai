@@ -111,13 +111,21 @@ agent:
     runAsGroup: 1000
     fsGroup: 1000
     fsGroupChangePolicy: OnRootMismatch
-  # -- Service account for agent pods (e.g. for kubectl access inside agents)
+  # -- Service account for agent pods (e.g. for kubectl access inside agents, or IRSA on EKS for Bedrock)
   serviceAccount:
-    # -- Set to true to create a ServiceAccount, Role/ClusterRole, and binding for agent pods
+    # -- Set to true to create a ServiceAccount, Role/ClusterRole, and binding for agent pods.
+    # Set to false to use an existing ServiceAccount (e.g. one annotated for IRSA out-of-band) — provide its name via `name` below.
     create: false
+    # -- Name of the ServiceAccount the agent pod runs as.
+    # • create=true,  name=""      → chart creates "<release>-agent"
+    # • create=true,  name="foo"   → chart creates SA named "foo"
+    # • create=false, name="foo"   → agent uses existing SA "foo" (chart does NOT create or RBAC-bind it; you manage that)
+    # • create=false, name=""      → no override; pod uses the namespace default SA
+    name: ""
     # -- Use a ClusterRole instead of a namespace-scoped Role.
     # Set to true when agents need access to cluster-wide resources (nodes, namespaces, CRDs, etc.)
     # or need to operate across multiple namespaces. Default false = namespace-scoped Role.
+    # Only used when serviceAccount.create is true.
     clusterWide: false
     # -- RBAC rules granted to the agent service account.
     # Only used when serviceAccount.create is true.

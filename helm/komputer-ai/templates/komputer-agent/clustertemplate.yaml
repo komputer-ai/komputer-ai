@@ -6,8 +6,8 @@ metadata:
     {{- include "komputer.labels" . | nindent 4 }}
 spec:
   podSpec:
-    {{- if .Values.agent.serviceAccount.create }}
-    serviceAccountName: {{ .Release.Name }}-agent
+    {{- with (include "komputer.agent.serviceAccountName" .) }}
+    serviceAccountName: {{ . }}
     {{- end }}
     securityContext:
       {{- toYaml .Values.agent.podSecurityContext | nindent 6 }}

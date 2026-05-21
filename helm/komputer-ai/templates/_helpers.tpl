@@ -28,6 +28,23 @@ Redis address — full service endpoint for KomputerConfig and API.
 - redis-ha.enabled=true: HA Redis via dandydeveloper/redis-ha subchart
 - both false: external Redis from externalRedis.address
 */}}
+{{/*
+Agent ServiceAccount name — resolves the four create/name combinations:
+  create=true,  name=""       → "<release>-agent"   (chart creates SA with derived name)
+  create=true,  name="foo"    → "foo"               (chart creates SA named "foo")
+  create=false, name="foo"    → "foo"               (caller provides existing SA)
+  create=false, name=""       → ""                  (no override; pod uses default SA)
+The empty-string sentinel lets callers conditionally omit `serviceAccountName:` on the podSpec.
+*/}}
+{{- define "komputer.agent.serviceAccountName" -}}
+{{- $sa := .Values.agent.serviceAccount -}}
+{{- if $sa.create -}}
+{{- default (printf "%s-agent" .Release.Name) $sa.name -}}
+{{- else -}}
+{{- default "" $sa.name -}}
+{{- end -}}
+{{- end }}
+
 {{- define "komputer.redisAddress" -}}
 {{- $redisHa := (index .Values "redis-ha") -}}
 {{- if .Values.redis.enabled -}}
