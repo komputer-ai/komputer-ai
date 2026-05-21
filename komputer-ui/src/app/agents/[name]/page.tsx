@@ -25,7 +25,7 @@ import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
-import { MODELS, LIFECYCLES } from "@/lib/constants";
+import { LIFECYCLES } from "@/lib/constants";
 import { Textarea } from "@/components/kit/textarea";
 import { Label } from "@/components/kit/label";
 import {
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/kit/select";
+import { ModelSelector } from "@/components/shared/model-selector";
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent } from "@/lib/types";
 
@@ -789,16 +790,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
 
       <div className="flex flex-col gap-1.5">
         <Label>Model</Label>
-        <Select value={model} onValueChange={(v) => v && setModel(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MODELS.map((m) => (
-              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ModelSelector value={model} onChange={(v) => setModel(v)} />
       </div>
 
       <div className="flex flex-col gap-1.5">
