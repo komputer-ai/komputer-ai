@@ -6,6 +6,8 @@ import { ChevronDown, Check, Plus, X } from "lucide-react";
 import { Label } from "@/components/kit/label";
 import { MODELS } from "@/lib/constants";
 import { loadCustomModels, addCustomModel } from "@/lib/custom-models";
+import { isBedrockModelId } from "@/lib/model-utils";
+import { BedrockBadge } from "@/components/shared/bedrock-badge";
 
 type ModelSelectorProps = {
   value: string;
@@ -103,9 +105,12 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex h-8 w-full items-center justify-between rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg)] px-3 text-[13px] font-[family-name:var(--font-mono)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 hover:border-[var(--color-border-hover)] focus:outline-none cursor-pointer"
+          className="flex h-8 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg)] px-3 text-[13px] font-[family-name:var(--font-mono)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 hover:border-[var(--color-border-hover)] focus:outline-none cursor-pointer"
         >
-          <span className="truncate">{value || "select a model"}</span>
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate">{value || "select a model"}</span>
+            {isBedrockModelId(value) && <BedrockBadge />}
+          </span>
           <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
 
@@ -161,10 +166,13 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
               {/* Show the current value if it isn't in either list */}
               {showCurrentAsExtra && (
                 <div
-                  className="flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-brand-blue)]"
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-brand-blue)]"
                   onMouseDown={(e) => { e.preventDefault(); handleSelect(value); }}
                 >
-                  <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{value}</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{value}</span>
+                    {isBedrockModelId(value) && <BedrockBadge />}
+                  </span>
                   <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />
                 </div>
               )}
@@ -173,10 +181,13 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
               {allKnown.map((m) => (
                 <div
                   key={m}
-                  className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${value === m ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+                  className={`flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${value === m ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
                   onMouseDown={(e) => { e.preventDefault(); handleSelect(m); }}
                 >
-                  <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{m}</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{m}</span>
+                    {isBedrockModelId(m) && <BedrockBadge />}
+                  </span>
                   {value === m && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
                 </div>
               ))}

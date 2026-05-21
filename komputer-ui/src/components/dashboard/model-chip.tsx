@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Cpu, Plus, X } from "lucide-react";
 import { MODELS } from "@/lib/constants";
 import { loadCustomModels, addCustomModel } from "@/lib/custom-models";
+import { isBedrockModelId } from "@/lib/model-utils";
 import { ChipSelect, type ChipSelectOption } from "@/components/kit/chip-select";
+import { BedrockBadge } from "@/components/shared/bedrock-badge";
 
 export interface ModelChipProps {
   value: string;
@@ -52,7 +54,12 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
     () =>
       finalList.map((m) => ({
         value: m,
-        label: m,
+        label: (
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <span className="truncate">{m}</span>
+            {isBedrockModelId(m) && <BedrockBadge />}
+          </span>
+        ),
         icon: <Cpu className="size-3 shrink-0 text-[var(--color-text-muted)]" />,
       })),
     [finalList],
@@ -62,6 +69,7 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
     <>
       <Cpu className="size-3 text-[var(--color-brand-blue)]" />
       <span className="font-mono text-[var(--color-text)]">{shortModelLabel(value)}</span>
+      {isBedrockModelId(value) && <BedrockBadge />}
     </>
   );
 
