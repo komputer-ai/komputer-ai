@@ -198,7 +198,7 @@ export default function CostsPage() {
                         exit={{ opacity: 0, scale: 0.97 }}
                         transition={{ duration: 0.2, delay: i * 0.03 }}
                       >
-                        <Link href={`/agents/${agent.name}`} className="block group">
+                        <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block group">
                           <div className="relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]">
                             <span className="absolute top-2.5 right-2.5 block w-2 h-2 rounded-full bg-[var(--color-brand-blue)]" />
                             <div className="h-full flex flex-col p-3">
