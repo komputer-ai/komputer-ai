@@ -10,6 +10,7 @@ import type { OfficeMemberResponse } from "@/lib/types";
 type OfficeMembersProps = {
   members: OfficeMemberResponse[];
   manager: string;
+  namespace: string;
   existingAgents?: Set<string>;
 };
 
@@ -19,7 +20,7 @@ const taskColors: Record<string, string> = {
   Error: "#F87171",
 };
 
-export function OfficeMembersGrid({ members, manager, existingAgents }: OfficeMembersProps) {
+export function OfficeMembersGrid({ members, manager, namespace, existingAgents }: OfficeMembersProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
       {members.map((member) => {
@@ -75,7 +76,7 @@ export function OfficeMembersGrid({ members, manager, existingAgents }: OfficeMe
         }
 
         return (
-          <Link key={member.name} href={`/agents/${member.name}`} className="block group">
+          <Link key={member.name} href={`/agents/${member.name}?namespace=${namespace}`} className="block group">
             {card}
           </Link>
         );

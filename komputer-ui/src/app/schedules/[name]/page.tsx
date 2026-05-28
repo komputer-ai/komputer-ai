@@ -294,7 +294,7 @@ export default function ScheduleDetailPage() {
               <p className="mt-0.5">
                 {schedule.agentName ? (
                   <Link
-                    href={`/agents/${schedule.agentName}`}
+                    href={`/agents/${schedule.agentName}?namespace=${schedule.namespace}`}
                     className="text-sm font-medium text-[var(--color-brand-blue)] hover:underline"
                   >
                     {schedule.agentName}

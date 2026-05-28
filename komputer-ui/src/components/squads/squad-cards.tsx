@@ -84,7 +84,7 @@ export function SquadCards({ squads, onDelete }: SquadCardsProps) {
                           {squad.members.slice(0, 3).map((m) => (
                             <span
                               key={m.name}
-                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.location.href = `/agents/${m.name}`; }}
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.location.href = `/agents/${m.name}?namespace=${squad.namespace}`; }}
                               className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-raised)] text-[var(--color-brand-blue)] hover:underline cursor-pointer truncate max-w-[80px]"
                             >
                               {m.name}

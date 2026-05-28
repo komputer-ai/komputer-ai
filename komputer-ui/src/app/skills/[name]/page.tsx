@@ -145,7 +145,7 @@ export default function SkillDetailPage() {
               <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Attached Agents</h3>
               <div className="flex flex-wrap gap-2">
                 {skill.agentNames.map((name) => (
-                  <Link key={name} href={`/agents/${name}`}>
+                  <Link key={name} href={`/agents/${name}?namespace=${skill.namespace}`}>
                     <Badge variant="secondary" className="cursor-pointer text-[var(--color-brand-blue-light)] border-[var(--color-brand-blue)]/30 hover:bg-[var(--color-brand-blue)]/10 hover:border-[var(--color-brand-blue)]/50 transition-colors">
                       {name}
                     </Badge>

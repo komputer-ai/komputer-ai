@@ -89,7 +89,7 @@ export function ScheduleTable({ schedules, onDelete }: ScheduleTableProps) {
               <TableCell>
                 {schedule.agentName ? (
                   <Link
-                    href={`/agents/${schedule.agentName}`}
+                    href={`/agents/${schedule.agentName}?namespace=${schedule.namespace}`}
                     className="text-xs text-[var(--color-brand-blue)] hover:underline"
                   >
                     {schedule.agentName}

@@ -63,7 +63,7 @@ export function AgentTable({ agents, onDelete }: AgentTableProps) {
             >
               <TableCell>
                 <Link
-                  href={`/agents/${agent.name}`}
+                  href={`/agents/${agent.name}?namespace=${agent.namespace}`}
                   className="font-medium text-[var(--color-brand-blue)] hover:underline"
                 >
                   {agent.name}

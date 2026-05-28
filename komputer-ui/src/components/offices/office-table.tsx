@@ -63,7 +63,7 @@ export function OfficeTable({ offices, onDelete }: OfficeTableProps) {
               </TableCell>
               <TableCell>
                 <Link
-                  href={`/agents/${office.manager}`}
+                  href={`/agents/${office.manager}?namespace=${office.namespace}`}
                   className="text-xs text-[var(--color-brand-blue)] hover:underline"
                 >
                   {office.manager}

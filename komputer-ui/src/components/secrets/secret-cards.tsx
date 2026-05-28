@@ -168,7 +168,7 @@ export function SecretCards({ secrets, onDelete, onUpdated }: SecretCardsProps) 
                     </p>
                     {secret.agentName && (
                       <Link
-                        href={`/agents/${secret.agentName}`}
+                        href={`/agents/${secret.agentName}?namespace=${secret.namespace}`}
                         className="text-[11px] text-[var(--color-brand-blue-light)] hover:underline truncate block"
                         onClick={(e) => e.stopPropagation()}
                       >

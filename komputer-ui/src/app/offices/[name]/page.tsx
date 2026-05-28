@@ -140,7 +140,7 @@ export default function OfficeDetailPage() {
           <div className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
             <span>Manager:</span>
             <Link
-              href={`/agents/${office.manager}`}
+              href={`/agents/${office.manager}?namespace=${office.namespace}`}
               className="font-medium text-[var(--color-brand-blue)] hover:underline"
             >
               {office.manager}
@@ -178,6 +178,7 @@ export default function OfficeDetailPage() {
             <OfficeMembersGrid
               members={office.members}
               manager={office.manager}
+              namespace={office.namespace}
               existingAgents={existingAgents}
             />
           ) : (

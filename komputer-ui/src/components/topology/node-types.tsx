@@ -95,7 +95,7 @@ function AgentNodeComponent({ data }: NodeProps) {
       }`}
       style={{ width: nodeWidth || 160 }}
       data-hovered={hovered || undefined}
-      onClick={() => !isDeleted && router.push(`/agents/${label}`)}
+      onClick={() => !isDeleted && router.push(`/agents/${label}${namespace ? `?namespace=${namespace}` : ""}`)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
