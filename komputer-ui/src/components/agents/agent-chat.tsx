@@ -229,7 +229,11 @@ function formatTimestamp(ts: string): string {
   const now = new Date();
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if (d.toDateString() === now.toDateString()) return time;
-  return `${d.toLocaleDateString([], { year: "numeric", month: "2-digit", day: "2-digit" })} ${time}`;
+  const dateOpts: Intl.DateTimeFormatOptions =
+    d.getFullYear() === now.getFullYear()
+      ? { month: "short", day: "numeric" }
+      : { year: "numeric", month: "short", day: "numeric" };
+  return `${d.toLocaleDateString([], dateOpts)}, ${time}`;
 }
 
 function formatTokenCount(n: number): string {
