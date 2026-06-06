@@ -23,6 +23,7 @@ type ScheduleResponse struct {
 	AutoDelete *bool `json:"autoDelete,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
 	FailedRuns *int32 `json:"failedRuns,omitempty"`
+	Instructions *string `json:"instructions,omitempty"`
 	KeepAgents *bool `json:"keepAgents,omitempty"`
 	LastRunCostUSD *string `json:"lastRunCostUSD,omitempty"`
 	LastRunStatus *string `json:"lastRunStatus,omitempty"`
@@ -183,6 +184,38 @@ func (o *ScheduleResponse) HasFailedRuns() bool {
 // SetFailedRuns gets a reference to the given int32 and assigns it to the FailedRuns field.
 func (o *ScheduleResponse) SetFailedRuns(v int32) {
 	o.FailedRuns = &v
+}
+
+// GetInstructions returns the Instructions field value if set, zero value otherwise.
+func (o *ScheduleResponse) GetInstructions() string {
+	if o == nil || IsNil(o.Instructions) {
+		var ret string
+		return ret
+	}
+	return *o.Instructions
+}
+
+// GetInstructionsOk returns a tuple with the Instructions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ScheduleResponse) GetInstructionsOk() (*string, bool) {
+	if o == nil || IsNil(o.Instructions) {
+		return nil, false
+	}
+	return o.Instructions, true
+}
+
+// HasInstructions returns a boolean if a field has been set.
+func (o *ScheduleResponse) HasInstructions() bool {
+	if o != nil && !IsNil(o.Instructions) {
+		return true
+	}
+
+	return false
+}
+
+// SetInstructions gets a reference to the given string and assigns it to the Instructions field.
+func (o *ScheduleResponse) SetInstructions(v string) {
+	o.Instructions = &v
 }
 
 // GetKeepAgents returns the KeepAgents field value if set, zero value otherwise.
@@ -686,6 +719,9 @@ func (o ScheduleResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.FailedRuns) {
 		toSerialize["failedRuns"] = o.FailedRuns
+	}
+	if !IsNil(o.Instructions) {
+		toSerialize["instructions"] = o.Instructions
 	}
 	if !IsNil(o.KeepAgents) {
 		toSerialize["keepAgents"] = o.KeepAgents

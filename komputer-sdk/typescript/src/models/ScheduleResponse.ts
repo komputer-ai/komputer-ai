@@ -45,6 +45,12 @@ export interface ScheduleResponse {
     failedRuns?: number;
     /**
      * 
+     * @type {string}
+     * @memberof ScheduleResponse
+     */
+    instructions?: string;
+    /**
+     * 
      * @type {boolean}
      * @memberof ScheduleResponse
      */
@@ -156,6 +162,7 @@ export function ScheduleResponseFromJSONTyped(json: any, ignoreDiscriminator: bo
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
         'failedRuns': json['failedRuns'] == null ? undefined : json['failedRuns'],
+        'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'keepAgents': json['keepAgents'] == null ? undefined : json['keepAgents'],
         'lastRunCostUSD': json['lastRunCostUSD'] == null ? undefined : json['lastRunCostUSD'],
         'lastRunStatus': json['lastRunStatus'] == null ? undefined : json['lastRunStatus'],
@@ -189,6 +196,7 @@ export function ScheduleResponseToJSONTyped(value?: ScheduleResponse | null, ign
         'autoDelete': value['autoDelete'],
         'createdAt': value['createdAt'],
         'failedRuns': value['failedRuns'],
+        'instructions': value['instructions'],
         'keepAgents': value['keepAgents'],
         'lastRunCostUSD': value['lastRunCostUSD'],
         'lastRunStatus': value['lastRunStatus'],

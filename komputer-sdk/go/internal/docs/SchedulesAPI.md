@@ -9,6 +9,7 @@ Method | HTTP request | Description
 [**GetSchedule**](SchedulesAPI.md#GetSchedule) | **Get** /schedules/{name} | Get schedule details
 [**ListSchedules**](SchedulesAPI.md#ListSchedules) | **Get** /schedules | List schedules
 [**PatchSchedule**](SchedulesAPI.md#PatchSchedule) | **Patch** /schedules/{name} | Patch schedule
+[**TriggerSchedule**](SchedulesAPI.md#TriggerSchedule) | **Post** /schedules/{name}/trigger | Trigger schedule now
 
 
 
@@ -355,6 +356,78 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## TriggerSchedule
+
+> TriggerScheduleResponse TriggerSchedule(ctx, name).Namespace(namespace).Execute()
+
+Trigger schedule now
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Schedule name
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.SchedulesAPI.TriggerSchedule(context.Background(), name).Namespace(namespace).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `SchedulesAPI.TriggerSchedule``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `TriggerSchedule`: TriggerScheduleResponse
+	fmt.Fprintf(os.Stdout, "Response from `SchedulesAPI.TriggerSchedule`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Schedule name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiTriggerScheduleRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **namespace** | **string** | Kubernetes namespace | 
+
+### Return type
+
+[**TriggerScheduleResponse**](TriggerScheduleResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

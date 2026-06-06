@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **auto_delete** | **bool** |  | [optional] 
 **created_at** | **str** |  | [optional] 
 **failed_runs** | **int** |  | [optional] 
+**instructions** | **str** |  | [optional] 
 **keep_agents** | **bool** |  | [optional] 
 **last_run_cost_usd** | **str** |  | [optional] 
 **last_run_status** | **str** |  | [optional] 

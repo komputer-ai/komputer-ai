@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**instructions** | **str** |  | [optional] 
 **schedule** | **str** |  | [optional] 
 
 ## Example

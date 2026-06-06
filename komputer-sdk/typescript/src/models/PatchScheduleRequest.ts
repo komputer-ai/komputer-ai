@@ -24,6 +24,12 @@ export interface PatchScheduleRequest {
      * @type {string}
      * @memberof PatchScheduleRequest
      */
+    instructions?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof PatchScheduleRequest
+     */
     schedule?: string;
 }
 
@@ -44,6 +50,7 @@ export function PatchScheduleRequestFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
+        'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'schedule': json['schedule'] == null ? undefined : json['schedule'],
     };
 }
@@ -59,6 +66,7 @@ export function PatchScheduleRequestToJSONTyped(value?: PatchScheduleRequest | n
 
     return {
         
+        'instructions': value['instructions'],
         'schedule': value['schedule'],
     };
 }

@@ -1133,6 +1133,57 @@ paths:
       tags:
       - schedules
       x-codegen-request-body-name: request
+  /schedules/{name}/trigger:
+    post:
+      description: "Fires the schedule immediately, independent of its cron cadence.\
+        \ Returns 409 if a run is already in progress."
+      operationId: triggerSchedule
+      parameters:
+      - description: Schedule name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerScheduleResponse"
+          description: Triggered
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Schedule not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: A run is already in progress
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Trigger schedule now
+      tags:
+      - schedules
   /secrets:
     get:
       description: Returns all secrets with key names (not values) and attached agent
@@ -4444,6 +4495,8 @@ components:
       type: object
     PatchScheduleRequest:
       properties:
+        instructions:
+          type: string
         schedule:
           type: string
       type: object
@@ -4467,6 +4520,7 @@ components:
       example:
         schedules:
         - phase: phase
+          instructions: instructions
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -4486,6 +4540,7 @@ components:
           keepAgents: true
           runCount: 1
         - phase: phase
+          instructions: instructions
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -4513,6 +4568,7 @@ components:
     ScheduleResponse:
       example:
         phase: phase
+        instructions: instructions
         successfulRuns: 5
         timezone: timezone
         totalCostUSD: totalCostUSD
@@ -4540,6 +4596,8 @@ components:
           type: string
         failedRuns:
           type: integer
+        instructions:
+          type: string
         keepAgents:
           type: boolean
         lastRunCostUSD:
@@ -4766,6 +4824,19 @@ components:
         phase:
           type: string
         podName:
+          type: string
+      type: object
+    TriggerScheduleResponse:
+      example:
+        name: name
+        agentName: agentName
+        status: status
+      properties:
+        agentName:
+          type: string
+        name:
+          type: string
+        status:
           type: string
       type: object
     UpdateSecretRequest:

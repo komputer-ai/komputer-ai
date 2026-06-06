@@ -10,6 +10,7 @@ Name | Type
 `autoDelete` | boolean
 `createdAt` | string
 `failedRuns` | number
+`instructions` | string
 `keepAgents` | boolean
 `lastRunCostUSD` | string
 `lastRunStatus` | string
@@ -37,6 +38,7 @@ const example = {
   "autoDelete": null,
   "createdAt": null,
   "failedRuns": null,
+  "instructions": null,
   "keepAgents": null,
   "lastRunCostUSD": null,
   "lastRunStatus": null,

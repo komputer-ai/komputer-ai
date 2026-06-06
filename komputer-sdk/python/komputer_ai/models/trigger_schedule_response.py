@@ -17,19 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
 
-class PatchScheduleRequest(BaseModel):
+class TriggerScheduleResponse(BaseModel):
     """
-    PatchScheduleRequest
+    TriggerScheduleResponse
     """ # noqa: E501
-    instructions: Optional[StrictStr] = None
-    schedule: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["instructions", "schedule"]
+    agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
+    name: Optional[StrictStr] = None
+    status: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["agentName", "name", "status"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -49,7 +50,7 @@ class PatchScheduleRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of PatchScheduleRequest from a JSON string"""
+        """Create an instance of TriggerScheduleResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,7 +75,7 @@ class PatchScheduleRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of PatchScheduleRequest from a dict"""
+        """Create an instance of TriggerScheduleResponse from a dict"""
         if obj is None:
             return None
 
@@ -82,8 +83,9 @@ class PatchScheduleRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "instructions": obj.get("instructions"),
-            "schedule": obj.get("schedule")
+            "agentName": obj.get("agentName"),
+            "name": obj.get("name"),
+            "status": obj.get("status")
         })
         return _obj
 

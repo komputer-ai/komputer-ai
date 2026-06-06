@@ -9,6 +9,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**getSchedule**](SchedulesApi.md#getschedule) | **GET** /schedules/{name} | Get schedule details |
 | [**listSchedules**](SchedulesApi.md#listschedules) | **GET** /schedules | List schedules |
 | [**patchSchedule**](SchedulesApi.md#patchscheduleoperation) | **PATCH** /schedules/{name} | Patch schedule |
+| [**triggerSchedule**](SchedulesApi.md#triggerschedule) | **POST** /schedules/{name}/trigger | Trigger schedule now |
 
 
 
@@ -363,6 +364,79 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Updated schedule |  -  |
 | **400** | Bad request |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## triggerSchedule
+
+> TriggerScheduleResponse triggerSchedule(name, namespace)
+
+Trigger schedule now
+
+Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  SchedulesApi,
+} from '@komputer-ai/sdk';
+import type { TriggerScheduleRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new SchedulesApi();
+
+  const body = {
+    // string | Schedule name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+  } satisfies TriggerScheduleRequest;
+
+  try {
+    const data = await api.triggerSchedule(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Schedule name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**TriggerScheduleResponse**](TriggerScheduleResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Triggered |  -  |
+| **404** | Schedule not found |  -  |
+| **409** | A run is already in progress |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

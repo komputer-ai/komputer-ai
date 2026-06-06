@@ -9,6 +9,7 @@ Method | HTTP request | Description
 [**get_schedule**](SchedulesApi.md#get_schedule) | **GET** /schedules/{name} | Get schedule details
 [**list_schedules**](SchedulesApi.md#list_schedules) | **GET** /schedules | List schedules
 [**patch_schedule**](SchedulesApi.md#patch_schedule) | **PATCH** /schedules/{name} | Patch schedule
+[**trigger_schedule**](SchedulesApi.md#trigger_schedule) | **POST** /schedules/{name}/trigger | Trigger schedule now
 
 
 # **create_schedule**
@@ -365,6 +366,79 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated schedule |  -  |
 **400** | Bad request |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **trigger_schedule**
+> TriggerScheduleResponse trigger_schedule(name, namespace=namespace)
+
+Trigger schedule now
+
+Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.trigger_schedule_response import TriggerScheduleResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.SchedulesApi(api_client)
+    name = 'name_example' # str | Schedule name
+    namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+
+    try:
+        # Trigger schedule now
+        api_response = api_instance.trigger_schedule(name, namespace=namespace)
+        print("The response of SchedulesApi->trigger_schedule:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling SchedulesApi->trigger_schedule: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Schedule name | 
+ **namespace** | **str**| Kubernetes namespace | [optional] 
+
+### Return type
+
+[**TriggerScheduleResponse**](TriggerScheduleResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Triggered |  -  |
+**404** | Schedule not found |  -  |
+**409** | A run is already in progress |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

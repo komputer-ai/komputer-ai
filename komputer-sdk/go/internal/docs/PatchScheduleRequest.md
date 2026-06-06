@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**Instructions** | Pointer to **string** |  | [optional] 
 **Schedule** | Pointer to **string** |  | [optional] 
 
 ## Methods
@@ -24,6 +25,31 @@ will change when the set of required properties is changed
 NewPatchScheduleRequestWithDefaults instantiates a new PatchScheduleRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetInstructions
+
+`func (o *PatchScheduleRequest) GetInstructions() string`
+
+GetInstructions returns the Instructions field if non-nil, zero value otherwise.
+
+### GetInstructionsOk
+
+`func (o *PatchScheduleRequest) GetInstructionsOk() (*string, bool)`
+
+GetInstructionsOk returns a tuple with the Instructions field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetInstructions
+
+`func (o *PatchScheduleRequest) SetInstructions(v string)`
+
+SetInstructions sets Instructions field to given value.
+
+### HasInstructions
+
+`func (o *PatchScheduleRequest) HasInstructions() bool`
+
+HasInstructions returns a boolean if a field has been set.
 
 ### GetSchedule
 

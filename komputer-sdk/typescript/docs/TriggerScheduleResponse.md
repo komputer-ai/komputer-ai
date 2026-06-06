@@ -1,24 +1,26 @@
 
-# PatchScheduleRequest
+# TriggerScheduleResponse
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`instructions` | string
-`schedule` | string
+`agentName` | string
+`name` | string
+`status` | string
 
 ## Example
 
 ```typescript
-import type { PatchScheduleRequest } from '@komputer-ai/sdk'
+import type { TriggerScheduleResponse } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "instructions": null,
-  "schedule": null,
-} satisfies PatchScheduleRequest
+  "agentName": null,
+  "name": null,
+  "status": null,
+} satisfies TriggerScheduleResponse
 
 console.log(example)
 
@@ -27,7 +29,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as PatchScheduleRequest
+const exampleParsed = JSON.parse(exampleJSON) as TriggerScheduleResponse
 console.log(exampleParsed)
 ```
 

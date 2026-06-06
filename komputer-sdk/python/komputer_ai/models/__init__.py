@@ -45,6 +45,7 @@ from komputer_ai.models.skill_response import SkillResponse
 from komputer_ai.models.squad_list_response import SquadListResponse
 from komputer_ai.models.squad_member_response import SquadMemberResponse
 from komputer_ai.models.squad_response import SquadResponse
+from komputer_ai.models.trigger_schedule_response import TriggerScheduleResponse
 from komputer_ai.models.update_secret_request import UpdateSecretRequest
 from komputer_ai.models.v1_aws_elastic_block_store_volume_source import V1AWSElasticBlockStoreVolumeSource
 from komputer_ai.models.v1_affinity import V1Affinity

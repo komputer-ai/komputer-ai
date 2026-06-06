@@ -99,6 +99,7 @@ Class | Method | HTTP request | Description
 *SchedulesAPI* | [**GetSchedule**](docs/SchedulesAPI.md#getschedule) | **Get** /schedules/{name} | Get schedule details
 *SchedulesAPI* | [**ListSchedules**](docs/SchedulesAPI.md#listschedules) | **Get** /schedules | List schedules
 *SchedulesAPI* | [**PatchSchedule**](docs/SchedulesAPI.md#patchschedule) | **Patch** /schedules/{name} | Patch schedule
+*SchedulesAPI* | [**TriggerSchedule**](docs/SchedulesAPI.md#triggerschedule) | **Post** /schedules/{name}/trigger | Trigger schedule now
 *SecretsAPI* | [**CreateSecret**](docs/SecretsAPI.md#createsecret) | **Post** /secrets | Create managed secret
 *SecretsAPI* | [**DeleteSecret**](docs/SecretsAPI.md#deletesecret) | **Delete** /secrets/{name} | Delete managed secret
 *SecretsAPI* | [**ListSecrets**](docs/SecretsAPI.md#listsecrets) | **Get** /secrets | List secrets
@@ -154,6 +155,7 @@ Class | Method | HTTP request | Description
  - [SquadListResponse](docs/SquadListResponse.md)
  - [SquadMemberResponse](docs/SquadMemberResponse.md)
  - [SquadResponse](docs/SquadResponse.md)
+ - [TriggerScheduleResponse](docs/TriggerScheduleResponse.md)
  - [UpdateSecretRequest](docs/UpdateSecretRequest.md)
  - [V1AWSElasticBlockStoreVolumeSource](docs/V1AWSElasticBlockStoreVolumeSource.md)
  - [V1Affinity](docs/V1Affinity.md)

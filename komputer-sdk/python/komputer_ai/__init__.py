@@ -68,6 +68,7 @@ __all__ = [
     "SquadListResponse",
     "SquadMemberResponse",
     "SquadResponse",
+    "TriggerScheduleResponse",
     "UpdateSecretRequest",
     "V1AWSElasticBlockStoreVolumeSource",
     "V1Affinity",
@@ -275,6 +276,7 @@ from komputer_ai.models.skill_response import SkillResponse as SkillResponse
 from komputer_ai.models.squad_list_response import SquadListResponse as SquadListResponse
 from komputer_ai.models.squad_member_response import SquadMemberResponse as SquadMemberResponse
 from komputer_ai.models.squad_response import SquadResponse as SquadResponse
+from komputer_ai.models.trigger_schedule_response import TriggerScheduleResponse as TriggerScheduleResponse
 from komputer_ai.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
 from komputer_ai.models.v1_aws_elastic_block_store_volume_source import V1AWSElasticBlockStoreVolumeSource as V1AWSElasticBlockStoreVolumeSource
 from komputer_ai.models.v1_affinity import V1Affinity as V1Affinity

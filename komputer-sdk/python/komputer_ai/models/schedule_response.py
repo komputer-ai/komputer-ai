@@ -31,6 +31,7 @@ class ScheduleResponse(BaseModel):
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
     failed_runs: Optional[StrictInt] = Field(default=None, alias="failedRuns")
+    instructions: Optional[StrictStr] = None
     keep_agents: Optional[StrictBool] = Field(default=None, alias="keepAgents")
     last_run_cost_usd: Optional[StrictStr] = Field(default=None, alias="lastRunCostUSD")
     last_run_status: Optional[StrictStr] = Field(default=None, alias="lastRunStatus")
@@ -46,7 +47,7 @@ class ScheduleResponse(BaseModel):
     timezone: Optional[StrictStr] = None
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["agentName", "autoDelete", "createdAt", "failedRuns", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "timezone", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["agentName", "autoDelete", "createdAt", "failedRuns", "instructions", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "timezone", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -103,6 +104,7 @@ class ScheduleResponse(BaseModel):
             "autoDelete": obj.get("autoDelete"),
             "createdAt": obj.get("createdAt"),
             "failedRuns": obj.get("failedRuns"),
+            "instructions": obj.get("instructions"),
             "keepAgents": obj.get("keepAgents"),
             "lastRunCostUSD": obj.get("lastRunCostUSD"),
             "lastRunStatus": obj.get("lastRunStatus"),

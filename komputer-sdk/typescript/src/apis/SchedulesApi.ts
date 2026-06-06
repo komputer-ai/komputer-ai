@@ -19,6 +19,7 @@ import type {
   PatchScheduleRequest,
   ScheduleListResponse,
   ScheduleResponse,
+  TriggerScheduleResponse,
 } from '../models/index';
 import {
     CreateScheduleRequestFromJSON,
@@ -29,6 +30,8 @@ import {
     ScheduleListResponseToJSON,
     ScheduleResponseFromJSON,
     ScheduleResponseToJSON,
+    TriggerScheduleResponseFromJSON,
+    TriggerScheduleResponseToJSON,
 } from '../models/index';
 
 export interface CreateScheduleOperationRequest {
@@ -52,6 +55,11 @@ export interface ListSchedulesRequest {
 export interface PatchScheduleOperationRequest {
     name: string;
     request: PatchScheduleRequest;
+    namespace?: string;
+}
+
+export interface TriggerScheduleRequest {
+    name: string;
     namespace?: string;
 }
 
@@ -312,6 +320,57 @@ export class SchedulesApi extends runtime.BaseAPI {
      */
     async patchSchedule(requestParameters: PatchScheduleOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ScheduleResponse> {
         const response = await this.patchScheduleRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for triggerSchedule without sending the request
+     */
+    async triggerScheduleRequestOpts(requestParameters: TriggerScheduleRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling triggerSchedule().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/schedules/{name}/trigger`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.
+     * Trigger schedule now
+     */
+    async triggerScheduleRaw(requestParameters: TriggerScheduleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TriggerScheduleResponse>> {
+        const requestOptions = await this.triggerScheduleRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TriggerScheduleResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.
+     * Trigger schedule now
+     */
+    async triggerSchedule(requestParameters: TriggerScheduleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TriggerScheduleResponse> {
+        const response = await this.triggerScheduleRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
