@@ -121,6 +121,18 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         )
         return {}
 
+    async def pre_compact_hook(input, session_id, ctx):
+        # Fires right before Claude Code auto- or manually-compacts the conversation.
+        # Surface it as an event so the UI can render a divider with context.
+        publisher.publish(
+            "compaction",
+            {
+                "trigger": input.get("trigger", "auto"),
+                "custom_instructions": input.get("custom_instructions") or "",
+            },
+        )
+        return {}
+
     options = ClaudeAgentOptions(
         tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
         allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
@@ -131,6 +143,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         hooks={
             "PostToolUse": [
                 HookMatcher(matcher=None, hooks=[post_tool_hook]),
+            ],
+            "PreCompact": [
+                HookMatcher(matcher=None, hooks=[pre_compact_hook]),
             ],
         },
     )

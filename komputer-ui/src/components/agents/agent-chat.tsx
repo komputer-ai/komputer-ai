@@ -87,7 +87,7 @@ type ChatMessage =
     }
   | { kind: "error"; message: string; timestamp: string }
   | { kind: "cancelled"; timestamp: string }
-  | { kind: "compaction"; timestamp: string };
+  | { kind: "compaction"; trigger?: "auto" | "manual"; timestamp: string };
 
 export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
@@ -208,9 +208,15 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
       case "task_cancelled":
         messages.push({ kind: "cancelled", timestamp: event.timestamp });
         break;
-      case "compaction":
-        messages.push({ kind: "compaction", timestamp: event.timestamp });
+      case "compaction": {
+        const t = event.payload?.trigger;
+        messages.push({
+          kind: "compaction",
+          trigger: t === "manual" ? "manual" : t === "auto" ? "auto" : undefined,
+          timestamp: event.timestamp,
+        });
         break;
+      }
       case "error":
         messages.push({
           kind: "error",
@@ -723,11 +729,17 @@ function CancelledDivider() {
   );
 }
 
-function CompactionDivider() {
+function CompactionDivider({ trigger }: { trigger?: "auto" | "manual" }) {
+  const label =
+    trigger === "manual"
+      ? "Context compacted manually"
+      : trigger === "auto"
+      ? "Context auto-compacted"
+      : "Context compacted";
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="flex items-center gap-3 py-2" title="Older conversation turns were summarized to free up context space">
       <div className="flex-1 border-t border-purple-400/20" />
-      <span className="text-xs font-medium text-purple-400">Context compacted</span>
+      <span className="text-xs font-medium text-purple-400">{label}</span>
       <div className="flex-1 border-t border-purple-400/20" />
     </div>
   );
@@ -806,7 +818,7 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
       case "cancelled":
         return <CancelledDivider key={key} />;
       case "compaction":
-        return <CompactionDivider key={key} />;
+        return <CompactionDivider key={key} trigger={msg.trigger} />;
       case "error":
         return <ErrorBar key={key} message={msg.message} />;
     }

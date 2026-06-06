@@ -1372,6 +1372,16 @@ func registerAgentCommands(root *cobra.Command) {
 						fmt.Println()
 						turnDone = true
 
+					case "compaction":
+						trigger, _ := event.Payload["trigger"].(string)
+						label := "context compacted"
+						if trigger == "auto" {
+							label = "context auto-compacted"
+						} else if trigger == "manual" {
+							label = "context compacted manually"
+						}
+						fmt.Println(chatDimStyle.Render("  ── " + label + " ──"))
+
 						// Skip: task_started, thinking, tool_call
 					}
 				}

@@ -308,13 +308,16 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 			if pendingCancel != nil {
 				pendingCancel = nil
 			}
-			// Compaction summaries → compaction indicator
+			// Compaction summaries → compaction indicator.
+			// The only marker the bundled Claude Code CLI writes into JSONL is the
+			// auto-compaction continuation header, so backfilled events are always
+			// trigger=auto. Live events come from the PreCompact hook in komputer-agent.
 			if strings.HasPrefix(text, "This session is being continued from a previous conversation") {
 				events = append(events, AgentEvent{
 					AgentName: agentName,
 					Type:      "compaction",
 					Timestamp: timestamp,
-					Payload:   map[string]interface{}{},
+					Payload:   map[string]interface{}{"trigger": "auto"},
 				})
 				continue
 			}
