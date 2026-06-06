@@ -110,6 +110,11 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         "model": model,
     })
 
+    # Tracks the most recent AssistantMessage usage so the PreCompact hook can
+    # publish a snapshot of context size at compaction time. Updated in
+    # process_responses below; read inside pre_compact_hook via closure.
+    last_usage = None
+
     async def post_tool_hook(input, session_id, ctx):
         publisher.publish(
             "tool_result",
@@ -123,12 +128,26 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
 
     async def pre_compact_hook(input, session_id, ctx):
         # Fires right before Claude Code auto- or manually-compacts the conversation.
-        # Surface it as an event so the UI can render a divider with context.
+        # Snapshot the current context size from the most recent AssistantMessage.usage
+        # so the UI can render a before -> after picture once compaction completes.
+        # When the agent has no in-session usage yet (standalone-spawn /compact path),
+        # fall back to the seed value the /compact endpoint stashed from the CR.
+        import state as _state
+        tokens_before = 0
+        if last_usage:
+            for key in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"):
+                v = last_usage.get(key) if isinstance(last_usage, dict) else getattr(last_usage, key, None)
+                if isinstance(v, (int, float)):
+                    tokens_before += int(v)
+        if tokens_before == 0 and isinstance(_state.compaction_prev_tokens, int) and _state.compaction_prev_tokens > 0:
+            tokens_before = _state.compaction_prev_tokens
+        _state.compaction_prev_tokens = None  # one-shot
         publisher.publish(
             "compaction",
             {
                 "trigger": input.get("trigger", "auto"),
                 "custom_instructions": input.get("custom_instructions") or "",
+                "tokens_before": tokens_before,
             },
         )
         return {}
@@ -219,7 +238,6 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     state.steer_queue = session_steer_queue
 
     result = None
-    last_usage = None
 
     async def process_responses(client):
         """Read all responses until ResultMessage, publishing events along the way."""

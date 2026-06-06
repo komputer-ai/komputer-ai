@@ -385,6 +385,88 @@ async def cancel_task():
     return {"status": "cancelling"}
 
 
+class CompactRequest(BaseModel):
+    instructions: Optional[str] = None
+    # Seed for the PreCompact hook's tokens_before payload. The API populates it
+    # from CR.status.totalTokens — the context size at the end of the last task —
+    # so the divider can show a meaningful "before" value even when /compact
+    # is spawned as a standalone task with no prior AssistantMessage usage.
+    prev_tokens: Optional[int] = None
+
+
+@app.post("/compact")
+async def compact_task(req: CompactRequest, background_tasks: BackgroundTasks):
+    """Manually trigger conversation compaction.
+
+    Two paths:
+
+    1. Agent is busy (active task) — route `/compact` through `state.active_client.query()`.
+       The SDK queues it as a follow-up message after the current turn ends; the bundled
+       CLI parses the slash command and fires the PreCompact hook with trigger="manual".
+
+    2. Agent is idle (no task running) — start a fresh task with `/compact` as the
+       instructions. The bundled CLI processes the slash command immediately as its
+       only turn, fires the PreCompact hook, then exits the session cleanly.
+
+    Either path produces the same compaction event payload to Redis.
+    """
+    instructions = (req.instructions or "").strip()
+    slash = "/compact " + instructions if instructions else "/compact"
+
+    # Stash prev_tokens so the PreCompact hook can use it as a fallback for the
+    # tokens_before payload (used when the agent has no AssistantMessage usage
+    # to read at hook time, e.g. the standalone-spawn path below).
+    state.compaction_prev_tokens = req.prev_tokens
+
+    # Path 1: live session, queue as follow-up
+    if state.busy.locked():
+        if state.active_client is None or state.active_loop is None or state.active_loop.is_closed():
+            raise HTTPException(status_code=409, detail="Session is not yet ready to accept a compaction request")
+
+        async def _do_compact():
+            try:
+                await state.active_client.query(slash)
+            except Exception as e:
+                logger.exception("manual compaction request failed: %s", e)
+
+        try:
+            state.active_loop.call_soon_threadsafe(
+                lambda: asyncio.ensure_future(_do_compact())
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to schedule compaction: {e}")
+
+        return {"status": "compacting", "instructions": instructions or None, "mode": "queued"}
+
+    # Path 2: idle — spawn a one-shot task whose only instruction is /compact
+    from agent import run_agent
+
+    cfg = agent_config.load()
+    task_model = cfg["model"]
+
+    def run_compact_with_lock():
+        global _current_task, _current_loop
+        with state.busy:
+            loop = asyncio.new_event_loop()
+            state.active_loop = loop
+            _current_loop = loop
+            _current_task = loop.create_task(run_agent(slash, task_model, _publisher))
+            try:
+                loop.run_until_complete(_current_task)
+            except asyncio.CancelledError:
+                _publisher.publish("task_cancelled", {"reason": "Compaction cancelled"})
+            finally:
+                state.set_active_client(None)
+                state.active_loop = None
+                state.steer_queue = None
+                _current_task = None
+                _current_loop = None
+                loop.close()
+
+    background_tasks.add_task(run_compact_with_lock)
+    return {"status": "compacting", "instructions": instructions or None, "mode": "standalone"}
+
+
 @app.post("/shutdown")
 async def shutdown():
     """PreStop hook: wait for the running task to finish, cancel if it takes too long."""

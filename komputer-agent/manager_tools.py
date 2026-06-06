@@ -200,6 +200,26 @@ async def cancel_agent(args):
 
 
 @tool(
+    name="compact_agent",
+    description="Trigger manual conversation compaction on a sub-agent's active task. Older turns are summarized to free context space. Use when a sub-agent is approaching its context window and you want to keep it on the same task without restarting. Only works while the sub-agent is actively running a task. Optional `instructions` lets you guide the compactor (e.g. 'preserve all code blocks').",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "The sub-agent name (as passed to create_agent)"},
+            "instructions": {"type": "string", "description": "Optional guidance to the compactor about what to preserve."},
+        },
+        "required": ["name"],
+    },
+)
+async def compact_agent(args):
+    full_name = _sanitize_name(args["name"])
+    payload = {}
+    if args.get("instructions"):
+        payload["instructions"] = args["instructions"]
+    return await _request("POST", f"/api/v1/agents/{full_name}/compact", timeout=15, json=payload if payload else None)
+
+
+@tool(
     name="delete_agent",
     description="Delete a sub-agent and clean up its resources. Use after collecting its results.",
     input_schema={
@@ -1311,5 +1331,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )

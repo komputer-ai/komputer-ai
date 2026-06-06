@@ -145,6 +145,8 @@ func registerAgentCommands(root *cobra.Command) {
 				switch task {
 				case "InProgress":
 					task = busyStyle.Render(fmt.Sprintf("%-14s", "● In Progress"))
+				case "Compacting":
+					task = warnStyle.Render(fmt.Sprintf("%-14s", "↻ Compacting"))
 				case "Complete":
 					task = idleStyle.Render(fmt.Sprintf("%-14s", "✔ Complete"))
 				case "Error":
@@ -591,6 +593,63 @@ func registerAgentCommands(root *cobra.Command) {
 			fmt.Println(warnStyle.Render(fmt.Sprintf("⚠ Cancelling task on %q", args[0])))
 		},
 	})
+
+	// ── compact ──────────────────────────────────────────────────────────
+	compactCmd := &cobra.Command{
+		Use:   "compact <name>",
+		Short: "Manually compact an agent's conversation history",
+		Long:  "Triggers a manual compaction on the agent's active task. Older turns are summarized to free context space. Optional --instructions guides the compactor on what to preserve. Only works while the agent is actively running a task.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			instructions, _ := cmd.Flags().GetString("instructions")
+
+			var body interface{}
+			if instructions != "" {
+				body = map[string]string{"instructions": instructions}
+			}
+
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/compact%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), body)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status == 409 {
+				var errResp ErrorResponse
+				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
+				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(map[string]any{"name": args[0], "compacting": true})
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Compacting conversation on %q", args[0])))
+		},
+	}
+	compactCmd.Flags().String("instructions", "", "Optional guidance for the compactor (e.g. \"preserve all code blocks\")")
+	root.AddCommand(compactCmd)
 
 	// ── config ───────────────────────────────────────────────────────────
 	configCmd := &cobra.Command{

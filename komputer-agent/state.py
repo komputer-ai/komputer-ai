@@ -25,6 +25,13 @@ interrupted = False
 # task_cancelled/task_completed and proceeds directly to the steer message.
 steered = False
 
+# Seed for the PreCompact hook's tokens_before payload, used when the agent
+# spawns a fresh /compact-only task and has no in-session AssistantMessage.usage
+# to read yet. The /compact HTTP endpoint sets this from the request body's
+# prev_tokens value (the API populates it from CR.status.totalTokens). Cleared
+# after the hook reads it.
+compaction_prev_tokens: int | None = None
+
 
 def set_active_client(client):
     """Register or clear the active SDK client."""
