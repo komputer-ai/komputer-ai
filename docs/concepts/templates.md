@@ -42,49 +42,39 @@ Every agent that doesn't override `spec.templateRef` uses this template.
 
 ## Advanced cluster template
 
-A production-grade template with concurrency cap, node selection, custom env, additional volumes, and a non-default image. All standard Kubernetes PodSpec fields are passed through verbatim.
+A production-grade template with a concurrency cap, a custom storage class, a custom agent image, Bedrock-routed Claude, and a mounted ConfigMap. All standard Kubernetes PodSpec fields are passed through verbatim.
 
 ```yaml
 apiVersion: komputer.komputer.ai/v1alpha1
 kind: KomputerAgentClusterTemplate
 metadata:
-  name: gpu-heavy
+  name: production
 spec:
-  anthropicKeySecretRef:
-    name: anthropic-api-key
-    key: token
+  # Route Claude through AWS Bedrock — anthropicKeySecretRef is not required
+  # when CLAUDE_CODE_USE_BEDROCK=1 is set on the pod (see env below).
 
   # Cap how many agents using this template can run concurrently per namespace.
   # 0 (default) = no cap. See concepts/agents.md "Concurrency Control".
-  maxConcurrentAgents: 5
+  maxConcurrentAgents: 20
 
   storage:
-    size: 100Gi
+    size: 50Gi
     storageClassName: fast-ssd
 
   podSpec:
     serviceAccountName: komputer-agent
-    nodeSelector:
-      workload-class: ai-heavy
-    tolerations:
-      - key: gpu
-        operator: Equal
-        value: "true"
-        effect: NoSchedule
     containers:
       - name: agent
         image: ghcr.io/my-org/komputer-agent-custom:v3.2.1
         imagePullPolicy: IfNotPresent
         env:
-          # Route Claude through AWS Bedrock instead of api.anthropic.com.
-          # When enabled, anthropicKeySecretRef is not required.
           - name: CLAUDE_CODE_USE_BEDROCK
             value: "1"
           - name: AWS_REGION
             value: us-east-1
         resources:
-          requests: { cpu: "2", memory: "8Gi", nvidia.com/gpu: "1" }
-          limits:   { cpu: "4", memory: "16Gi", nvidia.com/gpu: "1" }
+          requests: { cpu: "500m", memory: "1Gi" }
+          limits:   { cpu: "2",    memory: "4Gi" }
         volumeMounts:
           - name: shared-prompts
             mountPath: /shared/prompts
@@ -127,11 +117,11 @@ spec:
 apiVersion: komputer.komputer.ai/v1alpha1
 kind: KomputerAgent
 metadata:
-  name: heavy-research
-  namespace: team-research
+  name: release-notes-writer
+  namespace: team-product
 spec:
-  instructions: "Build a literature review on transformer scaling laws."
-  templateRef: gpu-heavy         # by name; resolution checks ns then cluster scope
+  instructions: "Draft release notes for v2.4 from the merged PRs since v2.3."
+  templateRef: production         # by name; resolution checks ns then cluster scope
   model: claude-sonnet-4-6
 ```
 
@@ -141,10 +131,10 @@ Via the API:
 curl -X POST http://komputer-api/api/v1/agents \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "heavy-research",
-    "instructions": "Build a literature review on transformer scaling laws.",
-    "templateRef": "gpu-heavy",
-    "namespace": "team-research"
+    "name": "release-notes-writer",
+    "instructions": "Draft release notes for v2.4 from the merged PRs since v2.3.",
+    "templateRef": "production",
+    "namespace": "team-product"
   }'
 ```
 
