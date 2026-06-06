@@ -76,12 +76,11 @@ spec:
         image: ghcr.io/my-org/komputer-agent-custom:v3.2.1
         imagePullPolicy: IfNotPresent
         env:
-          - name: OPENAI_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: openai-creds
-                key: token
-          - name: COMPANY_REGION
+          # Route Claude through AWS Bedrock instead of api.anthropic.com.
+          # When enabled, anthropicKeySecretRef is not required.
+          - name: CLAUDE_CODE_USE_BEDROCK
+            value: "1"
+          - name: AWS_REGION
             value: us-east-1
         resources:
           requests: { cpu: "2", memory: "8Gi", nvidia.com/gpu: "1" }
