@@ -1165,31 +1165,61 @@ export function AgentChat({
 
   const showThinking = isWorking && !cancelling;
 
-  const thinkingStartMs = useMemo(() => {
-    if (!showThinking) return null;
-    for (let i = events.length - 1; i >= 0; i--) {
-      const t = events[i].type;
-      if (t === "task_completed" || t === "task_cancelled" || t === "error") break;
-      if (t === "task_started" || t === "thinking") {
-        const parsed = Date.parse(events[i].timestamp);
-        if (!Number.isNaN(parsed)) return parsed;
-      }
-    }
-    const parsed = Date.parse(pendingTimestamp);
-    return Number.isNaN(parsed) ? Date.now() : parsed;
-  }, [showThinking, events, pendingTimestamp]);
-
+  // Lock the thinking timer's start to the FIRST moment of the current task,
+  // so it grows monotonically. Once anchored, don't move the anchor even if a
+  // later event (task_started, first thinking) lands with a different timestamp.
+  // The anchor is cleared whenever showThinking goes false; the next true flip
+  // re-anchors from the latest known signal at that instant.
+  const thinkingStartRef = useRef<number | null>(null);
   const [thinkingElapsedMs, setThinkingElapsedMs] = useState(0);
+
   useEffect(() => {
-    if (!showThinking || thinkingStartMs == null) {
+    if (!showThinking) {
+      thinkingStartRef.current = null;
       setThinkingElapsedMs(0);
       return;
     }
-    const tick = () => setThinkingElapsedMs(Math.max(0, Date.now() - thinkingStartMs));
+
+    // Anchor only on the rising edge (when the ref is null).
+    if (thinkingStartRef.current == null) {
+      // Prefer the earliest signal we have in the current task window:
+      // 1. task_started for the latest task (most accurate when stream is live)
+      // 2. pendingTimestamp (when user just submitted; no events yet)
+      // 3. Date.now() (last-resort fallback)
+      let anchor: number | null = null;
+      let windowStart = 0;
+      for (let i = events.length - 1; i >= 0; i--) {
+        const t = events[i].type;
+        if (t === "task_completed" || t === "task_cancelled" || t === "error") {
+          windowStart = i + 1;
+          break;
+        }
+      }
+      for (let i = windowStart; i < events.length; i++) {
+        if (events[i].type === "task_started") {
+          const parsed = Date.parse(events[i].timestamp);
+          if (!Number.isNaN(parsed)) {
+            anchor = parsed;
+            break;
+          }
+        }
+      }
+      if (anchor == null) {
+        const parsed = Date.parse(pendingTimestamp);
+        anchor = Number.isNaN(parsed) ? Date.now() : parsed;
+      }
+      thinkingStartRef.current = anchor;
+    }
+
+    const start = thinkingStartRef.current;
+    const tick = () => setThinkingElapsedMs(Math.max(0, Date.now() - start));
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [showThinking, thinkingStartMs]);
+    // events/pendingTimestamp are read at anchor-time only; intentionally not
+    // dependencies, otherwise every new event would re-anchor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showThinking]);
 
   // Track if user is scrolled away from the bottom
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -1269,11 +1299,9 @@ export function AgentChat({
                 </div>
                 <span className="text-xs text-[var(--color-brand-violet-light)]">
                   Thinking
-                  {thinkingStartMs != null && (
-                    <span className="ml-1.5 opacity-70 tabular-nums">
-                      · {formatThinkingDuration(thinkingElapsedMs)}
-                    </span>
-                  )}
+                  <span className="ml-1.5 opacity-70 tabular-nums">
+                    · {formatThinkingDuration(thinkingElapsedMs)}
+                  </span>
                 </span>
               </motion.div>
             )}
