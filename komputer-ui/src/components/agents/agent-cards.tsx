@@ -49,7 +49,7 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
         {agents.map((agent, i) => {
           const cfg = statusConfig[agent.status] ?? defaultStatus;
           const StatusIcon = cfg.icon;
-          const isActive = agent.taskStatus === "InProgress";
+          const isActive = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting";
           const key = agentKey(agent);
           const isSelected = !!selected?.has(key);
           const squad = agentSquadMap.get(agent.name);

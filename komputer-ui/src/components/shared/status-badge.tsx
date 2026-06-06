@@ -10,6 +10,7 @@ const statusColorMap: Record<string, { dot: string; text: string }> = {
   Running: { dot: "bg-[#34D399]", text: "text-[var(--color-text)]" },
   Active: { dot: "bg-[#34D399]", text: "text-[var(--color-text)]" },
   InProgress: { dot: "bg-[#34D399]", text: "text-[var(--color-text)]" },
+  Compacting: { dot: "bg-[#C084FC]", text: "text-[var(--color-text)]" },
   Sleeping: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
   Suspended: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
   Failed: { dot: "bg-[#F87171]", text: "text-[var(--color-text)]" },
@@ -24,7 +25,7 @@ const defaultColors = { dot: "bg-[var(--color-text-secondary)]", text: "text-[va
 
 export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
   const colors = statusColorMap[status] ?? defaultColors;
-  const shouldPulse = ["Running", "Active", "InProgress"].includes(status);
+  const shouldPulse = ["Running", "Active", "InProgress", "Compacting"].includes(status);
 
   return (
     <Badge

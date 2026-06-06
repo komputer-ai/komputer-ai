@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -18,7 +18,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, compactAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
 import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
@@ -211,7 +211,8 @@ export default function AgentDetailPage() {
   // Poll only while status is transient (Pending, or Running with an active task)
   const needsPolling = agent != null && (
     agent.status === "Pending" ||
-    agent.taskStatus === "InProgress"
+    agent.taskStatus === "InProgress" ||
+    agent.taskStatus === "Compacting"
   );
   useEffect(() => {
     if (!needsPolling) return;
@@ -242,6 +243,45 @@ export default function AgentDetailPage() {
       // Will be reflected in next poll
     }
   };
+
+  const [compactBusy, setCompactBusy] = useState(false);
+  const [compactNote, setCompactNote] = useState<string | null>(null);
+  // Set to the ISO time of the request when the user clicks Compact. The chat
+  // shows an inline 'Compacting…' line until a compaction event with a timestamp
+  // >= this value lands (the agent emitted one). Auto-clears after 30s to avoid
+  // a stuck indicator if the agent never compacts (e.g. it stopped mid-request).
+  const [compactionRequestedAt, setCompactionRequestedAt] = useState<string | null>(null);
+  const handleCompact = async () => {
+    if (!agentName || compactBusy) return;
+    setCompactBusy(true);
+    setCompactNote(null);
+    try {
+      await compactAgent(agentName, { namespace: agentNs });
+      setCompactNote("Compacting…");
+      setCompactionRequestedAt(new Date().toISOString());
+      window.setTimeout(() => setCompactionRequestedAt(null), 30_000);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Compaction failed";
+      // Friendly message for the most common case (no active task)
+      setCompactNote(/409/.test(msg) || /no active task/i.test(msg) ? "No active task to compact" : msg);
+    } finally {
+      window.setTimeout(() => setCompactBusy(false), 2000);
+      window.setTimeout(() => setCompactNote(null), 4000);
+    }
+  };
+
+  // When a compaction event lands at or after the request timestamp, clear the
+  // pending indicator — the divider will now appear in its place.
+  // Hand off the indicator from the parent-prop (instant on click) to the
+  // CR-derived signal (taskStatus === "Compacting") only once the CR has caught
+  // up. That avoids a flicker between the two signals — the chat sees a
+  // continuous indicator until the worker flips taskStatus back to InProgress.
+  useEffect(() => {
+    if (!compactionRequestedAt) return;
+    if (agent?.taskStatus === "Compacting") {
+      setCompactionRequestedAt(null);
+    }
+  }, [agent?.taskStatus, compactionRequestedAt]);
 
   const handleDelete = async (opts?: { recreatePod?: boolean }) => {
     if (!agentName) return;
@@ -394,7 +434,7 @@ export default function AgentDetailPage() {
                   </Button>
                 ) : (
                   <>
-                    {agent.taskStatus === "InProgress" && (
+                    {(agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting") && (
                       <Button variant="secondary" size="sm" onClick={handleCancel}>
                         <Ban className="size-3" data-icon="inline-start" />
                         Cancel
@@ -422,6 +462,17 @@ export default function AgentDetailPage() {
                     Team Up
                   </Button>
                 )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCompact}
+                  disabled={compactBusy}
+                  title="Compact conversation history. Queues /compact as a follow-up message — runs as soon as the current turn finishes (or immediately if the agent is idle and responsive)."
+                  className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
+                >
+                  <Layers className="size-3" data-icon="inline-start" />
+                  {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
+                </Button>
                 {agentSquad ? (
                   <SquadAwareDeleteButton
                     agentName={agent.name}
@@ -500,6 +551,7 @@ export default function AgentDetailPage() {
                   hasNewerEvents={hasNewerEvents}
                   loadingNewer={loadingNewer}
                   onLoadNewer={loadNewerEvents}
+                  compactionPending={compactionRequestedAt != null}
                 />
               );
               if (agentSquad && agentSquad.members.length > 1) {

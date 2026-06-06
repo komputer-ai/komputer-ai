@@ -81,6 +81,15 @@ export const deleteAgent = (name: string, ns?: string, opts?: { recreatePod?: bo
 export const cancelAgent = (name: string, ns?: string) =>
   request<void>(`/agents/${name}/cancel${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
+export const compactAgent = (name: string, opts?: { instructions?: string; namespace?: string }) =>
+  request<{ status: string; name: string }>(
+    `/agents/${name}/compact${opts?.namespace ? `?namespace=${opts.namespace}` : ''}`,
+    {
+      method: 'POST',
+      body: opts?.instructions ? JSON.stringify({ instructions: opts.instructions }) : undefined,
+    }
+  );
+
 export const getAgentEvents = (name: string, limit = 50, ns?: string, before?: string, source?: 'session' | 'redis', around?: string, after?: string) =>
   request<AgentEvent[]>(`/agents/${name}/events?limit=${limit}${ns ? `&namespace=${ns}` : ''}${before ? `&before=${encodeURIComponent(before)}` : ''}${source ? `&source=${source}` : ''}${around ? `&around=${encodeURIComponent(around)}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`);
 
