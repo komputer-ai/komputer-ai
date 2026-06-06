@@ -68,6 +68,7 @@ The current tool set is focused on the most useful remote-control surface. All t
 |------|---------|
 | `list_agents` | List agents in a namespace (or all namespaces) |
 | `get_agent` | Full spec + status + costs for one agent |
+| `compact_agent` | Trigger manual conversation compaction on an agent's active task |
 | `list_schedules` | List schedules in a namespace |
 | `get_schedule` | Full schedule including current `instructions` |
 | `trigger_schedule` | Fire a schedule immediately, outside its cron cadence |
