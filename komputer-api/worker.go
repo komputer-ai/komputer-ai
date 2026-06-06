@@ -546,6 +546,17 @@ func mapEventToTaskStatus(event AgentEvent) (taskStatus string, lastMessage stri
 	case "tool_result":
 		tool, _ := event.Payload["tool"].(string)
 		return "InProgress", truncate(fmt.Sprintf("Got result from %s", tool), 256)
+	case "compaction":
+		// "Compacting" is a transient sub-state of InProgress. The next
+		// task-progress event (text/thinking/tool_*) will flip it back to
+		// "InProgress" automatically because Redis events are processed
+		// in order on a single consumer-group worker.
+		trigger, _ := event.Payload["trigger"].(string)
+		msg := "Compacting conversation..."
+		if trigger == "manual" {
+			msg = "Compacting conversation (manual)..."
+		}
+		return "Compacting", msg
 	case "task_completed":
 		return "Complete", "Task completed"
 	case "task_cancelled":

@@ -60,6 +60,10 @@ type AgentTaskStatus string
 const (
 	AgentTaskComplete   AgentTaskStatus = "Complete"
 	AgentTaskInProgress AgentTaskStatus = "InProgress"
+	// AgentTaskCompacting is a transient sub-state of InProgress while Claude Code
+	// is summarizing older conversation turns to free up context window space.
+	// Cleared back to InProgress once the next non-compaction event arrives.
+	AgentTaskCompacting AgentTaskStatus = "Compacting"
 	AgentTaskError      AgentTaskStatus = "Error"
 )
 

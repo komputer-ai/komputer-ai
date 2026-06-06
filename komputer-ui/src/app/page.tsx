@@ -331,8 +331,8 @@ export default function DashboardPage() {
     Failed: squads.filter((s) => s.phase === "Failed").length,
   };
 
-  // Running tasks (agents with InProgress task)
-  const runningTasks = agents.filter((a) => a.taskStatus === "InProgress");
+  // Running tasks (agents with InProgress or Compacting task)
+  const runningTasks = agents.filter((a) => a.taskStatus === "InProgress" || a.taskStatus === "Compacting");
 
   // Recent agents — fill 2 rows at the widest breakpoint (6 cols × 2 = 12)
   const recentAgents = [...agents]

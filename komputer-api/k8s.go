@@ -459,6 +459,53 @@ func (k *K8sClient) CancelAgentTask(ctx context.Context, ns, podName, agentName 
 	return nil
 }
 
+// CompactAgentTask triggers a manual compaction on the agent's active session.
+// The agent forwards `/compact [instructions]` through the bundled Claude Code CLI,
+// which fires the PreCompact hook with trigger="manual".
+//
+// When the agent is idle and we're spawning a fresh /compact-only session, the
+// PreCompact hook can't see any AssistantMessage.usage (no message has been sent
+// yet), so we seed `prev_tokens` from the CR's status.totalTokens — that's the
+// context size at the end of the last completed task, which is what the SDK
+// will resume into. The agent uses it as the tokens_before payload.
+//
+// Returns an error with substring "status 409" when the agent rejected the
+// request — the HTTP handler maps that to a 409 to the caller. We have to parse
+// the curl-exec response body manually because `curl -s` succeeds on any HTTP
+// status; the in-cluster HTTP path does check the status code but the exec
+// fallback (used in LOCAL=true mode) does not.
+func (k *K8sClient) CompactAgentTask(ctx context.Context, ns, podName, agentName, instructions string) error {
+	bodyMap := map[string]interface{}{}
+	if instructions != "" {
+		bodyMap["instructions"] = instructions
+	}
+	// Seed prev_tokens from the CR's last known context size, for the idle path.
+	if agent, err := k.GetAgent(ctx, ns, agentName); err == nil && agent.Status.TotalTokens > 0 {
+		bodyMap["prev_tokens"] = agent.Status.TotalTokens
+	}
+	bodyJSON, _ := json.Marshal(bodyMap)
+	err := k.postToAgent(ctx, ns, agentName, "/compact", string(bodyJSON))
+	if err != nil {
+		// Fall back to kubectl exec. Read the response body and look for an
+		// error indicator — FastAPI's HTTPException serialises as {"detail": "..."}.
+		resp, execErr := k.execInPodCurl(ctx, ns, podName, agentName, "POST", "/compact", string(bodyJSON))
+		if execErr != nil {
+			return execErr
+		}
+		var parsed struct {
+			Detail string `json:"detail"`
+			Status string `json:"status"`
+		}
+		if jerr := json.Unmarshal(resp, &parsed); jerr == nil && parsed.Detail != "" {
+			return fmt.Errorf("agent returned status 409: %s", parsed.Detail)
+		}
+		if parsed.Status == "" {
+			return fmt.Errorf("agent returned unexpected response: %s", string(resp))
+		}
+	}
+	return nil
+}
+
 // ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
 func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentName, instructions, model, internalSystemPrompt, systemPrompt string) (int64, error) {
 	bodyMap := map[string]string{"instructions": instructions}

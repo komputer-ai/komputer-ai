@@ -10,7 +10,7 @@ export interface AgentResponse {
   namespace: string;
   model: string;
   status: AgentStatus;
-  taskStatus?: 'InProgress' | 'Complete' | 'Error';
+  taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
   lastTaskCostUSD?: string;

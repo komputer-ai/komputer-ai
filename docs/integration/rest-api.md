@@ -105,6 +105,28 @@ POST /api/v1/agents/:name/cancel?namespace=production
 
 Gracefully cancels the running task. The agent pod stays alive for future tasks.
 
+## Compact a Conversation
+
+Manually trigger compaction on the agent's active task. Older turns are summarized to free context space. Only works while the agent is actively running a task — returns `409 Conflict` otherwise.
+
+```
+POST /api/v1/agents/:name/compact?namespace=production
+Content-Type: application/json
+```
+
+The body is optional. If you want to guide the compactor:
+
+```json
+{ "instructions": "preserve all code blocks and recent file paths" }
+```
+
+**Response (200 OK):**
+```json
+{ "status": "compacting", "name": "my-agent" }
+```
+
+When the compaction actually happens, a `compaction` event is emitted on the agent's event stream with `payload.trigger = "manual"`. See [Agents → Compaction](../concepts/agents.md#compaction) for the full picture.
+
 ## Delete an Agent
 
 ```

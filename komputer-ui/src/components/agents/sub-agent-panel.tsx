@@ -168,6 +168,7 @@ function SubAgentCard({ info, namespace, exists, agentPhase, memberStatus }: { i
     // Fall back to office member status
     if (memberStatus === "Complete") return "Succeeded";
     if (memberStatus === "InProgress") return "Running";
+    if (memberStatus === "Compacting") return "Running";
     if (memberStatus === "Error") return "Failed";
     return "Pending";
   }, [events, exists, agentPhase, memberStatus]);
@@ -367,7 +368,7 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
     const isActive = (name: string) => {
       const phase = agentStatuses[name];
       const task = memberStatuses[name];
-      return phase === "Running" || phase === "Pending" || task === "InProgress";
+      return phase === "Running" || phase === "Pending" || task === "InProgress" || task === "Compacting";
     };
     const isDead = (name: string) => {
       const phase = agentStatuses[name];

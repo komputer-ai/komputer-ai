@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,12 @@ type listAgentsArgs struct {
 type getAgentArgs struct {
 	Name      string `json:"name" jsonschema:"Agent name"`
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace"`
+}
+
+type compactAgentArgs struct {
+	Name         string `json:"name" jsonschema:"Agent name"`
+	Namespace    string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace"`
+	Instructions string `json:"instructions,omitempty" jsonschema:"Optional guidance to the compactor about what to preserve."`
 }
 
 func registerAgentMCPTools(srv *mcp.Server, k8s *K8sClient) {
@@ -100,6 +107,30 @@ func registerAgentMCPTools(srv *mcp.Server, k8s *K8sClient) {
 			"connectors":      a.Spec.Connectors,
 			"totalCostUSD":    a.Status.TotalCostUSD,
 			"lastTaskCostUSD": a.Status.LastTaskCostUSD,
+		}, nil
+	})
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "compact_agent",
+		Description: "Trigger manual conversation compaction on an agent's active task. Older turns are summarized to free context space. Only works while the agent is actively running a task — returns an error otherwise.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args compactAgentArgs) (*mcp.CallToolResult, any, error) {
+		ns := args.Namespace
+		if ns == "" {
+			ns = k8s.defaultNamespace
+		}
+		a, err := k8s.GetAgent(ctx, ns, args.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if a.Status.PodName == "" {
+			return nil, nil, fmt.Errorf("agent %s has no running pod", args.Name)
+		}
+		if err := k8s.CompactAgentTask(ctx, ns, a.Status.PodName, args.Name, args.Instructions); err != nil {
+			return nil, nil, fmt.Errorf("failed to compact: %w", err)
+		}
+		return nil, map[string]any{
+			"status": "compacting",
+			"name":   args.Name,
 		}, nil
 	})
 }

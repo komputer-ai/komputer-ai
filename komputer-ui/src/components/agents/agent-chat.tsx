@@ -48,6 +48,8 @@ type AgentChatProps = {
   hasNewerEvents?: boolean;
   loadingNewer?: boolean;
   onLoadNewer?: () => void;
+  /** Parent sets this true between Compact-button click and the arrival of a compaction event. */
+  compactionPending?: boolean;
 };
 
 // --- Message types derived from events ---
@@ -87,7 +89,16 @@ type ChatMessage =
     }
   | { kind: "error"; message: string; timestamp: string }
   | { kind: "cancelled"; timestamp: string }
-  | { kind: "compaction"; trigger?: "auto" | "manual"; timestamp: string };
+  | {
+      kind: "compaction";
+      trigger?: "auto" | "manual";
+      tokensBefore?: number;
+      tokensAfter?: number;
+      tokensFreed?: number;
+      costUSD?: string;
+      duration?: string;
+      timestamp: string;
+    };
 
 export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
@@ -96,7 +107,10 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
       case "task_started": {
         const instructions =
           (event.payload.instructions ?? event.payload.message ?? "").trim();
-        if (instructions) {
+        // Don't render bare slash commands (e.g. "/compact") as user messages —
+        // they're internal control signals, not human input. The compaction
+        // divider (or other side-effect rendering) is the visible signal.
+        if (instructions && !instructions.startsWith("/")) {
           messages.push({
             kind: "user",
             text: instructions,
@@ -210,9 +224,11 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
         break;
       case "compaction": {
         const t = event.payload?.trigger;
+        const before = typeof event.payload?.tokens_before === "number" ? event.payload.tokens_before : undefined;
         messages.push({
           kind: "compaction",
           trigger: t === "manual" ? "manual" : t === "auto" ? "auto" : undefined,
+          tokensBefore: before,
           timestamp: event.timestamp,
         });
         break;
@@ -227,7 +243,53 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
         break;
     }
   }
-  return messages;
+
+  // Post-process: for each compaction message, look forward for a signal that
+  // tells us the post-compaction context size and compute tokensAfter / freed.
+  //   1. Next assistant `text` message that carries usage — the normal "next
+  //      turn after compaction" case (auto-compaction during a longer task).
+  //   2. Next `completed` message's contextTokens — the standalone /compact
+  //      path's task ends with task_completed and no text in between. In this
+  //      case the task's purpose WAS the compaction, so we also absorb the
+  //      cost/duration into the compaction divider and drop the standalone
+  //      "Task completed" divider that would otherwise read as a separate task.
+  // If neither has arrived yet, leave tokensAfter unset; the renderer suppresses
+  // the divider until it's filled in.
+  const indicesToDrop = new Set<number>();
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.kind !== "compaction" || m.tokensBefore == null) continue;
+    for (let j = i + 1; j < messages.length; j++) {
+      const n = messages[j];
+      if (n.kind === "compaction") break; // next compaction starts a new window
+      let after: number | undefined;
+      let absorbCompletion = false;
+      if (n.kind === "text" && n.usage) {
+        after =
+          (n.usage.input_tokens ?? 0) +
+          (n.usage.cache_read_input_tokens ?? 0) +
+          (n.usage.cache_creation_input_tokens ?? 0);
+      } else if (n.kind === "completed" && n.contextTokens != null) {
+        after = n.contextTokens;
+        // Standalone /compact task: the completed message describes the
+        // compaction work itself, not a separate user task. Merge.
+        absorbCompletion = true;
+      }
+      if (after != null) {
+        m.tokensAfter = after;
+        m.tokensFreed = Math.max(0, m.tokensBefore - after);
+        if (absorbCompletion && n.kind === "completed") {
+          m.costUSD = n.costUSD;
+          m.duration = n.duration;
+          indicesToDrop.add(j);
+        }
+        break;
+      }
+    }
+  }
+  return indicesToDrop.size > 0
+    ? messages.filter((_, idx) => !indicesToDrop.has(idx))
+    : messages;
 }
 
 function formatTimestamp(ts: string): string {
@@ -729,18 +791,78 @@ function CancelledDivider() {
   );
 }
 
-function CompactionDivider({ trigger }: { trigger?: "auto" | "manual" }) {
-  const label =
+function CompactionDivider({
+  trigger,
+  tokensBefore,
+  tokensAfter,
+  tokensFreed,
+  costUSD,
+  duration,
+}: {
+  trigger?: "auto" | "manual";
+  tokensBefore?: number;
+  tokensAfter?: number;
+  tokensFreed?: number;
+  costUSD?: string;
+  duration?: string;
+}) {
+  const action =
     trigger === "manual"
       ? "Context compacted manually"
       : trigger === "auto"
       ? "Context auto-compacted"
       : "Context compacted";
+
+  // Build the detail string. Show only the post-compaction picture, lead with the
+  // most user-meaningful number ("freed Nk"):
+  //   freed Nk tokens (Mk → Pk)
+  // During the gap between the compaction event and the next assistant message
+  // (when we know `before` but not `after` yet) we render the divider with no
+  // detail — the action label alone — and let it fill in when the after value
+  // arrives. This avoids the slightly confusing "from Nk tokens" intermediate
+  // state that doesn't tell the user what just happened.
+  let detail: string | null = null;
+  if (tokensBefore != null && tokensAfter != null) {
+    const before = formatTokenCount(tokensBefore);
+    const after = formatTokenCount(tokensAfter);
+    if (tokensFreed != null && tokensFreed > 0) {
+      detail = `freed ${formatTokenCount(tokensFreed)} tokens (${before} → ${after})`;
+    } else {
+      detail = `${before} → ${after}`;
+    }
+  }
+
+  const hasStats = costUSD || duration;
+
   return (
-    <div className="flex items-center gap-3 py-2" title="Older conversation turns were summarized to free up context space">
-      <div className="flex-1 border-t border-purple-400/20" />
-      <span className="text-xs font-medium text-purple-400">{label}</span>
-      <div className="flex-1 border-t border-purple-400/20" />
+    <div
+      className="py-2"
+      title="Older conversation turns were summarized to free up context space"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex-1 border-t border-purple-400/20" />
+        <span className="text-xs font-medium text-purple-400 whitespace-nowrap">
+          {action}
+          {detail && (
+            <span className="ml-1.5 font-normal text-purple-300/80 tabular-nums">· {detail}</span>
+          )}
+        </span>
+        <div className="flex-1 border-t border-purple-400/20" />
+      </div>
+      {hasStats && (
+        <div className="mt-1.5 flex items-center justify-center gap-3">
+          {costUSD && (
+            <span className="rounded-full bg-[var(--color-surface-raised)] px-2.5 py-0.5 font-semibold [&>span]:text-[var(--color-text)]">
+              <CostBadge cost={costUSD} />
+            </span>
+          )}
+          {duration && (
+            <span className="text-xs text-[var(--color-text-secondary)]">
+              {duration}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -817,8 +939,27 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
         return <CompletedDivider key={key} costUSD={msg.costUSD} duration={msg.duration} turns={msg.turns} inputTokens={msg.inputTokens} outputTokens={msg.outputTokens} cacheReadTokens={msg.cacheReadTokens} cacheCreationTokens={msg.cacheCreationTokens} />;
       case "cancelled":
         return <CancelledDivider key={key} />;
-      case "compaction":
-        return <CompactionDivider key={key} trigger={msg.trigger} />;
+      case "compaction": {
+        // Don't render the divider during the in-flight phase (we know `before`
+        // but not `after` yet). The Compacting indicator at the bottom of the
+        // chat is the active signal during that gap — adding a divider above it
+        // would be a redundant placeholder. Exception: legacy/backfilled events
+        // with no token data at all still get the label-only divider.
+        const hasFullStats = msg.tokensAfter != null;
+        const hasNoStats = msg.tokensBefore == null && msg.tokensAfter == null;
+        if (!hasFullStats && !hasNoStats) return null;
+        return (
+          <CompactionDivider
+            key={key}
+            trigger={msg.trigger}
+            tokensBefore={msg.tokensBefore}
+            tokensAfter={msg.tokensAfter}
+            tokensFreed={msg.tokensFreed}
+            costUSD={msg.costUSD}
+            duration={msg.duration}
+          />
+        );
+      }
       case "error":
         return <ErrorBar key={key} message={msg.message} />;
     }
@@ -886,6 +1027,7 @@ export function AgentChat({
   hasNewerEvents,
   loadingNewer,
   onLoadNewer,
+  compactionPending,
 }: AgentChatProps) {
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -950,7 +1092,7 @@ export function AgentChat({
       if (t === "task_completed" || t === "task_cancelled" || t === "error") return false;
       if (t === "task_started") return true;
     }
-    return taskStatus === "InProgress";
+    return taskStatus === "InProgress" || taskStatus === "Compacting";
   })();
 
   // Clear pendingText only when the task finishes — not when the server echoes the message
@@ -1286,7 +1428,10 @@ export function AgentChat({
             )}
             <MessageList messages={messages} agentName={agentName} agentNamespace={agentNamespace} highlightFrom={highlightTaskFrom} highlightTo={highlightTaskTo} />
             <AnimatePresence>
-            {showThinking && (
+            {/* Mutually exclusive: when a compaction is happening, suppress the
+                Thinking indicator. Both describe the same moment, just at different
+                specificity — Compacting is the more precise label. */}
+            {!(compactionPending || taskStatus === "Compacting") && showThinking && (
               <motion.div
                 className="flex items-center gap-2.5 py-1"
                 initial={{ opacity: 0, y: 8 }}
@@ -1315,6 +1460,35 @@ export function AgentChat({
                     · {formatThinkingDuration(thinkingElapsedMs)}
                   </span>
                 </span>
+              </motion.div>
+            )}
+            {(compactionPending || taskStatus === "Compacting") && (
+              <motion.div
+                key="compacting-indicator"
+                className="flex items-center gap-3 py-1.5"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8, transition: { duration: 0.2, ease: "easeIn" } }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex-1 border-t border-purple-400/15" />
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="size-1.5 rounded-full bg-purple-400"
+                      animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  ))}
+                  <span className="ml-1 text-xs font-medium text-purple-400">Compacting…</span>
+                </div>
+                <div className="flex-1 border-t border-purple-400/15" />
               </motion.div>
             )}
             </AnimatePresence>

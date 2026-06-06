@@ -524,6 +524,66 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	}
 }
 
+// compactAgentTask manually triggers conversation compaction on an active agent task.
+// @ID compactAgentTask
+// @Summary Compact agent conversation
+// @Description Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional `instructions` field passes custom guidance to the compactor.
+// @Tags agents
+// @Accept json
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body CompactAgentRequest false "Optional compaction instructions"
+// @Success 200 {object} map[string]string "Compaction triggered"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent has no running pod or no active task"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/compact [post]
+type CompactAgentRequest struct {
+	Instructions string `json:"instructions,omitempty"`
+}
+
+func compactAgentTask(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+
+		var req CompactAgentRequest
+		// Body is optional; ignore bind errors so an empty POST still works.
+		_ = c.ShouldBindJSON(&req)
+
+		agent, err := k8s.GetAgent(c.Request.Context(), ns, name)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if agent.Status.PodName == "" {
+			c.JSON(http.StatusConflict, gin.H{"error": "agent has no running pod"})
+			return
+		}
+
+		if err := k8s.CompactAgentTask(c.Request.Context(), ns, agent.Status.PodName, agent.Name, req.Instructions); err != nil {
+			agentActionsTotal.WithLabelValues("compact", "error").Inc()
+			// The agent returns 409 if no active task; surface that to the caller as 409.
+			if strings.Contains(err.Error(), "status 409") || strings.Contains(err.Error(), "No task is currently running") {
+				c.JSON(http.StatusConflict, gin.H{"error": "no active task to compact; manual compaction only works while the agent is running a task"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to compact: " + err.Error()})
+			return
+		}
+
+		Logger.Infow("triggered manual compaction on agent", "namespace", ns, "agent_name", name)
+		agentActionsTotal.WithLabelValues("compact", "success").Inc()
+		c.JSON(http.StatusOK, gin.H{"status": "compacting", "name": name})
+	}
+}
+
 // cancelAgentTask cancels the running task on an agent.
 // @ID cancelAgentTask
 // @Summary Cancel agent task

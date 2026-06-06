@@ -90,3 +90,27 @@ kubectl get komputeragents -o custom-columns=NAME:.metadata.name,PHASE:.status.p
 # vc-3    Queued   1      template "default" reached maxConcurrentAgents (1/1 running)
 # vc-2    Queued   2      template "default" reached maxConcurrentAgents (1/1 running)
 ```
+
+## Compaction
+
+When an agent's conversation history fills its model context window, the bundled Claude Code CLI **automatically compacts** the older turns into a summary — preserving recent context while freeing space to keep going. komputer-ai surfaces compaction in three ways:
+
+- The chat UI shows a purple divider (**"Context auto-compacted"** or **"Context compacted manually"**) inline with the conversation at the moment compaction happens
+- The CLI's interactive `komputer chat` prints a dim `── context auto-compacted ──` line in the same place
+- The event stream emits a `compaction` event with `payload.trigger` set to `"auto"` or `"manual"` — useful for SDK consumers building custom dashboards
+
+### Manual compaction
+
+You can trigger compaction yourself while an agent is actively running a task. This is useful when you know a long paste or tool result is about to land and you'd rather compact preemptively than wait for the auto-trigger.
+
+- **UI**: the purple Layers icon in the chat input footer, visible only while the agent is working
+- **CLI**: `komputer agent compact <name>` (optionally `--instructions "preserve all code blocks"`)
+- **REST**: `POST /api/v1/agents/<name>/compact` with optional `{"instructions": "..."}`
+- **Manager MCP tool**: `compact_agent` (one of the manager tools a manager agent has access to)
+- **External MCP**: the API's `/mcp` endpoint exposes `compact_agent` to external Claude / MCP-aware clients
+
+Manual compaction only works while the agent is **actively running a task** — there's no conversation to compact otherwise. The endpoint returns 409 if the agent is idle.
+
+### Where to tune compaction
+
+There's no UI knob yet for the auto-compaction threshold or strategy — those stay at the bundled Claude Code CLI's defaults (compaction triggers around 95% of the model's context window). A future release may expose them as `KomputerAgentSpec` fields.

@@ -74,6 +74,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.DELETE("/agents/:name", deleteAgent(k8s, worker))
 		v1.PATCH("/agents/:name", patchAgent(k8s))
 		v1.POST("/agents/:name/cancel", cancelAgentTask(k8s))
+		v1.POST("/agents/:name/compact", compactAgentTask(k8s))
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
 		v1.GET("/agents/:name/download/*filepath", downloadAgentFile(k8s))
 
