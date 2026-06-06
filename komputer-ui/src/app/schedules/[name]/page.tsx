@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock } from "lucide-react";
+import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock, Play } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -14,7 +14,7 @@ import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { Input } from "@/components/kit/input";
-import { getSchedule, deleteSchedule, patchSchedule } from "@/lib/api";
+import { getSchedule, deleteSchedule, patchSchedule, triggerSchedule } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { cronToHuman, formatCost } from "@/lib/utils";
 import type { ScheduleResponse } from "@/lib/types";
@@ -55,6 +55,11 @@ export default function ScheduleDetailPage() {
   const [editingCron, setEditingCron] = useState(false);
   const [cronDraft, setCronDraft] = useState("");
   const [savingCron, setSavingCron] = useState(false);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [instructionsDraft, setInstructionsDraft] = useState("");
+  const [savingInstructions, setSavingInstructions] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [triggerMessage, setTriggerMessage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -100,6 +105,40 @@ export default function ScheduleDetailPage() {
       // keep editing on error
     } finally {
       setSavingCron(false);
+    }
+  }
+
+  async function handleSaveInstructions() {
+    const trimmed = instructionsDraft.trim();
+    if (!trimmed || trimmed === schedule?.instructions) {
+      setEditingInstructions(false);
+      return;
+    }
+    setSavingInstructions(true);
+    try {
+      await patchSchedule(name, { instructions: trimmed }, scheduleNs);
+      await fetchData();
+      setEditingInstructions(false);
+    } catch {
+      // keep editing on error
+    } finally {
+      setSavingInstructions(false);
+    }
+  }
+
+  async function handleTrigger() {
+    setTriggering(true);
+    setTriggerMessage(null);
+    try {
+      await triggerSchedule(name, scheduleNs);
+      setTriggerMessage("Schedule triggered.");
+      await fetchData();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to trigger";
+      setTriggerMessage(msg);
+    } finally {
+      setTriggering(false);
+      window.setTimeout(() => setTriggerMessage(null), 4000);
     }
   }
 
@@ -164,7 +203,26 @@ export default function ScheduleDetailPage() {
               one-time
             </Badge>
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {triggerMessage && (
+              <span className="text-xs text-[var(--color-text-secondary)]">{triggerMessage}</span>
+            )}
+            <ConfirmDialog
+              title={`Run ${schedule.name} now?`}
+              description="This triggers the schedule's instructions immediately, outside of its cron cadence."
+              onConfirm={handleTrigger}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={triggering || schedule.lastRunStatus === "InProgress"}
+                  title={schedule.lastRunStatus === "InProgress" ? "A run is already in progress" : undefined}
+                >
+                  <Play className="size-3.5 text-[var(--color-brand-blue)]" />
+                  {triggering ? "Triggering..." : "Run now"}
+                </Button>
+              }
+            />
             <ConfirmDialog
               title={`Delete ${schedule.name}?`}
               description="This will permanently delete this schedule. This action cannot be undone."
@@ -253,6 +311,69 @@ export default function ScheduleDetailPage() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Instructions */}
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+              Instructions
+            </h2>
+            {!editingInstructions && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInstructionsDraft(schedule.instructions ?? "");
+                  setEditingInstructions(true);
+                }}
+              >
+                <Pencil className="size-3 text-[var(--color-text-muted)]" />
+                Edit
+              </Button>
+            )}
+          </div>
+          {editingInstructions ? (
+            <div className="space-y-2">
+              <textarea
+                value={instructionsDraft}
+                onChange={(e) => setInstructionsDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setEditingInstructions(false);
+                }}
+                className="w-full min-h-[120px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)] resize-y"
+                placeholder="What should the agent do each run?"
+                autoFocus
+                disabled={savingInstructions}
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveInstructions}
+                  disabled={savingInstructions}
+                >
+                  <Check className="size-3.5" />
+                  {savingInstructions ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingInstructions(false)}
+                  disabled={savingInstructions}
+                >
+                  <X className="size-3.5" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] whitespace-pre-wrap">
+              {schedule.instructions || (
+                <span className="text-[var(--color-text-muted)] italic">No instructions set.</span>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* Stats cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

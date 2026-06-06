@@ -69,6 +69,7 @@ export interface ScheduleResponse {
   name: string;
   namespace: string;
   schedule: string;
+  instructions: string;
   timezone?: string;
   autoDelete?: boolean;
   keepAgents?: boolean;

@@ -232,6 +232,22 @@ async def delete_schedule(args):
 
 
 @tool(
+    name="trigger_schedule",
+    description="Trigger a schedule to run NOW, outside of its cron cadence. Useful for debugging or for one-off manual runs of a recurring task.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "The schedule name (as passed to schedule_agent)."},
+        },
+        "required": ["name"],
+    },
+)
+async def trigger_schedule(args):
+    full_name = _sanitize_name(args["name"])
+    return await _request("POST", f"/api/v1/schedules/{full_name}/trigger", timeout=30)
+
+
+@tool(
     name="create_memory",
     description="Create a KomputerMemory resource containing reusable knowledge (notes, context, instructions). Optionally attach it to yourself so it's included in your system prompt on next wake.",
     input_schema={
@@ -1295,5 +1311,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )
