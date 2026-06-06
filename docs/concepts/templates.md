@@ -34,8 +34,12 @@ spec:
       - name: agent
         image: ghcr.io/komputer-ai/komputer-agent:latest
         resources:
-          requests: { cpu: "500m", memory: "1Gi" }
-          limits:   { cpu: "2",    memory: "4Gi" }
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
 ```
 
 Every agent that doesn't override `spec.templateRef` uses this template.
@@ -73,8 +77,12 @@ spec:
           - name: AWS_REGION
             value: us-east-1
         resources:
-          requests: { cpu: "500m", memory: "1Gi" }
-          limits:   { cpu: "2",    memory: "4Gi" }
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
         volumeMounts:
           - name: shared-prompts
             mountPath: /shared/prompts
@@ -107,8 +115,12 @@ spec:
       - name: agent
         image: ghcr.io/my-org/komputer-agent-research:latest
         resources:
-          requests: { cpu: "1", memory: "2Gi" }
-          limits:   { cpu: "2", memory: "4Gi" }
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
 ```
 
 ## Referencing a template from an agent

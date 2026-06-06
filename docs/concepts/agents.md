@@ -47,8 +47,12 @@ spec:
     containers:
       - name: agent
         resources:
-          requests: { cpu: "4", memory: "8Gi" }
-          limits:   { cpu: "4", memory: "8Gi" }
+          requests:
+            cpu: "4"
+            memory: "8Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
   storage:
     size: 50Gi
 ```
