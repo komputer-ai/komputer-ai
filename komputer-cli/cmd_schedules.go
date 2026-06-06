@@ -191,6 +191,9 @@ func registerScheduleCommands(root *cobra.Command) {
 			row("Timezone:", sched.Timezone)
 			row("Phase:", phaseBadge)
 			row("Agent:", sched.AgentName)
+			if sched.Instructions != "" {
+				row("Instructions:", sched.Instructions)
+			}
 
 			if sched.NextRunTime != "" {
 				row("Next Run:", sched.NextRunTime)
@@ -382,6 +385,108 @@ func registerScheduleCommands(root *cobra.Command) {
 			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Schedule %q deleted", scheduleName)))
 		},
 	})
+
+	// ── schedule trigger ───────────────────────────────────────────────
+	scheduleCmd.AddCommand(&cobra.Command{
+		Use:   "trigger <name>",
+		Short: "Trigger a schedule to run now (outside of its cron cadence)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			scheduleName := args[0]
+
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/schedules/%s/trigger%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Schedule %q not found", scheduleName), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Schedule %q not found", scheduleName)))
+				os.Exit(1)
+			}
+			if status == 409 {
+				var errResp ErrorResponse
+				json.Unmarshal(data, &errResp)
+				if jsonMode {
+					dieJSON(errResp.Error, 409)
+				}
+				fmt.Println(warnStyle.Render("⚠ " + errResp.Error))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			if jsonMode {
+				printJSON(json.RawMessage(data))
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Schedule %q triggered", scheduleName)))
+		},
+	})
+
+	// ── schedule update ────────────────────────────────────────────────
+	scheduleUpdateCmd := &cobra.Command{
+		Use:   "update <name>",
+		Short: "Update a schedule's cron expression or instructions",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			scheduleName := args[0]
+			cron, _ := cmd.Flags().GetString("cron")
+			instructions, _ := cmd.Flags().GetString("instructions")
+			if cron == "" && instructions == "" {
+				if jsonMode {
+					dieJSON("must pass --cron and/or --instructions", 400)
+				}
+				fmt.Println(errorStyle.Render("must pass --cron and/or --instructions"))
+				os.Exit(1)
+			}
+			body := map[string]interface{}{}
+			if cron != "" {
+				body["schedule"] = cron
+			}
+			if instructions != "" {
+				body["instructions"] = instructions
+			}
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), body)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			var sched ScheduleResponse
+			json.Unmarshal(data, &sched)
+			if jsonMode {
+				printJSON(sched)
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Schedule %q updated", scheduleName)))
+		},
+	}
+	scheduleUpdateCmd.Flags().String("cron", "", "New cron expression")
+	scheduleUpdateCmd.Flags().String("instructions", "", "New instructions for the agent")
+	scheduleCmd.AddCommand(scheduleUpdateCmd)
 
 	root.AddCommand(scheduleCmd)
 }

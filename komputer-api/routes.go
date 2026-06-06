@@ -61,6 +61,9 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// MCP server — exposes capabilities to external Claude/MCP-aware agents at /mcp.
+	mountMCPHandler(r, k8s)
+
 	v1 := r.Group("/api/v1")
 	{
 		v1.POST("/agents", createOrTriggerAgent(k8s))
@@ -93,6 +96,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.GET("/schedules/:name", getSchedule(k8s))
 		v1.DELETE("/schedules/:name", deleteSchedule(k8s))
 		v1.PATCH("/schedules/:name", patchSchedule(k8s))
+		v1.POST("/schedules/:name/trigger", triggerSchedule(k8s))
 
 		v1.POST("/memories", createMemory(k8s))
 		v1.GET("/memories", listMemories(k8s))

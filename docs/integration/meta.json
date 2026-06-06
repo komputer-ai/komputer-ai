@@ -1,5 +1,5 @@
 {
   "title": "Integration",
   "defaultOpen": false,
-  "pages": ["overview", "rest-api", "websocket", "patterns", "error-handling", "custom-agent-image"]
+  "pages": ["overview", "rest-api", "mcp-server", "websocket", "patterns", "error-handling", "custom-agent-image"]
 }

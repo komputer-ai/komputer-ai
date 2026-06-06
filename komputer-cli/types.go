@@ -62,6 +62,7 @@ type ScheduleResponse struct {
 	Name           string `json:"name"`
 	Namespace      string `json:"namespace"`
 	Schedule       string `json:"schedule"`
+	Instructions   string `json:"instructions"`
 	Timezone       string `json:"timezone"`
 	AutoDelete     bool   `json:"autoDelete"`
 	KeepAgents     bool   `json:"keepAgents"`

@@ -236,6 +236,14 @@ function formatTimestamp(ts: string): string {
   return `${d.toLocaleDateString([], dateOpts)}, ${time}`;
 }
 
+function formatThinkingDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}m ${s}s`;
+}
+
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) {
     const v = n / 1_000_000;
@@ -1157,6 +1165,32 @@ export function AgentChat({
 
   const showThinking = isWorking && !cancelling;
 
+  const thinkingStartMs = useMemo(() => {
+    if (!showThinking) return null;
+    for (let i = events.length - 1; i >= 0; i--) {
+      const t = events[i].type;
+      if (t === "task_completed" || t === "task_cancelled" || t === "error") break;
+      if (t === "task_started" || t === "thinking") {
+        const parsed = Date.parse(events[i].timestamp);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+    }
+    const parsed = Date.parse(pendingTimestamp);
+    return Number.isNaN(parsed) ? Date.now() : parsed;
+  }, [showThinking, events, pendingTimestamp]);
+
+  const [thinkingElapsedMs, setThinkingElapsedMs] = useState(0);
+  useEffect(() => {
+    if (!showThinking || thinkingStartMs == null) {
+      setThinkingElapsedMs(0);
+      return;
+    }
+    const tick = () => setThinkingElapsedMs(Math.max(0, Date.now() - thinkingStartMs));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [showThinking, thinkingStartMs]);
+
   // Track if user is scrolled away from the bottom
   const [showScrollDown, setShowScrollDown] = useState(false);
   useEffect(() => {
@@ -1235,6 +1269,11 @@ export function AgentChat({
                 </div>
                 <span className="text-xs text-[var(--color-brand-violet-light)]">
                   Thinking
+                  {thinkingStartMs != null && (
+                    <span className="ml-1.5 opacity-70 tabular-nums">
+                      · {formatThinkingDuration(thinkingElapsedMs)}
+                    </span>
+                  )}
                 </span>
               </motion.div>
             )}

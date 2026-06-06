@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CreateScheduleRequest struct {
@@ -33,6 +37,7 @@ type ScheduleResponse struct {
 	Name           string `json:"name"`
 	Namespace      string `json:"namespace"`
 	Schedule       string `json:"schedule"`
+	Instructions   string `json:"instructions"`
 	Timezone       string `json:"timezone,omitempty"`
 	AutoDelete     bool   `json:"autoDelete,omitempty"`
 	KeepAgents     bool   `json:"keepAgents,omitempty"`
@@ -56,7 +61,14 @@ type ScheduleListResponse struct {
 }
 
 type PatchScheduleRequest struct {
-	Schedule *string `json:"schedule,omitempty"`
+	Schedule     *string `json:"schedule,omitempty"`
+	Instructions *string `json:"instructions,omitempty"`
+}
+
+type TriggerScheduleResponse struct {
+	Status    string `json:"status"`
+	Name      string `json:"name"`
+	AgentName string `json:"agentName"`
 }
 
 // scheduleToResponse converts a KomputerSchedule CR to a ScheduleResponse.
@@ -65,6 +77,7 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 		Name:           s.Name,
 		Namespace:      s.Namespace,
 		Schedule:       s.Spec.Schedule,
+		Instructions:   s.Spec.Instructions,
 		Timezone:       s.Spec.Timezone,
 		AutoDelete:     s.Spec.AutoDelete,
 		KeepAgents:     s.Spec.KeepAgents,
@@ -227,6 +240,123 @@ func deleteSchedule(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// triggerScheduleNow is the shared firing routine used by both the HTTP handler
+// (POST /schedules/:name/trigger) and the MCP server's trigger_schedule tool.
+// Returns (agentName, statusCode, error). statusCode mirrors HTTP semantics
+// (200 ok, 404 missing, 409 conflict, 500 internal) so callers can map naturally.
+func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (string, int, error) {
+	schedule, err := k8s.GetSchedule(ctx, ns, name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return "", http.StatusNotFound, fmt.Errorf("schedule not found")
+		}
+		return "", http.StatusInternalServerError, err
+	}
+	if schedule.Status.LastRunStatus == "InProgress" {
+		return "", http.StatusConflict, fmt.Errorf("a run is already in progress")
+	}
+	agentName := schedule.Spec.AgentName
+	if agentName == "" {
+		agentName = schedule.Name + "-agent"
+	}
+
+	agent, agentErr := k8s.GetAgent(ctx, ns, agentName)
+	if agentErr != nil && !errors.IsNotFound(agentErr) {
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to look up agent: %w", agentErr)
+	}
+
+	instructions := schedule.Spec.Instructions
+
+	if errors.IsNotFound(agentErr) {
+		if schedule.Spec.Agent == nil {
+			return "", http.StatusNotFound, fmt.Errorf("agent %s does not exist and schedule has no agent template", agentName)
+		}
+		lifecycle := string(schedule.Spec.Agent.Lifecycle)
+		if lifecycle == "" {
+			lifecycle = string(komputerv1alpha1.AgentLifecycleSleep)
+		}
+		_, err := k8s.CreateAgent(
+			ctx, ns, agentName,
+			instructions, "", "",
+			schedule.Spec.Agent.Model,
+			schedule.Spec.Agent.TemplateRef,
+			schedule.Spec.Agent.Role,
+			schedule.Spec.Agent.Secrets,
+			nil, nil, nil,
+			lifecycle, "", 0,
+			(*corev1.PodSpec)(nil),
+			(*komputerv1alpha1.StorageSpec)(nil),
+			map[string]string{"komputer.ai/schedule": schedule.Name},
+		)
+		if err != nil {
+			return "", http.StatusInternalServerError, fmt.Errorf("failed to create agent: %w", err)
+		}
+	} else {
+		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
+			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
+		}
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			if err := k8s.WakeAgent(ctx, ns, agentName, instructions, "", "", "", string(agent.Spec.Lifecycle)); err != nil {
+				return "", http.StatusInternalServerError, fmt.Errorf("failed to wake agent: %w", err)
+			}
+		} else if agent.Status.PodName != "" {
+			if _, err := k8s.ForwardTaskToAgent(ctx, ns, agent.Status.PodName, agentName, instructions, "", "", ""); err != nil {
+				return "", http.StatusInternalServerError, fmt.Errorf("failed to forward task: %w", err)
+			}
+		} else {
+			return "", http.StatusConflict, fmt.Errorf("agent %s has no running pod", agentName)
+		}
+	}
+
+	now := metav1.NewTime(time.Now().UTC())
+	if freshSchedule, getErr := k8s.GetSchedule(ctx, ns, name); getErr == nil {
+		original := freshSchedule.DeepCopy()
+		freshSchedule.Status.LastRunTime = &now
+		freshSchedule.Status.RunCount++
+		freshSchedule.Status.LastRunStatus = "InProgress"
+		freshSchedule.Status.AgentName = agentName
+		if patchErr := k8s.PatchScheduleStatus(ctx, original, freshSchedule); patchErr != nil {
+			Logger.Warnw("manual trigger: failed to update schedule status", "schedule", name, "error", patchErr)
+		}
+	}
+
+	return agentName, http.StatusOK, nil
+}
+
+// triggerSchedule fires a schedule immediately, outside of its cron cadence.
+// Mirrors the operator's reconcile-time fire path: ensures the agent exists (creating
+// from spec.Agent template if needed), then wakes or forwards the task. Updates the
+// schedule status the same way the operator would.
+// @ID triggerSchedule
+// @Summary Trigger schedule now
+// @Description Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.
+// @Tags schedules
+// @Produce json
+// @Param name path string true "Schedule name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} TriggerScheduleResponse "Triggered"
+// @Failure 404 {object} map[string]string "Schedule not found"
+// @Failure 409 {object} map[string]string "A run is already in progress"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /schedules/{name}/trigger [post]
+func triggerSchedule(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		agentName, statusCode, err := triggerScheduleNow(c.Request.Context(), k8s, ns, name)
+		if err != nil {
+			c.JSON(statusCode, gin.H{"error": err.Error()})
+			return
+		}
+		Logger.Infow("manual trigger fired schedule", "namespace", ns, "schedule", name, "agent", agentName)
+		c.JSON(http.StatusOK, TriggerScheduleResponse{
+			Status:    "triggered",
+			Name:      name,
+			AgentName: agentName,
+		})
+	}
+}
+
 // patchSchedule updates the cron expression for a schedule.
 // @ID patchSchedule
 // @Summary Patch schedule
@@ -250,11 +380,11 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Schedule == nil {
+		if req.Schedule == nil && req.Instructions == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
-		if err := k8s.PatchScheduleCron(c.Request.Context(), ns, name, *req.Schedule); err != nil {
+		if err := k8s.PatchScheduleSpec(c.Request.Context(), ns, name, req.Schedule, req.Instructions); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch schedule: " + err.Error()})
 			return
 		}

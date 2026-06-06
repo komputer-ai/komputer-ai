@@ -847,17 +847,36 @@ func (k *K8sClient) GetSchedule(ctx context.Context, ns, name string) (*komputer
 }
 
 func (k *K8sClient) PatchScheduleCron(ctx context.Context, ns, name, cron string) error {
+	return k.PatchScheduleSpec(ctx, ns, name, &cron, nil)
+}
+
+// PatchScheduleSpec patches mutable spec fields (cron expression, instructions) on a schedule.
+// nil pointers are skipped.
+func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, cron, instructions *string) error {
 	schedule := &komputerv1alpha1.KomputerSchedule{}
 	key := types.NamespacedName{Name: name, Namespace: ns}
 	if err := k.client.Get(ctx, key, schedule); err != nil {
 		return fmt.Errorf("failed to get schedule %s: %w", name, err)
 	}
-	if schedule.Spec.Schedule == cron {
+	original := schedule.DeepCopy()
+	changed := false
+	if cron != nil && schedule.Spec.Schedule != *cron {
+		schedule.Spec.Schedule = *cron
+		changed = true
+	}
+	if instructions != nil && schedule.Spec.Instructions != *instructions {
+		schedule.Spec.Instructions = *instructions
+		changed = true
+	}
+	if !changed {
 		return nil
 	}
-	original := schedule.DeepCopy()
-	schedule.Spec.Schedule = cron
 	return k.client.Patch(ctx, schedule, client.MergeFrom(original))
+}
+
+// PatchScheduleStatus applies a status subresource patch built from (original -> updated).
+func (k *K8sClient) PatchScheduleStatus(ctx context.Context, original, updated *komputerv1alpha1.KomputerSchedule) error {
+	return k.client.Status().Patch(ctx, updated, client.MergeFrom(original))
 }
 
 func (k *K8sClient) ListSchedules(ctx context.Context, ns string) ([]komputerv1alpha1.KomputerSchedule, error) {
