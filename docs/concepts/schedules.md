@@ -19,6 +19,75 @@ Key features:
 
 Schedules default to `Sleep` lifecycle for their agents, so compute is only used during the actual task execution.
 
+## Minimal schedule
+
+A nightly summary, GitOps-friendly:
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerSchedule
+metadata:
+  name: nightly-signups
+spec:
+  schedule: "0 2 * * *"                # 02:00 every day
+  timezone: "America/New_York"
+  instructions: >
+    Pull yesterday's signups from the analytics warehouse and post a one-line
+    summary to Slack #growth. Highlight any anomalies vs. the trailing 7-day avg.
+  agent:
+    model: claude-sonnet-4-6
+    lifecycle: Sleep                   # pod is torn down between runs (default)
+```
+
+The `agent` block lets the schedule create its own dedicated agent on first fire. If you want the schedule to drive an **existing** agent instead, set `spec.agentName` (and omit `spec.agent`).
+
+## Full schedule with template + secrets
+
+A weekday-9am stand-up bot that uses a custom template and references existing secrets and a connector. This is the shape you'd reach for in production.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerSchedule
+metadata:
+  name: weekday-standup
+  namespace: team-product
+spec:
+  schedule: "0 9 * * 1-5"              # 09:00 Mon–Fri
+  timezone: "Europe/Berlin"
+  instructions: >
+    Fetch yesterday's merged PRs from Linear, summarise per assignee, and
+    post the digest to Slack #product-standup. Use the linear and slack
+    connector tools.
+  agent:
+    model: claude-sonnet-4-6
+    lifecycle: Sleep
+    role: manager
+    templateRef: lightweight           # see concepts/templates.md
+    secrets:
+      - linear-credentials
+      - slack-bot-token
+```
+
+## One-off scheduled run
+
+Use `autoDelete: true` to schedule a single future run that cleans itself up afterwards. Combine with `keepAgents: true` if you want the agent it created to survive.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerSchedule
+metadata:
+  name: launch-eod-recap
+spec:
+  schedule: "0 18 30 6 *"              # 18:00 on June 30 (single instant)
+  timezone: "UTC"
+  autoDelete: true
+  keepAgents: true                     # keep the agent it spawns
+  instructions: "Compile a launch-day recap into /workspace/recap.md."
+  agent:
+    model: claude-sonnet-4-6
+    lifecycle: Sleep
+```
+
 ## Editing a schedule
 
 Both the cron expression and the instructions can be updated after creation. In the UI, the schedule detail page has inline edit controls for both. From the CLI:

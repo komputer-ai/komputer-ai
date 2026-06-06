@@ -85,3 +85,41 @@ These services don't expose a remote MCP endpoint that fits our model. To use th
 ### Adding your own
 
 Any MCP-compatible endpoint can be added as a custom connector — just create a `KomputerConnector` pointing at the URL and (optionally) referencing an auth secret. See the example above.
+
+## Attaching at runtime
+
+You don't have to bake connectors into the agent's spec at creation time. PATCH `spec.connectors` on a running agent and the change takes effect on the agent's next task — no pod restart needed.
+
+```bash
+# Add github + linear to an already-running agent
+curl -X PATCH http://komputer-api/api/v1/agents/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"connectors": ["github", "linear"]}'
+
+# Remove all connectors
+curl -X PATCH http://komputer-api/api/v1/agents/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"connectors": []}'
+```
+
+A manager agent can do the same via the `attach_connector` / `detach_connector` MCP tools — see the per-tool descriptions in `komputer-agent/manager_tools.py`. Office sub-agents automatically inherit their manager's connectors at creation time.
+
+## Self-hosted custom MCP server
+
+Point a `KomputerConnector` at any in-cluster service that speaks MCP:
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerConnector
+metadata:
+  name: internal-search
+  namespace: default
+spec:
+  service: custom
+  url: "http://my-mcp-server.tools.svc.cluster.local:8080/mcp"
+  authSecretKeyRef:
+    name: internal-search-token
+    key: token
+```
+
+Agents that attach `internal-search` will see this server's tools as `mcp__internal_search__*`.
