@@ -11,8 +11,8 @@ interface ReleaseInfo {
 }
 
 const FALLBACK: ReleaseInfo = {
-  tag: 'v0.14.0',
-  name: 'v0.14.0 — Squads',
+  tag: 'v0.15.9',
+  name: 'v0.15.9 — Namespace & Timestamp Polish',
   url: 'https://github.com/komputer-ai/komputer-ai/releases',
 };
 
