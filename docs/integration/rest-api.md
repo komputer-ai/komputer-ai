@@ -185,3 +185,65 @@ curl -X PATCH http://localhost:8080/api/v1/agents/my-agent \
   -H "Content-Type: application/json" \
   -d '{"connectors": []}'
 ```
+
+## Schedules
+
+A schedule runs an agent task on a cron cadence. See [Schedules](../concepts/schedules.md) for the concept overview.
+
+### Create a Schedule
+
+```
+POST /api/v1/schedules
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "nightly-report",
+  "schedule": "0 2 * * *",
+  "instructions": "Summarize yesterday's signups and post to Slack.",
+  "timezone": "America/New_York",
+  "agent": { "lifecycle": "Sleep", "model": "claude-sonnet-4-6" }
+}
+```
+
+### List / Get / Delete Schedules
+
+```
+GET    /api/v1/schedules?namespace=default
+GET    /api/v1/schedules/:name?namespace=default
+DELETE /api/v1/schedules/:name?namespace=default
+```
+
+The response includes the schedule's `instructions`, current `phase`, `nextRunTime`, `runCount`, `successfulRuns`, `failedRuns`, and cost totals.
+
+### Update a Schedule
+
+```
+PATCH /api/v1/schedules/:name
+Content-Type: application/json
+```
+
+```json
+{
+  "schedule": "0 9 * * 1-5",
+  "instructions": "Updated task prompt..."
+}
+```
+
+Both fields are optional; pass either or both.
+
+### Trigger a Schedule Manually
+
+Fire a schedule immediately, outside its cron cadence. The schedule's normal next run is unaffected.
+
+```
+POST /api/v1/schedules/:name/trigger?namespace=default
+```
+
+**Response (200 OK):**
+```json
+{ "status": "triggered", "name": "nightly-report", "agentName": "nightly-report-agent" }
+```
+
+Returns `409 Conflict` if the previous run is still in progress.
