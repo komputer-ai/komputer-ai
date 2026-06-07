@@ -39,6 +39,8 @@ type KomputerSkillStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:printcolumn:name="Description",type=string,JSONPath=`.spec.description`
 // +kubebuilder:printcolumn:name="Agents",type=integer,JSONPath=`.status.attachedAgents`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`

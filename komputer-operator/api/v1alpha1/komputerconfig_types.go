@@ -51,6 +51,8 @@ type KomputerConfigStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:resource:scope=Cluster
 
 // KomputerConfig is the cluster-scoped singleton configuration for the komputer.ai platform.

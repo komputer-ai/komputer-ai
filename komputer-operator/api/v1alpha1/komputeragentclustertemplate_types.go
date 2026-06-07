@@ -22,6 +22,8 @@ import (
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:resource:scope=Cluster
 
 // KomputerAgentClusterTemplate is a cluster-scoped agent template shared across all namespaces.

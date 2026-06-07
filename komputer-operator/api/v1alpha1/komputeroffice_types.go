@@ -55,6 +55,8 @@ type KomputerOfficeStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Manager",type=string,JSONPath=`.spec.manager`
 // +kubebuilder:printcolumn:name="Agents",type=integer,JSONPath=`.status.totalAgents`

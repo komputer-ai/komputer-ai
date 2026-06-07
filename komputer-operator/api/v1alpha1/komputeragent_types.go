@@ -212,6 +212,8 @@ type KomputerAgentStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Task",type=string,JSONPath=`.status.taskStatus`
 // +kubebuilder:printcolumn:name="Cost",type=string,JSONPath=`.status.totalCostUSD`

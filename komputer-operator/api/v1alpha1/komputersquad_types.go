@@ -71,6 +71,8 @@ type KomputerSquadStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 // +kubebuilder:resource:scope=Namespaced,shortName=ks
 type KomputerSquad struct {
 	metav1.TypeMeta   `json:",inline"`

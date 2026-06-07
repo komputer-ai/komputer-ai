@@ -65,6 +65,8 @@ type KomputerAgentTemplateStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=ServerSideApply=true"
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-wave=-1"
 
 // KomputerAgentTemplate is the Schema for the komputeragenttemplates API.
 type KomputerAgentTemplate struct {
