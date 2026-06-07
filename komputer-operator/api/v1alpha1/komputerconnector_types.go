@@ -37,11 +37,16 @@ type KomputerConnectorSpec struct {
 	// AuthSecretKeyRef references a K8s Secret key containing the auth token.
 	// +optional
 	AuthSecretKeyRef *corev1.SecretKeySelector `json:"authSecretKeyRef,omitempty"`
-	// AuthType is the authentication method: "token" (default, static Bearer token) or "oauth".
-	// +kubebuilder:validation:Enum=token;oauth
+	// AuthType is the authentication method: "token" (default, static Bearer token),
+	// "oauth", or "header" (static value in a custom header named by HeaderName).
+	// +kubebuilder:validation:Enum=token;oauth;header
 	// +kubebuilder:default=token
 	// +optional
 	AuthType string `json:"authType,omitempty"`
+	// HeaderName is the custom HTTP header name to carry the secret value when AuthType is "header"
+	// (e.g. "X-API-Key"). The secret value is sent verbatim, with no "Bearer " prefix. Ignored for other auth types.
+	// +optional
+	HeaderName string `json:"headerName,omitempty"`
 }
 
 // KomputerConnectorStatus defines the observed state of KomputerConnector.

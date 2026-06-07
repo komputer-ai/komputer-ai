@@ -199,10 +199,11 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 	// referenced in the JSON so secrets are not baked in as plaintext.
 	if len(connectors) > 0 {
 		type mcpServerEntry struct {
-			Type     string `json:"type"`
-			URL      string `json:"url"`
-			TokenEnv string `json:"tokenEnv,omitempty"` // env var name holding the Bearer token
-			AuthType string `json:"authType,omitempty"` // "token" or "oauth"
+			Type       string `json:"type"`
+			URL        string `json:"url"`
+			TokenEnv   string `json:"tokenEnv,omitempty"`   // env var name holding the Bearer token
+			AuthType   string `json:"authType,omitempty"`   // "token", "oauth", or "header"
+			HeaderName string `json:"headerName,omitempty"` // custom header name when authType is "header"
 		}
 		mcpServers := make(map[string]mcpServerEntry)
 		for _, connRef := range connectors {
@@ -218,7 +219,7 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 				continue
 			}
 			sanitized := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(connName))
-			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL, AuthType: conn.Spec.AuthType}
+			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL, AuthType: conn.Spec.AuthType, HeaderName: conn.Spec.HeaderName}
 			// Mount auth secret as env var and reference it.
 			if conn.Spec.AuthSecretKeyRef != nil {
 				secretName := conn.Spec.AuthSecretKeyRef.Name

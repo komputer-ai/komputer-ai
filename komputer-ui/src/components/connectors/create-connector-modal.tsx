@@ -20,7 +20,7 @@ import { createConnector, createSecretResource, getOAuthAuthorizeUrl } from "@/l
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import type { ConnectorTemplate } from "@/lib/types";
-import { ArrowLeft, Copy, Check, Plug } from "lucide-react";
+import { ArrowLeft, Copy, Check, Plug, ChevronRight } from "lucide-react";
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -86,6 +86,8 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
   const [credential, setCredential] = useState("");
   const [oauthClientId, setOauthClientId] = useState("");
   const [oauthClientSecret, setOauthClientSecret] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [headerName, setHeaderName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +112,8 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
     setCredential("");
     setOauthClientId("");
     setOauthClientSecret("");
+    setAdvancedOpen(false);
+    setHeaderName("");
     setError(null);
   }
 
@@ -157,11 +161,16 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
         secretKey = dataKey;
       }
 
+      // A custom header name switches auth from the default "Bearer" scheme to a
+      // verbatim value in the named header (e.g. "X-API-Key").
+      const useHeaderAuth = headerName.trim().length > 0;
       await createConnector({
         name: name.trim(),
         service: selectedTemplate?.service ?? name.trim(),
         displayName: selectedTemplate?.displayName,
         url: url.trim(),
+        authType: useHeaderAuth ? "header" : undefined,
+        headerName: useHeaderAuth ? headerName.trim() : undefined,
         authSecretName: secretName,
         authSecretKey: secretKey,
         namespace: namespace.trim() || undefined,
@@ -441,6 +450,46 @@ export function CreateConnectorModal({ open, onOpenChange, onCreated, initialTem
                           autoComplete="off"
                           className="font-[family-name:var(--font-mono)]"
                         />
+                      </div>
+                    )}
+
+                    {!isOAuth && !isNoAuth && (
+                      <div className="rounded-md border border-[var(--color-border)]">
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedOpen((v) => !v)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left cursor-pointer hover:bg-[var(--color-surface-hover)] transition-colors"
+                        >
+                          <ChevronRight
+                            className={`size-3.5 shrink-0 text-[var(--color-text-secondary)] transition-transform duration-200 ${advancedOpen ? "rotate-90" : ""}`}
+                          />
+                          <span className="text-xs font-medium text-[var(--color-text-secondary)]">Advanced</span>
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {advancedOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0, overflow: "hidden" }}
+                              animate={{ height: "auto", opacity: 1, overflow: "visible", transitionEnd: { overflow: "visible" } }}
+                              exit={{ height: 0, opacity: 0, overflow: "hidden" }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                            >
+                              <div className="border-t border-[var(--color-border)] px-3 py-3 flex flex-col gap-2">
+                                <Label htmlFor="conn-header-name">Custom auth header</Label>
+                                <Input
+                                  id="conn-header-name"
+                                  placeholder="X-API-Key"
+                                  value={headerName}
+                                  onChange={(e) => setHeaderName(e.target.value)}
+                                  autoComplete="off"
+                                  className="font-[family-name:var(--font-mono)]"
+                                />
+                                <p className="text-xs text-[var(--color-text-secondary)]">
+                                  Leave blank to send the token as <code>Authorization: Bearer …</code>. Set a header name (e.g. <code>X-API-Key</code>) to send the token verbatim in that header instead.
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     )}
 

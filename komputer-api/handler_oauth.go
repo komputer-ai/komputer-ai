@@ -338,7 +338,7 @@ func oauthCallback(k8s *K8sClient) gin.HandlerFunc {
 		// Now create the connector CR with auth pointing at the secret.
 		sn := secretName
 		sk := secretKey
-		conn, err := k8s.CreateConnector(ctx, flow.Namespace, flow.ConnectorName, flow.Service, flow.DisplayName, flow.URL, "remote", "oauth", &sn, &sk)
+		conn, err := k8s.CreateConnector(ctx, flow.Namespace, flow.ConnectorName, flow.Service, flow.DisplayName, flow.URL, "remote", "oauth", "", &sn, &sk)
 		if err != nil {
 			Logger.Errorw("OAuth: failed to create connector", "namespace", flow.Namespace, "connector_name", flow.ConnectorName, "error", err)
 			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(oauthErrorHTML("Failed to create connector: "+err.Error())))

@@ -188,6 +188,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 # Resolve tokenEnv → read env var → set Authorization header
                 token_env = cfg.pop("tokenEnv", None)
                 auth_type = cfg.pop("authType", "token")
+                header_name = cfg.pop("headerName", None)
                 if token_env:
                     raw = os.environ.get(token_env, "")
                     if raw:
@@ -201,7 +202,10 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                         else:
                             token = raw
                         if token:
-                            cfg["headers"] = {"Authorization": f"Bearer {token}"}
+                            if auth_type == "header" and header_name:
+                                cfg["headers"] = {header_name: token}  # custom header, value sent verbatim
+                            else:
+                                cfg["headers"] = {"Authorization": f"Bearer {token}"}
                 mcp_servers[name] = cfg
                 agent_metrics.set_mcp_status(name, healthy=True)
         except Exception as e:

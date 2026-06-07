@@ -188,6 +188,7 @@ func registerConnectorCommands(root *cobra.Command) {
 			service, _ := cmd.Flags().GetString("service")
 			connURL, _ := cmd.Flags().GetString("url")
 			token, _ := cmd.Flags().GetString("token")
+			headerName, _ := cmd.Flags().GetString("header-name")
 			displayName, _ := cmd.Flags().GetString("display-name")
 			clientID, _ := cmd.Flags().GetString("client-id")
 			clientSecret, _ := cmd.Flags().GetString("client-secret")
@@ -321,6 +322,11 @@ func registerConnectorCommands(root *cobra.Command) {
 				"url":      connURL,
 				"authType": "token",
 			}
+			// A custom header name switches auth from "Bearer" to a verbatim value in that header.
+			if headerName != "" {
+				body["authType"] = "header"
+				body["headerName"] = headerName
+			}
 			if displayName != "" {
 				body["displayName"] = displayName
 			}
@@ -383,6 +389,7 @@ func registerConnectorCommands(root *cobra.Command) {
 	connCreateCmd.Flags().String("service", "", "Service type (e.g. github, slack, notion) (required)")
 	connCreateCmd.Flags().String("url", "", "MCP server URL (auto-filled from template for known services)")
 	connCreateCmd.Flags().String("token", "", "Auth token — creates a secret automatically (token-based connectors)")
+	connCreateCmd.Flags().String("header-name", "", "Custom auth header name (e.g. X-API-Key) — sends the token verbatim in this header instead of Authorization: Bearer")
 	connCreateCmd.Flags().String("display-name", "", "Display name")
 	connCreateCmd.Flags().String("client-id", "", "OAuth client ID (optional — auto-registered if supported)")
 	connCreateCmd.Flags().String("client-secret", "", "OAuth client secret")

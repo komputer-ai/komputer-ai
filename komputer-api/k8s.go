@@ -1311,7 +1311,7 @@ func (k *K8sClient) PatchSkill(ctx context.Context, ns, name string, description
 
 // --- Connector CRUD ---
 
-func (k *K8sClient) CreateConnector(ctx context.Context, ns, name, service, displayName, url, connType, authType string, authSecretName, authSecretKey *string) (*komputerv1alpha1.KomputerConnector, error) {
+func (k *K8sClient) CreateConnector(ctx context.Context, ns, name, service, displayName, url, connType, authType, headerName string, authSecretName, authSecretKey *string) (*komputerv1alpha1.KomputerConnector, error) {
 	conn := &komputerv1alpha1.KomputerConnector{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -1323,6 +1323,7 @@ func (k *K8sClient) CreateConnector(ctx context.Context, ns, name, service, disp
 		Spec: komputerv1alpha1.KomputerConnectorSpec{
 			Type:        connType,
 			AuthType:    authType,
+			HeaderName:  headerName,
 			Service:     service,
 			DisplayName: displayName,
 			URL:         url,
@@ -1481,7 +1482,11 @@ func (k *K8sClient) ResolveConnectorMCPConfigs(ctx context.Context, agentNs stri
 							tokenStr = oauthData.AccessToken
 						}
 					}
-					entry["headers"] = map[string]string{"Authorization": "Bearer " + tokenStr}
+					if conn.Spec.AuthType == "header" && conn.Spec.HeaderName != "" {
+						entry["headers"] = map[string]string{conn.Spec.HeaderName: tokenStr}
+					} else {
+						entry["headers"] = map[string]string{"Authorization": "Bearer " + tokenStr}
+					}
 				}
 			}
 		}

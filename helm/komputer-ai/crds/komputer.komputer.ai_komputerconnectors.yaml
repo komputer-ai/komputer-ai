@@ -81,15 +81,22 @@ spec:
                 x-kubernetes-map-type: atomic
               authType:
                 default: token
-                description: 'AuthType is the authentication method: "token" (default,
-                  static Bearer token) or "oauth".'
+                description: |-
+                  AuthType is the authentication method: "token" (default, static Bearer token),
+                  "oauth", or "header" (static value in a custom header named by HeaderName).
                 enum:
                 - token
                 - oauth
+                - header
                 type: string
               displayName:
                 description: DisplayName is a human-readable name for this connector
                   instance.
+                type: string
+              headerName:
+                description: |-
+                  HeaderName is the custom HTTP header name to carry the secret value when AuthType is "header"
+                  (e.g. "X-API-Key"). The secret value is sent verbatim, with no "Bearer " prefix. Ignored for other auth types.
                 type: string
               service:
                 description: |-

@@ -19,7 +19,8 @@ type CreateConnectorRequest struct {
 	DisplayName       string  `json:"displayName"`
 	URL               string  `json:"url" binding:"required"`
 	Type              string  `json:"type"`
-	AuthType          string  `json:"authType,omitempty"`          // "token" or "oauth"
+	AuthType          string  `json:"authType,omitempty"`          // "token", "oauth", or "header"
+	HeaderName        string  `json:"headerName,omitempty"`        // custom header name when authType is "header"
 	AuthSecretName    *string `json:"authSecretName,omitempty"`
 	AuthSecretKey     *string `json:"authSecretKey,omitempty"`
 	OAuthClientID     string  `json:"oauthClientId,omitempty"`     // OAuth client ID (stored in secret)
@@ -35,6 +36,7 @@ type ConnectorResponse struct {
 	URL            string   `json:"url"`
 	Type           string   `json:"type"`
 	AuthType       string   `json:"authType,omitempty"`
+	HeaderName     string   `json:"headerName,omitempty"`
 	OAuthStatus    string   `json:"oauthStatus,omitempty"` // "pending", "connected", ""
 	AuthSecretName string   `json:"authSecretName,omitempty"`
 	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
@@ -75,7 +77,7 @@ func createConnector(k8s *K8sClient) gin.HandlerFunc {
 		if connType == "" {
 			connType = "remote"
 		}
-		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthType, req.AuthSecretName, req.AuthSecretKey)
+		conn, err := k8s.CreateConnector(c.Request.Context(), ns, req.Name, req.Service, req.DisplayName, req.URL, connType, req.AuthType, req.HeaderName, req.AuthSecretName, req.AuthSecretKey)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
 				c.JSON(http.StatusConflict, gin.H{"error": "connector already exists: " + req.Name})
@@ -377,6 +379,7 @@ func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []
 		URL:            conn.Spec.URL,
 		Type:           conn.Spec.Type,
 		AuthType:       conn.Spec.AuthType,
+		HeaderName:     conn.Spec.HeaderName,
 		AttachedAgents: len(agentNames),
 		AgentNames:     agentNames,
 		CreatedAt:      conn.CreationTimestamp.UTC().Format(time.RFC3339),
