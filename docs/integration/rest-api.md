@@ -180,6 +180,20 @@ Content-Type: application/json
 }
 ```
 
+`authType` selects how the secret is sent: `token` (default, `Authorization: Bearer <secret>`), `oauth`, or `header`. For `header`, also set `headerName` (e.g. `"X-API-Key"`) — the secret value is sent verbatim in that header with no `Bearer` prefix:
+
+```json
+{
+  "name": "amigo-mcp",
+  "service": "custom",
+  "url": "https://mcp.example.com/mcp",
+  "authType": "header",
+  "headerName": "X-API-Key",
+  "authSecretName": "amigo-mcp-credentials",
+  "authSecretKey": "token"
+}
+```
+
 ### Get a Connector
 
 ```

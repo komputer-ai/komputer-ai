@@ -123,3 +123,40 @@ spec:
 ```
 
 Agents that attach `internal-search` will see this server's tools as `mcp__internal_search__*`.
+
+## Authentication methods
+
+A connector's `spec.authType` selects how the referenced secret is sent to the MCP server:
+
+| `authType` | Header sent | Secret format |
+|------------|-------------|---------------|
+| `token` (default) | `Authorization: Bearer <secret>` | Raw token string |
+| `oauth` | `Authorization: Bearer <access_token>` | JSON blob with an `access_token` field (managed by the OAuth flow) |
+| `header` | `<headerName>: <secret>` | Raw value, sent verbatim with no `Bearer ` prefix |
+
+Use `header` for MCP servers that authenticate with a custom header such as `X-API-Key` instead of a bearer token. Set `spec.headerName` to the header name:
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerConnector
+metadata:
+  name: amigo-mcp
+  namespace: default
+spec:
+  service: custom
+  url: "https://mcp.example.com/mcp"
+  authType: header
+  headerName: X-API-Key
+  authSecretKeyRef:
+    name: amigo-mcp-token
+    key: token
+```
+
+From the CLI, pass `--header-name`:
+
+```bash
+komputer connector create amigo-mcp --service custom \
+  --url https://mcp.example.com/mcp --token <key> --header-name X-API-Key
+```
+
+In the UI, open the connector dialog's **Advanced** section and set the custom auth header — leave it blank to use the default `Authorization: Bearer` scheme.

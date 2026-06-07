@@ -76,7 +76,7 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 - **Persistent agents** — each agent runs in its own pod with a persistent workspace that survives restarts and sleep cycles
 - **Manager/worker orchestration** — managers create and coordinate sub-agents, delegate tasks, and synthesize results
 - **Steer mid-task** — send follow-up messages to a running agent without restarting, seamlessly redirecting its work
-- **MCP connectors** — connect agents to external tools (Slack, GitHub, Atlassian, Notion, Google Workspace) via OAuth or token auth
+- **MCP connectors** — connect agents to external tools (Slack, GitHub, Atlassian, Notion, Google Workspace) via OAuth, bearer token, or custom-header auth
 - **Skills and memories** — attach reusable knowledge and capabilities to agents as Kubernetes CRDs
 - **Custom system prompts** — configure agent behavior, persona, and constraints separately from task instructions
 - **Per-agent overrides** — override resources, image, or PVC size on a single agent without forking a new template; managers can also patch sub-agents at runtime via the `update_agent` tool
