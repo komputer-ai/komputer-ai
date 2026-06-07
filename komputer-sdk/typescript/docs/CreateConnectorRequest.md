@@ -10,6 +10,7 @@ Name | Type
 `authSecretName` | string
 `authType` | string
 `displayName` | string
+`headerName` | string
 `name` | string
 `namespace` | string
 `oauthClientId` | string
@@ -29,6 +30,7 @@ const example = {
   "authSecretName": null,
   "authType": null,
   "displayName": null,
+  "headerName": null,
   "name": null,
   "namespace": null,
   "oauthClientId": null,

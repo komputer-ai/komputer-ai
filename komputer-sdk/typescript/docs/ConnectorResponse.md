@@ -13,6 +13,7 @@ Name | Type
 `authType` | string
 `createdAt` | string
 `displayName` | string
+`headerName` | string
 `name` | string
 `namespace` | string
 `oauthStatus` | string
@@ -34,6 +35,7 @@ const example = {
   "authType": null,
   "createdAt": null,
   "displayName": null,
+  "headerName": null,
   "name": null,
   "namespace": null,
   "oauthStatus": null,

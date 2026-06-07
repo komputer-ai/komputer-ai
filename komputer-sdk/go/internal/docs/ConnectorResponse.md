@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **AuthType** | Pointer to **string** |  | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
 **DisplayName** | Pointer to **string** |  | [optional] 
+**HeaderName** | Pointer to **string** |  | [optional] 
 **Name** | Pointer to **string** |  | [optional] 
 **Namespace** | Pointer to **string** |  | [optional] 
 **OauthStatus** | Pointer to **string** | \&quot;pending\&quot;, \&quot;connected\&quot;, \&quot;\&quot; | [optional] 
@@ -211,6 +212,31 @@ SetDisplayName sets DisplayName field to given value.
 `func (o *ConnectorResponse) HasDisplayName() bool`
 
 HasDisplayName returns a boolean if a field has been set.
+
+### GetHeaderName
+
+`func (o *ConnectorResponse) GetHeaderName() string`
+
+GetHeaderName returns the HeaderName field if non-nil, zero value otherwise.
+
+### GetHeaderNameOk
+
+`func (o *ConnectorResponse) GetHeaderNameOk() (*string, bool)`
+
+GetHeaderNameOk returns a tuple with the HeaderName field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetHeaderName
+
+`func (o *ConnectorResponse) SetHeaderName(v string)`
+
+SetHeaderName sets HeaderName field to given value.
+
+### HasHeaderName
+
+`func (o *ConnectorResponse) HasHeaderName() bool`
+
+HasHeaderName returns a boolean if a field has been set.
 
 ### GetName
 

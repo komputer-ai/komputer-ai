@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **auth_type** | **str** |  | [optional] 
 **created_at** | **str** |  | [optional] 
 **display_name** | **str** |  | [optional] 
+**header_name** | **str** |  | [optional] 
 **name** | **str** |  | [optional] 
 **namespace** | **str** |  | [optional] 
 **oauth_status** | **str** | \&quot;pending\&quot;, \&quot;connected\&quot;, \&quot;\&quot; | [optional] 

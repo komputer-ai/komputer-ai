@@ -26,6 +26,7 @@ type ConnectorResponse struct {
 	AuthType *string `json:"authType,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
+	HeaderName *string `json:"headerName,omitempty"`
 	Name *string `json:"name,omitempty"`
 	Namespace *string `json:"namespace,omitempty"`
 	// \"pending\", \"connected\", \"\"
@@ -276,6 +277,38 @@ func (o *ConnectorResponse) SetDisplayName(v string) {
 	o.DisplayName = &v
 }
 
+// GetHeaderName returns the HeaderName field value if set, zero value otherwise.
+func (o *ConnectorResponse) GetHeaderName() string {
+	if o == nil || IsNil(o.HeaderName) {
+		var ret string
+		return ret
+	}
+	return *o.HeaderName
+}
+
+// GetHeaderNameOk returns a tuple with the HeaderName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectorResponse) GetHeaderNameOk() (*string, bool) {
+	if o == nil || IsNil(o.HeaderName) {
+		return nil, false
+	}
+	return o.HeaderName, true
+}
+
+// HasHeaderName returns a boolean if a field has been set.
+func (o *ConnectorResponse) HasHeaderName() bool {
+	if o != nil && !IsNil(o.HeaderName) {
+		return true
+	}
+
+	return false
+}
+
+// SetHeaderName gets a reference to the given string and assigns it to the HeaderName field.
+func (o *ConnectorResponse) SetHeaderName(v string) {
+	o.HeaderName = &v
+}
+
 // GetName returns the Name field value if set, zero value otherwise.
 func (o *ConnectorResponse) GetName() string {
 	if o == nil || IsNil(o.Name) {
@@ -498,6 +531,9 @@ func (o ConnectorResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisplayName) {
 		toSerialize["displayName"] = o.DisplayName
+	}
+	if !IsNil(o.HeaderName) {
+		toSerialize["headerName"] = o.HeaderName
 	}
 	if !IsNil(o.Name) {
 		toSerialize["name"] = o.Name

@@ -23,9 +23,11 @@ var _ MappedNullable = &CreateConnectorRequest{}
 type CreateConnectorRequest struct {
 	AuthSecretKey *string `json:"authSecretKey,omitempty"`
 	AuthSecretName *string `json:"authSecretName,omitempty"`
-	// \"token\" or \"oauth\"
+	// \"token\", \"oauth\", or \"header\"
 	AuthType *string `json:"authType,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
+	// custom header name when authType is \"header\"
+	HeaderName *string `json:"headerName,omitempty"`
 	Name string `json:"name"`
 	Namespace *string `json:"namespace,omitempty"`
 	// OAuth client ID (stored in secret)
@@ -185,6 +187,38 @@ func (o *CreateConnectorRequest) HasDisplayName() bool {
 // SetDisplayName gets a reference to the given string and assigns it to the DisplayName field.
 func (o *CreateConnectorRequest) SetDisplayName(v string) {
 	o.DisplayName = &v
+}
+
+// GetHeaderName returns the HeaderName field value if set, zero value otherwise.
+func (o *CreateConnectorRequest) GetHeaderName() string {
+	if o == nil || IsNil(o.HeaderName) {
+		var ret string
+		return ret
+	}
+	return *o.HeaderName
+}
+
+// GetHeaderNameOk returns a tuple with the HeaderName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateConnectorRequest) GetHeaderNameOk() (*string, bool) {
+	if o == nil || IsNil(o.HeaderName) {
+		return nil, false
+	}
+	return o.HeaderName, true
+}
+
+// HasHeaderName returns a boolean if a field has been set.
+func (o *CreateConnectorRequest) HasHeaderName() bool {
+	if o != nil && !IsNil(o.HeaderName) {
+		return true
+	}
+
+	return false
+}
+
+// SetHeaderName gets a reference to the given string and assigns it to the HeaderName field.
+func (o *CreateConnectorRequest) SetHeaderName(v string) {
+	o.HeaderName = &v
 }
 
 // GetName returns the Name field value
@@ -408,6 +442,9 @@ func (o CreateConnectorRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisplayName) {
 		toSerialize["displayName"] = o.DisplayName
+	}
+	if !IsNil(o.HeaderName) {
+		toSerialize["headerName"] = o.HeaderName
 	}
 	toSerialize["name"] = o.Name
 	if !IsNil(o.Namespace) {

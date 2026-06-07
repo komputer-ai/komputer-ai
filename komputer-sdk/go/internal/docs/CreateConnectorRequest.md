@@ -6,8 +6,9 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AuthSecretKey** | Pointer to **string** |  | [optional] 
 **AuthSecretName** | Pointer to **string** |  | [optional] 
-**AuthType** | Pointer to **string** | \&quot;token\&quot; or \&quot;oauth\&quot; | [optional] 
+**AuthType** | Pointer to **string** | \&quot;token\&quot;, \&quot;oauth\&quot;, or \&quot;header\&quot; | [optional] 
 **DisplayName** | Pointer to **string** |  | [optional] 
+**HeaderName** | Pointer to **string** | custom header name when authType is \&quot;header\&quot; | [optional] 
 **Name** | **string** |  | 
 **Namespace** | Pointer to **string** |  | [optional] 
 **OauthClientId** | Pointer to **string** | OAuth client ID (stored in secret) | [optional] 
@@ -134,6 +135,31 @@ SetDisplayName sets DisplayName field to given value.
 `func (o *CreateConnectorRequest) HasDisplayName() bool`
 
 HasDisplayName returns a boolean if a field has been set.
+
+### GetHeaderName
+
+`func (o *CreateConnectorRequest) GetHeaderName() string`
+
+GetHeaderName returns the HeaderName field if non-nil, zero value otherwise.
+
+### GetHeaderNameOk
+
+`func (o *CreateConnectorRequest) GetHeaderNameOk() (*string, bool)`
+
+GetHeaderNameOk returns a tuple with the HeaderName field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetHeaderName
+
+`func (o *CreateConnectorRequest) SetHeaderName(v string)`
+
+SetHeaderName sets HeaderName field to given value.
+
+### HasHeaderName
+
+`func (o *CreateConnectorRequest) HasHeaderName() bool`
+
+HasHeaderName returns a boolean if a field has been set.
 
 ### GetName
 

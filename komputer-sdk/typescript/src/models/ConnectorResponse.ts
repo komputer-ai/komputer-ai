@@ -66,6 +66,12 @@ export interface ConnectorResponse {
      * @type {string}
      * @memberof ConnectorResponse
      */
+    headerName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConnectorResponse
+     */
     name?: string;
     /**
      * 
@@ -123,6 +129,7 @@ export function ConnectorResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'authType': json['authType'] == null ? undefined : json['authType'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
         'displayName': json['displayName'] == null ? undefined : json['displayName'],
+        'headerName': json['headerName'] == null ? undefined : json['headerName'],
         'name': json['name'] == null ? undefined : json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
         'oauthStatus': json['oauthStatus'] == null ? undefined : json['oauthStatus'],
@@ -150,6 +157,7 @@ export function ConnectorResponseToJSONTyped(value?: ConnectorResponse | null, i
         'authType': value['authType'],
         'createdAt': value['createdAt'],
         'displayName': value['displayName'],
+        'headerName': value['headerName'],
         'name': value['name'],
         'namespace': value['namespace'],
         'oauthStatus': value['oauthStatus'],

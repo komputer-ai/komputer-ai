@@ -32,7 +32,7 @@ export interface CreateConnectorRequest {
      */
     authSecretName?: string;
     /**
-     * "token" or "oauth"
+     * "token", "oauth", or "header"
      * @type {string}
      * @memberof CreateConnectorRequest
      */
@@ -43,6 +43,12 @@ export interface CreateConnectorRequest {
      * @memberof CreateConnectorRequest
      */
     displayName?: string;
+    /**
+     * custom header name when authType is "header"
+     * @type {string}
+     * @memberof CreateConnectorRequest
+     */
+    headerName?: string;
     /**
      * 
      * @type {string}
@@ -111,6 +117,7 @@ export function CreateConnectorRequestFromJSONTyped(json: any, ignoreDiscriminat
         'authSecretName': json['authSecretName'] == null ? undefined : json['authSecretName'],
         'authType': json['authType'] == null ? undefined : json['authType'],
         'displayName': json['displayName'] == null ? undefined : json['displayName'],
+        'headerName': json['headerName'] == null ? undefined : json['headerName'],
         'name': json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
         'oauthClientId': json['oauthClientId'] == null ? undefined : json['oauthClientId'],
@@ -136,6 +143,7 @@ export function CreateConnectorRequestToJSONTyped(value?: CreateConnectorRequest
         'authSecretName': value['authSecretName'],
         'authType': value['authType'],
         'displayName': value['displayName'],
+        'headerName': value['headerName'],
         'name': value['name'],
         'namespace': value['namespace'],
         'oauthClientId': value['oauthClientId'],

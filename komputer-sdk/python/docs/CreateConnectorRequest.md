@@ -7,8 +7,9 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **auth_secret_key** | **str** |  | [optional] 
 **auth_secret_name** | **str** |  | [optional] 
-**auth_type** | **str** | \&quot;token\&quot; or \&quot;oauth\&quot; | [optional] 
+**auth_type** | **str** | \&quot;token\&quot;, \&quot;oauth\&quot;, or \&quot;header\&quot; | [optional] 
 **display_name** | **str** |  | [optional] 
+**header_name** | **str** | custom header name when authType is \&quot;header\&quot; | [optional] 
 **name** | **str** |  | 
 **namespace** | **str** |  | [optional] 
 **oauth_client_id** | **str** | OAuth client ID (stored in secret) | [optional] 

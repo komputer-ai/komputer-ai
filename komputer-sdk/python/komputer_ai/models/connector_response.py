@@ -34,13 +34,14 @@ class ConnectorResponse(BaseModel):
     auth_type: Optional[StrictStr] = Field(default=None, alias="authType")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
     display_name: Optional[StrictStr] = Field(default=None, alias="displayName")
+    header_name: Optional[StrictStr] = Field(default=None, alias="headerName")
     name: Optional[StrictStr] = None
     namespace: Optional[StrictStr] = None
     oauth_status: Optional[StrictStr] = Field(default=None, description="\"pending\", \"connected\", \"\"", alias="oauthStatus")
     service: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
     url: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "displayName", "name", "namespace", "oauthStatus", "service", "type", "url"]
+    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "displayName", "headerName", "name", "namespace", "oauthStatus", "service", "type", "url"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -100,6 +101,7 @@ class ConnectorResponse(BaseModel):
             "authType": obj.get("authType"),
             "createdAt": obj.get("createdAt"),
             "displayName": obj.get("displayName"),
+            "headerName": obj.get("headerName"),
             "name": obj.get("name"),
             "namespace": obj.get("namespace"),
             "oauthStatus": obj.get("oauthStatus"),

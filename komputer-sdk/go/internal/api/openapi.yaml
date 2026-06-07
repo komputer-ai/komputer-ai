@@ -4279,6 +4279,7 @@ components:
       type: object
     ConnectorResponse:
       example:
+        headerName: headerName
         displayName: displayName
         agentNames:
         - agentNames
@@ -4310,6 +4311,8 @@ components:
         createdAt:
           type: string
         displayName:
+          type: string
+        headerName:
           type: string
         name:
           type: string
@@ -5039,6 +5042,7 @@ components:
       type: object
     CreateConnectorRequest:
       example:
+        headerName: headerName
         oauthClientId: oauthClientId
         displayName: displayName
         service: service
@@ -5056,9 +5060,12 @@ components:
         authSecretName:
           type: string
         authType:
-          description: '"token" or "oauth"'
+          description: "\"token\", \"oauth\", or \"header\""
           type: string
         displayName:
+          type: string
+        headerName:
+          description: custom header name when authType is "header"
           type: string
         name:
           type: string

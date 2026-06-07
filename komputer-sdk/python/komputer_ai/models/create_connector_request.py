@@ -29,8 +29,9 @@ class CreateConnectorRequest(BaseModel):
     """ # noqa: E501
     auth_secret_key: Optional[StrictStr] = Field(default=None, alias="authSecretKey")
     auth_secret_name: Optional[StrictStr] = Field(default=None, alias="authSecretName")
-    auth_type: Optional[StrictStr] = Field(default=None, description="\"token\" or \"oauth\"", alias="authType")
+    auth_type: Optional[StrictStr] = Field(default=None, description="\"token\", \"oauth\", or \"header\"", alias="authType")
     display_name: Optional[StrictStr] = Field(default=None, alias="displayName")
+    header_name: Optional[StrictStr] = Field(default=None, description="custom header name when authType is \"header\"", alias="headerName")
     name: StrictStr
     namespace: Optional[StrictStr] = None
     oauth_client_id: Optional[StrictStr] = Field(default=None, description="OAuth client ID (stored in secret)", alias="oauthClientId")
@@ -38,7 +39,7 @@ class CreateConnectorRequest(BaseModel):
     service: StrictStr
     type: Optional[StrictStr] = None
     url: StrictStr
-    __properties: ClassVar[List[str]] = ["authSecretKey", "authSecretName", "authType", "displayName", "name", "namespace", "oauthClientId", "oauthClientSecret", "service", "type", "url"]
+    __properties: ClassVar[List[str]] = ["authSecretKey", "authSecretName", "authType", "displayName", "headerName", "name", "namespace", "oauthClientId", "oauthClientSecret", "service", "type", "url"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -95,6 +96,7 @@ class CreateConnectorRequest(BaseModel):
             "authSecretName": obj.get("authSecretName"),
             "authType": obj.get("authType"),
             "displayName": obj.get("displayName"),
+            "headerName": obj.get("headerName"),
             "name": obj.get("name"),
             "namespace": obj.get("namespace"),
             "oauthClientId": obj.get("oauthClientId"),
