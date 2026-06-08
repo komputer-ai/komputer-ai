@@ -162,12 +162,17 @@ export function MultiSelect({
 
   const triggerLabel = (() => {
     if (value.length === 0) return placeholder;
-    if (value.length === 1) {
-      const opt = options.find((o) => o.value === value[0]);
-      return opt?.label ?? value[0];
+    // Count only entries that map to a rendered option — entries that don't
+    // match (stale refs, namespace-prefix mismatches, etc.) are hidden in the
+    // dropdown so they shouldn't inflate the trigger count either.
+    const optionByValue = new Map(options.map((o) => [o.value, o]));
+    const matched = value.filter((v) => optionByValue.has(v));
+    if (matched.length === 0) return placeholder;
+    if (matched.length === 1) {
+      return optionByValue.get(matched[0])?.label ?? matched[0];
     }
-    if (noun) return `${value.length} ${noun} selected`;
-    return `${value.length} selected`;
+    if (noun) return `${matched.length} ${noun} selected`;
+    return `${matched.length} selected`;
   })();
 
   return (
