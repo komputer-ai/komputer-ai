@@ -13,12 +13,26 @@
  */
 
 import { mapValues } from '../runtime';
+import type { CreateScheduleAgentSpec } from './CreateScheduleAgentSpec';
+import {
+    CreateScheduleAgentSpecFromJSON,
+    CreateScheduleAgentSpecFromJSONTyped,
+    CreateScheduleAgentSpecToJSON,
+    CreateScheduleAgentSpecToJSONTyped,
+} from './CreateScheduleAgentSpec';
+
 /**
  * 
  * @export
  * @interface ScheduleResponse
  */
 export interface ScheduleResponse {
+    /**
+     * 
+     * @type {CreateScheduleAgentSpec}
+     * @memberof ScheduleResponse
+     */
+    agent?: CreateScheduleAgentSpec;
     /**
      * 
      * @type {string}
@@ -123,6 +137,12 @@ export interface ScheduleResponse {
     successfulRuns?: number;
     /**
      * 
+     * @type {boolean}
+     * @memberof ScheduleResponse
+     */
+    suspended?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof ScheduleResponse
      */
@@ -158,6 +178,7 @@ export function ScheduleResponseFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
         
+        'agent': json['agent'] == null ? undefined : CreateScheduleAgentSpecFromJSON(json['agent']),
         'agentName': json['agentName'] == null ? undefined : json['agentName'],
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
@@ -175,6 +196,7 @@ export function ScheduleResponseFromJSONTyped(json: any, ignoreDiscriminator: bo
         'runCount': json['runCount'] == null ? undefined : json['runCount'],
         'schedule': json['schedule'] == null ? undefined : json['schedule'],
         'successfulRuns': json['successfulRuns'] == null ? undefined : json['successfulRuns'],
+        'suspended': json['suspended'] == null ? undefined : json['suspended'],
         'timezone': json['timezone'] == null ? undefined : json['timezone'],
         'totalCostUSD': json['totalCostUSD'] == null ? undefined : json['totalCostUSD'],
         'totalTokens': json['totalTokens'] == null ? undefined : json['totalTokens'],
@@ -192,6 +214,7 @@ export function ScheduleResponseToJSONTyped(value?: ScheduleResponse | null, ign
 
     return {
         
+        'agent': CreateScheduleAgentSpecToJSON(value['agent']),
         'agentName': value['agentName'],
         'autoDelete': value['autoDelete'],
         'createdAt': value['createdAt'],
@@ -209,6 +232,7 @@ export function ScheduleResponseToJSONTyped(value?: ScheduleResponse | null, ign
         'runCount': value['runCount'],
         'schedule': value['schedule'],
         'successfulRuns': value['successfulRuns'],
+        'suspended': value['suspended'],
         'timezone': value['timezone'],
         'totalCostUSD': value['totalCostUSD'],
         'totalTokens': value['totalTokens'],

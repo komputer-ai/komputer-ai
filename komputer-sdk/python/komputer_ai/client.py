@@ -140,8 +140,8 @@ class KomputerClient:
     def get_schedule(self, name: str):
         return self.schedules.get_schedule(name)
 
-    def patch_schedule(self, name: str, *, schedule: Optional[str] = None):
-        return self.schedules.patch_schedule(name, PatchScheduleRequest(schedule=schedule))
+    def patch_schedule(self, name: str, *, schedule: Optional[str] = None, instructions: Optional[str] = None, timezone: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, suspended: Optional[bool] = None, agent_name: Optional[str] = None, agent: Optional[CreateScheduleAgentSpec] = None):
+        return self.schedules.patch_schedule(name, PatchScheduleRequest(schedule=schedule, instructions=instructions, timezone=timezone, auto_delete=auto_delete, keep_agents=keep_agents, suspended=suspended, agent_name=agent_name, agent=agent))
 
     def delete_schedule(self, name: str):
         return self.schedules.delete_schedule(name)

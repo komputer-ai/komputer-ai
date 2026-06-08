@@ -6,8 +6,14 @@
 
 Name | Type
 ------------ | -------------
+`agent` | [CreateScheduleAgentSpec](CreateScheduleAgentSpec.md)
+`agentName` | string
+`autoDelete` | boolean
 `instructions` | string
+`keepAgents` | boolean
 `schedule` | string
+`suspended` | boolean
+`timezone` | string
 
 ## Example
 
@@ -16,8 +22,14 @@ import type { PatchScheduleRequest } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "agent": null,
+  "agentName": null,
+  "autoDelete": null,
   "instructions": null,
+  "keepAgents": null,
   "schedule": null,
+  "suspended": null,
+  "timezone": null,
 } satisfies PatchScheduleRequest
 
 console.log(example)

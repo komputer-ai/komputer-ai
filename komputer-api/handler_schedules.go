@@ -34,26 +34,28 @@ type CreateScheduleAgentSpec struct {
 }
 
 type ScheduleResponse struct {
-	Name           string `json:"name"`
-	Namespace      string `json:"namespace"`
-	Schedule       string `json:"schedule"`
-	Instructions   string `json:"instructions"`
-	Timezone       string `json:"timezone,omitempty"`
-	AutoDelete     bool   `json:"autoDelete,omitempty"`
-	KeepAgents     bool   `json:"keepAgents,omitempty"`
-	Phase          string `json:"phase"`
-	AgentName      string `json:"agentName,omitempty"`
-	NextRunTime    string `json:"nextRunTime,omitempty"`
-	LastRunTime    string `json:"lastRunTime,omitempty"`
-	RunCount       int    `json:"runCount,omitempty"`
-	SuccessfulRuns int    `json:"successfulRuns,omitempty"`
-	FailedRuns     int    `json:"failedRuns,omitempty"`
-	TotalCostUSD   string `json:"totalCostUSD,omitempty"`
-	LastRunCostUSD string `json:"lastRunCostUSD,omitempty"`
-	TotalTokens    int64  `json:"totalTokens,omitempty"`
-	LastRunTokens  int64  `json:"lastRunTokens,omitempty"`
-	LastRunStatus  string `json:"lastRunStatus,omitempty"`
-	CreatedAt      string `json:"createdAt"`
+	Name           string                   `json:"name"`
+	Namespace      string                   `json:"namespace"`
+	Schedule       string                   `json:"schedule"`
+	Instructions   string                   `json:"instructions"`
+	Timezone       string                   `json:"timezone,omitempty"`
+	AutoDelete     bool                     `json:"autoDelete,omitempty"`
+	KeepAgents     bool                     `json:"keepAgents,omitempty"`
+	Suspended      bool                     `json:"suspended,omitempty"`
+	Agent          *CreateScheduleAgentSpec `json:"agent,omitempty"`
+	Phase          string                   `json:"phase"`
+	AgentName      string                   `json:"agentName,omitempty"`
+	NextRunTime    string                   `json:"nextRunTime,omitempty"`
+	LastRunTime    string                   `json:"lastRunTime,omitempty"`
+	RunCount       int                      `json:"runCount,omitempty"`
+	SuccessfulRuns int                      `json:"successfulRuns,omitempty"`
+	FailedRuns     int                      `json:"failedRuns,omitempty"`
+	TotalCostUSD   string                   `json:"totalCostUSD,omitempty"`
+	LastRunCostUSD string                   `json:"lastRunCostUSD,omitempty"`
+	TotalTokens    int64                    `json:"totalTokens,omitempty"`
+	LastRunTokens  int64                    `json:"lastRunTokens,omitempty"`
+	LastRunStatus  string                   `json:"lastRunStatus,omitempty"`
+	CreatedAt      string                   `json:"createdAt"`
 }
 
 type ScheduleListResponse struct {
@@ -61,8 +63,14 @@ type ScheduleListResponse struct {
 }
 
 type PatchScheduleRequest struct {
-	Schedule     *string `json:"schedule,omitempty"`
-	Instructions *string `json:"instructions,omitempty"`
+	Schedule     *string                  `json:"schedule,omitempty"`
+	Instructions *string                  `json:"instructions,omitempty"`
+	Timezone     *string                  `json:"timezone,omitempty"`
+	AutoDelete   *bool                    `json:"autoDelete,omitempty"`
+	KeepAgents   *bool                    `json:"keepAgents,omitempty"`
+	Suspended    *bool                    `json:"suspended,omitempty"`
+	AgentName    *string                  `json:"agentName,omitempty"`
+	Agent        *CreateScheduleAgentSpec `json:"agent,omitempty"`
 }
 
 type TriggerScheduleResponse struct {
@@ -81,6 +89,7 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 		Timezone:       s.Spec.Timezone,
 		AutoDelete:     s.Spec.AutoDelete,
 		KeepAgents:     s.Spec.KeepAgents,
+		Suspended:      s.Spec.Suspended,
 		Phase:          string(s.Status.Phase),
 		AgentName:      s.Status.AgentName,
 		RunCount:       s.Status.RunCount,
@@ -102,6 +111,15 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 	// Use spec agentName if status doesn't have one yet.
 	if resp.AgentName == "" {
 		resp.AgentName = s.Spec.AgentName
+	}
+	if s.Spec.Agent != nil {
+		resp.Agent = &CreateScheduleAgentSpec{
+			Model:       s.Spec.Agent.Model,
+			Lifecycle:   string(s.Spec.Agent.Lifecycle),
+			Role:        s.Spec.Agent.Role,
+			TemplateRef: s.Spec.Agent.TemplateRef,
+			SecretRefs:  s.Spec.Agent.Secrets,
+		}
 	}
 	return resp
 }
@@ -380,11 +398,13 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Schedule == nil && req.Instructions == nil {
+		if req.Schedule == nil && req.Instructions == nil && req.Timezone == nil &&
+			req.AutoDelete == nil && req.KeepAgents == nil && req.Suspended == nil &&
+			req.AgentName == nil && req.Agent == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
-		if err := k8s.PatchScheduleSpec(c.Request.Context(), ns, name, req.Schedule, req.Instructions); err != nil {
+		if err := k8s.PatchScheduleSpec(c.Request.Context(), ns, name, req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch schedule: " + err.Error()})
 			return
 		}

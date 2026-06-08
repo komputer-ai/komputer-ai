@@ -13,6 +13,14 @@
  */
 
 import { mapValues } from '../runtime';
+import type { CreateScheduleAgentSpec } from './CreateScheduleAgentSpec';
+import {
+    CreateScheduleAgentSpecFromJSON,
+    CreateScheduleAgentSpecFromJSONTyped,
+    CreateScheduleAgentSpecToJSON,
+    CreateScheduleAgentSpecToJSONTyped,
+} from './CreateScheduleAgentSpec';
+
 /**
  * 
  * @export
@@ -21,16 +29,52 @@ import { mapValues } from '../runtime';
 export interface PatchScheduleRequest {
     /**
      * 
+     * @type {CreateScheduleAgentSpec}
+     * @memberof PatchScheduleRequest
+     */
+    agent?: CreateScheduleAgentSpec;
+    /**
+     * 
+     * @type {string}
+     * @memberof PatchScheduleRequest
+     */
+    agentName?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PatchScheduleRequest
+     */
+    autoDelete?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof PatchScheduleRequest
      */
     instructions?: string;
     /**
      * 
+     * @type {boolean}
+     * @memberof PatchScheduleRequest
+     */
+    keepAgents?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof PatchScheduleRequest
      */
     schedule?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PatchScheduleRequest
+     */
+    suspended?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof PatchScheduleRequest
+     */
+    timezone?: string;
 }
 
 /**
@@ -50,8 +94,14 @@ export function PatchScheduleRequestFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
+        'agent': json['agent'] == null ? undefined : CreateScheduleAgentSpecFromJSON(json['agent']),
+        'agentName': json['agentName'] == null ? undefined : json['agentName'],
+        'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
+        'keepAgents': json['keepAgents'] == null ? undefined : json['keepAgents'],
         'schedule': json['schedule'] == null ? undefined : json['schedule'],
+        'suspended': json['suspended'] == null ? undefined : json['suspended'],
+        'timezone': json['timezone'] == null ? undefined : json['timezone'],
     };
 }
 
@@ -66,8 +116,14 @@ export function PatchScheduleRequestToJSONTyped(value?: PatchScheduleRequest | n
 
     return {
         
+        'agent': CreateScheduleAgentSpecToJSON(value['agent']),
+        'agentName': value['agentName'],
+        'autoDelete': value['autoDelete'],
         'instructions': value['instructions'],
+        'keepAgents': value['keepAgents'],
         'schedule': value['schedule'],
+        'suspended': value['suspended'],
+        'timezone': value['timezone'],
     };
 }
 

@@ -65,6 +65,14 @@ export interface OfficeListResponse {
   offices: OfficeResponse[];
 }
 
+export interface ScheduleAgentSpec {
+  model?: string;
+  lifecycle?: string;
+  role?: string;
+  templateRef?: string;
+  secretRefs?: string[];
+}
+
 export interface ScheduleResponse {
   name: string;
   namespace: string;
@@ -73,6 +81,8 @@ export interface ScheduleResponse {
   timezone?: string;
   autoDelete?: boolean;
   keepAgents?: boolean;
+  suspended?: boolean;
+  agent?: ScheduleAgentSpec;
   phase: 'Active' | 'Suspended' | 'Error';
   agentName?: string;
   nextRunTime?: string;
@@ -86,6 +96,17 @@ export interface ScheduleResponse {
   lastRunTokens?: number;
   lastRunStatus?: string;
   createdAt: string;
+}
+
+export interface PatchScheduleRequest {
+  schedule?: string;
+  instructions?: string;
+  timezone?: string;
+  autoDelete?: boolean;
+  keepAgents?: boolean;
+  suspended?: boolean;
+  agentName?: string;
+  agent?: ScheduleAgentSpec;
 }
 
 export interface ScheduleListResponse {

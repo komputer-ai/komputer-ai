@@ -19,6 +19,7 @@ var _ MappedNullable = &ScheduleResponse{}
 
 // ScheduleResponse struct for ScheduleResponse
 type ScheduleResponse struct {
+	Agent *CreateScheduleAgentSpec `json:"agent,omitempty"`
 	AgentName *string `json:"agentName,omitempty"`
 	AutoDelete *bool `json:"autoDelete,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
@@ -36,6 +37,7 @@ type ScheduleResponse struct {
 	RunCount *int32 `json:"runCount,omitempty"`
 	Schedule *string `json:"schedule,omitempty"`
 	SuccessfulRuns *int32 `json:"successfulRuns,omitempty"`
+	Suspended *bool `json:"suspended,omitempty"`
 	Timezone *string `json:"timezone,omitempty"`
 	TotalCostUSD *string `json:"totalCostUSD,omitempty"`
 	TotalTokens *int32 `json:"totalTokens,omitempty"`
@@ -56,6 +58,38 @@ func NewScheduleResponse() *ScheduleResponse {
 func NewScheduleResponseWithDefaults() *ScheduleResponse {
 	this := ScheduleResponse{}
 	return &this
+}
+
+// GetAgent returns the Agent field value if set, zero value otherwise.
+func (o *ScheduleResponse) GetAgent() CreateScheduleAgentSpec {
+	if o == nil || IsNil(o.Agent) {
+		var ret CreateScheduleAgentSpec
+		return ret
+	}
+	return *o.Agent
+}
+
+// GetAgentOk returns a tuple with the Agent field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ScheduleResponse) GetAgentOk() (*CreateScheduleAgentSpec, bool) {
+	if o == nil || IsNil(o.Agent) {
+		return nil, false
+	}
+	return o.Agent, true
+}
+
+// HasAgent returns a boolean if a field has been set.
+func (o *ScheduleResponse) HasAgent() bool {
+	if o != nil && !IsNil(o.Agent) {
+		return true
+	}
+
+	return false
+}
+
+// SetAgent gets a reference to the given CreateScheduleAgentSpec and assigns it to the Agent field.
+func (o *ScheduleResponse) SetAgent(v CreateScheduleAgentSpec) {
+	o.Agent = &v
 }
 
 // GetAgentName returns the AgentName field value if set, zero value otherwise.
@@ -602,6 +636,38 @@ func (o *ScheduleResponse) SetSuccessfulRuns(v int32) {
 	o.SuccessfulRuns = &v
 }
 
+// GetSuspended returns the Suspended field value if set, zero value otherwise.
+func (o *ScheduleResponse) GetSuspended() bool {
+	if o == nil || IsNil(o.Suspended) {
+		var ret bool
+		return ret
+	}
+	return *o.Suspended
+}
+
+// GetSuspendedOk returns a tuple with the Suspended field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ScheduleResponse) GetSuspendedOk() (*bool, bool) {
+	if o == nil || IsNil(o.Suspended) {
+		return nil, false
+	}
+	return o.Suspended, true
+}
+
+// HasSuspended returns a boolean if a field has been set.
+func (o *ScheduleResponse) HasSuspended() bool {
+	if o != nil && !IsNil(o.Suspended) {
+		return true
+	}
+
+	return false
+}
+
+// SetSuspended gets a reference to the given bool and assigns it to the Suspended field.
+func (o *ScheduleResponse) SetSuspended(v bool) {
+	o.Suspended = &v
+}
+
 // GetTimezone returns the Timezone field value if set, zero value otherwise.
 func (o *ScheduleResponse) GetTimezone() string {
 	if o == nil || IsNil(o.Timezone) {
@@ -708,6 +774,9 @@ func (o ScheduleResponse) MarshalJSON() ([]byte, error) {
 
 func (o ScheduleResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Agent) {
+		toSerialize["agent"] = o.Agent
+	}
 	if !IsNil(o.AgentName) {
 		toSerialize["agentName"] = o.AgentName
 	}
@@ -758,6 +827,9 @@ func (o ScheduleResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SuccessfulRuns) {
 		toSerialize["successfulRuns"] = o.SuccessfulRuns
+	}
+	if !IsNil(o.Suspended) {
+		toSerialize["suspended"] = o.Suspended
 	}
 	if !IsNil(o.Timezone) {
 		toSerialize["timezone"] = o.Timezone

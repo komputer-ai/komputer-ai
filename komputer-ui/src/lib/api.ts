@@ -5,6 +5,7 @@ import type {
   OfficeListResponse,
   ScheduleResponse,
   ScheduleListResponse,
+  PatchScheduleRequest,
   CreateAgentRequest,
   CreateScheduleRequest,
   AgentEvent,
@@ -131,7 +132,7 @@ export const createSchedule = (data: CreateScheduleRequest) =>
 export const deleteSchedule = (name: string, ns?: string) =>
   request<void>(`/schedules/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
 
-export const patchSchedule = (name: string, data: { schedule?: string; instructions?: string }, ns?: string) =>
+export const patchSchedule = (name: string, data: PatchScheduleRequest, ns?: string) =>
   request<ScheduleResponse>(`/schedules/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const triggerSchedule = (name: string, ns?: string) =>

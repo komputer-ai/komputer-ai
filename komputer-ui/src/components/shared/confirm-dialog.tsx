@@ -16,6 +16,10 @@ type ConfirmDialogProps = {
   description: string;
   onConfirm: () => void;
   trigger: ReactNode;
+  /** Label for the confirm button. Defaults to "Delete". */
+  confirmLabel?: string;
+  /** Visual style of the confirm button. Defaults to "destructive". */
+  confirmVariant?: "destructive" | "primary" | "secondary";
 };
 
 export function ConfirmDialog({
@@ -23,6 +27,8 @@ export function ConfirmDialog({
   description,
   onConfirm,
   trigger,
+  confirmLabel = "Delete",
+  confirmVariant = "destructive",
 }: ConfirmDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -48,13 +54,13 @@ export function ConfirmDialog({
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant={confirmVariant}
               onClick={() => {
                 onConfirm();
                 setOpen(false);
               }}
             >
-              Delete
+              {confirmLabel}
             </Button>
           </DialogFooter>
         </DialogContent>

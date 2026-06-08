@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`agent` | [CreateScheduleAgentSpec](CreateScheduleAgentSpec.md)
 `agentName` | string
 `autoDelete` | boolean
 `createdAt` | string
@@ -23,6 +24,7 @@ Name | Type
 `runCount` | number
 `schedule` | string
 `successfulRuns` | number
+`suspended` | boolean
 `timezone` | string
 `totalCostUSD` | string
 `totalTokens` | number
@@ -34,6 +36,7 @@ import type { ScheduleResponse } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "agent": null,
   "agentName": null,
   "autoDelete": null,
   "createdAt": null,
@@ -51,6 +54,7 @@ const example = {
   "runCount": null,
   "schedule": null,
   "successfulRuns": null,
+  "suspended": null,
   "timezone": null,
   "totalCostUSD": null,
   "totalTokens": null,

@@ -19,8 +19,14 @@ var _ MappedNullable = &PatchScheduleRequest{}
 
 // PatchScheduleRequest struct for PatchScheduleRequest
 type PatchScheduleRequest struct {
+	Agent *CreateScheduleAgentSpec `json:"agent,omitempty"`
+	AgentName *string `json:"agentName,omitempty"`
+	AutoDelete *bool `json:"autoDelete,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
+	KeepAgents *bool `json:"keepAgents,omitempty"`
 	Schedule *string `json:"schedule,omitempty"`
+	Suspended *bool `json:"suspended,omitempty"`
+	Timezone *string `json:"timezone,omitempty"`
 }
 
 // NewPatchScheduleRequest instantiates a new PatchScheduleRequest object
@@ -38,6 +44,102 @@ func NewPatchScheduleRequest() *PatchScheduleRequest {
 func NewPatchScheduleRequestWithDefaults() *PatchScheduleRequest {
 	this := PatchScheduleRequest{}
 	return &this
+}
+
+// GetAgent returns the Agent field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetAgent() CreateScheduleAgentSpec {
+	if o == nil || IsNil(o.Agent) {
+		var ret CreateScheduleAgentSpec
+		return ret
+	}
+	return *o.Agent
+}
+
+// GetAgentOk returns a tuple with the Agent field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetAgentOk() (*CreateScheduleAgentSpec, bool) {
+	if o == nil || IsNil(o.Agent) {
+		return nil, false
+	}
+	return o.Agent, true
+}
+
+// HasAgent returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasAgent() bool {
+	if o != nil && !IsNil(o.Agent) {
+		return true
+	}
+
+	return false
+}
+
+// SetAgent gets a reference to the given CreateScheduleAgentSpec and assigns it to the Agent field.
+func (o *PatchScheduleRequest) SetAgent(v CreateScheduleAgentSpec) {
+	o.Agent = &v
+}
+
+// GetAgentName returns the AgentName field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetAgentName() string {
+	if o == nil || IsNil(o.AgentName) {
+		var ret string
+		return ret
+	}
+	return *o.AgentName
+}
+
+// GetAgentNameOk returns a tuple with the AgentName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetAgentNameOk() (*string, bool) {
+	if o == nil || IsNil(o.AgentName) {
+		return nil, false
+	}
+	return o.AgentName, true
+}
+
+// HasAgentName returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasAgentName() bool {
+	if o != nil && !IsNil(o.AgentName) {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentName gets a reference to the given string and assigns it to the AgentName field.
+func (o *PatchScheduleRequest) SetAgentName(v string) {
+	o.AgentName = &v
+}
+
+// GetAutoDelete returns the AutoDelete field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetAutoDelete() bool {
+	if o == nil || IsNil(o.AutoDelete) {
+		var ret bool
+		return ret
+	}
+	return *o.AutoDelete
+}
+
+// GetAutoDeleteOk returns a tuple with the AutoDelete field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetAutoDeleteOk() (*bool, bool) {
+	if o == nil || IsNil(o.AutoDelete) {
+		return nil, false
+	}
+	return o.AutoDelete, true
+}
+
+// HasAutoDelete returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasAutoDelete() bool {
+	if o != nil && !IsNil(o.AutoDelete) {
+		return true
+	}
+
+	return false
+}
+
+// SetAutoDelete gets a reference to the given bool and assigns it to the AutoDelete field.
+func (o *PatchScheduleRequest) SetAutoDelete(v bool) {
+	o.AutoDelete = &v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -72,6 +174,38 @@ func (o *PatchScheduleRequest) SetInstructions(v string) {
 	o.Instructions = &v
 }
 
+// GetKeepAgents returns the KeepAgents field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetKeepAgents() bool {
+	if o == nil || IsNil(o.KeepAgents) {
+		var ret bool
+		return ret
+	}
+	return *o.KeepAgents
+}
+
+// GetKeepAgentsOk returns a tuple with the KeepAgents field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetKeepAgentsOk() (*bool, bool) {
+	if o == nil || IsNil(o.KeepAgents) {
+		return nil, false
+	}
+	return o.KeepAgents, true
+}
+
+// HasKeepAgents returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasKeepAgents() bool {
+	if o != nil && !IsNil(o.KeepAgents) {
+		return true
+	}
+
+	return false
+}
+
+// SetKeepAgents gets a reference to the given bool and assigns it to the KeepAgents field.
+func (o *PatchScheduleRequest) SetKeepAgents(v bool) {
+	o.KeepAgents = &v
+}
+
 // GetSchedule returns the Schedule field value if set, zero value otherwise.
 func (o *PatchScheduleRequest) GetSchedule() string {
 	if o == nil || IsNil(o.Schedule) {
@@ -104,6 +238,70 @@ func (o *PatchScheduleRequest) SetSchedule(v string) {
 	o.Schedule = &v
 }
 
+// GetSuspended returns the Suspended field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetSuspended() bool {
+	if o == nil || IsNil(o.Suspended) {
+		var ret bool
+		return ret
+	}
+	return *o.Suspended
+}
+
+// GetSuspendedOk returns a tuple with the Suspended field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetSuspendedOk() (*bool, bool) {
+	if o == nil || IsNil(o.Suspended) {
+		return nil, false
+	}
+	return o.Suspended, true
+}
+
+// HasSuspended returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasSuspended() bool {
+	if o != nil && !IsNil(o.Suspended) {
+		return true
+	}
+
+	return false
+}
+
+// SetSuspended gets a reference to the given bool and assigns it to the Suspended field.
+func (o *PatchScheduleRequest) SetSuspended(v bool) {
+	o.Suspended = &v
+}
+
+// GetTimezone returns the Timezone field value if set, zero value otherwise.
+func (o *PatchScheduleRequest) GetTimezone() string {
+	if o == nil || IsNil(o.Timezone) {
+		var ret string
+		return ret
+	}
+	return *o.Timezone
+}
+
+// GetTimezoneOk returns a tuple with the Timezone field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchScheduleRequest) GetTimezoneOk() (*string, bool) {
+	if o == nil || IsNil(o.Timezone) {
+		return nil, false
+	}
+	return o.Timezone, true
+}
+
+// HasTimezone returns a boolean if a field has been set.
+func (o *PatchScheduleRequest) HasTimezone() bool {
+	if o != nil && !IsNil(o.Timezone) {
+		return true
+	}
+
+	return false
+}
+
+// SetTimezone gets a reference to the given string and assigns it to the Timezone field.
+func (o *PatchScheduleRequest) SetTimezone(v string) {
+	o.Timezone = &v
+}
+
 func (o PatchScheduleRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -114,11 +312,29 @@ func (o PatchScheduleRequest) MarshalJSON() ([]byte, error) {
 
 func (o PatchScheduleRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Agent) {
+		toSerialize["agent"] = o.Agent
+	}
+	if !IsNil(o.AgentName) {
+		toSerialize["agentName"] = o.AgentName
+	}
+	if !IsNil(o.AutoDelete) {
+		toSerialize["autoDelete"] = o.AutoDelete
+	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions
 	}
+	if !IsNil(o.KeepAgents) {
+		toSerialize["keepAgents"] = o.KeepAgents
+	}
 	if !IsNil(o.Schedule) {
 		toSerialize["schedule"] = o.Schedule
+	}
+	if !IsNil(o.Suspended) {
+		toSerialize["suspended"] = o.Suspended
+	}
+	if !IsNil(o.Timezone) {
+		toSerialize["timezone"] = o.Timezone
 	}
 	return toSerialize, nil
 }
