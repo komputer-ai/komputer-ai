@@ -58,25 +58,35 @@ type OfficeListResponse struct {
 	Offices []OfficeResponse `json:"offices"`
 }
 
+type ScheduleAgentSpec struct {
+	Model       string   `json:"model,omitempty"`
+	Lifecycle   string   `json:"lifecycle,omitempty"`
+	Role        string   `json:"role,omitempty"`
+	TemplateRef string   `json:"templateRef,omitempty"`
+	SecretRefs  []string `json:"secretRefs,omitempty"`
+}
+
 type ScheduleResponse struct {
-	Name           string `json:"name"`
-	Namespace      string `json:"namespace"`
-	Schedule       string `json:"schedule"`
-	Instructions   string `json:"instructions"`
-	Timezone       string `json:"timezone"`
-	AutoDelete     bool   `json:"autoDelete"`
-	KeepAgents     bool   `json:"keepAgents"`
-	Phase          string `json:"phase"`
-	AgentName      string `json:"agentName"`
-	NextRunTime    string `json:"nextRunTime"`
-	LastRunTime    string `json:"lastRunTime"`
-	RunCount       int    `json:"runCount"`
-	SuccessfulRuns int    `json:"successfulRuns"`
-	FailedRuns     int    `json:"failedRuns"`
-	TotalCostUSD   string `json:"totalCostUSD"`
-	LastRunCostUSD string `json:"lastRunCostUSD"`
-	LastRunStatus  string `json:"lastRunStatus"`
-	CreatedAt      string `json:"createdAt"`
+	Name           string             `json:"name"`
+	Namespace      string             `json:"namespace"`
+	Schedule       string             `json:"schedule"`
+	Instructions   string             `json:"instructions"`
+	Timezone       string             `json:"timezone"`
+	AutoDelete     bool               `json:"autoDelete"`
+	KeepAgents     bool               `json:"keepAgents"`
+	Suspended      bool               `json:"suspended"`
+	Agent          *ScheduleAgentSpec `json:"agent,omitempty"`
+	Phase          string             `json:"phase"`
+	AgentName      string             `json:"agentName"`
+	NextRunTime    string             `json:"nextRunTime"`
+	LastRunTime    string             `json:"lastRunTime"`
+	RunCount       int                `json:"runCount"`
+	SuccessfulRuns int                `json:"successfulRuns"`
+	FailedRuns     int                `json:"failedRuns"`
+	TotalCostUSD   string             `json:"totalCostUSD"`
+	LastRunCostUSD string             `json:"lastRunCostUSD"`
+	LastRunStatus  string             `json:"lastRunStatus"`
+	CreatedAt      string             `json:"createdAt"`
 }
 
 type ScheduleListResponse struct {

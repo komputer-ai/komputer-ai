@@ -894,12 +894,13 @@ func (k *K8sClient) GetSchedule(ctx context.Context, ns, name string) (*komputer
 }
 
 func (k *K8sClient) PatchScheduleCron(ctx context.Context, ns, name, cron string) error {
-	return k.PatchScheduleSpec(ctx, ns, name, &cron, nil)
+	return k.PatchScheduleSpec(ctx, ns, name, PatchScheduleRequest{Schedule: &cron})
 }
 
-// PatchScheduleSpec patches mutable spec fields (cron expression, instructions) on a schedule.
-// nil pointers are skipped.
-func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, cron, instructions *string) error {
+// PatchScheduleSpec patches mutable spec fields on a schedule. nil pointers are skipped.
+// AgentName and Agent are mutually exclusive: setting AgentName clears Agent and vice versa,
+// matching the create-time validation in KomputerScheduleSpec.
+func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, req PatchScheduleRequest) error {
 	schedule := &komputerv1alpha1.KomputerSchedule{}
 	key := types.NamespacedName{Name: name, Namespace: ns}
 	if err := k.client.Get(ctx, key, schedule); err != nil {
@@ -907,12 +908,48 @@ func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, cron
 	}
 	original := schedule.DeepCopy()
 	changed := false
-	if cron != nil && schedule.Spec.Schedule != *cron {
-		schedule.Spec.Schedule = *cron
+	if req.Schedule != nil && schedule.Spec.Schedule != *req.Schedule {
+		schedule.Spec.Schedule = *req.Schedule
 		changed = true
 	}
-	if instructions != nil && schedule.Spec.Instructions != *instructions {
-		schedule.Spec.Instructions = *instructions
+	if req.Instructions != nil && schedule.Spec.Instructions != *req.Instructions {
+		schedule.Spec.Instructions = *req.Instructions
+		changed = true
+	}
+	if req.Timezone != nil && schedule.Spec.Timezone != *req.Timezone {
+		schedule.Spec.Timezone = *req.Timezone
+		changed = true
+	}
+	if req.AutoDelete != nil && schedule.Spec.AutoDelete != *req.AutoDelete {
+		schedule.Spec.AutoDelete = *req.AutoDelete
+		changed = true
+	}
+	if req.KeepAgents != nil && schedule.Spec.KeepAgents != *req.KeepAgents {
+		schedule.Spec.KeepAgents = *req.KeepAgents
+		changed = true
+	}
+	if req.Suspended != nil && schedule.Spec.Suspended != *req.Suspended {
+		schedule.Spec.Suspended = *req.Suspended
+		changed = true
+	}
+	if req.AgentName != nil && schedule.Spec.AgentName != *req.AgentName {
+		schedule.Spec.AgentName = *req.AgentName
+		if *req.AgentName != "" {
+			// Targeting an existing agent — drop the inline template.
+			schedule.Spec.Agent = nil
+		}
+		changed = true
+	}
+	if req.Agent != nil {
+		schedule.Spec.Agent = &komputerv1alpha1.ScheduleAgentSpec{
+			Model:       req.Agent.Model,
+			Lifecycle:   komputerv1alpha1.AgentLifecycle(req.Agent.Lifecycle),
+			Role:        req.Agent.Role,
+			TemplateRef: req.Agent.TemplateRef,
+			Secrets:     req.Agent.SecretRefs,
+		}
+		// Inline template replaces any AgentName reference.
+		schedule.Spec.AgentName = ""
 		changed = true
 	}
 	if !changed {

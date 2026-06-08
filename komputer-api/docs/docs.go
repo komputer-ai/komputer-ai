@@ -1457,6 +1457,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/schedules/{name}/trigger": {
+            "post": {
+                "description": "Fires the schedule immediately, independent of its cron cadence. Returns 409 if a run is already in progress.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "schedules"
+                ],
+                "summary": "Trigger schedule now",
+                "operationId": "triggerSchedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Triggered",
+                        "schema": {
+                            "$ref": "#/definitions/main.TriggerScheduleResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Schedule not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "A run is already in progress",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/secrets": {
             "get": {
                 "description": "Returns all secrets with key names (not values) and attached agent counts in the specified namespace.",
@@ -2505,6 +2568,9 @@ const docTemplate = `{
         "main.AgentResponse": {
             "type": "object",
             "properties": {
+                "completionTime": {
+                    "type": "string"
+                },
                 "connectors": {
                     "description": "KomputerConnector names attached to this agent",
                     "type": "array",
@@ -2525,6 +2591,12 @@ const docTemplate = `{
                 "instructions": {
                     "description": "User task (spec.instructions)",
                     "type": "string"
+                },
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "lastTaskCostUSD": {
                     "type": "string"
@@ -2636,6 +2708,9 @@ const docTemplate = `{
                 "displayName": {
                     "type": "string"
                 },
+                "headerName": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2673,6 +2748,13 @@ const docTemplate = `{
                 },
                 "instructions": {
                     "type": "string"
+                },
+                "labels": {
+                    "description": "Labels are user-defined key=value labels passed through to the agent CR.\nReserved-prefix keys (komputer.ai/*) are rejected except for\n\"komputer.ai/personal-agent\" which is allow-listed.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "lifecycle": {
                     "description": "\"\", \"Sleep\", or \"AutoDelete\"",
@@ -2751,10 +2833,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "authType": {
-                    "description": "\"token\" or \"oauth\"",
+                    "description": "\"token\", \"oauth\", or \"header\"",
                     "type": "string"
                 },
                 "displayName": {
+                    "type": "string"
+                },
+                "headerName": {
+                    "description": "custom header name when authType is \"header\"",
                     "type": "string"
                 },
                 "name": {
@@ -3042,6 +3128,12 @@ const docTemplate = `{
                 "instructions": {
                     "type": "string"
                 },
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "lifecycle": {
                     "type": "string"
                 },
@@ -3102,7 +3194,28 @@ const docTemplate = `{
         "main.PatchScheduleRequest": {
             "type": "object",
             "properties": {
+                "agent": {
+                    "$ref": "#/definitions/main.CreateScheduleAgentSpec"
+                },
+                "agentName": {
+                    "type": "string"
+                },
+                "autoDelete": {
+                    "type": "boolean"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "keepAgents": {
+                    "type": "boolean"
+                },
                 "schedule": {
+                    "type": "string"
+                },
+                "suspended": {
+                    "type": "boolean"
+                },
+                "timezone": {
                     "type": "string"
                 }
             }
@@ -3146,6 +3259,9 @@ const docTemplate = `{
         "main.ScheduleResponse": {
             "type": "object",
             "properties": {
+                "agent": {
+                    "$ref": "#/definitions/main.CreateScheduleAgentSpec"
+                },
                 "agentName": {
                     "type": "string"
                 },
@@ -3157,6 +3273,9 @@ const docTemplate = `{
                 },
                 "failedRuns": {
                     "type": "integer"
+                },
+                "instructions": {
+                    "type": "string"
                 },
                 "keepAgents": {
                     "type": "boolean"
@@ -3193,6 +3312,9 @@ const docTemplate = `{
                 },
                 "successfulRuns": {
                     "type": "integer"
+                },
+                "suspended": {
+                    "type": "boolean"
                 },
                 "timezone": {
                     "type": "string"
@@ -3342,6 +3464,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "podName": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.TriggerScheduleResponse": {
+            "type": "object",
+            "properties": {
+                "agentName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -7509,6 +7645,13 @@ const docTemplate = `{
                 "internalSystemPrompt": {
                     "description": "InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories).\n+optional",
                     "type": "string"
+                },
+                "labels": {
+                    "description": "Labels are user-defined key=value labels attached to this agent and\npropagated to all child resources (Pod, PVC, ConfigMap, Service).\nKeys starting with \"komputer.ai/\" are reserved for system labels and\nshould not be set directly through the API.\n+optional",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "lifecycle": {
                     "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",

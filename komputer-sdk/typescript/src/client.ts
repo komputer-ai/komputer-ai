@@ -159,8 +159,30 @@ export class KomputerClient {
     return this._schedules.getSchedule({ name });
   }
 
-  async patchSchedule(params: { name: string; schedule?: string }) {
-    return this._schedules.patchSchedule({ name: params.name, request: { schedule: params.schedule } });
+  async patchSchedule(params: {
+    name: string;
+    schedule?: string;
+    instructions?: string;
+    timezone?: string;
+    autoDelete?: boolean;
+    keepAgents?: boolean;
+    suspended?: boolean;
+    agentName?: string;
+    agent?: CreateScheduleAgentSpec;
+  }) {
+    return this._schedules.patchSchedule({
+      name: params.name,
+      request: {
+        schedule: params.schedule,
+        instructions: params.instructions,
+        timezone: params.timezone,
+        autoDelete: params.autoDelete,
+        keepAgents: params.keepAgents,
+        suspended: params.suspended,
+        agentName: params.agentName,
+        agent: params.agent,
+      },
+    });
   }
 
   async deleteSchedule(name: string) {

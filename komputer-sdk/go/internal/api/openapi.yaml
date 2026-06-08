@@ -6131,10 +6131,35 @@ components:
       example:
         instructions: instructions
         schedule: schedule
+        agent:
+          lifecycle: lifecycle
+          role: role
+          templateRef: templateRef
+          model: model
+          secretRefs:
+          - secretRefs
+          - secretRefs
+        timezone: timezone
+        autoDelete: true
+        agentName: agentName
+        keepAgents: true
+        suspended: true
       properties:
+        agent:
+          $ref: "#/components/schemas/CreateScheduleAgentSpec"
+        agentName:
+          type: string
+        autoDelete:
+          type: boolean
         instructions:
           type: string
+        keepAgents:
+          type: boolean
         schedule:
+          type: string
+        suspended:
+          type: boolean
+        timezone:
           type: string
       type: object
     PatchSkillRequest:
@@ -6220,6 +6245,14 @@ components:
         schedules:
         - phase: phase
           instructions: instructions
+          agent:
+            lifecycle: lifecycle
+            role: role
+            templateRef: templateRef
+            model: model
+            secretRefs:
+            - secretRefs
+            - secretRefs
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -6229,6 +6262,7 @@ components:
           lastRunCostUSD: lastRunCostUSD
           totalTokens: 5
           lastRunTokens: 6
+          suspended: true
           createdAt: createdAt
           schedule: schedule
           lastRunTime: lastRunTime
@@ -6240,6 +6274,14 @@ components:
           runCount: 1
         - phase: phase
           instructions: instructions
+          agent:
+            lifecycle: lifecycle
+            role: role
+            templateRef: templateRef
+            model: model
+            secretRefs:
+            - secretRefs
+            - secretRefs
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -6249,6 +6291,7 @@ components:
           lastRunCostUSD: lastRunCostUSD
           totalTokens: 5
           lastRunTokens: 6
+          suspended: true
           createdAt: createdAt
           schedule: schedule
           lastRunTime: lastRunTime
@@ -6268,6 +6311,14 @@ components:
       example:
         phase: phase
         instructions: instructions
+        agent:
+          lifecycle: lifecycle
+          role: role
+          templateRef: templateRef
+          model: model
+          secretRefs:
+          - secretRefs
+          - secretRefs
         successfulRuns: 5
         timezone: timezone
         totalCostUSD: totalCostUSD
@@ -6277,6 +6328,7 @@ components:
         lastRunCostUSD: lastRunCostUSD
         totalTokens: 5
         lastRunTokens: 6
+        suspended: true
         createdAt: createdAt
         schedule: schedule
         lastRunTime: lastRunTime
@@ -6287,6 +6339,8 @@ components:
         keepAgents: true
         runCount: 1
       properties:
+        agent:
+          $ref: "#/components/schemas/CreateScheduleAgentSpec"
         agentName:
           type: string
         autoDelete:
@@ -6321,6 +6375,8 @@ components:
           type: string
         successfulRuns:
           type: integer
+        suspended:
+          type: boolean
         timezone:
           type: string
         totalCostUSD:

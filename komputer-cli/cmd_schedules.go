@@ -437,29 +437,74 @@ func registerScheduleCommands(root *cobra.Command) {
 
 	// ── schedule update ────────────────────────────────────────────────
 	scheduleUpdateCmd := &cobra.Command{
-		Use:   "update <name>",
-		Short: "Update a schedule's cron expression or instructions",
-		Args:  cobra.ExactArgs(1),
+		Use:     "update <name>",
+		Aliases: []string{"edit", "patch"},
+		Short:   "Update any editable field on a schedule",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
-			cron, _ := cmd.Flags().GetString("cron")
-			instructions, _ := cmd.Flags().GetString("instructions")
-			if cron == "" && instructions == "" {
-				if jsonMode {
-					dieJSON("must pass --cron and/or --instructions", 400)
-				}
-				fmt.Println(errorStyle.Render("must pass --cron and/or --instructions"))
-				os.Exit(1)
-			}
+
 			body := map[string]interface{}{}
-			if cron != "" {
+			if cmd.Flags().Changed("cron") {
+				cron, _ := cmd.Flags().GetString("cron")
 				body["schedule"] = cron
 			}
-			if instructions != "" {
+			if cmd.Flags().Changed("instructions") {
+				instructions, _ := cmd.Flags().GetString("instructions")
 				body["instructions"] = instructions
 			}
+			if cmd.Flags().Changed("timezone") {
+				tz, _ := cmd.Flags().GetString("timezone")
+				body["timezone"] = tz
+			}
+			if cmd.Flags().Changed("auto-delete") {
+				v, _ := cmd.Flags().GetBool("auto-delete")
+				body["autoDelete"] = v
+			}
+			if cmd.Flags().Changed("keep-agents") {
+				v, _ := cmd.Flags().GetBool("keep-agents")
+				body["keepAgents"] = v
+			}
+			if cmd.Flags().Changed("suspended") {
+				v, _ := cmd.Flags().GetBool("suspended")
+				body["suspended"] = v
+			}
+			if cmd.Flags().Changed("agent") {
+				agent, _ := cmd.Flags().GetString("agent")
+				body["agentName"] = agent
+			}
+			// Agent template fields — if any is set, build the inline template.
+			agentSpec := map[string]interface{}{}
+			for _, f := range []struct{ flag, key string }{
+				{"model", "model"},
+				{"lifecycle", "lifecycle"},
+				{"role", "role"},
+				{"template-ref", "templateRef"},
+			} {
+				if cmd.Flags().Changed(f.flag) {
+					v, _ := cmd.Flags().GetString(f.flag)
+					agentSpec[f.key] = v
+				}
+			}
+			if cmd.Flags().Changed("secret") {
+				secrets, _ := cmd.Flags().GetStringSlice("secret")
+				agentSpec["secretRefs"] = secrets
+			}
+			if len(agentSpec) > 0 {
+				body["agent"] = agentSpec
+			}
+
+			if len(body) == 0 {
+				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template-ref, --secret"
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
+
 			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), body)
 			if err != nil {
 				if jsonMode {
@@ -486,6 +531,16 @@ func registerScheduleCommands(root *cobra.Command) {
 	}
 	scheduleUpdateCmd.Flags().String("cron", "", "New cron expression")
 	scheduleUpdateCmd.Flags().String("instructions", "", "New instructions for the agent")
+	scheduleUpdateCmd.Flags().String("timezone", "", "New IANA timezone")
+	scheduleUpdateCmd.Flags().Bool("auto-delete", false, "Toggle auto-delete after first successful run")
+	scheduleUpdateCmd.Flags().Bool("keep-agents", false, "Toggle keep-agents on auto-delete")
+	scheduleUpdateCmd.Flags().Bool("suspended", false, "Toggle suspended state (paused without deletion)")
+	scheduleUpdateCmd.Flags().String("agent", "", "Target an existing agent by name (clears inline template)")
+	scheduleUpdateCmd.Flags().String("model", "", "Agent template: Claude model")
+	scheduleUpdateCmd.Flags().String("lifecycle", "", "Agent template: lifecycle (Sleep, AutoDelete, or empty)")
+	scheduleUpdateCmd.Flags().String("role", "", "Agent template: role")
+	scheduleUpdateCmd.Flags().String("template-ref", "", "Agent template: KomputerAgentTemplate ref")
+	scheduleUpdateCmd.Flags().StringSlice("secret", nil, "Agent template: secret refs (repeatable)")
 	scheduleCmd.AddCommand(scheduleUpdateCmd)
 
 	root.AddCommand(scheduleCmd)

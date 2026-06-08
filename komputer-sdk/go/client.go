@@ -386,16 +386,43 @@ func (c *Client) GetSchedule(ctx context.Context, name string) (*komputer.Schedu
 }
 
 type PatchScheduleOpts struct {
-	Schedule *string
+	Schedule     *string
+	Instructions *string
+	Timezone     *string
+	AutoDelete   *bool
+	KeepAgents   *bool
+	Suspended    *bool
+	AgentName    *string
+	Agent        *komputer.CreateScheduleAgentSpec
 }
 
 func (c *Client) PatchSchedule(ctx context.Context, name string, opts ...PatchScheduleOpts) (*komputer.ScheduleResponse, *http.Response, error) {
-	req := komputer.PatchScheduleRequest{
-	}
+	req := komputer.PatchScheduleRequest{}
 	if len(opts) > 0 {
 		o := opts[0]
 		if o.Schedule != nil {
 			req.Schedule = o.Schedule
+		}
+		if o.Instructions != nil {
+			req.Instructions = o.Instructions
+		}
+		if o.Timezone != nil {
+			req.Timezone = o.Timezone
+		}
+		if o.AutoDelete != nil {
+			req.AutoDelete = o.AutoDelete
+		}
+		if o.KeepAgents != nil {
+			req.KeepAgents = o.KeepAgents
+		}
+		if o.Suspended != nil {
+			req.Suspended = o.Suspended
+		}
+		if o.AgentName != nil {
+			req.AgentName = o.AgentName
+		}
+		if o.Agent != nil {
+			req.Agent = o.Agent
 		}
 	}
 	return c.api.SchedulesAPI.PatchSchedule(ctx, name).Request(req).Execute()

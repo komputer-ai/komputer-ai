@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**Agent** | Pointer to [**CreateScheduleAgentSpec**](CreateScheduleAgentSpec.md) |  | [optional] 
 **AgentName** | Pointer to **string** |  | [optional] 
 **AutoDelete** | Pointer to **bool** |  | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
@@ -21,6 +22,7 @@ Name | Type | Description | Notes
 **RunCount** | Pointer to **int32** |  | [optional] 
 **Schedule** | Pointer to **string** |  | [optional] 
 **SuccessfulRuns** | Pointer to **int32** |  | [optional] 
+**Suspended** | Pointer to **bool** |  | [optional] 
 **Timezone** | Pointer to **string** |  | [optional] 
 **TotalCostUSD** | Pointer to **string** |  | [optional] 
 **TotalTokens** | Pointer to **int32** |  | [optional] 
@@ -43,6 +45,31 @@ will change when the set of required properties is changed
 NewScheduleResponseWithDefaults instantiates a new ScheduleResponse object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetAgent
+
+`func (o *ScheduleResponse) GetAgent() CreateScheduleAgentSpec`
+
+GetAgent returns the Agent field if non-nil, zero value otherwise.
+
+### GetAgentOk
+
+`func (o *ScheduleResponse) GetAgentOk() (*CreateScheduleAgentSpec, bool)`
+
+GetAgentOk returns a tuple with the Agent field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAgent
+
+`func (o *ScheduleResponse) SetAgent(v CreateScheduleAgentSpec)`
+
+SetAgent sets Agent field to given value.
+
+### HasAgent
+
+`func (o *ScheduleResponse) HasAgent() bool`
+
+HasAgent returns a boolean if a field has been set.
 
 ### GetAgentName
 
@@ -468,6 +495,31 @@ SetSuccessfulRuns sets SuccessfulRuns field to given value.
 `func (o *ScheduleResponse) HasSuccessfulRuns() bool`
 
 HasSuccessfulRuns returns a boolean if a field has been set.
+
+### GetSuspended
+
+`func (o *ScheduleResponse) GetSuspended() bool`
+
+GetSuspended returns the Suspended field if non-nil, zero value otherwise.
+
+### GetSuspendedOk
+
+`func (o *ScheduleResponse) GetSuspendedOk() (*bool, bool)`
+
+GetSuspendedOk returns a tuple with the Suspended field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSuspended
+
+`func (o *ScheduleResponse) SetSuspended(v bool)`
+
+SetSuspended sets Suspended field to given value.
+
+### HasSuspended
+
+`func (o *ScheduleResponse) HasSuspended() bool`
+
+HasSuspended returns a boolean if a field has been set.
 
 ### GetTimezone
 

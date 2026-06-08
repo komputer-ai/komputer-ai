@@ -4,20 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock, Play } from "lucide-react";
+import { Trash2, Calendar, CheckCircle, DollarSign, Activity, Pencil, Check, X, Clock, Play, Pause, Save } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
-import { Input } from "@/components/kit/input";
-import { getSchedule, deleteSchedule, patchSchedule, triggerSchedule } from "@/lib/api";
+import { Label } from "@/components/kit/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/kit/select";
+import { getSchedule, deleteSchedule, patchSchedule, triggerSchedule, listAgents } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { cronToHuman, formatCost } from "@/lib/utils";
-import type { ScheduleResponse } from "@/lib/types";
+import { LIFECYCLES, MODELS } from "@/lib/constants";
+import type { ScheduleResponse, PatchScheduleRequest } from "@/lib/types";
 
 function StatCard({
   label,
@@ -60,6 +61,22 @@ export default function ScheduleDetailPage() {
   const [savingInstructions, setSavingInstructions] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [triggerMessage, setTriggerMessage] = useState<string | null>(null);
+  // Inline editor for the "Details" panel — covers agent target, timezone,
+  // flags, suspended toggle, and the inline ScheduleAgentSpec template.
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState<{
+    agentName: string;
+    timezone: string;
+    autoDelete: boolean;
+    keepAgents: boolean;
+    suspended: boolean;
+    agentModel: string;
+    agentLifecycle: string;
+    agentRole: string;
+    agentTemplateRef: string;
+  } | null>(null);
+  const [availableAgents, setAvailableAgents] = useState<{ name: string; namespace?: string }[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -80,6 +97,94 @@ export default function ScheduleDetailPage() {
     const interval = setInterval(fetchData, 10_000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Load the agent list lazily — only when the user opens the editor.
+  useEffect(() => {
+    if (!editingDetails || availableAgents.length > 0) return;
+    listAgents()
+      .then((res) =>
+        setAvailableAgents(
+          (res.agents ?? []).map((a) => ({ name: a.name, namespace: a.namespace }))
+        )
+      )
+      .catch(() => {
+        /* non-critical */
+      });
+  }, [editingDetails, availableAgents.length]);
+
+  function openDetailsEditor() {
+    if (!schedule) return;
+    setDetailsDraft({
+      agentName: schedule.agentName ?? "",
+      timezone: schedule.timezone ?? "",
+      autoDelete: !!schedule.autoDelete,
+      keepAgents: !!schedule.keepAgents,
+      suspended: !!schedule.suspended,
+      agentModel: schedule.agent?.model ?? "",
+      agentLifecycle: schedule.agent?.lifecycle || "Sleep",
+      agentRole: schedule.agent?.role ?? "",
+      agentTemplateRef: schedule.agent?.templateRef ?? "",
+    });
+    setEditingDetails(true);
+  }
+
+  async function handleSaveDetails() {
+    if (!schedule || !detailsDraft) return;
+    const patch: PatchScheduleRequest = {};
+    const draftAgent = detailsDraft.agentName.trim();
+    const currentAgent = schedule.agentName ?? "";
+    if (draftAgent !== currentAgent) patch.agentName = draftAgent;
+    if (detailsDraft.timezone !== (schedule.timezone ?? ""))
+      patch.timezone = detailsDraft.timezone;
+    if (detailsDraft.autoDelete !== !!schedule.autoDelete)
+      patch.autoDelete = detailsDraft.autoDelete;
+    if (detailsDraft.keepAgents !== !!schedule.keepAgents)
+      patch.keepAgents = detailsDraft.keepAgents;
+    if (detailsDraft.suspended !== !!schedule.suspended)
+      patch.suspended = detailsDraft.suspended;
+    // Inline agent template — only send when no agentName is set and at least one field differs.
+    if (!draftAgent) {
+      const cur = schedule.agent ?? {};
+      const next = {
+        model: detailsDraft.agentModel,
+        lifecycle: detailsDraft.agentLifecycle,
+        role: detailsDraft.agentRole,
+        templateRef: detailsDraft.agentTemplateRef,
+      };
+      if (
+        (cur.model ?? "") !== next.model ||
+        (cur.lifecycle ?? "") !== next.lifecycle ||
+        (cur.role ?? "") !== next.role ||
+        (cur.templateRef ?? "") !== next.templateRef
+      ) {
+        patch.agent = next;
+      }
+    }
+    if (Object.keys(patch).length === 0) {
+      setEditingDetails(false);
+      return;
+    }
+    setSavingDetails(true);
+    try {
+      await patchSchedule(name, patch, scheduleNs);
+      await fetchData();
+      setEditingDetails(false);
+    } catch {
+      // keep editing open on error
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
+  async function handleToggleSuspended() {
+    if (!schedule) return;
+    try {
+      await patchSchedule(name, { suspended: !schedule.suspended }, scheduleNs);
+      await fetchData();
+    } catch {
+      /* non-critical */
+    }
+  }
 
   async function handleDelete() {
     try {
@@ -207,10 +312,25 @@ export default function ScheduleDetailPage() {
             {triggerMessage && (
               <span className="text-xs text-[var(--color-text-secondary)]">{triggerMessage}</span>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleToggleSuspended}
+              title={schedule.suspended ? "Resume scheduled runs" : "Pause without deleting"}
+            >
+              {schedule.suspended ? (
+                <Play className="size-3.5 text-emerald-400" />
+              ) : (
+                <Pause className="size-3.5 text-[var(--color-text-secondary)]" />
+              )}
+              {schedule.suspended ? "Resume" : "Suspend"}
+            </Button>
             <ConfirmDialog
               title={`Run ${schedule.name} now?`}
               description="This triggers the schedule's instructions immediately, outside of its cron cadence."
               onConfirm={handleTrigger}
+              confirmLabel="Run now"
+              confirmVariant="primary"
               trigger={
                 <Button
                   variant="ghost"
@@ -401,94 +521,304 @@ export default function ScheduleDetailPage() {
 
         <div className="border-t border-[var(--color-border)]" />
 
-        {/* Info section */}
+        {/* Info / Details section — view + inline editor */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-            Details
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Agent */}
-            <div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Agent
-              </span>
-              <p className="mt-0.5">
-                {schedule.agentName ? (
-                  <Link
-                    href={`/agents/${schedule.agentName}?namespace=${schedule.namespace}`}
-                    className="text-sm font-medium text-[var(--color-brand-blue)] hover:underline"
-                  >
-                    {schedule.agentName}
-                  </Link>
-                ) : (
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    --
-                  </span>
-                )}
-              </p>
-            </div>
-
-            {/* Next run */}
-            <div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Next Run
-              </span>
-              <p className="mt-0.5">
-                {schedule.nextRunTime ? (
-                  <RelativeTime timestamp={schedule.nextRunTime} />
-                ) : (
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    --
-                  </span>
-                )}
-              </p>
-            </div>
-
-            {/* Last run */}
-            <div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Last Run
-              </span>
-              <div className="mt-0.5 flex items-center gap-2">
-                {schedule.lastRunTime ? (
-                  <>
-                    <RelativeTime timestamp={schedule.lastRunTime} />
-                    {schedule.lastRunStatus && (
-                      <StatusBadge status={schedule.lastRunStatus} size="sm" />
-                    )}
-                  </>
-                ) : (
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    --
-                  </span>
-                )}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+              Details
+            </h2>
+            {!editingDetails ? (
+              <Button variant="ghost" size="sm" onClick={openDetailsEditor}>
+                <Pencil className="size-3 text-[var(--color-text-muted)]" />
+                Edit
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails}
+                >
+                  <Save className="size-3.5" />
+                  {savingDetails ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingDetails(false)}
+                  disabled={savingDetails}
+                >
+                  <X className="size-3.5" />
+                  Cancel
+                </Button>
               </div>
-            </div>
-
-            {/* Flags */}
-            <div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Flags
-              </span>
-              <div className="mt-0.5 flex items-center gap-2">
-                {schedule.autoDelete ? (
-                  <Badge variant="secondary" className="text-[10px]">
-                    Auto-delete
-                  </Badge>
-                ) : null}
-                {schedule.keepAgents ? (
-                  <Badge variant="secondary" className="text-[10px]">
-                    Keep agents
-                  </Badge>
-                ) : null}
-                {!schedule.autoDelete && !schedule.keepAgents && (
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    --
-                  </span>
-                )}
-              </div>
-            </div>
+            )}
           </div>
+
+          {!editingDetails || !detailsDraft ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Agent */}
+              <div>
+                <span className="text-xs text-[var(--color-text-secondary)]">Agent</span>
+                <p className="mt-0.5">
+                  {schedule.agentName ? (
+                    <Link
+                      href={`/agents/${schedule.agentName}?namespace=${schedule.namespace}`}
+                      className="text-sm font-medium text-[var(--color-brand-blue)] hover:underline"
+                    >
+                      {schedule.agentName}
+                    </Link>
+                  ) : schedule.agent ? (
+                    <span className="text-sm text-[var(--color-text)]">
+                      New agent · {schedule.agent.model || "default model"}
+                      {schedule.agent.lifecycle ? ` · ${schedule.agent.lifecycle}` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-[var(--color-text-secondary)]">--</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Timezone */}
+              <div>
+                <span className="text-xs text-[var(--color-text-secondary)]">Timezone</span>
+                <p className="mt-0.5 text-sm text-[var(--color-text)]">
+                  {schedule.timezone || "UTC"}
+                </p>
+              </div>
+
+              {/* Next run */}
+              <div>
+                <span className="text-xs text-[var(--color-text-secondary)]">Next Run</span>
+                <p className="mt-0.5">
+                  {schedule.nextRunTime ? (
+                    <RelativeTime timestamp={schedule.nextRunTime} />
+                  ) : (
+                    <span className="text-sm text-[var(--color-text-secondary)]">--</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Last run */}
+              <div>
+                <span className="text-xs text-[var(--color-text-secondary)]">Last Run</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  {schedule.lastRunTime ? (
+                    <>
+                      <RelativeTime timestamp={schedule.lastRunTime} />
+                      {schedule.lastRunStatus && (
+                        <StatusBadge status={schedule.lastRunStatus} size="sm" />
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-sm text-[var(--color-text-secondary)]">--</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Flags */}
+              <div className="sm:col-span-2">
+                <span className="text-xs text-[var(--color-text-secondary)]">Flags</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  {schedule.suspended ? (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Suspended
+                    </Badge>
+                  ) : null}
+                  {schedule.autoDelete ? (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Auto-delete
+                    </Badge>
+                  ) : null}
+                  {schedule.keepAgents ? (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Keep agents
+                    </Badge>
+                  ) : null}
+                  {!schedule.suspended && !schedule.autoDelete && !schedule.keepAgents && (
+                    <span className="text-sm text-[var(--color-text-secondary)]">--</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Target agent */}
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label>Target Agent</Label>
+                <Select
+                  value={detailsDraft.agentName || "__new__"}
+                  onValueChange={(v) =>
+                    setDetailsDraft({
+                      ...detailsDraft,
+                      agentName: v === "__new__" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__">Create a new agent each run</SelectItem>
+                    {availableAgents.map((a) => (
+                      <SelectItem key={a.name} value={a.name}>
+                        {a.name}
+                        {a.namespace && a.namespace !== schedule.namespace ? ` (${a.namespace})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  Reference an existing agent, or leave on &quot;Create a new agent each run&quot; to use the template below.
+                </p>
+              </div>
+
+              {/* Timezone */}
+              <div className="flex flex-col gap-1.5">
+                <Label>Timezone</Label>
+                <input
+                  value={detailsDraft.timezone}
+                  onChange={(e) =>
+                    setDetailsDraft({ ...detailsDraft, timezone: e.target.value })
+                  }
+                  placeholder="UTC"
+                  className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)]"
+                />
+              </div>
+
+              {/* Flags */}
+              <div className="flex flex-col gap-1.5">
+                <Label>Flags</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDetailsDraft({ ...detailsDraft, suspended: !detailsDraft.suspended })
+                    }
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                      detailsDraft.suspended
+                        ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                        : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                    }`}
+                  >
+                    {detailsDraft.suspended && <Check className="inline size-2.5 mr-1" />}
+                    Suspended
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDetailsDraft({ ...detailsDraft, autoDelete: !detailsDraft.autoDelete })
+                    }
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                      detailsDraft.autoDelete
+                        ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                        : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                    }`}
+                  >
+                    {detailsDraft.autoDelete && <Check className="inline size-2.5 mr-1" />}
+                    Delete after first run
+                  </button>
+                  {detailsDraft.autoDelete && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDetailsDraft({ ...detailsDraft, keepAgents: !detailsDraft.keepAgents })
+                      }
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                        detailsDraft.keepAgents
+                          ? "border-[var(--color-text)] bg-white/10 text-[var(--color-text)]"
+                          : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]"
+                      }`}
+                    >
+                      {detailsDraft.keepAgents && <Check className="inline size-2.5 mr-1" />}
+                      Keep agents after deletion
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Inline agent template — only when no agentName is targeted */}
+              {!detailsDraft.agentName.trim() && (
+                <>
+                  <div className="flex flex-col gap-1.5 sm:col-span-2">
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] pt-2 border-t border-[var(--color-border)]">
+                      Agent template (used to create a new agent each run)
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Model</Label>
+                    <Select
+                      value={detailsDraft.agentModel || "__default__"}
+                      onValueChange={(v) =>
+                        setDetailsDraft({
+                          ...detailsDraft,
+                          agentModel: v === "__default__" ? "" : v,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">Cluster default</SelectItem>
+                        {MODELS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Lifecycle</Label>
+                    <Select
+                      value={detailsDraft.agentLifecycle}
+                      onValueChange={(v) =>
+                        v && setDetailsDraft({ ...detailsDraft, agentLifecycle: v })
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LIFECYCLES.map((l) => (
+                          <SelectItem key={l.value} value={l.value}>
+                            {l.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Role</Label>
+                    <input
+                      value={detailsDraft.agentRole}
+                      onChange={(e) =>
+                        setDetailsDraft({ ...detailsDraft, agentRole: e.target.value })
+                      }
+                      placeholder="worker"
+                      className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Agent Template</Label>
+                    <input
+                      value={detailsDraft.agentTemplateRef}
+                      onChange={(e) =>
+                        setDetailsDraft({
+                          ...detailsDraft,
+                          agentTemplateRef: e.target.value,
+                        })
+                      }
+                      placeholder="default"
+                      className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)]"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </section>
       </motion.div>
     </div>

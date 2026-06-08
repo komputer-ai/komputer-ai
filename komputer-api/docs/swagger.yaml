@@ -60,6 +60,8 @@ definitions:
     type: object
   main.AgentResponse:
     properties:
+      completionTime:
+        type: string
       connectors:
         description: KomputerConnector names attached to this agent
         items:
@@ -78,6 +80,10 @@ definitions:
       instructions:
         description: User task (spec.instructions)
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
       lastTaskCostUSD:
         type: string
       lastTaskMessage:
@@ -153,6 +159,8 @@ definitions:
         type: string
       displayName:
         type: string
+      headerName:
+        type: string
       name:
         type: string
       namespace:
@@ -176,6 +184,14 @@ definitions:
         type: array
       instructions:
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Labels are user-defined key=value labels passed through to the agent CR.
+          Reserved-prefix keys (komputer.ai/*) are rejected except for
+          "komputer.ai/personal-agent" which is allow-listed.
+        type: object
       lifecycle:
         description: '"", "Sleep", or "AutoDelete"'
         type: string
@@ -230,9 +246,12 @@ definitions:
       authSecretName:
         type: string
       authType:
-        description: '"token" or "oauth"'
+        description: '"token", "oauth", or "header"'
         type: string
       displayName:
+        type: string
+      headerName:
+        description: custom header name when authType is "header"
         type: string
       name:
         type: string
@@ -428,6 +447,10 @@ definitions:
         type: array
       instructions:
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
       lifecycle:
         type: string
       memories:
@@ -469,7 +492,21 @@ definitions:
     type: object
   main.PatchScheduleRequest:
     properties:
+      agent:
+        $ref: '#/definitions/main.CreateScheduleAgentSpec'
+      agentName:
+        type: string
+      autoDelete:
+        type: boolean
+      instructions:
+        type: string
+      keepAgents:
+        type: boolean
       schedule:
+        type: string
+      suspended:
+        type: boolean
+      timezone:
         type: string
     type: object
   main.PatchSkillRequest:
@@ -497,6 +534,8 @@ definitions:
     type: object
   main.ScheduleResponse:
     properties:
+      agent:
+        $ref: '#/definitions/main.CreateScheduleAgentSpec'
       agentName:
         type: string
       autoDelete:
@@ -505,6 +544,8 @@ definitions:
         type: string
       failedRuns:
         type: integer
+      instructions:
+        type: string
       keepAgents:
         type: boolean
       lastRunCostUSD:
@@ -529,6 +570,8 @@ definitions:
         type: string
       successfulRuns:
         type: integer
+      suspended:
+        type: boolean
       timezone:
         type: string
       totalCostUSD:
@@ -626,6 +669,15 @@ definitions:
       phase:
         type: string
       podName:
+        type: string
+    type: object
+  main.TriggerScheduleResponse:
+    properties:
+      agentName:
+        type: string
+      name:
+        type: string
+      status:
         type: string
     type: object
   main.UpdateSecretRequest:
@@ -5957,6 +6009,16 @@ definitions:
           InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories).
           +optional
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Labels are user-defined key=value labels attached to this agent and
+          propagated to all child resources (Pod, PVC, ConfigMap, Service).
+          Keys starting with "komputer.ai/" are reserved for system labels and
+          should not be set directly through the API.
+          +optional
+        type: object
       lifecycle:
         allOf:
         - $ref: '#/definitions/v1alpha1.AgentLifecycle'
@@ -7074,6 +7136,49 @@ paths:
               type: string
             type: object
       summary: Patch schedule
+      tags:
+      - schedules
+  /schedules/{name}/trigger:
+    post:
+      description: Fires the schedule immediately, independent of its cron cadence.
+        Returns 409 if a run is already in progress.
+      operationId: triggerSchedule
+      parameters:
+      - description: Schedule name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Triggered
+          schema:
+            $ref: '#/definitions/main.TriggerScheduleResponse'
+        "404":
+          description: Schedule not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: A run is already in progress
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Trigger schedule now
       tags:
       - schedules
   /secrets:
