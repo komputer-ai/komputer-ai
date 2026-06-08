@@ -5,8 +5,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**agent** | [**CreateScheduleAgentSpec**](CreateScheduleAgentSpec.md) |  | [optional] 
+**agent_name** | **str** |  | [optional] 
+**auto_delete** | **bool** |  | [optional] 
 **instructions** | **str** |  | [optional] 
+**keep_agents** | **bool** |  | [optional] 
 **schedule** | **str** |  | [optional] 
+**suspended** | **bool** |  | [optional] 
+**timezone** | **str** |  | [optional] 
 
 ## Example
 

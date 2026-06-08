@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpec
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -27,9 +28,15 @@ class PatchScheduleRequest(BaseModel):
     """
     PatchScheduleRequest
     """ # noqa: E501
+    agent: Optional[CreateScheduleAgentSpec] = None
+    agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
+    auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     instructions: Optional[StrictStr] = None
+    keep_agents: Optional[StrictBool] = Field(default=None, alias="keepAgents")
     schedule: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["instructions", "schedule"]
+    suspended: Optional[StrictBool] = None
+    timezone: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["agent", "agentName", "autoDelete", "instructions", "keepAgents", "schedule", "suspended", "timezone"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -70,6 +77,9 @@ class PatchScheduleRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of agent
+        if self.agent:
+            _dict['agent'] = self.agent.to_dict()
         return _dict
 
     @classmethod
@@ -82,8 +92,14 @@ class PatchScheduleRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "agent": CreateScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
+            "agentName": obj.get("agentName"),
+            "autoDelete": obj.get("autoDelete"),
             "instructions": obj.get("instructions"),
-            "schedule": obj.get("schedule")
+            "keepAgents": obj.get("keepAgents"),
+            "schedule": obj.get("schedule"),
+            "suspended": obj.get("suspended"),
+            "timezone": obj.get("timezone")
         })
         return _obj
 

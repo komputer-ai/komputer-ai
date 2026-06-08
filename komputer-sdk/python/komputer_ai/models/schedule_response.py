@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpec
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -27,6 +28,7 @@ class ScheduleResponse(BaseModel):
     """
     ScheduleResponse
     """ # noqa: E501
+    agent: Optional[CreateScheduleAgentSpec] = None
     agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
@@ -44,10 +46,11 @@ class ScheduleResponse(BaseModel):
     run_count: Optional[StrictInt] = Field(default=None, alias="runCount")
     schedule: Optional[StrictStr] = None
     successful_runs: Optional[StrictInt] = Field(default=None, alias="successfulRuns")
+    suspended: Optional[StrictBool] = None
     timezone: Optional[StrictStr] = None
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["agentName", "autoDelete", "createdAt", "failedRuns", "instructions", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "timezone", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["agent", "agentName", "autoDelete", "createdAt", "failedRuns", "instructions", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "suspended", "timezone", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -88,6 +91,9 @@ class ScheduleResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of agent
+        if self.agent:
+            _dict['agent'] = self.agent.to_dict()
         return _dict
 
     @classmethod
@@ -100,6 +106,7 @@ class ScheduleResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "agent": CreateScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
             "agentName": obj.get("agentName"),
             "autoDelete": obj.get("autoDelete"),
             "createdAt": obj.get("createdAt"),
@@ -117,6 +124,7 @@ class ScheduleResponse(BaseModel):
             "runCount": obj.get("runCount"),
             "schedule": obj.get("schedule"),
             "successfulRuns": obj.get("successfulRuns"),
+            "suspended": obj.get("suspended"),
             "timezone": obj.get("timezone"),
             "totalCostUSD": obj.get("totalCostUSD"),
             "totalTokens": obj.get("totalTokens")
