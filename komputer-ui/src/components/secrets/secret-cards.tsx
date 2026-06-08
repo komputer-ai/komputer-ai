@@ -138,14 +138,12 @@ export function SecretCards({ secrets, onDelete, onUpdated }: SecretCardsProps) 
                     <div className="flex items-center justify-center w-7 h-7 rounded-md shrink-0 bg-amber-500/10">
                       <KeyRound className="w-3.5 h-3.5 text-amber-400" />
                     </div>
-                    <span className="text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight flex-1 min-w-0">
+                    <span
+                      className="text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight flex-1 min-w-0"
+                      title={secret.name}
+                    >
                       {secret.name}
                     </span>
-                    {!secret.managed && (
-                      <span className="inline-flex items-center text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] shrink-0 leading-none">
-                        external
-                      </span>
-                    )}
                     <div className="flex items-center gap-1 shrink-0">
                       <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <ConfirmDialog
@@ -163,9 +161,16 @@ export function SecretCards({ secrets, onDelete, onUpdated }: SecretCardsProps) 
                   </div>
 
                   <div className="mt-2 min-h-[2.75rem]">
-                    <p className="text-[11px] text-[var(--color-text-secondary)]">
-                      {secret.keys.length} {secret.keys.length === 1 ? "key" : "keys"}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-[var(--color-text-secondary)]">
+                        {secret.keys.length} {secret.keys.length === 1 ? "key" : "keys"}
+                      </p>
+                      {!secret.managed && (
+                        <span className="inline-flex items-center text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] shrink-0 leading-none">
+                          external
+                        </span>
+                      )}
+                    </div>
                     {secret.agentName && (
                       <Link
                         href={`/agents/${secret.agentName}?namespace=${secret.namespace}`}
