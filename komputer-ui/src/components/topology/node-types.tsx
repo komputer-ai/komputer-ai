@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { Building2, Clock } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { namespacedHref } from "@/lib/namespaced-href";
 
 function TooltipRow({ label, value, color }: { label: string; value?: string | number; color?: string }) {
   if (!value && value !== 0) return null;
@@ -164,7 +165,7 @@ function OfficeNodeComponent({ data }: NodeProps) {
       className="relative cursor-pointer rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-5 py-3.5 transition-shadow hover:shadow-[0_4px_16px_rgba(var(--shadow-color),var(--shadow-strength)),inset_0_1px_0_var(--color-border-light)]"
       style={{ width: nodeWidth || 220 }}
       data-hovered={hovered || undefined}
-      onClick={() => router.push(`/offices/${label}`)}
+      onClick={() => router.push(namespacedHref(`/offices/${label}`, namespace))}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -234,7 +235,7 @@ function ScheduleNodeComponent({ data }: NodeProps) {
       className="relative cursor-pointer rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-md transition-shadow hover:shadow-lg"
       style={{ width: nodeWidth || 170 }}
       data-hovered={hovered || undefined}
-      onClick={() => router.push(`/schedules/${label}`)}
+      onClick={() => router.push(namespacedHref(`/schedules/${label}`, namespace))}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

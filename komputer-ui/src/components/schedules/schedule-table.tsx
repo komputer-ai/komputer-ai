@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { namespacedHref } from "@/lib/namespaced-href";
 import { cronToHuman } from "@/lib/utils";
 import type { ScheduleResponse } from "@/lib/types";
 
@@ -61,7 +62,7 @@ export function ScheduleTable({ schedules, onDelete }: ScheduleTableProps) {
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/schedules/${schedule.name}`}
+                    href={namespacedHref(`/schedules/${schedule.name}`, schedule.namespace)}
                     className="font-medium text-[var(--color-brand-blue)] hover:underline"
                   >
                     {schedule.name}

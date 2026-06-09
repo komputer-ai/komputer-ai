@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/kit/select";
 import { getAgentCostBreakdown } from "@/lib/api";
+import { namespacedHref } from "@/lib/namespaced-href";
 import type { AgentResponse, CostBreakdownResponse, TaskBreakdown } from "@/lib/types";
 
 type SortKey = "index" | "costUSD" | "durationMs" | "inputTokens";
@@ -213,7 +214,10 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                         if (task.completedAt) params.set("taskTo", task.completedAt);
                         // Pass event count so we fetch just enough + a small buffer
                         params.set("taskEvents", String(task.events?.length ?? 50));
-                        router.push(`/agents/${selectedAgent}?${params.toString()}`);
+                        const agentNs = agents.find((a) => a.name === selectedAgent)?.namespace;
+                        router.push(
+                          namespacedHref(`/agents/${selectedAgent}?${params.toString()}`, agentNs),
+                        );
                       }}
                       className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)] ${
                         isMostExpensive
