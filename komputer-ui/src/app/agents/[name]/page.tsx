@@ -468,8 +468,12 @@ export default function AgentDetailPage() {
                   variant="secondary"
                   size="sm"
                   onClick={handleCompact}
-                  disabled={compactBusy}
-                  title="Compact conversation history. Queues /compact as a follow-up message — runs as soon as the current turn finishes (or immediately if the agent is idle and responsive)."
+                  disabled={compactBusy || agent.status === "Sleeping"}
+                  title={
+                    agent.status === "Sleeping"
+                      ? "Wake the agent before compacting — there is no running pod to receive the request."
+                      : "Compact conversation history. Queues /compact as a follow-up message — runs as soon as the current turn finishes (or immediately if the agent is idle and responsive)."
+                  }
                   className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
                 >
                   <Layers className="size-3" data-icon="inline-start" />
