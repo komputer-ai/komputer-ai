@@ -296,7 +296,9 @@ export default function AgentDetailPage() {
   const handleWake = async () => {
     if (!agentName) return;
     try {
-      await createAgent({ name: agentName, instructions: "wake" });
+      // Without namespace the API can't find the sleeping CR and falls
+      // through to creating a new "wake" agent in the default namespace.
+      await createAgent({ name: agentName, instructions: "wake", namespace: agentNs });
       fetchAgent();
     } catch {
       // Will be reflected in next poll

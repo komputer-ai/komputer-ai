@@ -27,6 +27,7 @@ import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { createSchedule, listAgents } from "@/lib/api";
 import type { CreateScheduleRequest } from "@/lib/types";
 import { LIFECYCLES } from "@/lib/constants";
+import { namespacedHref } from "@/lib/namespaced-href";
 
 type CreateScheduleModalProps = {
   open: boolean;
@@ -118,7 +119,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
       resetForm();
       onOpenChange(false);
       onCreated?.();
-      router.push(`/schedules/${scheduleName}`);
+      router.push(namespacedHref(`/schedules/${scheduleName}`, namespace));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create schedule.");
     } finally {
