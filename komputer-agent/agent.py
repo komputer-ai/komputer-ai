@@ -156,6 +156,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
         allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
         setting_sources=["user", "project"],
+        # Keep session transcripts effectively forever (CLI rejects 0; min is 1 day).
+        # Without this the SDK's daily cleanup deletes JSONLs idle for >30 days.
+        settings='{"cleanupPeriodDays": 36500}',
         permission_mode="bypassPermissions",
         model=model,
         cwd="/workspace",
