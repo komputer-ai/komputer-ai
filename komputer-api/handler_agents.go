@@ -278,6 +278,14 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// On Bedrock, reject friendly model names before they reach the SDK. A new
+		// agent requires a valid model (empty would fall back to a friendly default);
+		// wake/forward only reject a non-empty bad override (empty = keep existing).
+		if err := validateBedrockModel(req.Model, existing == nil); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		if existing != nil {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
@@ -878,6 +886,13 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
+		}
+		// On Bedrock, reject a friendly model override before it reaches the SDK.
+		if req.Model != nil {
+			if err := validateBedrockModel(*req.Model, false); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		var nonFatalErrors []string

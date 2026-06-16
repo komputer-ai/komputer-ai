@@ -203,6 +203,18 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		// On Bedrock, reject friendly model names on inline member specs before
+		// they reach the SDK. Inline specs are new agents, so a model is required.
+		for _, m := range req.Members {
+			if m.Spec == nil {
+				continue
+			}
+			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// Block team-up of running agents — the existing solo pod must be removed first.
 		// Sleeping the agent stops its pod (PVC kept) so the squad pod can adopt it cleanly.
 		for _, m := range req.Members {
@@ -328,6 +340,16 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 		if req.Members == nil && req.OrphanTTL == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
+		}
+		// On Bedrock, reject friendly model names on inline member specs.
+		for _, m := range req.Members {
+			if m.Spec == nil {
+				continue
+			}
+			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		// Retry once on 409 conflict.
@@ -489,6 +511,13 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		if req.Ref != nil && req.Spec != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "exactly one of ref or spec must be set"})
 			return
+		}
+		// On Bedrock, reject a friendly model name on an inline member spec.
+		if req.Spec != nil {
+			if err := validateBedrockModel(req.Spec.Model, true); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		newMember := komputerv1alpha1.KomputerSquadMember{
