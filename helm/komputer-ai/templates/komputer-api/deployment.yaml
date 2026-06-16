@@ -39,6 +39,15 @@ spec:
           value: {{ .Values.config.redis.streamPrefix }}
         - name: KOMPUTER_METRICS_PER_AGENT
           value: {{ .Values.metrics.perAgentLabels | quote }}
+        {{- if .Values.bedrock.enabled }}
+        # Lets the API reject Anthropic friendly model names (e.g. claude-sonnet-4-6)
+        # at agent-create time, since agents run against Bedrock and need a
+        # region-prefixed inference-profile ID instead.
+        - name: CLAUDE_CODE_USE_BEDROCK
+          value: "1"
+        - name: AWS_REGION
+          value: {{ .Values.bedrock.region | quote }}
+        {{- end }}
         {{- if .Values.api.oauth.callbackUrl }}
         - name: OAUTH_CALLBACK_URL
           value: {{ .Values.api.oauth.callbackUrl | quote }}
