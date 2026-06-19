@@ -642,6 +642,54 @@ async def get_connector(args):
     return await _request("GET", f"/api/v1/connectors/{name}")
 
 
+@tool(
+    name="create_connector",
+    description="Create a connector (KomputerConnector) pointing to a remote MCP server, so its tools can be attached to agents. Use list_connector_templates first to find the right service and URL. Supports token/header auth (provide a token and it's stored in a secret automatically) or no auth. OAuth connectors must be set up by a human via the UI/CLI — they need a browser flow.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Connector name (lowercase, e.g. 'github')."},
+            "service": {"type": "string", "description": "Service identifier (e.g. 'github', 'slack', 'linear')."},
+            "url": {"type": "string", "description": "Remote MCP server endpoint URL."},
+            "token": {"type": "string", "description": "Auth token. If provided, it's stored in a managed secret and referenced by the connector. Omit for connectors that need no auth."},
+            "header_name": {"type": "string", "description": "Custom header name for the token (e.g. 'X-Api-Key'). When set, auth uses this header verbatim instead of 'Authorization: Bearer'."},
+            "display_name": {"type": "string", "description": "Human-friendly name shown in the UI."},
+        },
+        "required": ["name", "service", "url"],
+    },
+)
+async def create_connector(args):
+    name = _sanitize_name(args["name"])
+    token = args.get("token")
+    header_name = (args.get("header_name") or "").strip()
+
+    payload = {
+        "name": name,
+        "service": args["service"],
+        "url": args["url"],
+        "namespace": NAMESPACE,
+        "authType": "header" if header_name else ("token" if token else "none"),
+    }
+    if header_name:
+        payload["headerName"] = header_name
+    if args.get("display_name"):
+        payload["displayName"] = args["display_name"]
+
+    # A token is stored in its own managed secret, then referenced by the connector.
+    if token:
+        secret_name = f"{name}-credentials"
+        secret_result = await _request(
+            "POST", "/api/v1/secrets", timeout=30,
+            json={"name": secret_name, "data": {"token": token}, "namespace": NAMESPACE},
+        )
+        if secret_result.get("isError"):
+            return secret_result
+        payload["authSecretName"] = secret_name
+        payload["authSecretKey"] = "token"
+
+    return await _request("POST", "/api/v1/connectors", timeout=30, json=payload)
+
+
 async def _agent_list_field_patch(agent_name, field_name, mutator):
     """Helper: GET agent, mutate one of its list fields, PATCH it back.
 
@@ -1331,5 +1379,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, create_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )
