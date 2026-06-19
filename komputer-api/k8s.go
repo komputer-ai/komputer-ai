@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -19,8 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -536,41 +535,16 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentNa
 	return result.ContextWindow, nil
 }
 
-// postToAgent makes an HTTP POST to an agent via its per-agent K8s Service.
+// postToAgent makes an HTTP POST to an agent via its per-agent K8s Service, retrying
+// transient failures with backoff (see doAgentRequest).
 // When LOCAL=true, skips HTTP entirely to force exec fallback (no in-cluster DNS).
 func (k *K8sClient) postToAgent(ctx context.Context, ns, agentName, path, body string) error {
 	if os.Getenv("LOCAL") == "true" {
 		return fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
 	url := agentHTTPBase(ns, agentName) + path
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
-	var reqBody io.Reader
-	if body != "" {
-		reqBody = strings.NewReader(body)
-	}
-
-	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, reqBody)
-	if err != nil {
-		return err
-	}
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-	return nil
+	_, _, err := k.doAgentRequest(ctx, http.MethodPost, url, body, 3*time.Second)
+	return err
 }
 
 // execInPod runs a command inside a pod's first container.
@@ -1024,69 +998,27 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
-// getFromAgent makes an HTTP GET to an agent via its per-agent K8s Service.
+// getFromAgent makes an HTTP GET to an agent via its per-agent K8s Service, retrying
+// transient failures with backoff (see doAgentRequest).
 func (k *K8sClient) getFromAgent(ctx context.Context, ns, agentName, path string) ([]byte, error) {
 	if os.Getenv("LOCAL") == "true" {
 		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
 	url := agentHTTPBase(ns, agentName) + path
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-	return respBody, nil
+	respBody, _, err := k.doAgentRequest(ctx, http.MethodGet, url, "", 5*time.Second)
+	return respBody, err
 }
 
 // postToAgentWithResponse makes an HTTP POST to an agent via its per-agent K8s Service
-// and returns the response body.
+// and returns the response body, retrying transient failures with backoff (see
+// doAgentRequest).
 func (k *K8sClient) postToAgentWithResponse(ctx context.Context, ns, agentName, path, body string) ([]byte, error) {
 	if os.Getenv("LOCAL") == "true" {
 		return nil, fmt.Errorf("LOCAL mode: skipping direct pod HTTP")
 	}
 	url := agentHTTPBase(ns, agentName) + path
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
-	var reqBody io.Reader
-	if body != "" {
-		reqBody = strings.NewReader(body)
-	}
-
-	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, reqBody)
-	if err != nil {
-		return nil, err
-	}
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		return nil, fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-	return respBody, nil
+	respBody, _, err := k.doAgentRequest(ctx, http.MethodPost, url, body, 3*time.Second)
+	return respBody, err
 }
 
 // ApplyAgentConfig sends a config update to the agent's FastAPI /config endpoint,
