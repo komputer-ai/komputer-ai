@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**agents_name_ws_get**](AgentsApi.md#agents_name_ws_get) | **GET** /agents/{name}/ws | Stream agent events (WebSocket)
 [**cancel_agent_task**](AgentsApi.md#cancel_agent_task) | **POST** /agents/{name}/cancel | Cancel agent task
+[**compact_agent_task**](AgentsApi.md#compact_agent_task) | **POST** /agents/{name}/compact | Compact agent conversation
 [**create_agent**](AgentsApi.md#create_agent) | **POST** /agents | Create agent or send task
 [**delete_agent**](AgentsApi.md#delete_agent) | **DELETE** /agents/{name} | Delete agent
 [**get_agent**](AgentsApi.md#get_agent) | **GET** /agents/{name} | Get agent details
@@ -144,6 +145,81 @@ No authorization required
 **200** | Task cancelling |  -  |
 **404** | Agent not found |  -  |
 **409** | Agent has no running pod |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **compact_agent_task**
+> Dict[str, str] compact_agent_task(name, namespace=namespace, request=request)
+
+Compact agent conversation
+
+Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional `instructions` field passes custom guidance to the compactor.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.compact_agent_request import CompactAgentRequest
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.AgentsApi(api_client)
+    name = 'name_example' # str | Agent name
+    namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+    request = komputer_ai.CompactAgentRequest() # CompactAgentRequest | Optional compaction instructions (optional)
+
+    try:
+        # Compact agent conversation
+        api_response = api_instance.compact_agent_task(name, namespace=namespace, request=request)
+        print("The response of AgentsApi->compact_agent_task:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling AgentsApi->compact_agent_task: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Agent name | 
+ **namespace** | **str**| Kubernetes namespace | [optional] 
+ **request** | [**CompactAgentRequest**](CompactAgentRequest.md)| Optional compaction instructions | [optional] 
+
+### Return type
+
+**Dict[str, str]**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Compaction triggered |  -  |
+**404** | Agent not found |  -  |
+**409** | Agent has no running pod or no active task |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

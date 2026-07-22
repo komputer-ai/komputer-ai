@@ -39,6 +39,7 @@ __all__ = [
     "AddSquadMemberRequest",
     "AgentListResponse",
     "AgentResponse",
+    "CompactAgentRequest",
     "ConnectorResponse",
     "CreateAgentRequest",
     "CreateConnectorRequest",
@@ -247,6 +248,7 @@ from komputer_ai.exceptions import ApiException as ApiException
 from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest as AddSquadMemberRequest
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse as AgentResponse
+from komputer_ai.models.compact_agent_request import CompactAgentRequest as CompactAgentRequest
 from komputer_ai.models.connector_response import ConnectorResponse as ConnectorResponse
 from komputer_ai.models.create_agent_request import CreateAgentRequest as CreateAgentRequest
 from komputer_ai.models.create_connector_request import CreateConnectorRequest as CreateConnectorRequest

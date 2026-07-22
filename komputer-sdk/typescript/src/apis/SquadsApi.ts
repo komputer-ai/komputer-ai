@@ -45,6 +45,10 @@ export interface BreakUpSquadRequest {
     namespace?: string;
 }
 
+export interface CreateSquadOperationRequest {
+    request: CreateSquadRequest;
+}
+
 export interface DeleteSquadRequest {
     name: string;
     namespace?: string;
@@ -69,10 +73,6 @@ export interface RemoveSquadMemberRequest {
     name: string;
     agent: string;
     namespace?: string;
-}
-
-export interface SquadsPostRequest {
-    request: CreateSquadRequest;
 }
 
 /**
@@ -189,6 +189,53 @@ export class SquadsApi extends runtime.BaseAPI {
      */
     async breakUpSquad(requestParameters: BreakUpSquadRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SquadResponse> {
         const response = await this.breakUpSquadRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for createSquad without sending the request
+     */
+    async createSquadRequestOpts(requestParameters: CreateSquadOperationRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['request'] == null) {
+            throw new runtime.RequiredError(
+                'request',
+                'Required parameter "request" was null or undefined when calling createSquad().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/squads`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateSquadRequestToJSON(requestParameters['request']),
+        };
+    }
+
+    /**
+     * Create squad
+     */
+    async createSquadRaw(requestParameters: CreateSquadOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SquadResponse>> {
+        const requestOptions = await this.createSquadRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SquadResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Create squad
+     */
+    async createSquad(requestParameters: CreateSquadOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SquadResponse> {
+        const response = await this.createSquadRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -454,51 +501,6 @@ export class SquadsApi extends runtime.BaseAPI {
      */
     async removeSquadMember(requestParameters: RemoveSquadMemberRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SquadResponse> {
         const response = await this.removeSquadMemberRaw(requestParameters, initOverrides);
-        return await response.value();
-    }
-
-    /**
-     * Creates request options for squadsPost without sending the request
-     */
-    async squadsPostRequestOpts(requestParameters: SquadsPostRequest): Promise<runtime.RequestOpts> {
-        if (requestParameters['request'] == null) {
-            throw new runtime.RequiredError(
-                'request',
-                'Required parameter "request" was null or undefined when calling squadsPost().'
-            );
-        }
-
-        const queryParameters: any = {};
-
-        const headerParameters: runtime.HTTPHeaders = {};
-
-        headerParameters['Content-Type'] = 'application/json';
-
-
-        let urlPath = `/squads`;
-
-        return {
-            path: urlPath,
-            method: 'POST',
-            headers: headerParameters,
-            query: queryParameters,
-            body: CreateSquadRequestToJSON(requestParameters['request']),
-        };
-    }
-
-    /**
-     */
-    async squadsPostRaw(requestParameters: SquadsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SquadResponse>> {
-        const requestOptions = await this.squadsPostRequestOpts(requestParameters);
-        const response = await this.request(requestOptions, initOverrides);
-
-        return new runtime.JSONApiResponse(response, (jsonValue) => SquadResponseFromJSON(jsonValue));
-    }
-
-    /**
-     */
-    async squadsPost(requestParameters: SquadsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SquadResponse> {
-        const response = await this.squadsPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

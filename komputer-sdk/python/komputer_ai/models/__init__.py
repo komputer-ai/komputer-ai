@@ -16,6 +16,7 @@
 from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest
 from komputer_ai.models.agent_list_response import AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.models.compact_agent_request import CompactAgentRequest
 from komputer_ai.models.connector_response import ConnectorResponse
 from komputer_ai.models.create_agent_request import CreateAgentRequest
 from komputer_ai.models.create_connector_request import CreateConnectorRequest

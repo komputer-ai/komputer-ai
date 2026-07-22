@@ -3,6 +3,7 @@ docs/AddSquadMemberRequest.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
+docs/CompactAgentRequest.md
 docs/ConnectorResponse.md
 docs/ConnectorsApi.md
 docs/CreateAgentRequest.md
@@ -210,6 +211,7 @@ komputer_ai/models/__init__.py
 komputer_ai/models/add_squad_member_request.py
 komputer_ai/models/agent_list_response.py
 komputer_ai/models/agent_response.py
+komputer_ai/models/compact_agent_request.py
 komputer_ai/models/connector_response.py
 komputer_ai/models/create_agent_request.py
 komputer_ai/models/create_connector_request.py

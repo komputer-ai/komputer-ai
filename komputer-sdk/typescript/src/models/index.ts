@@ -3,6 +3,7 @@
 export * from './AddSquadMemberRequest';
 export * from './AgentListResponse';
 export * from './AgentResponse';
+export * from './CompactAgentRequest';
 export * from './ConnectorResponse';
 export * from './CreateAgentRequest';
 export * from './CreateConnectorRequest';

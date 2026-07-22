@@ -141,6 +141,11 @@ definitions:
       totalTokens:
         type: integer
     type: object
+  main.CompactAgentRequest:
+    properties:
+      instructions:
+        type: string
+    type: object
   main.ConnectorResponse:
     properties:
       agentNames:
@@ -6381,6 +6386,59 @@ paths:
       summary: Cancel agent task
       tags:
       - agents
+  /agents/{name}/compact:
+    post:
+      consumes:
+      - application/json
+      description: Triggers manual conversation compaction. Older turns are summarized
+        to free context space. Requires an active task — returns 409 if the agent
+        is idle. Optional `instructions` field passes custom guidance to the compactor.
+      operationId: compactAgentTask
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      - description: Optional compaction instructions
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/main.CompactAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Compaction triggered
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent has no running pod or no active task
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Compact agent conversation
+      tags:
+      - agents
   /agents/{name}/events:
     get:
       description: Returns recent events from the agent's Redis stream in chronological
@@ -7525,6 +7583,7 @@ paths:
     post:
       consumes:
       - application/json
+      operationId: createSquad
       parameters:
       - description: Squad creation request
         in: body
@@ -7557,6 +7616,7 @@ paths:
             additionalProperties:
               type: string
             type: object
+      summary: Create squad
       tags:
       - squads
   /squads/{name}:
