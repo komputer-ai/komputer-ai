@@ -6,12 +6,12 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**add_squad_member**](SquadsApi.md#add_squad_member) | **POST** /squads/{name}/members | Add squad member
 [**break_up_squad**](SquadsApi.md#break_up_squad) | **POST** /squads/{name}/break-up | Request squad break-up
+[**create_squad**](SquadsApi.md#create_squad) | **POST** /squads | Create squad
 [**delete_squad**](SquadsApi.md#delete_squad) | **DELETE** /squads/{name} | Delete squad
 [**get_squad**](SquadsApi.md#get_squad) | **GET** /squads/{name} | Get squad details
 [**list_squads**](SquadsApi.md#list_squads) | **GET** /squads | List squads
 [**patch_squad**](SquadsApi.md#patch_squad) | **PATCH** /squads/{name} | Patch squad
 [**remove_squad_member**](SquadsApi.md#remove_squad_member) | **DELETE** /squads/{name}/members/{agent} | Remove squad member
-[**squads_post**](SquadsApi.md#squads_post) | **POST** /squads | 
 
 
 # **add_squad_member**
@@ -158,6 +158,76 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Squad with break-up flag set |  -  |
 **404** | Squad not found |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **create_squad**
+> SquadResponse create_squad(request)
+
+Create squad
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.create_squad_request import CreateSquadRequest
+from komputer_ai.models.squad_response import SquadResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.SquadsApi(api_client)
+    request = komputer_ai.CreateSquadRequest() # CreateSquadRequest | Squad creation request
+
+    try:
+        # Create squad
+        api_response = api_instance.create_squad(request)
+        print("The response of SquadsApi->create_squad:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling SquadsApi->create_squad: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**CreateSquadRequest**](CreateSquadRequest.md)| Squad creation request | 
+
+### Return type
+
+[**SquadResponse**](SquadResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Created squad |  -  |
+**400** | Bad request |  -  |
+**409** | Squad already exists |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -520,73 +590,6 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated squad |  -  |
 **404** | Squad or member not found |  -  |
-**500** | Internal error |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **squads_post**
-> SquadResponse squads_post(request)
-
-### Example
-
-
-```python
-import komputer_ai
-from komputer_ai.models.create_squad_request import CreateSquadRequest
-from komputer_ai.models.squad_response import SquadResponse
-from komputer_ai.rest import ApiException
-from pprint import pprint
-
-# Defining the host is optional and defaults to http://localhost:8080/api/v1
-# See configuration.py for a list of all supported configuration parameters.
-configuration = komputer_ai.Configuration(
-    host = "http://localhost:8080/api/v1"
-)
-
-
-# Enter a context with an instance of the API client
-with komputer_ai.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = komputer_ai.SquadsApi(api_client)
-    request = komputer_ai.CreateSquadRequest() # CreateSquadRequest | Squad creation request
-
-    try:
-        api_response = api_instance.squads_post(request)
-        print("The response of SquadsApi->squads_post:\n")
-        pprint(api_response)
-    except Exception as e:
-        print("Exception when calling SquadsApi->squads_post: %s\n" % e)
-```
-
-
-
-### Parameters
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **request** | [**CreateSquadRequest**](CreateSquadRequest.md)| Squad creation request | 
-
-### Return type
-
-[**SquadResponse**](SquadResponse.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: application/json
- - **Accept**: application/json
-
-### HTTP response details
-
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-**200** | Created squad |  -  |
-**400** | Bad request |  -  |
-**409** | Squad already exists |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

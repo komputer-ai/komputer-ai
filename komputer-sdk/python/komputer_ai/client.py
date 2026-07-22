@@ -22,11 +22,12 @@ from komputer_ai.api.offices_api import OfficesApi
 from komputer_ai.api.schedules_api import SchedulesApi
 from komputer_ai.api.secrets_api import SecretsApi
 from komputer_ai.api.skills_api import SkillsApi
+from komputer_ai.api.squads_api import SquadsApi
 from komputer_ai.api.templates_api import TemplatesApi
 from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.exceptions import ApiException
 from komputer_ai.models import (
-    CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest, V1PodSpec, V1alpha1StorageSpec,
+    AddSquadMemberRequest, CompactAgentRequest, CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, CreateSquadRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, PatchSquadRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1StorageSpec,
 )
 
 
@@ -49,6 +50,7 @@ class KomputerClient:
         self.schedules = SchedulesApi(api_client)
         self.secrets = SecretsApi(api_client)
         self.skills = SkillsApi(api_client)
+        self.squads = SquadsApi(api_client)
         self.templates = TemplatesApi(api_client)
         self._api_client = api_client
 
@@ -79,6 +81,35 @@ class KomputerClient:
 
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
+
+    def compact_agent_task(self, name: str, *, instructions: Optional[str] = None):
+        return self.agents.compact_agent_task(name, request=CompactAgentRequest(instructions=instructions))
+
+    # --- Squads ---
+
+    def list_squads(self):
+        return self.squads.list_squads()
+
+    def create_squad(self, name: str, members: List[V1alpha1KomputerSquadMember], *, namespace: Optional[str] = None, orphan_ttl: Optional[str] = None):
+        return self.squads.create_squad(CreateSquadRequest(members=members, name=name, namespace=namespace, orphan_ttl=orphan_ttl))
+
+    def get_squad(self, name: str):
+        return self.squads.get_squad(name)
+
+    def patch_squad(self, name: str, *, members: Optional[List[V1alpha1KomputerSquadMember]] = None, orphan_ttl: Optional[str] = None):
+        return self.squads.patch_squad(name, PatchSquadRequest(members=members, orphan_ttl=orphan_ttl))
+
+    def delete_squad(self, name: str):
+        return self.squads.delete_squad(name)
+
+    def break_up_squad(self, name: str):
+        return self.squads.break_up_squad(name)
+
+    def add_squad_member(self, name: str, *, member_name: Optional[str] = None, ref: Optional[V1alpha1KomputerSquadMemberRef] = None, spec: Optional[V1alpha1KomputerAgentSpec] = None):
+        return self.squads.add_squad_member(name, AddSquadMemberRequest(name=member_name, ref=ref, spec=spec))
+
+    def remove_squad_member(self, name: str, agent: str):
+        return self.squads.remove_squad_member(name, agent)
 
     # --- Memories ---
 
@@ -145,6 +176,9 @@ class KomputerClient:
 
     def delete_schedule(self, name: str):
         return self.schedules.delete_schedule(name)
+
+    def trigger_schedule(self, name: str):
+        return self.schedules.trigger_schedule(name)
 
     # --- Secrets ---
 

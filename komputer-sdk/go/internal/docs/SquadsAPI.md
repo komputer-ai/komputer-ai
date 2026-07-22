@@ -6,12 +6,12 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**AddSquadMember**](SquadsAPI.md#AddSquadMember) | **Post** /squads/{name}/members | Add squad member
 [**BreakUpSquad**](SquadsAPI.md#BreakUpSquad) | **Post** /squads/{name}/break-up | Request squad break-up
+[**CreateSquad**](SquadsAPI.md#CreateSquad) | **Post** /squads | Create squad
 [**DeleteSquad**](SquadsAPI.md#DeleteSquad) | **Delete** /squads/{name} | Delete squad
 [**GetSquad**](SquadsAPI.md#GetSquad) | **Get** /squads/{name} | Get squad details
 [**ListSquads**](SquadsAPI.md#ListSquads) | **Get** /squads | List squads
 [**PatchSquad**](SquadsAPI.md#PatchSquad) | **Patch** /squads/{name} | Patch squad
 [**RemoveSquadMember**](SquadsAPI.md#RemoveSquadMember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
-[**SquadsPost**](SquadsAPI.md#SquadsPost) | **Post** /squads | 
 
 
 
@@ -154,6 +154,70 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## CreateSquad
+
+> SquadResponse CreateSquad(ctx).Request(request).Execute()
+
+Create squad
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	request := *openapiclient.NewCreateSquadRequest([]openapiclient.V1alpha1KomputerSquadMember{*openapiclient.NewV1alpha1KomputerSquadMember()}, "Name_example") // CreateSquadRequest | Squad creation request
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.SquadsAPI.CreateSquad(context.Background()).Request(request).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `SquadsAPI.CreateSquad``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `CreateSquad`: SquadResponse
+	fmt.Fprintf(os.Stdout, "Response from `SquadsAPI.CreateSquad`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiCreateSquadRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **request** | [**CreateSquadRequest**](CreateSquadRequest.md) | Squad creation request | 
+
+### Return type
+
+[**SquadResponse**](SquadResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
@@ -513,70 +577,6 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
-[[Back to Model list]](../README.md#documentation-for-models)
-[[Back to README]](../README.md)
-
-
-## SquadsPost
-
-> SquadResponse SquadsPost(ctx).Request(request).Execute()
-
-
-
-### Example
-
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"os"
-	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
-)
-
-func main() {
-	request := *openapiclient.NewCreateSquadRequest([]openapiclient.V1alpha1KomputerSquadMember{*openapiclient.NewV1alpha1KomputerSquadMember()}, "Name_example") // CreateSquadRequest | Squad creation request
-
-	configuration := openapiclient.NewConfiguration()
-	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.SquadsAPI.SquadsPost(context.Background()).Request(request).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `SquadsAPI.SquadsPost``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-	}
-	// response from `SquadsPost`: SquadResponse
-	fmt.Fprintf(os.Stdout, "Response from `SquadsAPI.SquadsPost`: %v\n", resp)
-}
-```
-
-### Path Parameters
-
-
-
-### Other Parameters
-
-Other parameters are passed through a pointer to a apiSquadsPostRequest struct via the builder pattern
-
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **request** | [**CreateSquadRequest**](CreateSquadRequest.md) | Squad creation request | 
-
-### Return type
-
-[**SquadResponse**](SquadResponse.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
-- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

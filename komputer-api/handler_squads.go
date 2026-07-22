@@ -176,6 +176,8 @@ func validateMemberRefForAdoption(c *gin.Context, k8s *K8sClient, ns, agentName 
 	return "", false
 }
 
+// @ID createSquad
+// @Summary Create squad
 // @Tags squads
 // @Accept json
 // @Produce json

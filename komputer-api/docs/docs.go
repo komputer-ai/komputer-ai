@@ -352,6 +352,83 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/{name}/compact": {
+            "post": {
+                "description": "Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional ` + "`" + `instructions` + "`" + ` field passes custom guidance to the compactor.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Compact agent conversation",
+                "operationId": "compactAgentTask",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Optional compaction instructions",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/main.CompactAgentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Compaction triggered",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Agent not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Agent has no running pod or no active task",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/agents/{name}/events": {
             "get": {
                 "description": "Returns recent events from the agent's Redis stream in chronological order.",
@@ -2031,6 +2108,8 @@ const docTemplate = `{
                 "tags": [
                     "squads"
                 ],
+                "summary": "Create squad",
+                "operationId": "createSquad",
                 "parameters": [
                     {
                         "description": "Squad creation request",
@@ -2678,6 +2757,14 @@ const docTemplate = `{
                 },
                 "totalTokens": {
                     "type": "integer"
+                }
+            }
+        },
+        "main.CompactAgentRequest": {
+            "type": "object",
+            "properties": {
+                "instructions": {
+                    "type": "string"
                 }
             }
         },

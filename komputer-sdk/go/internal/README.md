@@ -74,6 +74,7 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *AgentsAPI* | [**AgentsNameWsGet**](docs/AgentsAPI.md#agentsnamewsget) | **Get** /agents/{name}/ws | Stream agent events (WebSocket)
 *AgentsAPI* | [**CancelAgentTask**](docs/AgentsAPI.md#cancelagenttask) | **Post** /agents/{name}/cancel | Cancel agent task
+*AgentsAPI* | [**CompactAgentTask**](docs/AgentsAPI.md#compactagenttask) | **Post** /agents/{name}/compact | Compact agent conversation
 *AgentsAPI* | [**CreateAgent**](docs/AgentsAPI.md#createagent) | **Post** /agents | Create agent or send task
 *AgentsAPI* | [**DeleteAgent**](docs/AgentsAPI.md#deleteagent) | **Delete** /agents/{name} | Delete agent
 *AgentsAPI* | [**GetAgent**](docs/AgentsAPI.md#getagent) | **Get** /agents/{name} | Get agent details
@@ -111,12 +112,12 @@ Class | Method | HTTP request | Description
 *SkillsAPI* | [**PatchSkill**](docs/SkillsAPI.md#patchskill) | **Patch** /skills/{name} | Patch skill
 *SquadsAPI* | [**AddSquadMember**](docs/SquadsAPI.md#addsquadmember) | **Post** /squads/{name}/members | Add squad member
 *SquadsAPI* | [**BreakUpSquad**](docs/SquadsAPI.md#breakupsquad) | **Post** /squads/{name}/break-up | Request squad break-up
+*SquadsAPI* | [**CreateSquad**](docs/SquadsAPI.md#createsquad) | **Post** /squads | Create squad
 *SquadsAPI* | [**DeleteSquad**](docs/SquadsAPI.md#deletesquad) | **Delete** /squads/{name} | Delete squad
 *SquadsAPI* | [**GetSquad**](docs/SquadsAPI.md#getsquad) | **Get** /squads/{name} | Get squad details
 *SquadsAPI* | [**ListSquads**](docs/SquadsAPI.md#listsquads) | **Get** /squads | List squads
 *SquadsAPI* | [**PatchSquad**](docs/SquadsAPI.md#patchsquad) | **Patch** /squads/{name} | Patch squad
 *SquadsAPI* | [**RemoveSquadMember**](docs/SquadsAPI.md#removesquadmember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
-*SquadsAPI* | [**SquadsPost**](docs/SquadsAPI.md#squadspost) | **Post** /squads | 
 *TemplatesAPI* | [**ListTemplates**](docs/TemplatesAPI.md#listtemplates) | **Get** /templates | List agent templates
 *TemplatesAPI* | [**NamespacesGet**](docs/TemplatesAPI.md#namespacesget) | **Get** /namespaces | List namespaces
 
@@ -126,6 +127,7 @@ Class | Method | HTTP request | Description
  - [AddSquadMemberRequest](docs/AddSquadMemberRequest.md)
  - [AgentListResponse](docs/AgentListResponse.md)
  - [AgentResponse](docs/AgentResponse.md)
+ - [CompactAgentRequest](docs/CompactAgentRequest.md)
  - [ConnectorResponse](docs/ConnectorResponse.md)
  - [CreateAgentRequest](docs/CreateAgentRequest.md)
  - [CreateConnectorRequest](docs/CreateConnectorRequest.md)

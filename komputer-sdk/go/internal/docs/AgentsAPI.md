@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**AgentsNameWsGet**](AgentsAPI.md#AgentsNameWsGet) | **Get** /agents/{name}/ws | Stream agent events (WebSocket)
 [**CancelAgentTask**](AgentsAPI.md#CancelAgentTask) | **Post** /agents/{name}/cancel | Cancel agent task
+[**CompactAgentTask**](AgentsAPI.md#CompactAgentTask) | **Post** /agents/{name}/compact | Compact agent conversation
 [**CreateAgent**](AgentsAPI.md#CreateAgent) | **Post** /agents | Create agent or send task
 [**DeleteAgent**](AgentsAPI.md#DeleteAgent) | **Delete** /agents/{name} | Delete agent
 [**GetAgent**](AgentsAPI.md#GetAgent) | **Get** /agents/{name} | Get agent details
@@ -150,6 +151,80 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## CompactAgentTask
+
+> map[string]string CompactAgentTask(ctx, name).Namespace(namespace).Request(request).Execute()
+
+Compact agent conversation
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Agent name
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+	request := *openapiclient.NewCompactAgentRequest() // CompactAgentRequest | Optional compaction instructions (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.AgentsAPI.CompactAgentTask(context.Background(), name).Namespace(namespace).Request(request).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.CompactAgentTask``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `CompactAgentTask`: map[string]string
+	fmt.Fprintf(os.Stdout, "Response from `AgentsAPI.CompactAgentTask`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Agent name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiCompactAgentTaskRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **namespace** | **string** | Kubernetes namespace | 
+ **request** | [**CompactAgentRequest**](CompactAgentRequest.md) | Optional compaction instructions | 
+
+### Return type
+
+**map[string]string**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

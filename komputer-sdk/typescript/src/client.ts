@@ -13,8 +13,8 @@
  */
 
 import { Configuration, ResponseError } from "./runtime";
-import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, TemplatesApi } from "./apis";
-import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest, V1PodSpec, V1alpha1StorageSpec } from "./models";
+import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, SquadsApi, TemplatesApi } from "./apis";
+import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1StorageSpec } from "./models";
 import { AgentEventStream } from "./watch";
 import type { AgentEvent } from "./watch";
 export type { AgentEvent } from "./watch";
@@ -27,6 +27,7 @@ export class KomputerClient {
   private _schedules: SchedulesApi;
   private _secrets: SecretsApi;
   private _skills: SkillsApi;
+  private _squads: SquadsApi;
   private _templates: TemplatesApi;
   private _baseUrl: string;
 
@@ -40,6 +41,7 @@ export class KomputerClient {
     this._schedules = new SchedulesApi(config);
     this._secrets = new SecretsApi(config);
     this._skills = new SkillsApi(config);
+    this._squads = new SquadsApi(config);
     this._templates = new TemplatesApi(config);
   }
 
@@ -78,6 +80,44 @@ export class KomputerClient {
 
   async getAgentEvents(name: string) {
     return this._agents.getAgentEvents({ name });
+  }
+
+  async compactAgentTask(params: { name: string; instructions?: string }) {
+    return this._agents.compactAgentTask({ name: params.name, request: { instructions: params.instructions } });
+  }
+
+  // --- Squads ---
+
+  async listSquads() {
+    return this._squads.listSquads({});
+  }
+
+  async createSquad(params: { name: string; members: V1alpha1KomputerSquadMember[]; namespace?: string; orphanTTL?: string }) {
+    return this._squads.createSquad({ request: { members: params.members, name: params.name, namespace: params.namespace, orphanTTL: params.orphanTTL } });
+  }
+
+  async getSquad(name: string) {
+    return this._squads.getSquad({ name });
+  }
+
+  async patchSquad(params: { name: string; members?: V1alpha1KomputerSquadMember[]; orphanTTL?: string }) {
+    return this._squads.patchSquad({ name: params.name, request: { members: params.members, orphanTTL: params.orphanTTL } });
+  }
+
+  async deleteSquad(name: string) {
+    return this._squads.deleteSquad({ name });
+  }
+
+  async breakUpSquad(name: string) {
+    return this._squads.breakUpSquad({ name });
+  }
+
+  async addSquadMember(params: { name: string; memberName?: string; ref?: V1alpha1KomputerSquadMemberRef; spec?: V1alpha1KomputerAgentSpec }) {
+    return this._squads.addSquadMember({ name: params.name, request: { name: params.memberName, ref: params.ref, spec: params.spec } });
+  }
+
+  async removeSquadMember(name: string, agent: string) {
+    return this._squads.removeSquadMember({ name, agent });
   }
 
   // --- Memories ---
@@ -187,6 +227,10 @@ export class KomputerClient {
 
   async deleteSchedule(name: string) {
     return this._schedules.deleteSchedule({ name });
+  }
+
+  async triggerSchedule(name: string) {
+    return this._schedules.triggerSchedule({ name });
   }
 
   // --- Secrets ---

@@ -17,6 +17,7 @@ import * as runtime from '../runtime';
 import type {
   AgentListResponse,
   AgentResponse,
+  CompactAgentRequest,
   CreateAgentRequest,
   PatchAgentRequest,
 } from '../models/index';
@@ -25,6 +26,8 @@ import {
     AgentListResponseToJSON,
     AgentResponseFromJSON,
     AgentResponseToJSON,
+    CompactAgentRequestFromJSON,
+    CompactAgentRequestToJSON,
     CreateAgentRequestFromJSON,
     CreateAgentRequestToJSON,
     PatchAgentRequestFromJSON,
@@ -39,6 +42,12 @@ export interface AgentsNameWsGetRequest {
 export interface CancelAgentTaskRequest {
     name: string;
     namespace?: string;
+}
+
+export interface CompactAgentTaskRequest {
+    name: string;
+    namespace?: string;
+    request?: CompactAgentRequest;
 }
 
 export interface CreateAgentOperationRequest {
@@ -174,6 +183,60 @@ export class AgentsApi extends runtime.BaseAPI {
      */
     async cancelAgentTask(requestParameters: CancelAgentTaskRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: string; }> {
         const response = await this.cancelAgentTaskRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for compactAgentTask without sending the request
+     */
+    async compactAgentTaskRequestOpts(requestParameters: CompactAgentTaskRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling compactAgentTask().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/agents/{name}/compact`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CompactAgentRequestToJSON(requestParameters['request']),
+        };
+    }
+
+    /**
+     * Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional `instructions` field passes custom guidance to the compactor.
+     * Compact agent conversation
+     */
+    async compactAgentTaskRaw(requestParameters: CompactAgentTaskRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{ [key: string]: string; }>> {
+        const requestOptions = await this.compactAgentTaskRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional `instructions` field passes custom guidance to the compactor.
+     * Compact agent conversation
+     */
+    async compactAgentTask(requestParameters: CompactAgentTaskRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: string; }> {
+        const response = await this.compactAgentTaskRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

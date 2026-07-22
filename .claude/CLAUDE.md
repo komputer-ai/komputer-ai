@@ -49,8 +49,9 @@ When adding a new field to `KomputerAgentSpec` or `KomputerAgentStatus`, it must
 | 9 | **UI components** | `komputer-ui/src/components/` — display/accept the field where relevant |
 | 10 | **Manager MCP tools** | `komputer-agent/manager_tools.py` — add the field as a parameter to the `create_agent` / `patch_agent` tool schemas so manager agents can pass it |
 | 11 | **Manager system prompt** | `komputer-api/prompts/manager.md` — if the field changes what managers can configure or how they should behave, document it in the prompt |
+| 12 | **SDK spec + wrappers** | Regenerate `komputer-sdk` (`cd komputer-sdk && make all`) so the field lands in `openapi.yaml` and the generated clients; then add it to the hand-maintained convenience wrappers (`go/client.go`, `python/komputer_ai/client.py`, `typescript/src/client.ts`). `make client` only *scaffolds* — its output is buggy for nested/collision-prone bodies (e.g. squads), so hand-merge |
 
-Do not merge a new field unless all layers are updated. A missing layer means clients can't see or set the field — and a missing MCP tool parameter means manager agents can't pass it either.
+Do not merge a new field unless all layers are updated. A missing layer means clients can't see or set the field — a missing MCP tool parameter means manager agents can't pass it, and a missing SDK wrapper means SDK users can't either. New request/response structs must be reachable from the swagger annotations (attach `@Router`/`@ID` to the **handler func**, not a nearby type) or `swag` silently drops them from the whole SDK.
 
 ## 6. Full-Stack Feature Consistency
 
@@ -60,8 +61,9 @@ When adding a new capability (e.g. a new API endpoint, agent action, or operator
 - **CLI** — command or flag
 - **UI** — page, button, or display element
 - **Operator** — reconciliation logic if it affects CR lifecycle
+- **SDK** — a convenience-wrapper method in `komputer-sdk` (Go/Python/TS) for any new client-facing endpoint (see rule 5, layer 12)
 
-Not every feature needs all four — use judgment — but the default is to expose everywhere unless there's a reason not to.
+Not every feature needs all of these — use judgment — but the default is to expose everywhere unless there's a reason not to.
 
 ## 7. Helm RBAC Must Match K8s API Usage
 

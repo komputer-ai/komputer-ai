@@ -3,6 +3,7 @@ docs/AddSquadMemberRequest.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
+docs/CompactAgentRequest.md
 docs/ConnectorResponse.md
 docs/ConnectorsApi.md
 docs/CreateAgentRequest.md
@@ -204,6 +205,7 @@ src/apis/index.ts
 src/models/AddSquadMemberRequest.ts
 src/models/AgentListResponse.ts
 src/models/AgentResponse.ts
+src/models/CompactAgentRequest.ts
 src/models/ConnectorResponse.ts
 src/models/CreateAgentRequest.ts
 src/models/CreateConnectorRequest.ts

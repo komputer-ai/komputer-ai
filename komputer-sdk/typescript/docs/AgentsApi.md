@@ -6,6 +6,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |------------- | ------------- | -------------|
 | [**agentsNameWsGet**](AgentsApi.md#agentsnamewsget) | **GET** /agents/{name}/ws | Stream agent events (WebSocket) |
 | [**cancelAgentTask**](AgentsApi.md#cancelagenttask) | **POST** /agents/{name}/cancel | Cancel agent task |
+| [**compactAgentTask**](AgentsApi.md#compactagenttask) | **POST** /agents/{name}/compact | Compact agent conversation |
 | [**createAgent**](AgentsApi.md#createagentoperation) | **POST** /agents | Create agent or send task |
 | [**deleteAgent**](AgentsApi.md#deleteagent) | **DELETE** /agents/{name} | Delete agent |
 | [**getAgent**](AgentsApi.md#getagent) | **GET** /agents/{name} | Get agent details |
@@ -148,6 +149,82 @@ No authorization required
 | **200** | Task cancelling |  -  |
 | **404** | Agent not found |  -  |
 | **409** | Agent has no running pod |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## compactAgentTask
+
+> { [key: string]: string; } compactAgentTask(name, namespace, request)
+
+Compact agent conversation
+
+Triggers manual conversation compaction. Older turns are summarized to free context space. Requires an active task — returns 409 if the agent is idle. Optional &#x60;instructions&#x60; field passes custom guidance to the compactor.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { CompactAgentTaskRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+    // CompactAgentRequest | Optional compaction instructions (optional)
+    request: ...,
+  } satisfies CompactAgentTaskRequest;
+
+  try {
+    const data = await api.compactAgentTask(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+| **request** | [CompactAgentRequest](CompactAgentRequest.md) | Optional compaction instructions | [Optional] |
+
+### Return type
+
+**{ [key: string]: string; }**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Compaction triggered |  -  |
+| **404** | Agent not found |  -  |
+| **409** | Agent has no running pod or no active task |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

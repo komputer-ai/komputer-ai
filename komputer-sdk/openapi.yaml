@@ -272,6 +272,68 @@ paths:
       summary: Cancel agent task
       tags:
       - agents
+  /agents/{name}/compact:
+    post:
+      description: Triggers manual conversation compaction. Older turns are summarized
+        to free context space. Requires an active task — returns 409 if the agent
+        is idle. Optional `instructions` field passes custom guidance to the compactor.
+      operationId: compactAgentTask
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompactAgentRequest"
+        description: Optional compaction instructions
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Compaction triggered
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent has no running pod or no active task
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Compact agent conversation
+      tags:
+      - agents
+      x-codegen-request-body-name: request
   /agents/{name}/events:
     get:
       description: Returns recent events from the agent's Redis stream in chronological
@@ -1568,6 +1630,7 @@ paths:
       tags:
       - squads
     post:
+      operationId: createSquad
       requestBody:
         content:
           application/json:
@@ -1606,6 +1669,7 @@ paths:
                   type: string
                 type: object
           description: Internal error
+      summary: Create squad
       tags:
       - squads
       x-codegen-request-body-name: request
@@ -4057,6 +4121,11 @@ components:
           type: string
         totalTokens:
           type: integer
+      type: object
+    CompactAgentRequest:
+      properties:
+        instructions:
+          type: string
       type: object
     ConnectorResponse:
       example:

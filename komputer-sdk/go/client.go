@@ -207,6 +207,95 @@ func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]in
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }
 
+type CompactAgentTaskOpts struct {
+	Instructions *string
+}
+
+// CompactAgentTask triggers manual conversation compaction on an agent's active task.
+func (c *Client) CompactAgentTask(ctx context.Context, name string, opts ...CompactAgentTaskOpts) (map[string]string, *http.Response, error) {
+	req := c.api.AgentsAPI.CompactAgentTask(ctx, name)
+	if len(opts) > 0 && opts[0].Instructions != nil {
+		req = req.Request(komputer.CompactAgentRequest{Instructions: opts[0].Instructions})
+	}
+	return req.Execute()
+}
+
+// --- Squads ---
+
+func (c *Client) ListSquads(ctx context.Context) (*komputer.SquadListResponse, *http.Response, error) {
+	return c.api.SquadsAPI.ListSquads(ctx).Execute()
+}
+
+type CreateSquadOpts struct {
+	Namespace *string
+	OrphanTTL *string
+}
+
+// CreateSquad creates a squad with the given members. Each member sets exactly
+// one of Ref (adopt an existing agent) or Spec (inline new agent).
+func (c *Client) CreateSquad(ctx context.Context, name string, members []komputer.V1alpha1KomputerSquadMember, opts ...CreateSquadOpts) (*komputer.SquadResponse, *http.Response, error) {
+	req := komputer.CreateSquadRequest{
+		Name:    name,
+		Members: members,
+	}
+	if len(opts) > 0 {
+		o := opts[0]
+		req.Namespace = o.Namespace
+		req.OrphanTTL = o.OrphanTTL
+	}
+	return c.api.SquadsAPI.CreateSquad(ctx).Request(req).Execute()
+}
+
+func (c *Client) GetSquad(ctx context.Context, name string) (*komputer.SquadResponse, *http.Response, error) {
+	return c.api.SquadsAPI.GetSquad(ctx, name).Execute()
+}
+
+type PatchSquadOpts struct {
+	Members   []komputer.V1alpha1KomputerSquadMember
+	OrphanTTL *string
+}
+
+func (c *Client) PatchSquad(ctx context.Context, name string, opts ...PatchSquadOpts) (*komputer.SquadResponse, *http.Response, error) {
+	req := komputer.PatchSquadRequest{}
+	if len(opts) > 0 {
+		o := opts[0]
+		req.Members = o.Members
+		req.OrphanTTL = o.OrphanTTL
+	}
+	return c.api.SquadsAPI.PatchSquad(ctx, name).Request(req).Execute()
+}
+
+func (c *Client) DeleteSquad(ctx context.Context, name string) (map[string]string, *http.Response, error) {
+	return c.api.SquadsAPI.DeleteSquad(ctx, name).Execute()
+}
+
+func (c *Client) BreakUpSquad(ctx context.Context, name string) (*komputer.SquadResponse, *http.Response, error) {
+	return c.api.SquadsAPI.BreakUpSquad(ctx, name).Execute()
+}
+
+type AddSquadMemberOpts struct {
+	// MemberName is the desired agent name when Spec is set (optional).
+	MemberName *string
+	Ref        *komputer.V1alpha1KomputerSquadMemberRef
+	Spec       *komputer.V1alpha1KomputerAgentSpec
+}
+
+// AddSquadMember appends a member to a squad. Set exactly one of Ref or Spec.
+func (c *Client) AddSquadMember(ctx context.Context, name string, opts ...AddSquadMemberOpts) (*komputer.SquadResponse, *http.Response, error) {
+	req := komputer.AddSquadMemberRequest{}
+	if len(opts) > 0 {
+		o := opts[0]
+		req.Name = o.MemberName
+		req.Ref = o.Ref
+		req.Spec = o.Spec
+	}
+	return c.api.SquadsAPI.AddSquadMember(ctx, name).Request(req).Execute()
+}
+
+func (c *Client) RemoveSquadMember(ctx context.Context, name string, agent string) (*komputer.SquadResponse, *http.Response, error) {
+	return c.api.SquadsAPI.RemoveSquadMember(ctx, name, agent).Execute()
+}
+
 // --- Memories ---
 
 func (c *Client) ListMemories(ctx context.Context) (map[string]interface{}, *http.Response, error) {
@@ -430,6 +519,11 @@ func (c *Client) PatchSchedule(ctx context.Context, name string, opts ...PatchSc
 
 func (c *Client) DeleteSchedule(ctx context.Context, name string) (map[string]string, *http.Response, error) {
 	return c.api.SchedulesAPI.DeleteSchedule(ctx, name).Execute()
+}
+
+// TriggerSchedule manually runs a schedule now, regardless of its cron time.
+func (c *Client) TriggerSchedule(ctx context.Context, name string) (*komputer.TriggerScheduleResponse, *http.Response, error) {
+	return c.api.SchedulesAPI.TriggerSchedule(ctx, name).Execute()
 }
 
 // --- Secrets ---

@@ -29,9 +29,10 @@ TAG_MAP = {
     "secrets": ("SecretsApi", "secrets"),
     "connectors": ("ConnectorsApi", "connectors"),
     "templates": ("TemplatesApi", "templates"),
+    "squads": ("SquadsApi", "squads"),
 }
 
-TAG_ORDER = ["agents", "memories", "skills", "schedules", "secrets", "connectors", "offices", "templates"]
+TAG_ORDER = ["agents", "squads", "memories", "skills", "schedules", "secrets", "connectors", "offices", "templates"]
 
 SKIP_OPERATIONS = {"agentsNameWsGet", "namespacesGet"}
 

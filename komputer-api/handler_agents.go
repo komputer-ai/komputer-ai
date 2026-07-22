@@ -532,6 +532,10 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 	}
 }
 
+type CompactAgentRequest struct {
+	Instructions string `json:"instructions,omitempty"`
+}
+
 // compactAgentTask manually triggers conversation compaction on an active agent task.
 // @ID compactAgentTask
 // @Summary Compact agent conversation
@@ -547,10 +551,6 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 // @Failure 409 {object} map[string]string "Agent has no running pod or no active task"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents/{name}/compact [post]
-type CompactAgentRequest struct {
-	Instructions string `json:"instructions,omitempty"`
-}
-
 func compactAgentTask(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
