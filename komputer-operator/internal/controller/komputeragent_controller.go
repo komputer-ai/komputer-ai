@@ -329,6 +329,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		office := &komputerv1alpha1.KomputerOffice{}
 		if err := r.Get(ctx, types.NamespacedName{Name: officeName, Namespace: agent.Namespace}, office); err == nil {
 			needsUpdate := false
+			original := agent.DeepCopy()
 			// Ensure the manager also has the office label (issue: manager was missing it)
 			if agent.Labels == nil {
 				agent.Labels = map[string]string{}
@@ -343,7 +344,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				needsUpdate = true
 			}
 			if needsUpdate {
-				if err := r.Update(ctx, agent); err != nil {
+				if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 					log.Error(err, "Failed to update manager with office label/finalizer")
 					return ctrl.Result{}, err
 				}
