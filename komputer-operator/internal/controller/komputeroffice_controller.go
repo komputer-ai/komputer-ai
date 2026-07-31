@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -233,8 +234,18 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			TaskStatus: string(a.Status.TaskStatus), LastTaskCostUSD: a.Status.TotalCostUSD,
 		}
 	}
-	// Collect and count members.
-	for _, ms := range knownMembers {
+	// Collect and count members. Sort by name for a deterministic status —
+	// map iteration order is randomized, and an unsorted slice here diffs on
+	// every reconcile even when membership hasn't changed, causing the
+	// Status().Patch below to write on every reconcile and re-trigger the
+	// watch on this object, looping forever.
+	memberNames := make([]string, 0, len(knownMembers))
+	for name := range knownMembers {
+		memberNames = append(memberNames, name)
+	}
+	sort.Strings(memberNames)
+	for _, name := range memberNames {
+		ms := knownMembers[name]
 		members = append(members, ms)
 		processAgent(ms)
 	}
