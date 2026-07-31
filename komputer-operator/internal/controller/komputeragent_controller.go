@@ -81,7 +81,13 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// 1b. Propagate Spec.Labels onto the agent CR's own metadata.labels so that
 	// kubectl label selectors and client.MatchingLabels work natively on the CR.
-	desiredLabels := mergeLabels(agent.Spec.Labels, nil)
+	// Additive: start from the labels already on the object (e.g. komputer.ai/office,
+	// komputer.ai/squad, added by later sections of this reconciler or by other
+	// controllers) and overlay Spec.Labels on top. Replacing the map outright discarded
+	// those system labels every reconcile, and the section below that re-adds
+	// komputer.ai/office fought this one for the field, causing an infinite
+	// add/remove loop (each write re-triggering the watch on this same object).
+	desiredLabels := mergeLabels(agent.ObjectMeta.Labels, agent.Spec.Labels)
 	if !reflect.DeepEqual(agent.ObjectMeta.Labels, desiredLabels) {
 		patch := client.MergeFrom(agent.DeepCopy())
 		agent.ObjectMeta.Labels = desiredLabels
