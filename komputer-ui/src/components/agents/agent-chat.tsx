@@ -10,7 +10,7 @@ import { createAgent, cancelAgent, patchAgent } from "@/lib/api";
 import { getConfig } from "@/lib/config";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
-import { isBedrockModelId } from "@/lib/model-utils";
+import { isBedrockModelId, isVertexModelId } from "@/lib/model-utils";
 import { cn } from "@/lib/utils";
 import {
   ChevronRight,
@@ -1523,7 +1523,9 @@ export function AgentChat({
 
       {/* Input area */}
       <div className="shrink-0 bg-[var(--color-bg)]">
-        <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} isBedrock={isBedrockModelId(agentModel ?? "")} />
+        {/* Bedrock and Vertex don't report a context window (the agent skips the
+            Anthropic lookup), so hide the token-% bar for both. */}
+        <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} isBedrock={isBedrockModelId(agentModel ?? "") || isVertexModelId(agentModel ?? "")} />
         <div className="border-t border-[var(--color-border)]" />
         <div className="flex gap-2 p-4">
           <div className="flex-1 min-w-0">
