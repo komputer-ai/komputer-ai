@@ -281,7 +281,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		// On Bedrock, reject friendly model names before they reach the SDK. A new
 		// agent requires a valid model (empty would fall back to a friendly default);
 		// wake/forward only reject a non-empty bad override (empty = keep existing).
-		if err := validateBedrockModel(req.Model, existing == nil); err != nil {
+		if err := validateModel(req.Model, existing == nil); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -889,7 +889,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 		// On Bedrock, reject a friendly model override before it reaches the SDK.
 		if req.Model != nil {
-			if err := validateBedrockModel(*req.Model, false); err != nil {
+			if err := validateModel(*req.Model, false); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

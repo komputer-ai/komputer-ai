@@ -43,10 +43,11 @@ def _save_session_id(session_id: str):
 def _fetch_context_window(model: str) -> int | None:
     """Fetch the context window size for a model from the Anthropic API.
 
-    Returns None when running against Bedrock — there is no Anthropic API key
-    in that mode and the Anthropic endpoint doesn't recognise Bedrock IDs.
+    Returns None when running against Bedrock or Vertex — there is no Anthropic
+    API key in those modes and the Anthropic endpoint doesn't recognise their
+    model IDs.
     """
-    if os.environ.get("CLAUDE_CODE_USE_BEDROCK"):
+    if os.environ.get("CLAUDE_CODE_USE_BEDROCK") or os.environ.get("CLAUDE_CODE_USE_VERTEX"):
         return None
     import logging
     api_key = os.environ.get("ANTHROPIC_API_KEY")

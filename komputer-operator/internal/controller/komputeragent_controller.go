@@ -700,8 +700,8 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when
 	// configured. The mirror for this secret already exists in agent.Namespace
 	// (ensured earlier in Reconcile), so the secretKeyRef resolves within the
-	// pod's own namespace. When the ref is nil (Bedrock mode), the template's
-	// podSpec sets CLAUDE_CODE_USE_BEDROCK instead and no Anthropic key is needed.
+	// pod's own namespace. When the ref is nil (Bedrock/Vertex mode), the template's
+	// podSpec sets the provider env (CLAUDE_CODE_USE_BEDROCK/CLAUDE_CODE_USE_VERTEX) instead and no Anthropic key is needed.
 	if template.Spec.AnthropicKeySecretRef != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name: "ANTHROPIC_API_KEY",

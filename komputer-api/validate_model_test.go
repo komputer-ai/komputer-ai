@@ -52,6 +52,74 @@ func TestValidateBedrockModel(t *testing.T) {
 	}
 }
 
+// TestValidateVertexModel verifies that Anthropic API aliases are rejected when
+// the deployment runs against Google Vertex AI (which needs a pinned
+// "name@YYYYMMDD" ID), while pinned IDs and any model off-Vertex pass through.
+func TestValidateVertexModel(t *testing.T) {
+	cases := []struct {
+		name     string
+		vertex   bool
+		model    string
+		required bool
+		wantErr  bool
+	}{
+		// Off Vertex: aliases are correct, never rejected.
+		{"non-vertex alias", false, "claude-sonnet-4-6", false, false},
+		{"non-vertex empty required", false, "", true, false},
+
+		// On Vertex: aliases/friendly names are the bug — reject them.
+		{"vertex alias", true, "claude-sonnet-4-6", false, true},
+		{"vertex bare name", true, "claude-opus-4-1", true, true},
+
+		// On Vertex: pinned IDs pass.
+		{"vertex pinned sonnet", true, "claude-sonnet-4-5@20250929", false, false},
+		{"vertex pinned haiku", true, "claude-haiku-4-5@20251001", true, false},
+
+		// Vertex empty: rejected only when required (new agent).
+		{"vertex empty required", true, "", true, true},
+		{"vertex empty optional", true, "", false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.vertex {
+				t.Setenv("CLAUDE_CODE_USE_VERTEX", "1")
+			} else {
+				t.Setenv("CLAUDE_CODE_USE_VERTEX", "")
+			}
+			err := validateVertexModel(tc.model, tc.required)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("validateVertexModel(%q, required=%v) error = %v, wantErr = %v", tc.model, tc.required, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateModelDispatch verifies the dispatcher applies the right provider
+// validator based on which provider env var is set.
+func TestValidateModelDispatch(t *testing.T) {
+	t.Run("vertex rejects alias", func(t *testing.T) {
+		t.Setenv("CLAUDE_CODE_USE_BEDROCK", "")
+		t.Setenv("CLAUDE_CODE_USE_VERTEX", "1")
+		if err := validateModel("claude-sonnet-4-6", false); err == nil {
+			t.Fatal("expected Vertex alias to be rejected via validateModel")
+		}
+	})
+	t.Run("bedrock rejects friendly name", func(t *testing.T) {
+		t.Setenv("CLAUDE_CODE_USE_VERTEX", "")
+		t.Setenv("CLAUDE_CODE_USE_BEDROCK", "1")
+		if err := validateModel("claude-sonnet-4-6", false); err == nil {
+			t.Fatal("expected Bedrock friendly name to be rejected via validateModel")
+		}
+	})
+	t.Run("anthropic api accepts alias", func(t *testing.T) {
+		t.Setenv("CLAUDE_CODE_USE_BEDROCK", "")
+		t.Setenv("CLAUDE_CODE_USE_VERTEX", "")
+		if err := validateModel("claude-sonnet-4-6", true); err != nil {
+			t.Fatalf("expected alias accepted off managed providers, got %v", err)
+		}
+	})
+}
+
 // TestBedrockExampleRegionPrefix verifies the example model ID in error messages
 // uses the correct region prefix so the guidance is actionable.
 func TestBedrockExampleRegionPrefix(t *testing.T) {
