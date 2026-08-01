@@ -211,7 +211,7 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 			if m.Spec == nil {
 				continue
 			}
-			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
+			if err := validateModel(m.Spec.Model, true); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -348,7 +348,7 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 			if m.Spec == nil {
 				continue
 			}
-			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
+			if err := validateModel(m.Spec.Model, true); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -516,7 +516,7 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		}
 		// On Bedrock, reject a friendly model name on an inline member spec.
 		if req.Spec != nil {
-			if err := validateBedrockModel(req.Spec.Model, true); err != nil {
+			if err := validateModel(req.Spec.Model, true); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

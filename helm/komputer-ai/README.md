@@ -6,7 +6,7 @@ Deploys the komputer.ai platform — distributed Claude AI agents on Kubernetes.
 
 - Kubernetes 1.24+
 - Helm 3.x
-- An [Anthropic API key](https://console.anthropic.com/) — required unless you enable AWS Bedrock (`bedrock.enabled=true`), in which case agents authenticate to Bedrock via IRSA or AWS credentials instead.
+- An [Anthropic API key](https://console.anthropic.com/) — required unless you enable a managed provider: AWS Bedrock (`bedrock.enabled=true`; auth via IRSA or AWS credentials) or Google Vertex AI (`vertex.enabled=true`; auth via GKE Workload Identity or a service-account key).
 - [cert-manager](https://cert-manager.io/docs/installation/) (recommended) — required when `webhooks.enabled=true` (default), which validates `KomputerSquad` resources. See [Squad admission webhook](#squad-admission-webhook) below to opt out.
 
 ## Installation
@@ -83,7 +83,10 @@ templates/
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `anthropicKeySecret.name` | Name of the K8s Secret containing your Anthropic API key. **Required unless `bedrock.enabled=true`.** | `""` |
+| `anthropicKeySecret.name` | Name of the K8s Secret containing your Anthropic API key. **Required unless `bedrock.enabled=true` or `vertex.enabled=true`.** | `""` |
+| `vertex.enabled` | Use Google Vertex AI instead of the Anthropic API. Mutually exclusive with `bedrock.enabled`. | `false` |
+| `vertex.projectId` | GCP project ID for Vertex (`ANTHROPIC_VERTEX_PROJECT_ID`). | `""` |
+| `vertex.region` | Vertex region (`CLOUD_ML_REGION`): `global`, `us`/`eu`, or e.g. `us-east5`. | `"us-east5"` |
 | `anthropicKeySecret.key` | Key within the secret | `api-key` |
 | `anthropicKeySecret.namespace` | Namespace of the secret. Defaults to the release namespace when empty. The operator mirrors it into every agent namespace. | `""` |
 | `operator.replicas` | Operator replica count | `1` |

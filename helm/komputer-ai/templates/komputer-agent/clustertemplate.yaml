@@ -19,13 +19,21 @@ spec:
     - name: agent
       image: {{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}
       imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
-      {{- if or .Values.bedrock.enabled .Values.metrics.perAgentLabels .Values.metrics.agent.remoteWrite.enabled }}
+      {{- if or .Values.bedrock.enabled .Values.vertex.enabled .Values.metrics.perAgentLabels .Values.metrics.agent.remoteWrite.enabled }}
       env:
       {{- if .Values.bedrock.enabled }}
       - name: CLAUDE_CODE_USE_BEDROCK
         value: "1"
       - name: AWS_REGION
         value: {{ .Values.bedrock.region | quote }}
+      {{- end }}
+      {{- if .Values.vertex.enabled }}
+      - name: CLAUDE_CODE_USE_VERTEX
+        value: "1"
+      - name: ANTHROPIC_VERTEX_PROJECT_ID
+        value: {{ .Values.vertex.projectId | quote }}
+      - name: CLOUD_ML_REGION
+        value: {{ .Values.vertex.region | quote }}
       {{- end }}
       {{- if .Values.metrics.perAgentLabels }}
       - name: KOMPUTER_METRICS_PER_AGENT
@@ -53,7 +61,7 @@ spec:
       {{- end }}
   storage:
     size: {{ .Values.clusterTemplate.storageSize }}
-  {{- if not .Values.bedrock.enabled }}
+  {{- if not (or .Values.bedrock.enabled .Values.vertex.enabled) }}
   anthropicKeySecretRef:
     name: {{ .Values.anthropicKeySecret.name }}
     key: {{ .Values.anthropicKeySecret.key }}

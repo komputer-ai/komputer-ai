@@ -8,7 +8,7 @@ description: Install komputer.ai on any Kubernetes cluster with Helm in under 5 
 - Kubernetes cluster (Docker Desktop, kind, minikube, EKS, GKE, etc.)
 - `kubectl` configured
 - `helm` 3.x installed
-- An [Anthropic API key](https://console.anthropic.com/) — or AWS Bedrock access (install with `--set bedrock.enabled=true --set bedrock.region=<region>` instead; auth is via IRSA on EKS or AWS credentials)
+- An [Anthropic API key](https://console.anthropic.com/) — or a managed provider: AWS Bedrock (install with `--set bedrock.enabled=true --set bedrock.region=<region>`; auth via IRSA on EKS or AWS credentials) or Google Vertex AI (install with `--set vertex.enabled=true --set vertex.projectId=<gcp-project> --set vertex.region=<region>`; auth via GKE Workload Identity)
 - [cert-manager](https://cert-manager.io/docs/installation/) installed in the cluster — required for the operator's admission webhook (which validates `KomputerSquad` resources). The chart provisions a self-signed `Issuer` + `Certificate` automatically; cert-manager just needs to be present:
   ```bash
   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.2/cert-manager.yaml
@@ -17,7 +17,7 @@ description: Install komputer.ai on any Kubernetes cluster with Helm in under 5 
 
 ## 1. Create the Anthropic API key secret
 
-> Skip this step if you're using AWS Bedrock — agents will authenticate via IRSA or AWS credentials instead, and no Anthropic key is needed.
+> Skip this step if you're using AWS Bedrock or Google Vertex AI — agents authenticate via the cloud provider (IRSA/AWS creds or GKE Workload Identity) instead, and no Anthropic key is needed.
 
 
 ```bash

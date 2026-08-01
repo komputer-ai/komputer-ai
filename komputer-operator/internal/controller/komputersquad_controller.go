@@ -809,8 +809,8 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when
 		// configured. The mirror exists in the squad pod's namespace, so the
 		// secretKeyRef resolves locally. Mirrors are reconciled the same way
-		// solo agents do. When the ref is nil (Bedrock mode), the template's
-		// podSpec sets CLAUDE_CODE_USE_BEDROCK instead.
+		// solo agents do. When the ref is nil (Bedrock/Vertex mode), the template's
+		// podSpec sets the provider env (CLAUDE_CODE_USE_BEDROCK/CLAUDE_CODE_USE_VERTEX) instead.
 		if template.Spec.AnthropicKeySecretRef != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name: "ANTHROPIC_API_KEY",

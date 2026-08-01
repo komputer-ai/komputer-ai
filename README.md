@@ -119,11 +119,11 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
   ```bash
   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.2/cert-manager.yaml
   ```
-- An [Anthropic API key](https://console.anthropic.com/) — or AWS Bedrock access (install with `--set bedrock.enabled=true --set bedrock.region=<region>` and skip step 1; auth is via IRSA on EKS or AWS credentials)
+- An [Anthropic API key](https://console.anthropic.com/) — or a managed provider: AWS Bedrock (install with `--set bedrock.enabled=true --set bedrock.region=<region>`; auth via IRSA on EKS or AWS credentials) or Google Vertex AI (install with `--set vertex.enabled=true --set vertex.projectId=<gcp-project> --set vertex.region=<region>`; auth via GKE Workload Identity). Skip step 1 with either.
 
 ### 1. Create the Anthropic API key secret
 
-> Skip this step when using AWS Bedrock — no Anthropic key is needed.
+> Skip this step when using AWS Bedrock or Google Vertex AI — no Anthropic key is needed.
 
 
 ```bash

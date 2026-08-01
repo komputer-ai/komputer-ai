@@ -48,6 +48,16 @@ spec:
         - name: AWS_REGION
           value: {{ .Values.bedrock.region | quote }}
         {{- end }}
+        {{- if .Values.vertex.enabled }}
+        # Lets the API reject non-pinned model IDs at agent-create time, since
+        # agents run against Vertex and need a pinned name@YYYYMMDD ID instead.
+        - name: CLAUDE_CODE_USE_VERTEX
+          value: "1"
+        - name: ANTHROPIC_VERTEX_PROJECT_ID
+          value: {{ .Values.vertex.projectId | quote }}
+        - name: CLOUD_ML_REGION
+          value: {{ .Values.vertex.region | quote }}
+        {{- end }}
         {{- if .Values.api.oauth.callbackUrl }}
         - name: OAUTH_CALLBACK_URL
           value: {{ .Values.api.oauth.callbackUrl | quote }}
