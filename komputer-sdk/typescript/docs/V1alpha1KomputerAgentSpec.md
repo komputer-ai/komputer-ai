@@ -6,7 +6,9 @@
 
 Name | Type
 ------------ | -------------
+`allowedTools` | Array&lt;string&gt;
 `connectors` | Array&lt;string&gt;
+`disallowedTools` | Array&lt;string&gt;
 `instructions` | string
 `internalSystemPrompt` | string
 `labels` | { [key: string]: string; }
@@ -30,7 +32,9 @@ import type { V1alpha1KomputerAgentSpec } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "allowedTools": null,
   "connectors": null,
+  "disallowedTools": null,
   "instructions": null,
   "internalSystemPrompt": null,
   "labels": null,

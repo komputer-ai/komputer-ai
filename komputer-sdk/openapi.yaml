@@ -2066,6 +2066,9 @@ components:
           - skills
           completionTime: completionTime
           createdAt: createdAt
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
           memories:
           - memories
           - memories
@@ -2711,6 +2714,9 @@ components:
           errors:
           - errors
           - errors
+          allowedTools:
+          - allowedTools
+          - allowedTools
           status: status
         - instructions: instructions
           connectors:
@@ -2726,6 +2732,9 @@ components:
           - skills
           completionTime: completionTime
           createdAt: createdAt
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
           memories:
           - memories
           - memories
@@ -3371,6 +3380,9 @@ components:
           errors:
           - errors
           - errors
+          allowedTools:
+          - allowedTools
+          - allowedTools
           status: status
       properties:
         agents:
@@ -3394,6 +3406,9 @@ components:
         - skills
         completionTime: completionTime
         createdAt: createdAt
+        disallowedTools:
+        - disallowedTools
+        - disallowedTools
         memories:
         - memories
         - memories
@@ -4039,8 +4054,16 @@ components:
         errors:
         - errors
         - errors
+        allowedTools:
+        - allowedTools
+        - allowedTools
         status: status
       properties:
+        allowedTools:
+          description: Tools this agent is restricted to (empty = defaults)
+          items:
+            type: string
+          type: array
         completionTime:
           type: string
         connectors:
@@ -4050,6 +4073,11 @@ components:
           type: array
         createdAt:
           type: string
+        disallowedTools:
+          description: Tools removed from this agent
+          items:
+            type: string
+          type: array
         errors:
           description: |-
             Errors are non-fatal failures that occurred during the request (e.g. CR was patched
@@ -4180,8 +4208,23 @@ components:
       type: object
     CreateAgentRequest:
       properties:
+        allowedTools:
+          description: |-
+            AllowedTools restricts the agent to exactly these tools. REPLACES the default
+            built-in set rather than extending it, and connector tools are not auto-added.
+            Supports wildcards, e.g. "mcp__figma__*". Empty keeps default behavior.
+          items:
+            type: string
+          type: array
         connectors:
           description: optional KomputerConnector names to attach
+          items:
+            type: string
+          type: array
+        disallowedTools:
+          description: |-
+            DisallowedTools removes these tools; everything else stays available.
+            Takes precedence over AllowedTools. Supports wildcards.
           items:
             type: string
           type: array
@@ -4526,8 +4569,21 @@ components:
       type: object
     PatchAgentRequest:
       properties:
+        allowedTools:
+          description: |-
+            AllowedTools restricts the agent to these tools; an explicit [] clears the
+            restriction and restores the default tool set.
+          items:
+            type: string
+          type: array
         connectors:
           description: connector names to attach
+          items:
+            type: string
+          type: array
+        disallowedTools:
+          description: "DisallowedTools removes these tools; an explicit [] clears\
+            \ the list."
           items:
             type: string
           type: array
@@ -11309,10 +11365,35 @@ components:
       - AgentLifecycleAutoDelete
     v1alpha1.KomputerAgentSpec:
       properties:
+        allowedTools:
+          description: |-
+            AllowedTools restricts the agent to exactly these tools. When empty, the
+            default built-in tool set is used and all tools from attached connectors
+            are permitted.
+
+            Setting this REPLACES the default set rather than extending it, so an
+            agent given only ["Read"] loses Bash, Write, Edit and the rest. Connector
+            tools are not auto-added either — list them explicitly, e.g.
+            "mcp__figma__*" for a whole connector or "mcp__figma__get_design_context"
+            for a single tool.
+            +optional
+          items:
+            type: string
+          type: array
         connectors:
           description: |-
             Connectors is a list of KomputerConnector names to attach to this agent.
             Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        disallowedTools:
+          description: |-
+            DisallowedTools removes these tools from the agent. Purely subtractive:
+            the default built-ins and all connector tools remain available except
+            what is named here. Takes precedence over AllowedTools.
+            Supports wildcards, e.g. "mcp__figma__*".
             +optional
           items:
             type: string

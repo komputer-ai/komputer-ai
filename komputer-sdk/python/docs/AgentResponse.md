@@ -5,9 +5,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**allowed_tools** | **List[str]** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
 **completion_time** | **str** |  | [optional] 
 **connectors** | **List[str]** | KomputerConnector names attached to this agent | [optional] 
 **created_at** | **str** |  | [optional] 
+**disallowed_tools** | **List[str]** | Tools removed from this agent | [optional] 
 **errors** | **List[str]** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **instructions** | **str** | User task (spec.instructions) | [optional] 
 **labels** | **Dict[str, str]** |  | [optional] 

@@ -4,7 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. Empty keeps default behavior. | [optional] 
 **Connectors** | Pointer to **[]string** | optional KomputerConnector names to attach | [optional] 
+**DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards. | [optional] 
 **Instructions** | **string** |  | 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
 **Lifecycle** | Pointer to **string** | \&quot;\&quot;, \&quot;Sleep\&quot;, or \&quot;AutoDelete\&quot; | [optional] 
@@ -41,6 +43,31 @@ NewCreateAgentRequestWithDefaults instantiates a new CreateAgentRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
+### GetAllowedTools
+
+`func (o *CreateAgentRequest) GetAllowedTools() []string`
+
+GetAllowedTools returns the AllowedTools field if non-nil, zero value otherwise.
+
+### GetAllowedToolsOk
+
+`func (o *CreateAgentRequest) GetAllowedToolsOk() (*[]string, bool)`
+
+GetAllowedToolsOk returns a tuple with the AllowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAllowedTools
+
+`func (o *CreateAgentRequest) SetAllowedTools(v []string)`
+
+SetAllowedTools sets AllowedTools field to given value.
+
+### HasAllowedTools
+
+`func (o *CreateAgentRequest) HasAllowedTools() bool`
+
+HasAllowedTools returns a boolean if a field has been set.
+
 ### GetConnectors
 
 `func (o *CreateAgentRequest) GetConnectors() []string`
@@ -65,6 +92,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *CreateAgentRequest) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDisallowedTools
+
+`func (o *CreateAgentRequest) GetDisallowedTools() []string`
+
+GetDisallowedTools returns the DisallowedTools field if non-nil, zero value otherwise.
+
+### GetDisallowedToolsOk
+
+`func (o *CreateAgentRequest) GetDisallowedToolsOk() (*[]string, bool)`
+
+GetDisallowedToolsOk returns a tuple with the DisallowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisallowedTools
+
+`func (o *CreateAgentRequest) SetDisallowedTools(v []string)`
+
+SetDisallowedTools sets DisallowedTools field to given value.
+
+### HasDisallowedTools
+
+`func (o *CreateAgentRequest) HasDisallowedTools() bool`
+
+HasDisallowedTools returns a boolean if a field has been set.
 
 ### GetInstructions
 

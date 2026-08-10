@@ -30,7 +30,9 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     """
     V1alpha1KomputerAgentSpec
     """ # noqa: E501
+    allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional", alias="allowedTools")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional")
+    disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional", alias="disallowedTools")
     instructions: Optional[StrictStr] = Field(default=None, description="Instructions is the user's task for the Claude agent.")
     internal_system_prompt: Optional[StrictStr] = Field(default=None, description="InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional", alias="internalSystemPrompt")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \"komputer.ai/\" are reserved for system labels and should not be set directly through the API. +optional")
@@ -46,7 +48,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     storage: Optional[V1alpha1StorageSpec] = Field(default=None, description="Storage, when set, overrides the template's storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional")
     system_prompt: Optional[StrictStr] = Field(default=None, description="SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional", alias="systemPrompt")
     template_ref: Optional[StrictStr] = Field(default=None, description="TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"", alias="templateRef")
-    __properties: ClassVar[List[str]] = ["connectors", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "disallowedTools", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "storage", "systemPrompt", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -105,7 +107,9 @@ class V1alpha1KomputerAgentSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "allowedTools": obj.get("allowedTools"),
             "connectors": obj.get("connectors"),
+            "disallowedTools": obj.get("disallowedTools"),
             "instructions": obj.get("instructions"),
             "internalSystemPrompt": obj.get("internalSystemPrompt"),
             "labels": obj.get("labels"),

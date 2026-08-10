@@ -19,8 +19,12 @@ var _ MappedNullable = &PatchAgentRequest{}
 
 // PatchAgentRequest struct for PatchAgentRequest
 type PatchAgentRequest struct {
+	// AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.
+	AllowedTools []string `json:"allowedTools,omitempty"`
 	// connector names to attach
 	Connectors []string `json:"connectors,omitempty"`
+	// DisallowedTools removes these tools; an explicit [] clears the list.
+	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
 	Labels *map[string]string `json:"labels,omitempty"`
 	Lifecycle *string `json:"lifecycle,omitempty"`
@@ -57,6 +61,38 @@ func NewPatchAgentRequestWithDefaults() *PatchAgentRequest {
 	return &this
 }
 
+// GetAllowedTools returns the AllowedTools field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetAllowedTools() []string {
+	if o == nil || IsNil(o.AllowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.AllowedTools
+}
+
+// GetAllowedToolsOk returns a tuple with the AllowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetAllowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.AllowedTools) {
+		return nil, false
+	}
+	return o.AllowedTools, true
+}
+
+// HasAllowedTools returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasAllowedTools() bool {
+	if o != nil && !IsNil(o.AllowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
+func (o *PatchAgentRequest) SetAllowedTools(v []string) {
+	o.AllowedTools = v
+}
+
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
 func (o *PatchAgentRequest) GetConnectors() []string {
 	if o == nil || IsNil(o.Connectors) {
@@ -87,6 +123,38 @@ func (o *PatchAgentRequest) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *PatchAgentRequest) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetDisallowedTools() []string {
+	if o == nil || IsNil(o.DisallowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.DisallowedTools
+}
+
+// GetDisallowedToolsOk returns a tuple with the DisallowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetDisallowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.DisallowedTools) {
+		return nil, false
+	}
+	return o.DisallowedTools, true
+}
+
+// HasDisallowedTools returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasDisallowedTools() bool {
+	if o != nil && !IsNil(o.DisallowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
+func (o *PatchAgentRequest) SetDisallowedTools(v []string) {
+	o.DisallowedTools = v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -483,8 +551,14 @@ func (o PatchAgentRequest) MarshalJSON() ([]byte, error) {
 
 func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.AllowedTools) {
+		toSerialize["allowedTools"] = o.AllowedTools
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
+	}
+	if !IsNil(o.DisallowedTools) {
+		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions

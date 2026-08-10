@@ -51,12 +51,12 @@ export class KomputerClient {
     return this._agents.listAgents({});
   }
 
-  async createAgent(params: { name: string; instructions: string; connectors?: string[]; lifecycle?: string; memories?: string[]; model?: string; namespace?: string; officeManager?: string; podSpec?: V1PodSpec; priority?: number; role?: string; secretRefs?: string[]; skills?: string[]; storage?: V1alpha1StorageSpec; systemPrompt?: string; templateRef?: string }) {
+  async createAgent(params: { name: string; instructions: string; allowedTools?: string[]; connectors?: string[]; disallowedTools?: string[]; lifecycle?: string; memories?: string[]; model?: string; namespace?: string; officeManager?: string; podSpec?: V1PodSpec; priority?: number; role?: string; secretRefs?: string[]; skills?: string[]; storage?: V1alpha1StorageSpec; systemPrompt?: string; templateRef?: string }) {
     try {
-      return await this._agents.createAgent({ request: { connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, name: params.name, namespace: params.namespace, officeManager: params.officeManager, podSpec: params.podSpec, priority: params.priority, role: params.role, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
+      return await this._agents.createAgent({ request: { allowedTools: params.allowedTools, connectors: params.connectors, disallowedTools: params.disallowedTools, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, name: params.name, namespace: params.namespace, officeManager: params.officeManager, podSpec: params.podSpec, priority: params.priority, role: params.role, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
     } catch (e) {
       if (e instanceof ResponseError && e.response.status === 409) {
-        return this._agents.patchAgent({ name: params.name, request: { connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, podSpec: params.podSpec, priority: params.priority, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
+        return this._agents.patchAgent({ name: params.name, request: { allowedTools: params.allowedTools, connectors: params.connectors, disallowedTools: params.disallowedTools, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, podSpec: params.podSpec, priority: params.priority, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
       }
       throw e;
     }
@@ -66,8 +66,8 @@ export class KomputerClient {
     return this._agents.getAgent({ name });
   }
 
-  async patchAgent(params: { name: string; connectors?: string[]; instructions?: string; lifecycle?: string; memories?: string[]; model?: string; podSpec?: V1PodSpec; priority?: number; secretRefs?: string[]; skills?: string[]; storage?: V1alpha1StorageSpec; systemPrompt?: string; templateRef?: string }) {
-    return this._agents.patchAgent({ name: params.name, request: { connectors: params.connectors, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, podSpec: params.podSpec, priority: params.priority, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
+  async patchAgent(params: { name: string; allowedTools?: string[]; connectors?: string[]; disallowedTools?: string[]; instructions?: string; lifecycle?: string; memories?: string[]; model?: string; podSpec?: V1PodSpec; priority?: number; secretRefs?: string[]; skills?: string[]; storage?: V1alpha1StorageSpec; systemPrompt?: string; templateRef?: string }) {
+    return this._agents.patchAgent({ name: params.name, request: { allowedTools: params.allowedTools, connectors: params.connectors, disallowedTools: params.disallowedTools, instructions: params.instructions, lifecycle: params.lifecycle, memories: params.memories, model: params.model, podSpec: params.podSpec, priority: params.priority, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
   }
 
   async deleteAgent(name: string) {

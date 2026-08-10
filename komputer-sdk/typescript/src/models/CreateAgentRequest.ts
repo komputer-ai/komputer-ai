@@ -35,11 +35,26 @@ import {
  */
 export interface CreateAgentRequest {
     /**
+     * AllowedTools restricts the agent to exactly these tools. REPLACES the default
+     * built-in set rather than extending it, and connector tools are not auto-added.
+     * Supports wildcards, e.g. "mcp__figma__*". Empty keeps default behavior.
+     * @type {Array<string>}
+     * @memberof CreateAgentRequest
+     */
+    allowedTools?: Array<string>;
+    /**
      * optional KomputerConnector names to attach
      * @type {Array<string>}
      * @memberof CreateAgentRequest
      */
     connectors?: Array<string>;
+    /**
+     * DisallowedTools removes these tools; everything else stays available.
+     * Takes precedence over AllowedTools. Supports wildcards.
+     * @type {Array<string>}
+     * @memberof CreateAgentRequest
+     */
+    disallowedTools?: Array<string>;
     /**
      * 
      * @type {string}
@@ -159,7 +174,9 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
     }
     return {
         
+        'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
@@ -190,7 +207,9 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
 
     return {
         
+        'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'labels': value['labels'],
         'lifecycle': value['lifecycle'],

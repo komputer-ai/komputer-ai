@@ -42,6 +42,21 @@ import {
  */
 export interface V1alpha1KomputerAgentSpec {
     /**
+     * AllowedTools restricts the agent to exactly these tools. When empty, the
+     * default built-in tool set is used and all tools from attached connectors
+     * are permitted.
+     * 
+     * Setting this REPLACES the default set rather than extending it, so an
+     * agent given only ["Read"] loses Bash, Write, Edit and the rest. Connector
+     * tools are not auto-added either — list them explicitly, e.g.
+     * "mcp__figma__*" for a whole connector or "mcp__figma__get_design_context"
+     * for a single tool.
+     * +optional
+     * @type {Array<string>}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    allowedTools?: Array<string>;
+    /**
      * Connectors is a list of KomputerConnector names to attach to this agent.
      * Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
      * +optional
@@ -49,6 +64,16 @@ export interface V1alpha1KomputerAgentSpec {
      * @memberof V1alpha1KomputerAgentSpec
      */
     connectors?: Array<string>;
+    /**
+     * DisallowedTools removes these tools from the agent. Purely subtractive:
+     * the default built-ins and all connector tools remain available except
+     * what is named here. Takes precedence over AllowedTools.
+     * Supports wildcards, e.g. "mcp__figma__*".
+     * +optional
+     * @type {Array<string>}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    disallowedTools?: Array<string>;
     /**
      * Instructions is the user's task for the Claude agent.
      * @type {string}
@@ -195,7 +220,9 @@ export function V1alpha1KomputerAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
     }
     return {
         
+        'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'internalSystemPrompt': json['internalSystemPrompt'] == null ? undefined : json['internalSystemPrompt'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -225,7 +252,9 @@ export function V1alpha1KomputerAgentSpecToJSONTyped(value?: V1alpha1KomputerAge
 
     return {
         
+        'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'internalSystemPrompt': value['internalSystemPrompt'],
         'labels': value['labels'],

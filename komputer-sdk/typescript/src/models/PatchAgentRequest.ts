@@ -35,11 +35,24 @@ import {
  */
 export interface PatchAgentRequest {
     /**
+     * AllowedTools restricts the agent to these tools; an explicit [] clears the
+     * restriction and restores the default tool set.
+     * @type {Array<string>}
+     * @memberof PatchAgentRequest
+     */
+    allowedTools?: Array<string>;
+    /**
      * connector names to attach
      * @type {Array<string>}
      * @memberof PatchAgentRequest
      */
     connectors?: Array<string>;
+    /**
+     * DisallowedTools removes these tools; an explicit [] clears the list.
+     * @type {Array<string>}
+     * @memberof PatchAgentRequest
+     */
+    disallowedTools?: Array<string>;
     /**
      * 
      * @type {string}
@@ -131,7 +144,9 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
     }
     return {
         
+        'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
@@ -158,7 +173,9 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
 
     return {
         
+        'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'labels': value['labels'],
         'lifecycle': value['lifecycle'],

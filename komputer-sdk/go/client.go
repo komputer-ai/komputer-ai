@@ -38,31 +38,39 @@ func (c *Client) ListAgents(ctx context.Context) (*komputer.AgentListResponse, *
 }
 
 type CreateAgentOpts struct {
-	Connectors []string
-	Lifecycle *string
-	Memories []string
-	Model *string
-	Namespace *string
-	OfficeManager *string
-	PodSpec *komputer.V1PodSpec
-	Priority *int32
-	Role *string
-	SecretRefs []string
-	Skills []string
-	Storage *komputer.V1alpha1StorageSpec
-	SystemPrompt *string
-	TemplateRef *string
+	AllowedTools    []string
+	Connectors      []string
+	DisallowedTools []string
+	Lifecycle       *string
+	Memories        []string
+	Model           *string
+	Namespace       *string
+	OfficeManager   *string
+	PodSpec         *komputer.V1PodSpec
+	Priority        *int32
+	Role            *string
+	SecretRefs      []string
+	Skills          []string
+	Storage         *komputer.V1alpha1StorageSpec
+	SystemPrompt    *string
+	TemplateRef     *string
 }
 
 func (c *Client) CreateAgent(ctx context.Context, name string, instructions string, opts ...CreateAgentOpts) (*komputer.AgentResponse, *http.Response, error) {
 	req := komputer.CreateAgentRequest{
-		Name: name,
+		Name:         name,
 		Instructions: instructions,
 	}
 	if len(opts) > 0 {
 		o := opts[0]
+		if o.AllowedTools != nil {
+			req.AllowedTools = o.AllowedTools
+		}
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
+		}
+		if o.DisallowedTools != nil {
+			req.DisallowedTools = o.DisallowedTools
 		}
 		if o.Lifecycle != nil {
 			req.Lifecycle = o.Lifecycle
@@ -110,18 +118,20 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		if len(opts) > 0 {
 			o := opts[0]
 			patchOpts = PatchAgentOpts{
-				Connectors:   o.Connectors,
-				Instructions: &instructions,
-				Lifecycle:    o.Lifecycle,
-				Memories:     o.Memories,
-				Model:        o.Model,
-				PodSpec:      o.PodSpec,
-				Priority:     o.Priority,
-				SecretRefs:   o.SecretRefs,
-				Skills:       o.Skills,
-				Storage:      o.Storage,
-				SystemPrompt: o.SystemPrompt,
-				TemplateRef:  o.TemplateRef,
+				AllowedTools:    o.AllowedTools,
+				Connectors:      o.Connectors,
+				DisallowedTools: o.DisallowedTools,
+				Instructions:    &instructions,
+				Lifecycle:       o.Lifecycle,
+				Memories:        o.Memories,
+				Model:           o.Model,
+				PodSpec:         o.PodSpec,
+				Priority:        o.Priority,
+				SecretRefs:      o.SecretRefs,
+				Skills:          o.Skills,
+				Storage:         o.Storage,
+				SystemPrompt:    o.SystemPrompt,
+				TemplateRef:     o.TemplateRef,
 			}
 		} else {
 			patchOpts = PatchAgentOpts{Instructions: &instructions}
@@ -136,27 +146,34 @@ func (c *Client) GetAgent(ctx context.Context, name string) (*komputer.AgentResp
 }
 
 type PatchAgentOpts struct {
-	Connectors []string
-	Instructions *string
-	Lifecycle *string
-	Memories []string
-	Model *string
-	PodSpec *komputer.V1PodSpec
-	Priority *int32
-	SecretRefs []string
-	Skills []string
-	Storage *komputer.V1alpha1StorageSpec
-	SystemPrompt *string
-	TemplateRef *string
+	AllowedTools    []string
+	Connectors      []string
+	DisallowedTools []string
+	Instructions    *string
+	Lifecycle       *string
+	Memories        []string
+	Model           *string
+	PodSpec         *komputer.V1PodSpec
+	Priority        *int32
+	SecretRefs      []string
+	Skills          []string
+	Storage         *komputer.V1alpha1StorageSpec
+	SystemPrompt    *string
+	TemplateRef     *string
 }
 
 func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgentOpts) (*komputer.AgentResponse, *http.Response, error) {
-	req := komputer.PatchAgentRequest{
-	}
+	req := komputer.PatchAgentRequest{}
 	if len(opts) > 0 {
 		o := opts[0]
+		if o.AllowedTools != nil {
+			req.AllowedTools = o.AllowedTools
+		}
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
+		}
+		if o.DisallowedTools != nil {
+			req.DisallowedTools = o.DisallowedTools
 		}
 		if o.Instructions != nil {
 			req.Instructions = o.Instructions
@@ -304,12 +321,12 @@ func (c *Client) ListMemories(ctx context.Context) (map[string]interface{}, *htt
 
 type CreateMemoryOpts struct {
 	Description *string
-	Namespace *string
+	Namespace   *string
 }
 
 func (c *Client) CreateMemory(ctx context.Context, name string, content string, opts ...CreateMemoryOpts) (*komputer.MemoryResponse, *http.Response, error) {
 	req := komputer.CreateMemoryRequest{
-		Name: name,
+		Name:    name,
 		Content: content,
 	}
 	if len(opts) > 0 {
@@ -338,13 +355,12 @@ func (c *Client) GetMemory(ctx context.Context, name string) (*komputer.MemoryRe
 }
 
 type PatchMemoryOpts struct {
-	Content *string
+	Content     *string
 	Description *string
 }
 
 func (c *Client) PatchMemory(ctx context.Context, name string, opts ...PatchMemoryOpts) (*komputer.MemoryResponse, *http.Response, error) {
-	req := komputer.PatchMemoryRequest{
-	}
+	req := komputer.PatchMemoryRequest{}
 	if len(opts) > 0 {
 		o := opts[0]
 		if o.Content != nil {
@@ -373,8 +389,8 @@ type CreateSkillOpts struct {
 
 func (c *Client) CreateSkill(ctx context.Context, name string, content string, description string, opts ...CreateSkillOpts) (*komputer.SkillResponse, *http.Response, error) {
 	req := komputer.CreateSkillRequest{
-		Name: name,
-		Content: content,
+		Name:        name,
+		Content:     content,
 		Description: description,
 	}
 	if len(opts) > 0 {
@@ -398,13 +414,12 @@ func (c *Client) GetSkill(ctx context.Context, name string) (*komputer.SkillResp
 }
 
 type PatchSkillOpts struct {
-	Content *string
+	Content     *string
 	Description *string
 }
 
 func (c *Client) PatchSkill(ctx context.Context, name string, opts ...PatchSkillOpts) (*komputer.SkillResponse, *http.Response, error) {
-	req := komputer.PatchSkillRequest{
-	}
+	req := komputer.PatchSkillRequest{}
 	if len(opts) > 0 {
 		o := opts[0]
 		if o.Content != nil {
@@ -428,19 +443,19 @@ func (c *Client) ListSchedules(ctx context.Context) (*komputer.ScheduleListRespo
 }
 
 type CreateScheduleOpts struct {
-	Agent *komputer.CreateScheduleAgentSpec
-	AgentName *string
+	Agent      *komputer.CreateScheduleAgentSpec
+	AgentName  *string
 	AutoDelete *bool
 	KeepAgents *bool
-	Namespace *string
-	Timezone *string
+	Namespace  *string
+	Timezone   *string
 }
 
 func (c *Client) CreateSchedule(ctx context.Context, name string, instructions string, schedule string, opts ...CreateScheduleOpts) (*komputer.ScheduleResponse, *http.Response, error) {
 	req := komputer.CreateScheduleRequest{
-		Name: name,
+		Name:         name,
 		Instructions: instructions,
-		Schedule: schedule,
+		Schedule:     schedule,
 	}
 	if len(opts) > 0 {
 		o := opts[0]
@@ -583,21 +598,21 @@ func (c *Client) ListConnectors(ctx context.Context) (map[string]interface{}, *h
 }
 
 type CreateConnectorOpts struct {
-	AuthSecretKey *string
-	AuthSecretName *string
-	AuthType *string
-	DisplayName *string
-	Namespace *string
-	OauthClientId *string
+	AuthSecretKey     *string
+	AuthSecretName    *string
+	AuthType          *string
+	DisplayName       *string
+	Namespace         *string
+	OauthClientId     *string
 	OauthClientSecret *string
-	Type *string
+	Type              *string
 }
 
 func (c *Client) CreateConnector(ctx context.Context, name string, service string, url string, opts ...CreateConnectorOpts) (*komputer.ConnectorResponse, *http.Response, error) {
 	req := komputer.CreateConnectorRequest{
-		Name: name,
+		Name:    name,
 		Service: service,
-		Url: url,
+		Url:     url,
 	}
 	if len(opts) > 0 {
 		o := opts[0]
@@ -664,4 +679,3 @@ func (c *Client) GetOfficeEvents(ctx context.Context, name string) (map[string]i
 func (c *Client) ListTemplates(ctx context.Context) (map[string]interface{}, *http.Response, error) {
 	return c.api.TemplatesAPI.ListTemplates(ctx).Execute()
 }
-

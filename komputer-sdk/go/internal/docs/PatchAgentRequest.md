@@ -4,7 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
 **Connectors** | Pointer to **[]string** | connector names to attach | [optional] 
+**DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
 **Instructions** | Pointer to **string** |  | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
 **Lifecycle** | Pointer to **string** |  | [optional] 
@@ -37,6 +39,31 @@ NewPatchAgentRequestWithDefaults instantiates a new PatchAgentRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
+### GetAllowedTools
+
+`func (o *PatchAgentRequest) GetAllowedTools() []string`
+
+GetAllowedTools returns the AllowedTools field if non-nil, zero value otherwise.
+
+### GetAllowedToolsOk
+
+`func (o *PatchAgentRequest) GetAllowedToolsOk() (*[]string, bool)`
+
+GetAllowedToolsOk returns a tuple with the AllowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAllowedTools
+
+`func (o *PatchAgentRequest) SetAllowedTools(v []string)`
+
+SetAllowedTools sets AllowedTools field to given value.
+
+### HasAllowedTools
+
+`func (o *PatchAgentRequest) HasAllowedTools() bool`
+
+HasAllowedTools returns a boolean if a field has been set.
+
 ### GetConnectors
 
 `func (o *PatchAgentRequest) GetConnectors() []string`
@@ -61,6 +88,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *PatchAgentRequest) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDisallowedTools
+
+`func (o *PatchAgentRequest) GetDisallowedTools() []string`
+
+GetDisallowedTools returns the DisallowedTools field if non-nil, zero value otherwise.
+
+### GetDisallowedToolsOk
+
+`func (o *PatchAgentRequest) GetDisallowedToolsOk() (*[]string, bool)`
+
+GetDisallowedToolsOk returns a tuple with the DisallowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisallowedTools
+
+`func (o *PatchAgentRequest) SetDisallowedTools(v []string)`
+
+SetDisallowedTools sets DisallowedTools field to given value.
+
+### HasDisallowedTools
+
+`func (o *PatchAgentRequest) HasDisallowedTools() bool`
+
+HasDisallowedTools returns a boolean if a field has been set.
 
 ### GetInstructions
 

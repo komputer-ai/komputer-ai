@@ -29,7 +29,9 @@ class PatchAgentRequest(BaseModel):
     """
     PatchAgentRequest
     """ # noqa: E501
+    allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.", alias="allowedTools")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="connector names to attach")
+    disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; an explicit [] clears the list.", alias="disallowedTools")
     instructions: Optional[StrictStr] = None
     labels: Optional[Dict[str, StrictStr]] = None
     lifecycle: Optional[StrictStr] = None
@@ -42,7 +44,7 @@ class PatchAgentRequest(BaseModel):
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="custom system prompt", alias="systemPrompt")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["connectors", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -101,7 +103,9 @@ class PatchAgentRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "allowedTools": obj.get("allowedTools"),
             "connectors": obj.get("connectors"),
+            "disallowedTools": obj.get("disallowedTools"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
             "lifecycle": obj.get("lifecycle"),

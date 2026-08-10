@@ -19,10 +19,14 @@ var _ MappedNullable = &AgentResponse{}
 
 // AgentResponse struct for AgentResponse
 type AgentResponse struct {
+	// Tools this agent is restricted to (empty = defaults)
+	AllowedTools []string `json:"allowedTools,omitempty"`
 	CompletionTime *string `json:"completionTime,omitempty"`
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
+	// Tools removed from this agent
+	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.
 	Errors []string `json:"errors,omitempty"`
 	// User task (spec.instructions)
@@ -73,6 +77,38 @@ func NewAgentResponse() *AgentResponse {
 func NewAgentResponseWithDefaults() *AgentResponse {
 	this := AgentResponse{}
 	return &this
+}
+
+// GetAllowedTools returns the AllowedTools field value if set, zero value otherwise.
+func (o *AgentResponse) GetAllowedTools() []string {
+	if o == nil || IsNil(o.AllowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.AllowedTools
+}
+
+// GetAllowedToolsOk returns a tuple with the AllowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetAllowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.AllowedTools) {
+		return nil, false
+	}
+	return o.AllowedTools, true
+}
+
+// HasAllowedTools returns a boolean if a field has been set.
+func (o *AgentResponse) HasAllowedTools() bool {
+	if o != nil && !IsNil(o.AllowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
+func (o *AgentResponse) SetAllowedTools(v []string) {
+	o.AllowedTools = v
 }
 
 // GetCompletionTime returns the CompletionTime field value if set, zero value otherwise.
@@ -169,6 +205,38 @@ func (o *AgentResponse) HasCreatedAt() bool {
 // SetCreatedAt gets a reference to the given string and assigns it to the CreatedAt field.
 func (o *AgentResponse) SetCreatedAt(v string) {
 	o.CreatedAt = &v
+}
+
+// GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
+func (o *AgentResponse) GetDisallowedTools() []string {
+	if o == nil || IsNil(o.DisallowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.DisallowedTools
+}
+
+// GetDisallowedToolsOk returns a tuple with the DisallowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetDisallowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.DisallowedTools) {
+		return nil, false
+	}
+	return o.DisallowedTools, true
+}
+
+// HasDisallowedTools returns a boolean if a field has been set.
+func (o *AgentResponse) HasDisallowedTools() bool {
+	if o != nil && !IsNil(o.DisallowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
+func (o *AgentResponse) SetDisallowedTools(v []string) {
+	o.DisallowedTools = v
 }
 
 // GetErrors returns the Errors field value if set, zero value otherwise.
@@ -981,6 +1049,9 @@ func (o AgentResponse) MarshalJSON() ([]byte, error) {
 
 func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.AllowedTools) {
+		toSerialize["allowedTools"] = o.AllowedTools
+	}
 	if !IsNil(o.CompletionTime) {
 		toSerialize["completionTime"] = o.CompletionTime
 	}
@@ -989,6 +1060,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
+	}
+	if !IsNil(o.DisallowedTools) {
+		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
 	if !IsNil(o.Errors) {
 		toSerialize["errors"] = o.Errors

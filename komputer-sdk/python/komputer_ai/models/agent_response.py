@@ -29,9 +29,11 @@ class AgentResponse(BaseModel):
     """
     AgentResponse
     """ # noqa: E501
+    allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools this agent is restricted to (empty = defaults)", alias="allowedTools")
     completion_time: Optional[StrictStr] = Field(default=None, alias="completionTime")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="KomputerConnector names attached to this agent")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
+    disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools removed from this agent", alias="disallowedTools")
     errors: Optional[List[StrictStr]] = Field(default=None, description="Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.")
     instructions: Optional[StrictStr] = Field(default=None, description="User task (spec.instructions)")
     labels: Optional[Dict[str, StrictStr]] = None
@@ -57,7 +59,7 @@ class AgentResponse(BaseModel):
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["completionTime", "connectors", "createdAt", "errors", "instructions", "labels", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "disallowedTools", "errors", "instructions", "labels", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -116,9 +118,11 @@ class AgentResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "allowedTools": obj.get("allowedTools"),
             "completionTime": obj.get("completionTime"),
             "connectors": obj.get("connectors"),
             "createdAt": obj.get("createdAt"),
+            "disallowedTools": obj.get("disallowedTools"),
             "errors": obj.get("errors"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
