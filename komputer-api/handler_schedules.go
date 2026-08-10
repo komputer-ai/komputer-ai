@@ -305,6 +305,9 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			(*corev1.PodSpec)(nil),
 			(*komputerv1alpha1.StorageSpec)(nil),
 			map[string]string{"komputer.ai/schedule": schedule.Name},
+			// ScheduleAgentSpec exposes no tool policy (same as memories/skills/
+			// connectors above), so scheduled agents keep the default tool set.
+			ToolPolicy{},
 		)
 		if err != nil {
 			return "", http.StatusInternalServerError, fmt.Errorf("failed to create agent: %w", err)

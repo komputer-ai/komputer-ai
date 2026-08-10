@@ -232,7 +232,15 @@ func (k *K8sClient) UpdateManagedSecret(ctx context.Context, ns, name string, da
 	return secret, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string) (*komputerv1alpha1.KomputerAgent, error) {
+// ToolPolicy carries an agent's tool allow/deny lists. Grouped into a struct
+// rather than two more positional []string params, which would give CreateAgent
+// six consecutive []string arguments and an easy transposition bug.
+type ToolPolicy struct {
+	Allowed    []string
+	Disallowed []string
+}
+
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string, tools ToolPolicy) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -259,6 +267,8 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, int
 			Memories:             memories,
 			Skills:               skills,
 			Connectors:           connectors,
+			AllowedTools:         tools.Allowed,
+			DisallowedTools:      tools.Disallowed,
 			Lifecycle:            komputerv1alpha1.AgentLifecycle(lifecycle),
 			OfficeManager:        officeManager,
 			Priority:             priority,
