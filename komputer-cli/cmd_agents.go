@@ -216,6 +216,12 @@ func registerAgentCommands(root *cobra.Command) {
 			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
 				body["skills"] = skillFlags
 			}
+			if allowFlags, _ := cmd.Flags().GetStringSlice("allow-tool"); len(allowFlags) > 0 {
+				body["allowedTools"] = allowFlags
+			}
+			if denyFlags, _ := cmd.Flags().GetStringSlice("disallow-tool"); len(denyFlags) > 0 {
+				body["disallowedTools"] = denyFlags
+			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
 			}
@@ -297,6 +303,8 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	createCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
+	createCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable), e.g. --disallow-tool Bash --disallow-tool mcp__figma__use_figma")
 	createCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
 	createCmd.Flags().Int32("priority", 0, "Queue priority (higher = admitted first when template cap is reached; default 0)")
 	createCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
@@ -684,6 +692,15 @@ func registerAgentCommands(root *cobra.Command) {
 			if skillFlags, _ := cmd.Flags().GetStringSlice("skill"); len(skillFlags) > 0 {
 				body["skills"] = skillFlags
 			}
+			// Changed() rather than len()>0 so `--allow-tool ''` can clear the policy.
+			if cmd.Flags().Changed("allow-tool") {
+				allowFlags, _ := cmd.Flags().GetStringSlice("allow-tool")
+				body["allowedTools"] = filterEmpty(allowFlags)
+			}
+			if cmd.Flags().Changed("disallow-tool") {
+				denyFlags, _ := cmd.Flags().GetStringSlice("disallow-tool")
+				body["disallowedTools"] = filterEmpty(denyFlags)
+			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); cmd.Flags().Changed("system-prompt") {
 				body["systemPrompt"] = sp
 			}
@@ -738,6 +755,8 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	configCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set. Pass --allow-tool '' to clear the restriction. Applies on next agent start.")
+	configCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable). Pass --disallow-tool '' to clear. Applies on next agent start.")
 	configCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	configCmd.Flags().Int32("priority", 0, "Queue priority (higher = admitted first; use --priority 0 to reset)")
 	root.AddCommand(configCmd)
@@ -1458,6 +1477,18 @@ func registerAgentCommands(root *cobra.Command) {
 
 // buildPodSpecOverride constructs a minimal podSpec map for the API from cpu/memory/image overrides.
 // CPU and memory are set on both requests and limits. Returns nil if no overrides are provided.
+// filterEmpty drops blank entries so `--allow-tool ''` sends an empty JSON array
+// (clearing the policy) instead of a list containing one empty tool name.
+func filterEmpty(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if trimmed := strings.TrimSpace(s); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
 func buildPodSpecOverride(cpu, memory, image string) map[string]interface{} {
 	if cpu == "" && memory == "" && image == "" {
 		return nil

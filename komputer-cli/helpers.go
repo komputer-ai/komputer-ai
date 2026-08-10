@@ -61,6 +61,14 @@ func printAgent(a AgentResponse) {
 		row("Total Cost:", "$"+a.TotalCostUSD)
 	}
 	row("Created:", a.CreatedAt)
+	if len(a.AllowedTools) > 0 {
+		// Flag the restriction explicitly: allowedTools replaces the default tool
+		// set, so a short list means the agent lost most of its capabilities.
+		row("Allowed Tools:", strings.Join(a.AllowedTools, ", ")+dimStyle.Render("  (restricted to these only)"))
+	}
+	if len(a.DisallowedTools) > 0 {
+		row("Blocked Tools:", strings.Join(a.DisallowedTools, ", "))
+	}
 	if a.LastTaskMessage != "" {
 		row("Last Message:", a.LastTaskMessage)
 	}

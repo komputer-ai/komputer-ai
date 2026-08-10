@@ -16,6 +16,8 @@ type AgentResponse struct {
 	Priority        int32             `json:"priority"`
 	QueuePosition   int32             `json:"queuePosition"`
 	QueueReason     string            `json:"queueReason"`
+	AllowedTools    []string          `json:"allowedTools,omitempty"`
+	DisallowedTools []string          `json:"disallowedTools,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
 }
 
