@@ -449,7 +449,7 @@ async def attach_skill(args):
 
 @tool(
     name="update_agent",
-    description="Update a sub-agent's spec (model, instructions, systemPrompt, cpu, memory, storage, image). Changes apply to the next pod start — running pods are not mutated. Use Sleep+wake if you want changes to take effect now. To remove an override and revert to the template default, pass the field as an empty string (e.g. cpu='' or systemPrompt='').",
+    description="Update a sub-agent's spec (model, instructions, systemPrompt, cpu, memory, storage, image, allowedTools, disallowedTools). Changes apply to the next pod start — running pods are not mutated. Use Sleep+wake if you want changes to take effect now. To remove an override and revert to the template default, pass the field as an empty string (e.g. cpu='' or systemPrompt=''), or an empty array for the tool lists.",
     input_schema={
         "type": "object",
         "properties": {
@@ -461,6 +461,16 @@ async def attach_skill(args):
             "memory": {"type": "string", "description": "Memory (e.g. '4Gi'). Sets both requests and limits. Empty string clears the resources override."},
             "storage": {"type": "string", "description": "PVC size (e.g. '20Gi'). Empty string clears the storage override."},
             "image": {"type": "string", "description": "Override agent container image. Empty string clears the resources override."},
+            "allowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Restrict the sub-agent to exactly these tools. REPLACES the default set (Bash, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Skill), so re-list any it still needs, plus 'mcp__<connector>__*' or 'mcp__<connector>__<tool>' for connector tools. Empty array clears the restriction.",
+            },
+            "disallowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Remove these tools from the sub-agent, keeping everything else. Safer than allowedTools. Supports wildcards, e.g. 'mcp__figma__*'. Empty array clears the list.",
+            },
         },
         "required": ["name"],
     },
@@ -474,6 +484,11 @@ async def update_agent(args):
         payload["model"] = args["model"]
     if "systemPrompt" in args:
         payload["systemPrompt"] = args["systemPrompt"]
+    # Presence check, not truthiness, so an empty array clears the list.
+    if args.get("allowedTools") is not None:
+        payload["allowedTools"] = args["allowedTools"]
+    if args.get("disallowedTools") is not None:
+        payload["disallowedTools"] = args["disallowedTools"]
 
     # Storage: empty string ("") = clear; non-empty = set; missing key = no change.
     if "storage" in args:
