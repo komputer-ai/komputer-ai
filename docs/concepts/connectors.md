@@ -122,7 +122,7 @@ spec:
     key: token
 ```
 
-Agents that attach `internal-search` will see this server's tools as `mcp__internal_search__*`.
+Agents that attach `internal-search` will see this server's tools as `mcp__internal-search__*`. The connector name is used verbatim — hyphens are preserved, not converted to underscores.
 
 ## Authentication methods
 
@@ -160,3 +160,29 @@ komputer connector create amigo-mcp --service custom \
 ```
 
 In the UI, open the connector dialog's **Advanced** section and set the custom auth header — leave it blank to use the default `Authorization: Bearer` scheme.
+
+## Restricting Which Connector Tools an Agent Can Use
+
+Attaching a connector gives the agent **all** of that connector's tools by default. To grant only some of them, or to block a few, use the agent's `allowedTools` / `disallowedTools` fields.
+
+Connector tools are named `mcp__<connector>__<tool>`, and a trailing `*` is a prefix match:
+
+```yaml
+spec:
+  # Only these two Figma tools (plus the built-ins you list)
+  allowedTools:
+    - Read
+    - mcp__figma__get_design_context
+    - mcp__figma__get_screenshot
+```
+
+```yaml
+spec:
+  # Everything as usual, minus one risky tool
+  disallowedTools:
+    - mcp__figma__use_figma
+```
+
+To discover a connector's exact tool names, use `komputer connector tools <name>`.
+
+Two things to know before you reach for `allowedTools`: it **replaces** the default built-in tool set rather than extending it, and a deny pattern always beats an allow pattern — so `disallowedTools: ["mcp__figma__*"]` combined with a narrower `allowedTools` entry yields no Figma tools at all. Both are covered in detail in [Tool permissions](./agents.md#tool-permissions).
