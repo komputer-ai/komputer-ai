@@ -106,6 +106,23 @@ type KomputerAgentSpec struct {
 	// Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
 	// +optional
 	Connectors []string `json:"connectors,omitempty"`
+	// AllowedTools restricts the agent to exactly these tools. When empty, the
+	// default built-in tool set is used and all tools from attached connectors
+	// are permitted.
+	//
+	// Setting this REPLACES the default set rather than extending it, so an
+	// agent given only ["Read"] loses Bash, Write, Edit and the rest. Connector
+	// tools are not auto-added either — list them explicitly, e.g.
+	// "mcp__figma__*" for a whole connector or "mcp__figma__get_design_context"
+	// for a single tool.
+	// +optional
+	AllowedTools []string `json:"allowedTools,omitempty"`
+	// DisallowedTools removes these tools from the agent. Purely subtractive:
+	// the default built-ins and all connector tools remain available except
+	// what is named here. Takes precedence over AllowedTools.
+	// Supports wildcards, e.g. "mcp__figma__*".
+	// +optional
+	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	// Lifecycle controls what happens after task completion.
 	// Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
 	// "AutoDelete" deletes the entire agent after task completion.
