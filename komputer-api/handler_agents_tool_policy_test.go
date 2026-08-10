@@ -96,3 +96,33 @@ func TestPatchRequestDistinguishesUnsetFromCleared(t *testing.T) {
 		t.Errorf("DisallowedTools = %v", set.DisallowedTools)
 	}
 }
+
+// Squads embed KomputerAgentSpec directly rather than using a separate DTO, so
+// inline member specs should accept the tool policy with no squad-specific code.
+func TestSquadInlineMemberSpecAcceptsToolPolicy(t *testing.T) {
+	body := `{
+		"name": "my-squad",
+		"members": [{
+			"spec": {
+				"instructions": "read only",
+				"allowedTools": ["Read", "mcp__figma__*"],
+				"disallowedTools": ["Bash"]
+			}
+		}]
+	}`
+
+	var req CreateSquadRequest
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(req.Members) != 1 || req.Members[0].Spec == nil {
+		t.Fatal("member spec missing")
+	}
+	spec := req.Members[0].Spec
+	if len(spec.AllowedTools) != 2 || spec.AllowedTools[1] != "mcp__figma__*" {
+		t.Errorf("AllowedTools = %v", spec.AllowedTools)
+	}
+	if len(spec.DisallowedTools) != 1 || spec.DisallowedTools[0] != "Bash" {
+		t.Errorf("DisallowedTools = %v", spec.DisallowedTools)
+	}
+}
