@@ -67,3 +67,32 @@ func TestAgentResponseSerializesToolPolicy(t *testing.T) {
 		t.Error("disallowedTools missing")
 	}
 }
+
+func TestPatchRequestDistinguishesUnsetFromCleared(t *testing.T) {
+	var unset PatchAgentRequest
+	if err := json.Unmarshal([]byte(`{"model":"x"}`), &unset); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if unset.AllowedTools != nil {
+		t.Error("absent allowedTools must stay nil")
+	}
+
+	var cleared PatchAgentRequest
+	if err := json.Unmarshal([]byte(`{"allowedTools":[]}`), &cleared); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if cleared.AllowedTools == nil {
+		t.Fatal("explicit [] must be non-nil so it can clear the policy")
+	}
+	if len(*cleared.AllowedTools) != 0 {
+		t.Errorf("expected empty slice, got %v", *cleared.AllowedTools)
+	}
+
+	var set PatchAgentRequest
+	if err := json.Unmarshal([]byte(`{"disallowedTools":["Bash"]}`), &set); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if set.DisallowedTools == nil || len(*set.DisallowedTools) != 1 || (*set.DisallowedTools)[0] != "Bash" {
+		t.Errorf("DisallowedTools = %v", set.DisallowedTools)
+	}
+}

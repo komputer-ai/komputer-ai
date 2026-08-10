@@ -1100,6 +1100,27 @@ func (k *K8sClient) PatchAgentSkillsList(ctx context.Context, ns, agentName stri
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// PatchAgentToolPolicy updates an agent's tool allow/deny lists. A nil pointer
+// means "leave unchanged"; a non-nil empty slice clears that list.
+func (k *K8sClient) PatchAgentToolPolicy(ctx context.Context, ns, agentName string, allowed, disallowed *[]string) error {
+	if allowed == nil && disallowed == nil {
+		return nil
+	}
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	if allowed != nil {
+		agent.Spec.AllowedTools = *allowed
+	}
+	if disallowed != nil {
+		agent.Spec.DisallowedTools = *disallowed
+	}
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
 // --- Memory CRUD ---
 
 func (k *K8sClient) CreateMemory(ctx context.Context, ns, name, content, description string) (*komputerv1alpha1.KomputerMemory, error) {

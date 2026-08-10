@@ -204,6 +204,11 @@ type PatchAgentRequest struct {
 	Memories     *[]string `json:"memories,omitempty"`    // memory names to attach
 	Skills       *[]string `json:"skills,omitempty"`      // skill names to attach
 	Connectors   *[]string `json:"connectors,omitempty"`  // connector names to attach
+	// AllowedTools restricts the agent to these tools; an explicit [] clears the
+	// restriction and restores the default tool set.
+	AllowedTools *[]string `json:"allowedTools,omitempty"`
+	// DisallowedTools removes these tools; an explicit [] clears the list.
+	DisallowedTools *[]string `json:"disallowedTools,omitempty"`
 	SystemPrompt *string   `json:"systemPrompt,omitempty"` // custom system prompt
 	Priority     *int32    `json:"priority,omitempty"`    // pointer so 0 vs unset is distinguishable
 	PodSpec      *corev1.PodSpec               `json:"podSpec,omitempty"`
@@ -902,7 +907,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -984,6 +989,15 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1d. Update skills if provided.
+		if req.AllowedTools != nil || req.DisallowedTools != nil {
+			// Takes effect on the agent's next start — the tool policy is applied
+			// when the SDK session is constructed, not at runtime.
+			if err := k8s.PatchAgentToolPolicy(c.Request.Context(), ns, name, req.AllowedTools, req.DisallowedTools); err != nil {
+				Logger.Warnw("failed to patch agent tool policy", "namespace", ns, "agent_name", name, "error", err)
+				nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("failed to update tool policy: %v", err))
+			}
+		}
+
 		if req.Skills != nil {
 			k8s.PatchAgentSkillsList(c.Request.Context(), ns, name, *req.Skills)
 			skillFiles, _ := k8s.ResolveSkillFiles(c.Request.Context(), ns, *req.Skills)
