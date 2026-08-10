@@ -54,6 +54,16 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
             "systemPrompt": {"type": "string", "description": "Custom system prompt defining the sub-agent's behavior, persona, or constraints (optional)."},
             "priority": {"type": "integer", "description": "Queue priority. Higher = admitted first when the template's maxConcurrentAgents cap is reached. Default: 0."},
+            "allowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Restrict the sub-agent to exactly these tools. REPLACES the default set (Bash, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Skill), so re-list any of those it still needs. Connector tools are not added automatically: use 'mcp__<connector>__*' for a whole connector or 'mcp__<connector>__<tool>' for one tool. Omit for default behavior.",
+            },
+            "disallowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Remove these tools from the sub-agent, keeping everything else. Safer than allowedTools. Supports wildcards, e.g. 'mcp__figma__*'. Takes precedence over allowedTools.",
+            },
             "labels": {
                 "type": "object",
                 "additionalProperties": {"type": "string"},
@@ -82,6 +92,10 @@ async def create_agent(args):
         payload["systemPrompt"] = args["systemPrompt"]
     if args.get("priority") is not None:
         payload["priority"] = args["priority"]
+    if args.get("allowedTools"):
+        payload["allowedTools"] = args["allowedTools"]
+    if args.get("disallowedTools"):
+        payload["disallowedTools"] = args["disallowedTools"]
     if args.get("labels"):
         payload["labels"] = args["labels"]
 
@@ -560,9 +574,10 @@ async def list_agents(args):
 @tool(
     name="patch_agent",
     description=(
-        "Patch an existing agent's mutable settings. Currently supports adding "
-        "or updating labels. Existing labels are merged additively; this never "
-        "removes labels."
+        "Patch an existing agent's mutable settings: labels and tool permissions. "
+        "Existing labels are merged additively; this never removes labels. Tool "
+        "lists are full replacements — pass an empty array to clear one. Tool "
+        "changes apply the next time the agent starts."
     ),
     input_schema={
         "type": "object",
@@ -573,6 +588,16 @@ async def list_agents(args):
                 "additionalProperties": {"type": "string"},
                 "description": "Labels to add or update. Existing keys are overwritten; no keys are removed.",
             },
+            "allowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Replace the agent's allowed-tool list. REPLACES the default set (Bash, WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Skill), so re-list any it still needs, plus 'mcp__<connector>__*' or 'mcp__<connector>__<tool>' for connector tools. Pass [] to clear the restriction and restore defaults.",
+            },
+            "disallowedTools": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Replace the agent's blocked-tool list, keeping everything else available. Supports wildcards. Takes precedence over allowedTools. Pass [] to clear.",
+            },
         },
         "required": ["name"],
     },
@@ -582,8 +607,13 @@ async def patch_agent(args):
     body = {}
     if args.get("labels"):
         body["labels"] = args["labels"]
+    # `is not None` so an explicit [] reaches the API and clears the list.
+    if args.get("allowedTools") is not None:
+        body["allowedTools"] = args["allowedTools"]
+    if args.get("disallowedTools") is not None:
+        body["disallowedTools"] = args["disallowedTools"]
     if not body:
-        return _err("patch_agent requires at least one field to update (e.g. labels).")
+        return _err("patch_agent requires at least one field to update (e.g. labels, allowedTools).")
     return await _request("PATCH", f"/api/v1/agents/{name}", timeout=10, json=body)
 
 

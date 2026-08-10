@@ -464,3 +464,60 @@ def test_manager_server_registers_all_new_tools():
     }
     missing = expected - tool_names
     assert not missing, f"Missing tools in MCP server registration: {missing}"
+
+
+# ── tool permissions (allowedTools / disallowedTools) ────────────────────────
+
+def test_create_agent_schema_exposes_tool_policy():
+    props = manager_tools.create_agent.input_schema["properties"]
+    assert props["allowedTools"]["type"] == "array"
+    assert props["allowedTools"]["items"]["type"] == "string"
+    assert props["disallowedTools"]["type"] == "array"
+    # The replacement semantics must be spelled out for the model.
+    assert "REPLACES" in props["allowedTools"]["description"]
+
+
+def test_patch_agent_schema_exposes_tool_policy():
+    props = manager_tools.patch_agent.input_schema["properties"]
+    assert props["allowedTools"]["type"] == "array"
+    assert props["disallowedTools"]["type"] == "array"
+
+
+@pytest.mark.asyncio
+async def test_create_agent_forwards_tool_policy(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "restricted"})
+    result = await manager_tools.create_agent.handler({
+        "name": "restricted",
+        "instructions": "read only",
+        "allowedTools": ["Read", "Grep", "mcp__figma__get_design_context"],
+        "disallowedTools": ["Bash"],
+    })
+    assert not result.get("isError")
+    assert mock_api.last_json["allowedTools"] == ["Read", "Grep", "mcp__figma__get_design_context"]
+    assert mock_api.last_json["disallowedTools"] == ["Bash"]
+
+
+@pytest.mark.asyncio
+async def test_create_agent_omits_tool_policy_when_absent(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "plain"})
+    result = await manager_tools.create_agent.handler(
+        {"name": "plain", "instructions": "normal work"}
+    )
+    assert not result.get("isError")
+    assert "allowedTools" not in mock_api.last_json
+    assert "disallowedTools" not in mock_api.last_json
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_clears_policy_with_empty_array(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler({"name": "a1", "allowedTools": []})
+    assert not result.get("isError")
+    # An explicit [] must survive to the API so it can clear the restriction.
+    assert mock_api.last_json == {"allowedTools": []}
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_still_requires_a_field(mock_api):
+    result = await manager_tools.patch_agent.handler({"name": "a1"})
+    assert result.get("isError")
