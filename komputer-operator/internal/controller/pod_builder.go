@@ -41,6 +41,24 @@ import (
 // It needs a client.Client to fetch K8s Secrets, KomputerSkills, and
 // KomputerConnectors, so it accepts one explicitly so it can be called from
 // both the agent reconciler and the squad reconciler.
+// buildToolPolicyEnvVars serializes the agent's tool allow/deny lists for the
+// agent process. Each var is omitted entirely when its field is empty, so an
+// agent with no configured policy sees no env var and keeps default behavior.
+func buildToolPolicyEnvVars(spec *komputerv1alpha1.KomputerAgentSpec) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	if len(spec.AllowedTools) > 0 {
+		if b, err := json.Marshal(spec.AllowedTools); err == nil {
+			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_ALLOWED_TOOLS", Value: string(b)})
+		}
+	}
+	if len(spec.DisallowedTools) > 0 {
+		if b, err := json.Marshal(spec.DisallowedTools); err == nil {
+			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_DISALLOWED_TOOLS", Value: string(b)})
+		}
+	}
+	return envVars
+}
+
 func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) ([]corev1.EnvVar, error) {
 	log := logf.FromContext(ctx)
 	redis := config.Spec.Redis
@@ -78,6 +96,8 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: config.Spec.APIURL},
 		)
 	}
+
+	envVars = append(envVars, buildToolPolicyEnvVars(&agent.Spec)...)
 
 	// Inject env vars from agent secrets as SECRET_<SECRETNAME>_<KEY>.
 	injectedSecrets := make(map[string]bool)
