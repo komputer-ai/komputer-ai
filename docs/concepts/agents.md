@@ -141,7 +141,7 @@ That agent still has WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Skill a
 
 > **⚠ Warning — `allowedTools` REPLACES the default tool set. It does not add to it.**
 >
-> The moment you set this field, the agent loses **every built-in tool you did not list**, and **every connector tool**. An agent given `allowedTools: ["Read"]` cannot run commands, write files, edit files, search the web, or use any connector — it can only read.
+> The moment you set this field, the agent loses the use of **every built-in tool you did not list**, and **every connector tool**. An agent given `allowedTools: ["Read"]` cannot run commands, write files, edit files, search the web, or use any connector — it can only read.
 >
 > Most agents still need several of the defaults. Start from the full list below and delete what you don't want, rather than writing a short list from scratch:
 >
@@ -278,6 +278,20 @@ client.create_agent(
 ```
 
 **Manager agents** can set both fields when creating sub-agents via the `create_agent` MCP tool, and change them later with `patch_agent`.
+
+### How the two fields enforce differently
+
+They both stop a tool being used, but not in the same way — and the difference matters for token cost:
+
+| | `disallowedTools` | `allowedTools` |
+|---|---|---|
+| Tool visible to the agent? | **No** — removed from its context entirely | **Yes** — it still sees non-listed tools |
+| Tool callable? | No | No — the call is refused at invocation |
+| What the agent is told | The tool simply doesn't exist | `<tool> is not in this agent's allowedTools` |
+
+So `disallowedTools` is also the better choice when you want to keep a large connector out of the agent's context altogether, since unseen tools don't consume tokens. `allowedTools` is the only way to express "just these two tools from this connector" — it refuses the rest at call time rather than hiding them.
+
+In both cases the agent cannot execute the tool; the difference is whether it knows the tool exists.
 
 ### Notes
 
