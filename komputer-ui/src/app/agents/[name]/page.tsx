@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -935,6 +935,37 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           />
         </div>
       </div>
+
+      {(agent.allowedTools?.length || agent.disallowedTools?.length) ? (
+        <div className="flex flex-col gap-1.5">
+          <Label>Tool permissions</Label>
+          <div className="flex flex-col gap-2 rounded border border-[var(--color-border)] p-2.5">
+            {agent.allowedTools?.length ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  <span>Restricted to these tools only — all other built-in and connector tools are unavailable.</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {agent.allowedTools.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-mono">{t}</Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {agent.disallowedTools?.length ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-[var(--color-text-secondary)]">Blocked tools</span>
+                <div className="flex flex-wrap gap-1">
+                  {agent.disallowedTools.map((t) => (
+                    <Badge key={t} variant="outline" className="font-mono line-through">{t}</Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
