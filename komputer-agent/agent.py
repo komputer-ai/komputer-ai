@@ -20,6 +20,13 @@ from claude_agent_sdk import (
     query,
 )
 
+from tool_policy import (
+    DEFAULT_TOOLS,
+    build_tool_options,
+    make_allowlist_deny_hook,
+    parse_tool_list,
+)
+
 # Point Claude config to the workspace PVC so sessions survive pod restarts.
 os.environ.setdefault("CLAUDE_CONFIG_DIR", "/workspace/.claude")
 
@@ -152,9 +159,14 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         )
         return {}
 
+    # Tool policy from the agent spec. Both env vars absent -> default behavior.
+    # Finalized after MCP registration below, once server names are known.
+    allowed_tools_cfg = parse_tool_list(os.environ.get("KOMPUTER_ALLOWED_TOOLS"))
+    disallowed_tools_cfg = parse_tool_list(os.environ.get("KOMPUTER_DISALLOWED_TOOLS"))
+
     options = ClaudeAgentOptions(
-        tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
-        allowed_tools=["Bash", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Skill"],
+        tools=list(DEFAULT_TOOLS),
+        allowed_tools=list(DEFAULT_TOOLS),
         setting_sources=["user", "project"],
         # Keep session transcripts effectively forever (CLI rejects 0; min is 1 day).
         # Without this the SDK's daily cleanup deletes JSONLs idle for >30 days.
@@ -216,9 +228,6 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
 
     if mcp_servers:
         options.mcp_servers = mcp_servers
-        # Allow all MCP tools from connected servers.
-        for name in mcp_servers:
-            options.allowed_tools.append(f"mcp__{name}__*")
         # Log server config (redact auth tokens)
         debug_servers = {}
         for n, c in mcp_servers.items():
@@ -230,7 +239,35 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             else:
                 debug_servers[n] = "<sdk_server>"
         logger.debug("registered MCP servers", extra={"servers": debug_servers})
-        logger.debug("allowed_tools", extra={"allowed_tools": options.allowed_tools})
+
+    # Finalize the tool policy now that MCP server names are known. With no
+    # configured policy this yields exactly the historical configuration:
+    # the default built-ins plus mcp__<name>__* per connected server.
+    policy = build_tool_options(
+        allowed_tools_cfg, disallowed_tools_cfg, list(mcp_servers.keys())
+    )
+    options.tools = policy["tools"]
+    options.allowed_tools = policy["allowed_tools"]
+    options.disallowed_tools = policy["disallowed_tools"]
+    if policy["enforce_allowlist"]:
+        # allowed_tools alone never denies (it only auto-approves prompts), so an
+        # allowlist has to be enforced with a PreToolUse hook. This is also the
+        # only way to permit a subset of one connector's tools, since deny
+        # patterns always beat allow patterns.
+        options.hooks.setdefault("PreToolUse", []).append(
+            HookMatcher(
+                matcher=None,
+                hooks=[make_allowlist_deny_hook(policy["effective_allowed"])],
+            )
+        )
+    logger.info(
+        "tool policy applied",
+        extra={
+            "tools": options.tools,
+            "disallowed_tools": options.disallowed_tools,
+            "allowlist_enforced": policy["enforce_allowlist"],
+        },
+    )
 
     # Resume previous session if one exists
     if session_id:

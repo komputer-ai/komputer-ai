@@ -35,6 +35,12 @@ import {
  */
 export interface AgentResponse {
     /**
+     * Tools this agent is restricted to (empty = defaults)
+     * @type {Array<string>}
+     * @memberof AgentResponse
+     */
+    allowedTools?: Array<string>;
+    /**
      * 
      * @type {string}
      * @memberof AgentResponse
@@ -52,6 +58,12 @@ export interface AgentResponse {
      * @memberof AgentResponse
      */
     createdAt?: string;
+    /**
+     * Tools removed from this agent
+     * @type {Array<string>}
+     * @memberof AgentResponse
+     */
+    disallowedTools?: Array<string>;
     /**
      * Errors are non-fatal failures that occurred during the request (e.g. CR was patched
      * but live-pod sync failed). The CR change still took effect; the UI can surface these
@@ -223,9 +235,11 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
     }
     return {
         
+        'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'completionTime': json['completionTime'] == null ? undefined : json['completionTime'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
+        'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'errors': json['errors'] == null ? undefined : json['errors'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -265,9 +279,11 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
 
     return {
         
+        'allowedTools': value['allowedTools'],
         'completionTime': value['completionTime'],
         'connectors': value['connectors'],
         'createdAt': value['createdAt'],
+        'disallowedTools': value['disallowedTools'],
         'errors': value['errors'],
         'instructions': value['instructions'],
         'labels': value['labels'],

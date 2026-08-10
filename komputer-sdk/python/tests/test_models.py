@@ -369,3 +369,42 @@ class TestOfficeListResponse:
         )
         lst = OfficeListResponse(offices=[office])
         assert len(lst.offices) == 1
+
+
+class TestToolPolicyFields:
+    """allowedTools / disallowedTools must survive the wire alias round-trip."""
+
+    def test_create_request_accepts_tool_policy(self):
+        req = CreateAgentRequest(
+            name="restricted",
+            instructions="read only",
+            allowed_tools=["Read", "mcp__figma__get_design_context"],
+            disallowed_tools=["Bash"],
+        )
+        assert req.allowed_tools == ["Read", "mcp__figma__get_design_context"]
+        assert req.disallowed_tools == ["Bash"]
+
+    def test_create_request_serializes_camel_case_aliases(self):
+        req = CreateAgentRequest(
+            name="restricted",
+            instructions="read only",
+            allowed_tools=["Read"],
+            disallowed_tools=["Bash"],
+        )
+        body = req.to_dict()
+        assert body["allowedTools"] == ["Read"]
+        assert body["disallowedTools"] == ["Bash"]
+
+    def test_tool_policy_defaults_to_none(self):
+        req = CreateAgentRequest(name="plain", instructions="normal work")
+        assert req.allowed_tools is None
+        assert req.disallowed_tools is None
+
+    def test_agent_response_parses_tool_policy(self):
+        resp = AgentResponse.from_dict({
+            "name": "restricted",
+            "allowedTools": ["Read", "Grep"],
+            "disallowedTools": ["mcp__figma__use_figma"],
+        })
+        assert resp.allowed_tools == ["Read", "Grep"]
+        assert resp.disallowed_tools == ["mcp__figma__use_figma"]

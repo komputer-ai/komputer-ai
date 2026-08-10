@@ -166,6 +166,16 @@ func (in *KomputerAgentSpec) DeepCopyInto(out *KomputerAgentSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.AllowedTools != nil {
+		in, out := &in.AllowedTools, &out.AllowedTools
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.DisallowedTools != nil {
+		in, out := &in.DisallowedTools, &out.DisallowedTools
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.PodSpec != nil {
 		in, out := &in.PodSpec, &out.PodSpec
 		*out = new(v1.PodSpec)

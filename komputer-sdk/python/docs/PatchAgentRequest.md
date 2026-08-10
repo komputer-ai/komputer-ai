@@ -5,7 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**allowed_tools** | **List[str]** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
 **connectors** | **List[str]** | connector names to attach | [optional] 
+**disallowed_tools** | **List[str]** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
 **instructions** | **str** |  | [optional] 
 **labels** | **Dict[str, str]** |  | [optional] 
 **lifecycle** | **str** |  | [optional] 

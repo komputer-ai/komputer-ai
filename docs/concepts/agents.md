@@ -114,3 +114,190 @@ Manual compaction only works while the agent is **actively running a task** — 
 ### Where to tune compaction
 
 There's no UI knob yet for the auto-compaction threshold or strategy — those stay at the bundled Claude Code CLI's defaults (compaction triggers around 95% of the model's context window). A future release may expose them as `KomputerAgentSpec` fields.
+
+## Tool Permissions
+
+By default an agent gets komputer.ai's standard built-in tool set, plus **every** tool from each attached connector:
+
+```
+Bash  WebSearch  WebFetch  Read  Write  Edit  Glob  Grep  Skill
+```
+
+Two optional spec fields change that. `disallowedTools` removes specific tools; `allowedTools` restricts the agent to an explicit list. Both are optional — leave them unset and the agent behaves exactly as it always has.
+
+### `disallowedTools` — remove specific tools
+
+Purely **subtractive**, and the safer of the two. The agent keeps all nine built-ins and all connector tools, minus exactly what you name.
+
+```yaml
+spec:
+  disallowedTools:
+    - Bash
+```
+
+That agent still has WebSearch, WebFetch, Read, Write, Edit, Glob, Grep, Skill and every connector tool — it simply has no shell. This is usually what you want when the goal is "stop it doing one specific thing".
+
+### `allowedTools` — restrict to an explicit list
+
+> **⚠ Warning — `allowedTools` REPLACES the default tool set. It does not add to it.**
+>
+> The moment you set this field, the agent loses the use of **every built-in tool you did not list**, and **every connector tool**. An agent given `allowedTools: ["Read"]` cannot run commands, write files, edit files, search the web, or use any connector — it can only read.
+>
+> Most agents still need several of the defaults. Start from the full list below and delete what you don't want, rather than writing a short list from scratch:
+>
+> ```yaml
+> spec:
+>   allowedTools:
+>     - Bash
+>     - WebSearch
+>     - WebFetch
+>     - Read
+>     - Write
+>     - Edit
+>     - Glob
+>     - Grep
+>     - Skill
+> ```
+>
+> If the agent has connectors attached, you must list those too — they are **not** re-added automatically. See [Connector tools](#connector-tools) below.
+
+A read-only researcher, written out in full:
+
+```yaml
+spec:
+  allowedTools:
+    - Read
+    - Glob
+    - Grep
+    - WebSearch
+    - WebFetch
+```
+
+That agent can explore a workspace and search the web, but cannot modify anything or run commands.
+
+### Connector tools
+
+Connector (MCP) tools are named `mcp__<connector>__<tool>`, where `<connector>` is the KomputerConnector name **exactly as written** — hyphens are preserved, so a connector named `internal-search` exposes `mcp__internal-search__*`, not `mcp__internal_search__*`. Wildcards are supported: a trailing `*` is a prefix match.
+
+Run `komputer connector tools <name>` to list a connector's exact tool names before writing a policy — a pattern that doesn't match any real tool fails silently, granting nothing rather than erroring.
+
+**Allow one whole connector and nothing else:**
+
+```yaml
+spec:
+  allowedTools:
+    - Read
+    - mcp__figma__*
+```
+
+**Allow only specific tools from a connector** — the common case for giving an agent read access to a service without write access:
+
+```yaml
+spec:
+  allowedTools:
+    - Read
+    - mcp__figma__get_design_context
+    - mcp__figma__get_screenshot
+```
+
+**Keep everything, but block a few connector tools:**
+
+```yaml
+spec:
+  disallowedTools:
+    - mcp__figma__use_figma
+```
+
+**Block a connector entirely**, leaving the rest of the agent untouched:
+
+```yaml
+spec:
+  disallowedTools:
+    - mcp__figma__*
+```
+
+### Deny always beats allow
+
+> **⚠ Important:** Combining a wildcard deny with a narrower allow does **not** give you a subset — it gives you nothing.
+>
+> ```yaml
+> # WRONG — this yields ZERO Figma tools, not one.
+> spec:
+>   allowedTools:
+>     - mcp__figma__get_design_context
+>   disallowedTools:
+>     - mcp__figma__*
+> ```
+>
+> To admit a subset of a connector's tools, use `allowedTools` **on its own** and list exactly the tools you want.
+
+### Setting tool permissions
+
+**CLI** — at creation, or later with `komputer config`:
+
+```bash
+# Restrict to an explicit set (replaces the defaults)
+komputer create researcher --instructions "Audit the repo" \
+  --allow-tool Read --allow-tool Glob --allow-tool Grep \
+  --allow-tool 'mcp__figma__get_design_context'
+
+# Just remove a couple of tools, keeping everything else
+komputer create writer --instructions "Draft the docs" \
+  --disallow-tool Bash --disallow-tool 'mcp__figma__*'
+
+# Change it later (applies on the agent's next start)
+komputer config researcher --disallow-tool Bash
+
+# Clear a restriction and go back to the defaults
+komputer config researcher --allow-tool ''
+```
+
+Quote patterns containing `*` so your shell doesn't expand them.
+
+**REST**:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/agents \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "researcher",
+    "instructions": "Audit the repo",
+    "allowedTools": ["Read", "Glob", "Grep"],
+    "disallowedTools": ["Bash"]
+  }'
+```
+
+**SDK** (Python; Go and TypeScript expose the same options):
+
+```python
+client.create_agent(
+    "researcher",
+    "Audit the repo",
+    allowed_tools=["Read", "Glob", "Grep", "mcp__figma__get_design_context"],
+)
+```
+
+**Manager agents** can set both fields when creating sub-agents via the `create_agent` MCP tool, and change them later with `patch_agent`.
+
+### How the two fields enforce differently
+
+They both stop a tool being used, but not in the same way — and the difference matters for token cost:
+
+| | `disallowedTools` | `allowedTools` |
+|---|---|---|
+| Tool visible to the agent? | **No** — removed from its context entirely | **Yes** — it still sees non-listed tools |
+| Tool callable? | No | No — the call is refused at invocation |
+| What the agent is told | The tool simply doesn't exist | `<tool> is not in this agent's allowedTools` |
+
+So `disallowedTools` is also the better choice when you want to keep a large connector out of the agent's context altogether, since unseen tools don't consume tokens. `allowedTools` is the only way to express "just these two tools from this connector" — it refuses the rest at call time rather than hiding them.
+
+In both cases the agent cannot execute the tool; the difference is whether it knows the tool exists.
+
+### Notes
+
+- Tool names are **case-sensitive**: `Read`, not `read`.
+- A pattern ending in `*` is a prefix match; anything else must match exactly.
+- Both fields apply to squad members too — squad members use the same agent spec.
+- Changes to an existing agent take effect the **next time the agent starts**, because the tool policy is applied when the agent's Claude session is constructed. Put the agent to sleep and wake it to apply immediately.
+- When a tool is blocked, the agent is told which tool was denied and why, so it adapts and reports the limitation instead of failing silently.
+- Scheduled agents created from a `KomputerSchedule` template always use the default tool set — `ScheduleAgentSpec` does not expose tool permissions.

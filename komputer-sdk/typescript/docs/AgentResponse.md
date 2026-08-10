@@ -6,9 +6,11 @@
 
 Name | Type
 ------------ | -------------
+`allowedTools` | Array&lt;string&gt;
 `completionTime` | string
 `connectors` | Array&lt;string&gt;
 `createdAt` | string
+`disallowedTools` | Array&lt;string&gt;
 `errors` | Array&lt;string&gt;
 `instructions` | string
 `labels` | { [key: string]: string; }
@@ -42,9 +44,11 @@ import type { AgentResponse } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "allowedTools": null,
   "completionTime": null,
   "connectors": null,
   "createdAt": null,
+  "disallowedTools": null,
   "errors": null,
   "instructions": null,
   "labels": null,

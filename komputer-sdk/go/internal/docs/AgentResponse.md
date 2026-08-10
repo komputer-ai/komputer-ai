@@ -4,9 +4,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**AllowedTools** | Pointer to **[]string** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
 **CompletionTime** | Pointer to **string** |  | [optional] 
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
+**DisallowedTools** | Pointer to **[]string** | Tools removed from this agent | [optional] 
 **Errors** | Pointer to **[]string** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **Instructions** | Pointer to **string** | User task (spec.instructions) | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
@@ -51,6 +53,31 @@ will change when the set of required properties is changed
 NewAgentResponseWithDefaults instantiates a new AgentResponse object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetAllowedTools
+
+`func (o *AgentResponse) GetAllowedTools() []string`
+
+GetAllowedTools returns the AllowedTools field if non-nil, zero value otherwise.
+
+### GetAllowedToolsOk
+
+`func (o *AgentResponse) GetAllowedToolsOk() (*[]string, bool)`
+
+GetAllowedToolsOk returns a tuple with the AllowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAllowedTools
+
+`func (o *AgentResponse) SetAllowedTools(v []string)`
+
+SetAllowedTools sets AllowedTools field to given value.
+
+### HasAllowedTools
+
+`func (o *AgentResponse) HasAllowedTools() bool`
+
+HasAllowedTools returns a boolean if a field has been set.
 
 ### GetCompletionTime
 
@@ -126,6 +153,31 @@ SetCreatedAt sets CreatedAt field to given value.
 `func (o *AgentResponse) HasCreatedAt() bool`
 
 HasCreatedAt returns a boolean if a field has been set.
+
+### GetDisallowedTools
+
+`func (o *AgentResponse) GetDisallowedTools() []string`
+
+GetDisallowedTools returns the DisallowedTools field if non-nil, zero value otherwise.
+
+### GetDisallowedToolsOk
+
+`func (o *AgentResponse) GetDisallowedToolsOk() (*[]string, bool)`
+
+GetDisallowedToolsOk returns a tuple with the DisallowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisallowedTools
+
+`func (o *AgentResponse) SetDisallowedTools(v []string)`
+
+SetDisallowedTools sets DisallowedTools field to given value.
+
+### HasDisallowedTools
+
+`func (o *AgentResponse) HasDisallowedTools() bool`
+
+HasDisallowedTools returns a boolean if a field has been set.
 
 ### GetErrors
 

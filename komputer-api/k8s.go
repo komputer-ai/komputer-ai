@@ -232,7 +232,15 @@ func (k *K8sClient) UpdateManagedSecret(ctx context.Context, ns, name string, da
 	return secret, nil
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string) (*komputerv1alpha1.KomputerAgent, error) {
+// ToolPolicy carries an agent's tool allow/deny lists. Grouped into a struct
+// rather than two more positional []string params, which would give CreateAgent
+// six consecutive []string arguments and an easy transposition bug.
+type ToolPolicy struct {
+	Allowed    []string
+	Disallowed []string
+}
+
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string, tools ToolPolicy) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -259,6 +267,8 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, int
 			Memories:             memories,
 			Skills:               skills,
 			Connectors:           connectors,
+			AllowedTools:         tools.Allowed,
+			DisallowedTools:      tools.Disallowed,
 			Lifecycle:            komputerv1alpha1.AgentLifecycle(lifecycle),
 			OfficeManager:        officeManager,
 			Priority:             priority,
@@ -1087,6 +1097,27 @@ func (k *K8sClient) PatchAgentSkillsList(ctx context.Context, ns, agentName stri
 	}
 	original := agent.DeepCopy()
 	agent.Spec.Skills = skills
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// PatchAgentToolPolicy updates an agent's tool allow/deny lists. A nil pointer
+// means "leave unchanged"; a non-nil empty slice clears that list.
+func (k *K8sClient) PatchAgentToolPolicy(ctx context.Context, ns, agentName string, allowed, disallowed *[]string) error {
+	if allowed == nil && disallowed == nil {
+		return nil
+	}
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	if allowed != nil {
+		agent.Spec.AllowedTools = *allowed
+	}
+	if disallowed != nil {
+		agent.Spec.DisallowedTools = *disallowed
+	}
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 

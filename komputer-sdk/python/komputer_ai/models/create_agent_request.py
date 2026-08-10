@@ -29,7 +29,9 @@ class CreateAgentRequest(BaseModel):
     """
     CreateAgentRequest
     """ # noqa: E501
+    allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.", alias="allowedTools")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerConnector names to attach")
+    disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.", alias="disallowedTools")
     instructions: StrictStr
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.")
     lifecycle: Optional[StrictStr] = Field(default=None, description="\"\", \"Sleep\", or \"AutoDelete\"")
@@ -46,7 +48,7 @@ class CreateAgentRequest(BaseModel):
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="optional custom system prompt", alias="systemPrompt")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["connectors", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -105,7 +107,9 @@ class CreateAgentRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "allowedTools": obj.get("allowedTools"),
             "connectors": obj.get("connectors"),
+            "disallowedTools": obj.get("disallowedTools"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
             "lifecycle": obj.get("lifecycle"),

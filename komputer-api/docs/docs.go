@@ -2647,6 +2647,13 @@ const docTemplate = `{
         "main.AgentResponse": {
             "type": "object",
             "properties": {
+                "allowedTools": {
+                    "description": "Tools this agent is restricted to (empty = defaults)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "completionTime": {
                     "type": "string"
                 },
@@ -2659,6 +2666,13 @@ const docTemplate = `{
                 },
                 "createdAt": {
                     "type": "string"
+                },
+                "disallowedTools": {
+                    "description": "Tools removed from this agent",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "errors": {
                     "description": "Errors are non-fatal failures that occurred during the request (e.g. CR was patched\nbut live-pod sync failed). The CR change still took effect; the UI can surface these\nas toasts so the user knows something didn't fully apply.",
@@ -2826,8 +2840,22 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "allowedTools": {
+                    "description": "AllowedTools restricts the agent to exactly these tools. REPLACES the default\nbuilt-in set rather than extending it, and connector tools are not auto-added.\nSupports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "connectors": {
                     "description": "optional KomputerConnector names to attach",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "disallowedTools": {
+                    "description": "DisallowedTools removes these tools; everything else stays available.\nTakes precedence over AllowedTools. Supports wildcards.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3205,8 +3233,22 @@ const docTemplate = `{
         "main.PatchAgentRequest": {
             "type": "object",
             "properties": {
+                "allowedTools": {
+                    "description": "AllowedTools restricts the agent to these tools; an explicit [] clears the\nrestriction and restores the default tool set.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "connectors": {
                     "description": "connector names to attach",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "disallowedTools": {
+                    "description": "DisallowedTools removes these tools; an explicit [] clears the list.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -7718,8 +7760,22 @@ const docTemplate = `{
         "v1alpha1.KomputerAgentSpec": {
             "type": "object",
             "properties": {
+                "allowedTools": {
+                    "description": "AllowedTools restricts the agent to exactly these tools. When empty, the\ndefault built-in tool set is used and all tools from attached connectors\nare permitted.\n\nSetting this REPLACES the default set rather than extending it, so an\nagent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector\ntools are not auto-added either — list them explicitly, e.g.\n\"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\"\nfor a single tool.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "connectors": {
                     "description": "Connectors is a list of KomputerConnector names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "disallowedTools": {
+                    "description": "DisallowedTools removes these tools from the agent. Purely subtractive:\nthe default built-ins and all connector tools remain available except\nwhat is named here. Takes precedence over AllowedTools.\nSupports wildcards, e.g. \"mcp__figma__*\".\n+optional",
                     "type": "array",
                     "items": {
                         "type": "string"

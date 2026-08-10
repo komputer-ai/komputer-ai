@@ -21,6 +21,8 @@ export interface AgentResponse {
   memories?: string[];
   skills?: string[];
   connectors?: string[];
+  allowedTools?: string[];
+  disallowedTools?: string[];
   instructions?: string;
   systemPrompt?: string;
   createdAt: string;
@@ -131,6 +133,8 @@ export interface CreateAgentRequest {
   memories?: string[];
   skills?: string[];
   connectors?: string[];
+  allowedTools?: string[];
+  disallowedTools?: string[];
   secretRefs?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
   systemPrompt?: string;
@@ -165,6 +169,8 @@ export interface PatchAgentRequest {
   memories?: string[];
   skills?: string[];
   connectors?: string[];
+  allowedTools?: string[];
+  disallowedTools?: string[];
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;

@@ -19,8 +19,12 @@ var _ MappedNullable = &V1alpha1KomputerAgentSpec{}
 
 // V1alpha1KomputerAgentSpec struct for V1alpha1KomputerAgentSpec
 type V1alpha1KomputerAgentSpec struct {
+	// AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional
+	AllowedTools []string `json:"allowedTools,omitempty"`
 	// Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Connectors []string `json:"connectors,omitempty"`
+	// DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional
+	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	// Instructions is the user's task for the Claude agent.
 	Instructions *string `json:"instructions,omitempty"`
 	// InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional
@@ -70,6 +74,38 @@ func NewV1alpha1KomputerAgentSpecWithDefaults() *V1alpha1KomputerAgentSpec {
 	return &this
 }
 
+// GetAllowedTools returns the AllowedTools field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetAllowedTools() []string {
+	if o == nil || IsNil(o.AllowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.AllowedTools
+}
+
+// GetAllowedToolsOk returns a tuple with the AllowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetAllowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.AllowedTools) {
+		return nil, false
+	}
+	return o.AllowedTools, true
+}
+
+// HasAllowedTools returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasAllowedTools() bool {
+	if o != nil && !IsNil(o.AllowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
+func (o *V1alpha1KomputerAgentSpec) SetAllowedTools(v []string) {
+	o.AllowedTools = v
+}
+
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
 func (o *V1alpha1KomputerAgentSpec) GetConnectors() []string {
 	if o == nil || IsNil(o.Connectors) {
@@ -100,6 +136,38 @@ func (o *V1alpha1KomputerAgentSpec) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *V1alpha1KomputerAgentSpec) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetDisallowedTools() []string {
+	if o == nil || IsNil(o.DisallowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.DisallowedTools
+}
+
+// GetDisallowedToolsOk returns a tuple with the DisallowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetDisallowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.DisallowedTools) {
+		return nil, false
+	}
+	return o.DisallowedTools, true
+}
+
+// HasDisallowedTools returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasDisallowedTools() bool {
+	if o != nil && !IsNil(o.DisallowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
+func (o *V1alpha1KomputerAgentSpec) SetDisallowedTools(v []string) {
+	o.DisallowedTools = v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -592,8 +660,14 @@ func (o V1alpha1KomputerAgentSpec) MarshalJSON() ([]byte, error) {
 
 func (o V1alpha1KomputerAgentSpec) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.AllowedTools) {
+		toSerialize["allowedTools"] = o.AllowedTools
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
+	}
+	if !IsNil(o.DisallowedTools) {
+		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions

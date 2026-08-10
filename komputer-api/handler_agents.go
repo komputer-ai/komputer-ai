@@ -28,6 +28,13 @@ type CreateAgentRequest struct {
 	Memories     []string `json:"memories"`     // optional KomputerMemory names to attach
 	Skills       []string `json:"skills"`       // optional KomputerSkill names to attach
 	Connectors   []string `json:"connectors"`   // optional KomputerConnector names to attach
+	// AllowedTools restricts the agent to exactly these tools. REPLACES the default
+	// built-in set rather than extending it, and connector tools are not auto-added.
+	// Supports wildcards, e.g. "mcp__figma__*". Empty keeps default behavior.
+	AllowedTools []string `json:"allowedTools"`
+	// DisallowedTools removes these tools; everything else stays available.
+	// Takes precedence over AllowedTools. Supports wildcards.
+	DisallowedTools []string `json:"disallowedTools"`
 	Lifecycle     string   `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
 	OfficeManager string   `json:"officeManager"` // set by manager MCP tool
 	SystemPrompt  string   `json:"systemPrompt"`  // optional custom system prompt
@@ -56,6 +63,8 @@ type AgentResponse struct {
 	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
 	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
 	Connectors      []string `json:"connectors,omitempty"`   // KomputerConnector names attached to this agent
+	AllowedTools    []string `json:"allowedTools,omitempty"`    // Tools this agent is restricted to (empty = defaults)
+	DisallowedTools []string `json:"disallowedTools,omitempty"` // Tools removed from this agent
 	Instructions    string   `json:"instructions,omitempty"` // User task (spec.instructions)
 	SystemPrompt    string   `json:"systemPrompt,omitempty"` // Custom system prompt (spec.systemPrompt)
 	CreatedAt       string   `json:"createdAt"`
@@ -195,6 +204,11 @@ type PatchAgentRequest struct {
 	Memories     *[]string `json:"memories,omitempty"`    // memory names to attach
 	Skills       *[]string `json:"skills,omitempty"`      // skill names to attach
 	Connectors   *[]string `json:"connectors,omitempty"`  // connector names to attach
+	// AllowedTools restricts the agent to these tools; an explicit [] clears the
+	// restriction and restores the default tool set.
+	AllowedTools *[]string `json:"allowedTools,omitempty"`
+	// DisallowedTools removes these tools; an explicit [] clears the list.
+	DisallowedTools *[]string `json:"disallowedTools,omitempty"`
 	SystemPrompt *string   `json:"systemPrompt,omitempty"` // custom system prompt
 	Priority     *int32    `json:"priority,omitempty"`    // pointer so 0 vs unset is distinguishable
 	PodSpec      *corev1.PodSpec               `json:"podSpec,omitempty"`
@@ -329,6 +343,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Memories:        existing.Spec.Memories,
 					Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
 					Connectors:      existing.Spec.Connectors,
+					AllowedTools:      existing.Spec.AllowedTools,
+					DisallowedTools:      existing.Spec.DisallowedTools,
 					Instructions:    existing.Spec.Instructions,
 					SystemPrompt:    existing.Spec.SystemPrompt,
 					CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -397,6 +413,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Memories:        existing.Spec.Memories,
 				Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
 				Connectors:      existing.Spec.Connectors,
+				AllowedTools:      existing.Spec.AllowedTools,
+				DisallowedTools:      existing.Spec.DisallowedTools,
 				Instructions:    existing.Spec.Instructions,
 				SystemPrompt:    existing.Spec.SystemPrompt,
 				CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -434,7 +452,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, connectors, req.Lifecycle, req.OfficeManager, req.Priority, req.PodSpec, req.Storage, req.Labels)
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, connectors, req.Lifecycle, req.OfficeManager, req.Priority, req.PodSpec, req.Storage, req.Labels, ToolPolicy{Allowed: req.AllowedTools, Disallowed: req.DisallowedTools})
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
 				c.JSON(http.StatusConflict, gin.H{"error": "agent already exists: " + req.Name})
@@ -457,6 +475,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Memories:     agent.Spec.Memories,
 			Skills:       mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
 			Connectors:   agent.Spec.Connectors,
+			AllowedTools:   agent.Spec.AllowedTools,
+			DisallowedTools:   agent.Spec.DisallowedTools,
 			Instructions: agent.Spec.Instructions,
 			SystemPrompt: agent.Spec.SystemPrompt,
 			CreatedAt:    agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -679,6 +699,8 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			Memories:           agent.Spec.Memories,
 			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
 			Connectors:         agent.Spec.Connectors,
+			AllowedTools:         agent.Spec.AllowedTools,
+			DisallowedTools:         agent.Spec.DisallowedTools,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -839,6 +861,8 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				Memories:           a.Spec.Memories,
 				Skills:             mergeDefaultSkills(a.Spec.Skills, defaultSkills),
 				Connectors:         a.Spec.Connectors,
+				AllowedTools:         a.Spec.AllowedTools,
+				DisallowedTools:         a.Spec.DisallowedTools,
 				Instructions:       a.Spec.Instructions,
 				SystemPrompt:       a.Spec.SystemPrompt,
 				CreatedAt:          a.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -883,7 +907,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -965,6 +989,15 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1d. Update skills if provided.
+		if req.AllowedTools != nil || req.DisallowedTools != nil {
+			// Takes effect on the agent's next start — the tool policy is applied
+			// when the SDK session is constructed, not at runtime.
+			if err := k8s.PatchAgentToolPolicy(c.Request.Context(), ns, name, req.AllowedTools, req.DisallowedTools); err != nil {
+				Logger.Warnw("failed to patch agent tool policy", "namespace", ns, "agent_name", name, "error", err)
+				nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("failed to update tool policy: %v", err))
+			}
+		}
+
 		if req.Skills != nil {
 			k8s.PatchAgentSkillsList(c.Request.Context(), ns, name, *req.Skills)
 			skillFiles, _ := k8s.ResolveSkillFiles(c.Request.Context(), ns, *req.Skills)
@@ -1069,6 +1102,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Instructions:       updated.Spec.Instructions,
 			SystemPrompt:       updated.Spec.SystemPrompt,
 			Connectors:         updated.Spec.Connectors,
+			AllowedTools:         updated.Spec.AllowedTools,
+			DisallowedTools:         updated.Spec.DisallowedTools,
 			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 			Priority:           updated.Spec.Priority,
 			QueuePosition:      updated.Status.QueuePosition,

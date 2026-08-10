@@ -21,8 +21,12 @@ var _ MappedNullable = &CreateAgentRequest{}
 
 // CreateAgentRequest struct for CreateAgentRequest
 type CreateAgentRequest struct {
+	// AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.
+	AllowedTools []string `json:"allowedTools,omitempty"`
 	// optional KomputerConnector names to attach
 	Connectors []string `json:"connectors,omitempty"`
+	// DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.
+	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	Instructions string `json:"instructions"`
 	// Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.
 	Labels *map[string]string `json:"labels,omitempty"`
@@ -72,6 +76,38 @@ func NewCreateAgentRequestWithDefaults() *CreateAgentRequest {
 	return &this
 }
 
+// GetAllowedTools returns the AllowedTools field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetAllowedTools() []string {
+	if o == nil || IsNil(o.AllowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.AllowedTools
+}
+
+// GetAllowedToolsOk returns a tuple with the AllowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetAllowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.AllowedTools) {
+		return nil, false
+	}
+	return o.AllowedTools, true
+}
+
+// HasAllowedTools returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasAllowedTools() bool {
+	if o != nil && !IsNil(o.AllowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
+func (o *CreateAgentRequest) SetAllowedTools(v []string) {
+	o.AllowedTools = v
+}
+
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
 func (o *CreateAgentRequest) GetConnectors() []string {
 	if o == nil || IsNil(o.Connectors) {
@@ -102,6 +138,38 @@ func (o *CreateAgentRequest) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *CreateAgentRequest) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetDisallowedTools() []string {
+	if o == nil || IsNil(o.DisallowedTools) {
+		var ret []string
+		return ret
+	}
+	return o.DisallowedTools
+}
+
+// GetDisallowedToolsOk returns a tuple with the DisallowedTools field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetDisallowedToolsOk() ([]string, bool) {
+	if o == nil || IsNil(o.DisallowedTools) {
+		return nil, false
+	}
+	return o.DisallowedTools, true
+}
+
+// HasDisallowedTools returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasDisallowedTools() bool {
+	if o != nil && !IsNil(o.DisallowedTools) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
+func (o *CreateAgentRequest) SetDisallowedTools(v []string) {
+	o.DisallowedTools = v
 }
 
 // GetInstructions returns the Instructions field value
@@ -610,8 +678,14 @@ func (o CreateAgentRequest) MarshalJSON() ([]byte, error) {
 
 func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.AllowedTools) {
+		toSerialize["allowedTools"] = o.AllowedTools
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
+	}
+	if !IsNil(o.DisallowedTools) {
+		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
 	toSerialize["instructions"] = o.Instructions
 	if !IsNil(o.Labels) {

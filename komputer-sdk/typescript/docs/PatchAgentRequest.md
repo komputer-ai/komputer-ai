@@ -6,7 +6,9 @@
 
 Name | Type
 ------------ | -------------
+`allowedTools` | Array&lt;string&gt;
 `connectors` | Array&lt;string&gt;
+`disallowedTools` | Array&lt;string&gt;
 `instructions` | string
 `labels` | { [key: string]: string; }
 `lifecycle` | string
@@ -27,7 +29,9 @@ import type { PatchAgentRequest } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "allowedTools": null,
   "connectors": null,
+  "disallowedTools": null,
   "instructions": null,
   "labels": null,
   "lifecycle": null,

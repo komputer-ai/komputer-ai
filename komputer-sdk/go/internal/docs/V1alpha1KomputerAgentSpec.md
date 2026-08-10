@@ -4,7 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\&quot;Read\&quot;] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \&quot;mcp__figma__*\&quot; for a whole connector or \&quot;mcp__figma__get_design_context\&quot; for a single tool. +optional | [optional] 
 **Connectors** | Pointer to **[]string** | Connectors is a list of KomputerConnector names to attach to this agent. Names can be \&quot;name\&quot; (same namespace) or \&quot;namespace/name\&quot; (cross-namespace). +optional | [optional] 
+**DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. +optional | [optional] 
 **Instructions** | Pointer to **string** | Instructions is the user&#39;s task for the Claude agent. | [optional] 
 **InternalSystemPrompt** | Pointer to **string** | InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional | [optional] 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \&quot;komputer.ai/\&quot; are reserved for system labels and should not be set directly through the API. +optional | [optional] 
@@ -40,6 +42,31 @@ NewV1alpha1KomputerAgentSpecWithDefaults instantiates a new V1alpha1KomputerAgen
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
+### GetAllowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) GetAllowedTools() []string`
+
+GetAllowedTools returns the AllowedTools field if non-nil, zero value otherwise.
+
+### GetAllowedToolsOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetAllowedToolsOk() (*[]string, bool)`
+
+GetAllowedToolsOk returns a tuple with the AllowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAllowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) SetAllowedTools(v []string)`
+
+SetAllowedTools sets AllowedTools field to given value.
+
+### HasAllowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) HasAllowedTools() bool`
+
+HasAllowedTools returns a boolean if a field has been set.
+
 ### GetConnectors
 
 `func (o *V1alpha1KomputerAgentSpec) GetConnectors() []string`
@@ -64,6 +91,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *V1alpha1KomputerAgentSpec) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDisallowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) GetDisallowedTools() []string`
+
+GetDisallowedTools returns the DisallowedTools field if non-nil, zero value otherwise.
+
+### GetDisallowedToolsOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetDisallowedToolsOk() (*[]string, bool)`
+
+GetDisallowedToolsOk returns a tuple with the DisallowedTools field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisallowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) SetDisallowedTools(v []string)`
+
+SetDisallowedTools sets DisallowedTools field to given value.
+
+### HasDisallowedTools
+
+`func (o *V1alpha1KomputerAgentSpec) HasDisallowedTools() bool`
+
+HasDisallowedTools returns a boolean if a field has been set.
 
 ### GetInstructions
 
