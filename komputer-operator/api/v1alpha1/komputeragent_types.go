@@ -129,6 +129,22 @@ type KomputerAgentSpec struct {
 	// +kubebuilder:validation:Enum="";Sleep;AutoDelete
 	// +optional
 	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`
+	// SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+	// idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+	// only starts once a task has actually started, and any later task event or wake
+	// resets it. Never fires while a task is in progress, and an agent that has never
+	// run a task is never auto-slept (use DeleteTTL to reclaim those).
+	// Unset (default) means the agent never auto-sleeps.
+	// Overrides the template's sleepTTL when set.
+	// +optional
+	SleepTTL *metav1.Duration `json:"sleepTTL,omitempty"`
+	// DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+	// metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+	// does not reset on wake and applies in every phase, including Sleeping.
+	// Unset (default) means the agent never auto-deletes.
+	// Overrides the template's deleteTTL when set.
+	// +optional
+	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
 	// OfficeManager is the name of the manager agent that created this sub-agent.
 	// When set, the operator creates/joins a KomputerOffice for the group.
 	// +optional
@@ -181,6 +197,13 @@ type KomputerAgentStatus struct {
 	// Managed by the API worker based on Redis events, not by the operator.
 	// +optional
 	LastTaskMessage string `json:"lastTaskMessage,omitempty"`
+	// LastActivityAt is when the agent last produced or received task activity.
+	// First stamped when a task starts, then refreshed on every agent event and on
+	// wake; it is the idle clock for SleepTTL. Managed by the API worker, not by the
+	// operator. While unset the agent has never started a task, so its SleepTTL clock
+	// is not running at all.
+	// +optional
+	LastActivityAt *metav1.Time `json:"lastActivityAt,omitempty"`
 	// SessionID is the Claude session ID for conversation continuity.
 	// Set by the API worker when a task completes, read by the agent on startup.
 	// +optional
@@ -207,6 +230,17 @@ type KomputerAgentStatus struct {
 	// Owned by operator.
 	// +optional
 	QueueReason string `json:"queueReason,omitempty"`
+	// SleepExpiresAt is when the agent will be put to sleep by SleepTTL.
+	// Recomputed from the idle clock on each reconcile; nil when SleepTTL is unset
+	// or a task is currently in progress.
+	// Owned by operator.
+	// +optional
+	SleepExpiresAt *metav1.Time `json:"sleepExpiresAt,omitempty"`
+	// DeleteExpiresAt is when the agent will be deleted by DeleteTTL.
+	// nil when DeleteTTL is unset.
+	// Owned by operator.
+	// +optional
+	DeleteExpiresAt *metav1.Time `json:"deleteExpiresAt,omitempty"`
 	// Squad indicates the agent is managed by a KomputerSquad. When true, the squad
 	// controller owns the agent's pod lifecycle; the agent controller skips reconciliation.
 	// Phase, PodName, etc. continue to reflect the real pod state (set by the squad controller).

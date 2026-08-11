@@ -283,8 +283,22 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// 7. Enforce sleepTTL / deleteTTL. Resolved TTLs live on the merged template
+	// (applyAgentOverrides has already overlaid the agent's own values). Runs before
+	// status reconciliation so an expired agent isn't reported Running on its way out.
+	sleepTTL, deleteTTL := template.Spec.SleepTTL, template.Spec.DeleteTTL
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL)
+	if err != nil {
+		log.Error(err, "Failed to apply TTL")
+		return ctrl.Result{}, err
+	}
+	if ttlHandled {
+		// Agent was slept or deleted — nothing further to reconcile for it.
+		return ttlResult, nil
+	}
+
 	// 8. Update CR status based on pod state
-	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName, sleepTTL, deleteTTL); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
 	}
@@ -368,7 +382,9 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Info("Failed to reconcile skill status", "error", err)
 	}
 
-	return ctrl.Result{}, nil
+	// Carry the TTL requeue hint so the controller wakes when the next TTL comes due
+	// rather than waiting for an unrelated event. Zero when no TTL is pending.
+	return ttlResult, nil
 }
 
 // reconcileMemoryStatus updates the status of each KomputerMemory referenced by any agent.
@@ -785,11 +801,17 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 
 // reconcileStatus maps pod phase to agent phase and updates status.
 // Also handles lifecycle transitions (Sleep → delete pod, AutoDelete → delete CR).
-func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string) error {
+//
+// sleepTTL/deleteTTL are the resolved TTLs. When one is set it turns its matching
+// lifecycle action into a delayed one: the immediate transition below is skipped and
+// applyTTL fires it once the TTL elapses. That makes `lifecycle: Sleep` + `sleepTTL: 30m`
+// mean "sleep after 30m idle" rather than the two rules racing each other.
+func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration) error {
 	log := logf.FromContext(ctx)
 
 	// Sleep mode: delete pod when task is done (complete or error), keep PVC
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleSleep &&
+		sleepTTL == nil &&
 		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
 		log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
@@ -806,6 +828,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 
 	// AutoDelete mode: delete the entire agent CR when task completes successfully
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleAutoDelete &&
+		deleteTTL == nil &&
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
 		log.Info("AutoDelete mode: deleting agent after task completion", "agent", agent.Name)
 		return r.Delete(ctx, agent)

@@ -45,6 +45,16 @@ type KomputerAgentTemplateSpec struct {
 	// +kubebuilder:default=0
 	// +optional
 	MaxConcurrentAgents int32 `json:"maxConcurrentAgents,omitempty"`
+	// SleepTTL is the default idle timeout after which agents using this template are
+	// put to sleep. Individual agents override it via their own spec.sleepTTL.
+	// Unset (default) means agents never auto-sleep.
+	// +optional
+	SleepTTL *metav1.Duration `json:"sleepTTL,omitempty"`
+	// DeleteTTL is the default absolute lifetime after which agents using this template
+	// are deleted. Individual agents override it via their own spec.deleteTTL.
+	// Unset (default) means agents never auto-delete.
+	// +optional
+	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
 	// AnthropicKeySecretRef is the absolute reference to the Anthropic API
 	// key secret. The operator mirrors this secret into every agent namespace
 	// and injects the ANTHROPIC_API_KEY env var into the pod automatically —
