@@ -25,6 +25,8 @@ type CreateAgentRequest struct {
 	AllowedTools []string `json:"allowedTools,omitempty"`
 	// optional KomputerConnector names to attach
 	Connectors []string `json:"connectors,omitempty"`
+	// DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.
+	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	Instructions string `json:"instructions"`
@@ -49,6 +51,8 @@ type CreateAgentRequest struct {
 	SecretRefs []string `json:"secretRefs,omitempty"`
 	// optional KomputerSkill names to attach
 	Skills []string `json:"skills,omitempty"`
+	// SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \"30m\", \"2h\"). Empty means never auto-sleep.
+	SleepTTL *string `json:"sleepTTL,omitempty"`
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// optional custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
@@ -138,6 +142,38 @@ func (o *CreateAgentRequest) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *CreateAgentRequest) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDeleteTTL returns the DeleteTTL field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetDeleteTTL() string {
+	if o == nil || IsNil(o.DeleteTTL) {
+		var ret string
+		return ret
+	}
+	return *o.DeleteTTL
+}
+
+// GetDeleteTTLOk returns a tuple with the DeleteTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetDeleteTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.DeleteTTL) {
+		return nil, false
+	}
+	return o.DeleteTTL, true
+}
+
+// HasDeleteTTL returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasDeleteTTL() bool {
+	if o != nil && !IsNil(o.DeleteTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeleteTTL gets a reference to the given string and assigns it to the DeleteTTL field.
+func (o *CreateAgentRequest) SetDeleteTTL(v string) {
+	o.DeleteTTL = &v
 }
 
 // GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
@@ -572,6 +608,38 @@ func (o *CreateAgentRequest) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetSleepTTL returns the SleepTTL field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetSleepTTL() string {
+	if o == nil || IsNil(o.SleepTTL) {
+		var ret string
+		return ret
+	}
+	return *o.SleepTTL
+}
+
+// GetSleepTTLOk returns a tuple with the SleepTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetSleepTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.SleepTTL) {
+		return nil, false
+	}
+	return o.SleepTTL, true
+}
+
+// HasSleepTTL returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasSleepTTL() bool {
+	if o != nil && !IsNil(o.SleepTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetSleepTTL gets a reference to the given string and assigns it to the SleepTTL field.
+func (o *CreateAgentRequest) SetSleepTTL(v string) {
+	o.SleepTTL = &v
+}
+
 // GetStorage returns the Storage field value if set, zero value otherwise.
 func (o *CreateAgentRequest) GetStorage() V1alpha1StorageSpec {
 	if o == nil || IsNil(o.Storage) {
@@ -684,6 +752,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
+	if !IsNil(o.DeleteTTL) {
+		toSerialize["deleteTTL"] = o.DeleteTTL
+	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
@@ -721,6 +792,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.SleepTTL) {
+		toSerialize["sleepTTL"] = o.SleepTTL
 	}
 	if !IsNil(o.Storage) {
 		toSerialize["storage"] = o.Storage

@@ -23,6 +23,8 @@ type V1alpha1KomputerAgentSpec struct {
 	AllowedTools []string `json:"allowedTools,omitempty"`
 	// Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Connectors []string `json:"connectors,omitempty"`
+	// DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template's deleteTTL when set. +optional
+	DeleteTTL *V1Duration `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	// Instructions is the user's task for the Claude agent.
@@ -49,6 +51,8 @@ type V1alpha1KomputerAgentSpec struct {
 	Secrets []string `json:"secrets,omitempty"`
 	// Skills is a list of KomputerSkill names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Skills []string `json:"skills,omitempty"`
+	// SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template's sleepTTL when set. +optional
+	SleepTTL *V1Duration `json:"sleepTTL,omitempty"`
 	// Storage, when set, overrides the template's storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional
@@ -136,6 +140,38 @@ func (o *V1alpha1KomputerAgentSpec) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *V1alpha1KomputerAgentSpec) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDeleteTTL returns the DeleteTTL field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetDeleteTTL() V1Duration {
+	if o == nil || IsNil(o.DeleteTTL) {
+		var ret V1Duration
+		return ret
+	}
+	return *o.DeleteTTL
+}
+
+// GetDeleteTTLOk returns a tuple with the DeleteTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetDeleteTTLOk() (*V1Duration, bool) {
+	if o == nil || IsNil(o.DeleteTTL) {
+		return nil, false
+	}
+	return o.DeleteTTL, true
+}
+
+// HasDeleteTTL returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasDeleteTTL() bool {
+	if o != nil && !IsNil(o.DeleteTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeleteTTL gets a reference to the given V1Duration and assigns it to the DeleteTTL field.
+func (o *V1alpha1KomputerAgentSpec) SetDeleteTTL(v V1Duration) {
+	o.DeleteTTL = &v
 }
 
 // GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
@@ -554,6 +590,38 @@ func (o *V1alpha1KomputerAgentSpec) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetSleepTTL returns the SleepTTL field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetSleepTTL() V1Duration {
+	if o == nil || IsNil(o.SleepTTL) {
+		var ret V1Duration
+		return ret
+	}
+	return *o.SleepTTL
+}
+
+// GetSleepTTLOk returns a tuple with the SleepTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetSleepTTLOk() (*V1Duration, bool) {
+	if o == nil || IsNil(o.SleepTTL) {
+		return nil, false
+	}
+	return o.SleepTTL, true
+}
+
+// HasSleepTTL returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasSleepTTL() bool {
+	if o != nil && !IsNil(o.SleepTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetSleepTTL gets a reference to the given V1Duration and assigns it to the SleepTTL field.
+func (o *V1alpha1KomputerAgentSpec) SetSleepTTL(v V1Duration) {
+	o.SleepTTL = &v
+}
+
 // GetStorage returns the Storage field value if set, zero value otherwise.
 func (o *V1alpha1KomputerAgentSpec) GetStorage() V1alpha1StorageSpec {
 	if o == nil || IsNil(o.Storage) {
@@ -666,6 +734,9 @@ func (o V1alpha1KomputerAgentSpec) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
+	if !IsNil(o.DeleteTTL) {
+		toSerialize["deleteTTL"] = o.DeleteTTL
+	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
@@ -704,6 +775,9 @@ func (o V1alpha1KomputerAgentSpec) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.SleepTTL) {
+		toSerialize["sleepTTL"] = o.SleepTTL
 	}
 	if !IsNil(o.Storage) {
 		toSerialize["storage"] = o.Storage

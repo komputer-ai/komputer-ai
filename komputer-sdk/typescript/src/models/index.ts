@@ -64,6 +64,7 @@ export * from './V1DNSPolicy';
 export * from './V1DownwardAPIProjection';
 export * from './V1DownwardAPIVolumeFile';
 export * from './V1DownwardAPIVolumeSource';
+export * from './V1Duration';
 export * from './V1EmptyDirVolumeSource';
 export * from './V1EnvFromSource';
 export * from './V1EnvVar';

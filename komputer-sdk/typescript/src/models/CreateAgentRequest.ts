@@ -49,6 +49,13 @@ export interface CreateAgentRequest {
      */
     connectors?: Array<string>;
     /**
+     * DeleteTTL deletes the agent this long after creation, as a Go duration string
+     * (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    deleteTTL?: string;
+    /**
      * DisallowedTools removes these tools; everything else stays available.
      * Takes precedence over AllowedTools. Supports wildcards.
      * @type {Array<string>}
@@ -136,6 +143,13 @@ export interface CreateAgentRequest {
      */
     skills?: Array<string>;
     /**
+     * SleepTTL puts the agent to sleep after this long with no activity, as a Go
+     * duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    sleepTTL?: string;
+    /**
      * 
      * @type {V1alpha1StorageSpec}
      * @memberof CreateAgentRequest
@@ -176,6 +190,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -190,6 +205,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         'role': json['role'] == null ? undefined : json['role'],
         'secretRefs': json['secretRefs'] == null ? undefined : json['secretRefs'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
@@ -209,6 +225,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         
         'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'labels': value['labels'],
@@ -223,6 +240,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         'role': value['role'],
         'secretRefs': value['secretRefs'],
         'skills': value['skills'],
+        'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'templateRef': value['templateRef'],

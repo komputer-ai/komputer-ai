@@ -23,6 +23,7 @@ type PatchAgentRequest struct {
 	AllowedTools []string `json:"allowedTools,omitempty"`
 	// connector names to attach
 	Connectors []string `json:"connectors,omitempty"`
+	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools; an explicit [] clears the list.
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
@@ -38,6 +39,8 @@ type PatchAgentRequest struct {
 	SecretRefs []string `json:"secretRefs,omitempty"`
 	// skill names to attach
 	Skills []string `json:"skills,omitempty"`
+	// SleepTTL / DeleteTTL are Go duration strings (e.g. \"30m\"). An explicit \"\" clears the TTL; omitting the field leaves it unchanged.
+	SleepTTL *string `json:"sleepTTL,omitempty"`
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
@@ -123,6 +126,38 @@ func (o *PatchAgentRequest) HasConnectors() bool {
 // SetConnectors gets a reference to the given []string and assigns it to the Connectors field.
 func (o *PatchAgentRequest) SetConnectors(v []string) {
 	o.Connectors = v
+}
+
+// GetDeleteTTL returns the DeleteTTL field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetDeleteTTL() string {
+	if o == nil || IsNil(o.DeleteTTL) {
+		var ret string
+		return ret
+	}
+	return *o.DeleteTTL
+}
+
+// GetDeleteTTLOk returns a tuple with the DeleteTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetDeleteTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.DeleteTTL) {
+		return nil, false
+	}
+	return o.DeleteTTL, true
+}
+
+// HasDeleteTTL returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasDeleteTTL() bool {
+	if o != nil && !IsNil(o.DeleteTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeleteTTL gets a reference to the given string and assigns it to the DeleteTTL field.
+func (o *PatchAgentRequest) SetDeleteTTL(v string) {
+	o.DeleteTTL = &v
 }
 
 // GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
@@ -445,6 +480,38 @@ func (o *PatchAgentRequest) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetSleepTTL returns the SleepTTL field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetSleepTTL() string {
+	if o == nil || IsNil(o.SleepTTL) {
+		var ret string
+		return ret
+	}
+	return *o.SleepTTL
+}
+
+// GetSleepTTLOk returns a tuple with the SleepTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetSleepTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.SleepTTL) {
+		return nil, false
+	}
+	return o.SleepTTL, true
+}
+
+// HasSleepTTL returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasSleepTTL() bool {
+	if o != nil && !IsNil(o.SleepTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetSleepTTL gets a reference to the given string and assigns it to the SleepTTL field.
+func (o *PatchAgentRequest) SetSleepTTL(v string) {
+	o.SleepTTL = &v
+}
+
 // GetStorage returns the Storage field value if set, zero value otherwise.
 func (o *PatchAgentRequest) GetStorage() V1alpha1StorageSpec {
 	if o == nil || IsNil(o.Storage) {
@@ -557,6 +624,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
+	if !IsNil(o.DeleteTTL) {
+		toSerialize["deleteTTL"] = o.DeleteTTL
+	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
@@ -586,6 +656,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.SleepTTL) {
+		toSerialize["sleepTTL"] = o.SleepTTL
 	}
 	if !IsNil(o.Storage) {
 		toSerialize["storage"] = o.Storage

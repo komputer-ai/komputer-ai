@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. Empty keeps default behavior. | [optional] 
 **connectors** | **List[str]** | optional KomputerConnector names to attach | [optional] 
+**delete_ttl** | **str** | DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \&quot;24h\&quot;). Absolute — it does not reset on wake. Empty means never auto-delete. | [optional] 
 **disallowed_tools** | **List[str]** | DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards. | [optional] 
 **instructions** | **str** |  | 
 **labels** | **Dict[str, str]** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
@@ -21,6 +22,7 @@ Name | Type | Description | Notes
 **role** | **str** | \&quot;manager\&quot; or \&quot;\&quot; (default manager) | [optional] 
 **secret_refs** | **List[str]** | names of existing K8s Secrets to attach | [optional] 
 **skills** | **List[str]** | optional KomputerSkill names to attach | [optional] 
+**sleep_ttl** | **str** | SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \&quot;30m\&quot;, \&quot;2h\&quot;). Empty means never auto-sleep. | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | optional custom system prompt | [optional] 
 **template_ref** | **str** |  | [optional] 

@@ -77,6 +77,7 @@ from komputer_ai.models.v1_dns_policy import V1DNSPolicy
 from komputer_ai.models.v1_downward_api_projection import V1DownwardAPIProjection
 from komputer_ai.models.v1_downward_api_volume_file import V1DownwardAPIVolumeFile
 from komputer_ai.models.v1_downward_api_volume_source import V1DownwardAPIVolumeSource
+from komputer_ai.models.v1_duration import V1Duration
 from komputer_ai.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource
 from komputer_ai.models.v1_env_from_source import V1EnvFromSource
 from komputer_ai.models.v1_env_var import V1EnvVar
