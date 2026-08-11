@@ -136,23 +136,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if errors.IsNotFound(agentErr) {
 		if schedule.Spec.Agent != nil {
 			// Agent doesn't exist + spec.Agent is set: create from template
-			agent = &komputerv1alpha1.KomputerAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      agentName,
-					Namespace: schedule.Namespace,
-					Labels: map[string]string{
-						"komputer.ai/schedule": schedule.Name,
-					},
-				},
-				Spec: komputerv1alpha1.KomputerAgentSpec{
-					// The whole agent config passes through untouched, so any
-					// field added to AgentConfigSpec reaches scheduled agents
-					// with no change here.
-					AgentConfigSpec: *schedule.Spec.Agent.AgentConfigSpec.DeepCopy(),
-					// The schedule owns the instructions, not the template.
-					Instructions: schedule.Spec.Instructions,
-				},
-			}
+			agent = buildScheduledAgent(schedule, agentName)
 			// Set ownerReference to the schedule
 			if err := ctrl.SetControllerReference(schedule, agent, r.Scheme); err != nil {
 				log.Error(err, "Failed to set owner reference on agent")
@@ -300,6 +284,26 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// 11. Requeue after 15s to check agent completion
 	return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+}
+
+// buildScheduledAgent renders the schedule's agent template into a KomputerAgent.
+// The entire AgentConfigSpec passes through untouched, so any field added to it
+// reaches scheduled agents with no change here. Instructions are the schedule's,
+// not the template's — the same value a run forwards to an existing agent.
+func buildScheduledAgent(schedule *komputerv1alpha1.KomputerSchedule, agentName string) *komputerv1alpha1.KomputerAgent {
+	return &komputerv1alpha1.KomputerAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      agentName,
+			Namespace: schedule.Namespace,
+			Labels: map[string]string{
+				"komputer.ai/schedule": schedule.Name,
+			},
+		},
+		Spec: komputerv1alpha1.KomputerAgentSpec{
+			AgentConfigSpec: *schedule.Spec.Agent.AgentConfigSpec.DeepCopy(),
+			Instructions:    schedule.Spec.Instructions,
+		},
+	}
 }
 
 // reconcileAgentCompletion checks if the triggered agent has finished its task.
