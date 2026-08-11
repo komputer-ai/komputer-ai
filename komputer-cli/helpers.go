@@ -236,6 +236,22 @@ func nsQueryAmp(cmd *cobra.Command) string {
 	return ""
 }
 
+// parseLabelFlags turns repeated --label key=value flags into a map, exiting
+// with a message on malformed input. Shared by `agents create`, `agents update`
+// and `schedule create` so they all reject bad input identically.
+func parseLabelFlags(labelFlags []string) map[string]string {
+	labelMap := map[string]string{}
+	for _, l := range labelFlags {
+		eq := strings.Index(l, "=")
+		if eq <= 0 || eq == len(l)-1 {
+			fmt.Println(errorStyle.Render(fmt.Sprintf("invalid --label %q: expected key=value", l)))
+			os.Exit(1)
+		}
+		labelMap[l[:eq]] = l[eq+1:]
+	}
+	return labelMap
+}
+
 func truncate(s string, max int) string {
 	if len(s) > max {
 		return s[:max] + "..."
