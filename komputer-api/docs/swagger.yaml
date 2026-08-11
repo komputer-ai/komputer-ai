@@ -74,6 +74,11 @@ definitions:
         type: array
       createdAt:
         type: string
+      deleteExpiresAt:
+        type: string
+      deleteTTL:
+        description: absolute lifetime before auto-delete, e.g. "24h"
+        type: string
       disallowedTools:
         description: Tools removed from this agent
         items:
@@ -94,6 +99,11 @@ definitions:
         additionalProperties:
           type: string
         type: object
+      lastActivityAt:
+        description: |-
+          LastActivityAt is when the agent last saw task activity (RFC3339). The idle
+          clock sleepTTL is measured against.
+        type: string
       lastTaskCostUSD:
         type: string
       lastTaskMessage:
@@ -131,6 +141,14 @@ definitions:
         items:
           type: string
         type: array
+      sleepExpiresAt:
+        description: |-
+          SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
+          when the matching TTL is unset or its countdown isn't currently running.
+        type: string
+      sleepTTL:
+        description: idle timeout before auto-sleep, e.g. "30m"
+        type: string
       squad:
         description: True when this agent is managed by a KomputerSquad
         type: boolean
@@ -205,6 +223,11 @@ definitions:
         items:
           type: string
         type: array
+      deleteTTL:
+        description: |-
+          DeleteTTL deletes the agent this long after creation, as a Go duration string
+          (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
+        type: string
       disallowedTools:
         description: |-
           DisallowedTools removes these tools; everything else stays available.
@@ -258,6 +281,11 @@ definitions:
         items:
           type: string
         type: array
+      sleepTTL:
+        description: |-
+          SleepTTL puts the agent to sleep after this long with no activity, as a Go
+          duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
+        type: string
       storage:
         $ref: '#/definitions/v1alpha1.StorageSpec'
       systemPrompt:
@@ -482,6 +510,8 @@ definitions:
         items:
           type: string
         type: array
+      deleteTTL:
+        type: string
       disallowedTools:
         description: DisallowedTools removes these tools; an explicit [] clears the
           list.
@@ -518,6 +548,11 @@ definitions:
         items:
           type: string
         type: array
+      sleepTTL:
+        description: |-
+          SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
+          clears the TTL; omitting the field leaves it unchanged.
+        type: string
       storage:
         $ref: '#/definitions/v1alpha1.StorageSpec'
       systemPrompt:
@@ -1653,6 +1688,30 @@ definitions:
         items:
           $ref: '#/definitions/v1.DownwardAPIVolumeFile'
         type: array
+    type: object
+  v1.Duration:
+    properties:
+      time.Duration:
+        enum:
+        - -9223372036854775808
+        - 9223372036854775807
+        - 1
+        - 1000
+        - 1000000
+        - 1000000000
+        - 60000000000
+        - 3600000000000
+        format: int64
+        type: integer
+        x-enum-varnames:
+        - minDuration
+        - maxDuration
+        - Nanosecond
+        - Microsecond
+        - Millisecond
+        - Second
+        - Minute
+        - Hour
     type: object
   v1.EmptyDirVolumeSource:
     properties:
@@ -6059,6 +6118,16 @@ definitions:
         items:
           type: string
         type: array
+      deleteTTL:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+          metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+          does not reset on wake and applies in every phase, including Sleeping.
+          Unset (default) means the agent never auto-deletes.
+          Overrides the template's deleteTTL when set.
+          +optional
       disallowedTools:
         description: |-
           DisallowedTools removes these tools from the agent. Purely subtractive:
@@ -6157,6 +6226,18 @@ definitions:
         items:
           type: string
         type: array
+      sleepTTL:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+          idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+          only starts once a task has actually started, and any later task event or wake
+          resets it. Never fires while a task is in progress, and an agent that has never
+          run a task is never auto-slept (use DeleteTTL to reclaim those).
+          Unset (default) means the agent never auto-sleeps.
+          Overrides the template's sleepTTL when set.
+          +optional
       storage:
         allOf:
         - $ref: '#/definitions/v1alpha1.StorageSpec'

@@ -308,6 +308,10 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			// ScheduleAgentSpec exposes no tool policy (same as memories/skills/
 			// connectors above), so scheduled agents keep the default tool set.
 			ToolPolicy{},
+			// Likewise no per-schedule TTL override. Scheduled agents still pick up
+			// any sleepTTL/deleteTTL defaults from their template, which the operator
+			// resolves at reconcile time.
+			TTLPolicy{},
 		)
 		if err != nil {
 			return "", http.StatusInternalServerError, fmt.Errorf("failed to create agent: %w", err)

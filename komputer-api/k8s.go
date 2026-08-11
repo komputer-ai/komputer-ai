@@ -109,6 +109,11 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
 	agent.Status.TaskStatus = ""
 	agent.Status.LastTaskMessage = ""
+	// Waking is activity: restart the sleepTTL idle clock so the freshly woken agent
+	// gets a full idle window instead of inheriting the deadline that just slept it.
+	wokeAt := metav1.Now()
+	agent.Status.LastActivityAt = &wokeAt
+	agent.Status.SleepExpiresAt = nil
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
 }
 
@@ -240,7 +245,55 @@ type ToolPolicy struct {
 	Disallowed []string
 }
 
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string, tools ToolPolicy) (*komputerv1alpha1.KomputerAgent, error) {
+// TTLPolicy carries an agent's optional lifetime TTLs. Nil means the TTL is unset,
+// in which case the agent inherits whatever its template specifies.
+type TTLPolicy struct {
+	Sleep  *metav1.Duration
+	Delete *metav1.Duration
+}
+
+// TTLUpdate is a tri-state TTL change used by patch paths:
+// Set=false leaves the field untouched, Set=true with a nil Value clears it,
+// and Set=true with a non-nil Value assigns it.
+type TTLUpdate struct {
+	Set   bool
+	Value *metav1.Duration
+}
+
+// TouchAgentActivity stamps Status.LastActivityAt to now, resetting the idle clock
+// the operator's sleepTTL measures against. Used on paths where the API knows work is
+// arriving before the agent's own events can say so (wake, task forward).
+//
+// Best-effort: a failure here only risks an early sleep, which a wake recovers from,
+// so it must never fail the task it precedes. Errors are logged, not returned.
+func (k *K8sClient) TouchAgentActivity(ctx context.Context, ns, agentName string) {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		Logger.Warnw("failed to get agent to touch activity", "agent_name", agentName, "error", err)
+		return
+	}
+	original := agent.DeepCopy()
+	now := metav1.Now()
+	agent.Status.LastActivityAt = &now
+	// The pending sleep deadline is stale the moment the clock moves; the operator
+	// recomputes it on its next reconcile.
+	agent.Status.SleepExpiresAt = nil
+	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		Logger.Warnw("failed to touch agent activity", "agent_name", agentName, "error", err)
+	}
+}
+
+// durationEqual compares two optional durations, treating nil as "unset". Used to
+// keep patch paths from marking the spec changed when the value is identical.
+func durationEqual(a, b *metav1.Duration) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Duration == b.Duration
+}
+
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string, tools ToolPolicy, ttl TTLPolicy) (*komputerv1alpha1.KomputerAgent, error) {
 	if model == "" {
 		model = "claude-sonnet-4-6"
 	}
@@ -270,6 +323,8 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, int
 			AllowedTools:         tools.Allowed,
 			DisallowedTools:      tools.Disallowed,
 			Lifecycle:            komputerv1alpha1.AgentLifecycle(lifecycle),
+			SleepTTL:             ttl.Sleep,
+			DeleteTTL:            ttl.Delete,
 			OfficeManager:        officeManager,
 			Priority:             priority,
 			PodSpec:              podSpec,
@@ -517,6 +572,12 @@ func (k *K8sClient) CompactAgentTask(ctx context.Context, ns, podName, agentName
 
 // ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
 func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentName, instructions, model, internalSystemPrompt, systemPrompt string) (int64, error) {
+	// Push the idle clock out before the task lands. The agent's own task_started
+	// event refreshes LastActivityAt a moment later, but until it round-trips through
+	// Redis the operator could still see an agent idle past its sleepTTL and tear the
+	// pod down under the task we are about to send.
+	k.TouchAgentActivity(ctx, ns, agentName)
+
 	bodyMap := map[string]string{"instructions": instructions}
 	if model != "" {
 		bodyMap["model"] = model
@@ -970,7 +1031,7 @@ func (k *K8sClient) DeleteSchedule(ctx context.Context, ns, name string) error {
 }
 
 // PatchAgentSpec patches mutable spec fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32) error {
+func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL TTLUpdate) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -1000,6 +1061,14 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	}
 	if priority != nil && *priority != agent.Spec.Priority {
 		agent.Spec.Priority = *priority
+		changed = true
+	}
+	if sleepTTL.Set && !durationEqual(agent.Spec.SleepTTL, sleepTTL.Value) {
+		agent.Spec.SleepTTL = sleepTTL.Value
+		changed = true
+	}
+	if deleteTTL.Set && !durationEqual(agent.Spec.DeleteTTL, deleteTTL.Value) {
+		agent.Spec.DeleteTTL = deleteTTL.Value
 		changed = true
 	}
 	if !changed {
@@ -1598,6 +1667,10 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	original := agent.DeepCopy()
 	agent.Status.TaskStatus = komputerv1alpha1.AgentTaskStatus(taskStatus)
 	agent.Status.LastTaskMessage = lastMessage
+	// Every event counts as activity — this is the clock the operator's sleepTTL
+	// measures idleness against, so refreshing it here keeps a busy agent awake.
+	now := metav1.Now()
+	agent.Status.LastActivityAt = &now
 	if sessionID != "" {
 		agent.Status.SessionID = sessionID
 	}
