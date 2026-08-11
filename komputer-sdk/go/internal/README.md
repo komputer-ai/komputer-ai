@@ -188,6 +188,7 @@ Class | Method | HTTP request | Description
  - [V1DownwardAPIProjection](docs/V1DownwardAPIProjection.md)
  - [V1DownwardAPIVolumeFile](docs/V1DownwardAPIVolumeFile.md)
  - [V1DownwardAPIVolumeSource](docs/V1DownwardAPIVolumeSource.md)
+ - [V1Duration](docs/V1Duration.md)
  - [V1EmptyDirVolumeSource](docs/V1EmptyDirVolumeSource.md)
  - [V1EnvFromSource](docs/V1EnvFromSource.md)
  - [V1EnvVar](docs/V1EnvVar.md)

@@ -48,6 +48,12 @@ export interface PatchAgentRequest {
      */
     connectors?: Array<string>;
     /**
+     * 
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
+    deleteTTL?: string;
+    /**
      * DisallowedTools removes these tools; an explicit [] clears the list.
      * @type {Array<string>}
      * @memberof PatchAgentRequest
@@ -108,6 +114,13 @@ export interface PatchAgentRequest {
      */
     skills?: Array<string>;
     /**
+     * SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
+     * clears the TTL; omitting the field leaves it unchanged.
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
+    sleepTTL?: string;
+    /**
      * 
      * @type {V1alpha1StorageSpec}
      * @memberof PatchAgentRequest
@@ -146,6 +159,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -156,6 +170,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'priority': json['priority'] == null ? undefined : json['priority'],
         'secretRefs': json['secretRefs'] == null ? undefined : json['secretRefs'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
@@ -175,6 +190,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         
         'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'labels': value['labels'],
@@ -185,6 +201,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'priority': value['priority'],
         'secretRefs': value['secretRefs'],
         'skills': value['skills'],
+        'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'templateRef': value['templateRef'],

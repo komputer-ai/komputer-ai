@@ -13,6 +13,15 @@ export interface AgentResponse {
   taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
+  /** Idle timeout before auto-sleep, as a Go duration string (e.g. "30m0s"). */
+  sleepTTL?: string;
+  /** Absolute lifetime before auto-delete, as a Go duration string (e.g. "24h0m0s"). */
+  deleteTTL?: string;
+  /** RFC3339. Last task activity — the clock sleepTTL is measured against. */
+  lastActivityAt?: string;
+  /** RFC3339. When the TTL will fire. Absent when the TTL is unset or its clock isn't running. */
+  sleepExpiresAt?: string;
+  deleteExpiresAt?: string;
   lastTaskCostUSD?: string;
   totalCostUSD?: string;
   totalTokens?: number;
@@ -137,6 +146,10 @@ export interface CreateAgentRequest {
   disallowedTools?: string[];
   secretRefs?: string[];
   lifecycle?: '' | 'Sleep' | 'AutoDelete';
+  /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
+  sleepTTL?: string;
+  /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */
+  deleteTTL?: string;
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;
@@ -171,6 +184,10 @@ export interface PatchAgentRequest {
   connectors?: string[];
   allowedTools?: string[];
   disallowedTools?: string[];
+  /** Go duration string (e.g. "30m"). Send "" to clear; omit to leave unchanged. */
+  sleepTTL?: string;
+  /** Go duration string (e.g. "24h"). Send "" to clear; omit to leave unchanged. */
+  deleteTTL?: string;
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;

@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. Empty keeps default behavior. | [optional] 
 **Connectors** | Pointer to **[]string** | optional KomputerConnector names to attach | [optional] 
+**DeleteTTL** | Pointer to **string** | DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \&quot;24h\&quot;). Absolute — it does not reset on wake. Empty means never auto-delete. | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards. | [optional] 
 **Instructions** | **string** |  | 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
@@ -20,6 +21,7 @@ Name | Type | Description | Notes
 **Role** | Pointer to **string** | \&quot;manager\&quot; or \&quot;\&quot; (default manager) | [optional] 
 **SecretRefs** | Pointer to **[]string** | names of existing K8s Secrets to attach | [optional] 
 **Skills** | Pointer to **[]string** | optional KomputerSkill names to attach | [optional] 
+**SleepTTL** | Pointer to **string** | SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \&quot;30m\&quot;, \&quot;2h\&quot;). Empty means never auto-sleep. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | optional custom system prompt | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
@@ -92,6 +94,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *CreateAgentRequest) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDeleteTTL
+
+`func (o *CreateAgentRequest) GetDeleteTTL() string`
+
+GetDeleteTTL returns the DeleteTTL field if non-nil, zero value otherwise.
+
+### GetDeleteTTLOk
+
+`func (o *CreateAgentRequest) GetDeleteTTLOk() (*string, bool)`
+
+GetDeleteTTLOk returns a tuple with the DeleteTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDeleteTTL
+
+`func (o *CreateAgentRequest) SetDeleteTTL(v string)`
+
+SetDeleteTTL sets DeleteTTL field to given value.
+
+### HasDeleteTTL
+
+`func (o *CreateAgentRequest) HasDeleteTTL() bool`
+
+HasDeleteTTL returns a boolean if a field has been set.
 
 ### GetDisallowedTools
 
@@ -432,6 +459,31 @@ SetSkills sets Skills field to given value.
 `func (o *CreateAgentRequest) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetSleepTTL
+
+`func (o *CreateAgentRequest) GetSleepTTL() string`
+
+GetSleepTTL returns the SleepTTL field if non-nil, zero value otherwise.
+
+### GetSleepTTLOk
+
+`func (o *CreateAgentRequest) GetSleepTTLOk() (*string, bool)`
+
+GetSleepTTLOk returns a tuple with the SleepTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSleepTTL
+
+`func (o *CreateAgentRequest) SetSleepTTL(v string)`
+
+SetSleepTTL sets SleepTTL field to given value.
+
+### HasSleepTTL
+
+`func (o *CreateAgentRequest) HasSleepTTL() bool`
+
+HasSleepTTL returns a boolean if a field has been set.
 
 ### GetStorage
 

@@ -72,6 +72,7 @@ docs/V1DNSPolicy.md
 docs/V1DownwardAPIProjection.md
 docs/V1DownwardAPIVolumeFile.md
 docs/V1DownwardAPIVolumeSource.md
+docs/V1Duration.md
 docs/V1EmptyDirVolumeSource.md
 docs/V1EnvFromSource.md
 docs/V1EnvVar.md
@@ -266,6 +267,7 @@ src/models/V1DNSPolicy.ts
 src/models/V1DownwardAPIProjection.ts
 src/models/V1DownwardAPIVolumeFile.ts
 src/models/V1DownwardAPIVolumeSource.ts
+src/models/V1Duration.ts
 src/models/V1EmptyDirVolumeSource.ts
 src/models/V1EnvFromSource.ts
 src/models/V1EnvVar.ts

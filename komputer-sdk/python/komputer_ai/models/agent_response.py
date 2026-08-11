@@ -33,10 +33,13 @@ class AgentResponse(BaseModel):
     completion_time: Optional[StrictStr] = Field(default=None, alias="completionTime")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="KomputerConnector names attached to this agent")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
+    delete_expires_at: Optional[StrictStr] = Field(default=None, alias="deleteExpiresAt")
+    delete_ttl: Optional[StrictStr] = Field(default=None, description="absolute lifetime before auto-delete, e.g. \"24h\"", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools removed from this agent", alias="disallowedTools")
     errors: Optional[List[StrictStr]] = Field(default=None, description="Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.")
     instructions: Optional[StrictStr] = Field(default=None, description="User task (spec.instructions)")
     labels: Optional[Dict[str, StrictStr]] = None
+    last_activity_at: Optional[StrictStr] = Field(default=None, description="LastActivityAt is when the agent last saw task activity (RFC3339). The idle clock sleepTTL is measured against.", alias="lastActivityAt")
     last_task_cost_usd: Optional[StrictStr] = Field(default=None, alias="lastTaskCostUSD")
     last_task_message: Optional[StrictStr] = Field(default=None, alias="lastTaskMessage")
     lifecycle: Optional[StrictStr] = None
@@ -51,6 +54,8 @@ class AgentResponse(BaseModel):
     queue_reason: Optional[StrictStr] = Field(default=None, alias="queueReason")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Key names from K8s Secrets (not values)")
     skills: Optional[List[StrictStr]] = Field(default=None, description="KomputerSkill names attached to this agent")
+    sleep_expires_at: Optional[StrictStr] = Field(default=None, description="SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.", alias="sleepExpiresAt")
+    sleep_ttl: Optional[StrictStr] = Field(default=None, description="idle timeout before auto-sleep, e.g. \"30m\"", alias="sleepTTL")
     squad: Optional[StrictBool] = Field(default=None, description="True when this agent is managed by a KomputerSquad")
     squad_name: Optional[StrictStr] = Field(default=None, description="Name of the squad managing this agent (when Squad=true)", alias="squadName")
     status: Optional[StrictStr] = None
@@ -59,7 +64,7 @@ class AgentResponse(BaseModel):
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "disallowedTools", "errors", "instructions", "labels", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -122,10 +127,13 @@ class AgentResponse(BaseModel):
             "completionTime": obj.get("completionTime"),
             "connectors": obj.get("connectors"),
             "createdAt": obj.get("createdAt"),
+            "deleteExpiresAt": obj.get("deleteExpiresAt"),
+            "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
             "errors": obj.get("errors"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
+            "lastActivityAt": obj.get("lastActivityAt"),
             "lastTaskCostUSD": obj.get("lastTaskCostUSD"),
             "lastTaskMessage": obj.get("lastTaskMessage"),
             "lifecycle": obj.get("lifecycle"),
@@ -140,6 +148,8 @@ class AgentResponse(BaseModel):
             "queueReason": obj.get("queueReason"),
             "secrets": obj.get("secrets"),
             "skills": obj.get("skills"),
+            "sleepExpiresAt": obj.get("sleepExpiresAt"),
+            "sleepTTL": obj.get("sleepTTL"),
             "squad": obj.get("squad"),
             "squadName": obj.get("squadName"),
             "status": obj.get("status"),

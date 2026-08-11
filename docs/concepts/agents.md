@@ -19,6 +19,37 @@ By default, agent pods stay running after task completion. You can change this b
 
 Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically.
 
+## TTLs — Auto-Sleep and Auto-Delete
+
+Lifecycle modes fire the instant a task finishes. TTLs instead act on **elapsed time**, so an agent you forget about doesn't hold a pod or a PVC forever:
+
+- **`spec.sleepTTL`** — An **idle timeout**. Once the agent has gone this long without activity, the operator deletes its pod and sets `Phase=Sleeping` (workspace preserved), exactly like a manual sleep. The clock is `status.lastActivityAt`, first stamped when the agent reports `task_started` and refreshed on every later event, on wake, and when a task is forwarded — so any work resets the countdown. It never fires mid-task, and never on an already-sleeping agent. **An agent that has never started a task has no idle clock and is never auto-slept**, so a `sleepTTL` shorter than pod startup can't sleep an agent before its first task runs; use `deleteTTL` to reclaim agents that are never used.
+- **`spec.deleteTTL`** — An **absolute lifetime** measured from `metadata.creationTimestamp`. When it elapses the whole agent is deleted (pod + PVC, via owner references). Unlike `sleepTTL` it does not reset on wake and applies in every phase — including `Sleeping`, which is what makes it a cap rather than a suggestion. It will interrupt a running task.
+
+Both take Go duration strings (`30m`, `2h`, `1h30m`). Note that Go has no day unit — use `24h`, not `1d`. Both are optional and independent; set `sleepTTL` below `deleteTTL` for the natural "keep warm → hibernate → clean up" sequence (the operator logs a warning if `deleteTTL <= sleepTTL`, since the agent would be deleted before it ever slept).
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgent
+metadata:
+  name: nightly-report
+spec:
+  instructions: "Generate the nightly report"
+  sleepTTL: 30m   # hibernate after 30 minutes idle
+  deleteTTL: 24h  # hard-delete a day after creation
+```
+
+The operator publishes the projected transition times as `status.sleepExpiresAt` and `status.deleteExpiresAt`, and requeues to wake exactly when the next TTL comes due. `sleepExpiresAt` is empty whenever the idle clock isn't running — mid-task, or already asleep.
+
+**Interaction with `lifecycle`.** A TTL turns its matching lifecycle action into a delayed one. `lifecycle: Sleep` alone sleeps immediately on task completion; adding `sleepTTL: 30m` gives it a 30-minute grace period instead. Likewise `deleteTTL` defers `lifecycle: AutoDelete`. So `lifecycle: AutoDelete` + `deleteTTL: 7d` means "stay usable, but clean yourself up after a week".
+
+**Template-level defaults.** `sleepTTL` and `deleteTTL` can also be set on a `KomputerAgentTemplate` (or `KomputerAgentClusterTemplate`) to apply to every agent using it. A per-agent value overrides the template's, each field independently. This is how scheduled agents pick up TTLs, since `ScheduleAgentSpec` has no TTL field of its own.
+
+**Squad members.** TTLs work for squad members too, set on the member's own agent spec (or inherited from its template) — including inline member specs in a `create_squad` call. The squad controller enforces them, with two differences forced by the shared pod:
+
+- Sleeping a member only sets `Phase=Sleeping`; there is no per-member pod to delete. The shared squad pod is torn down once **every** member is asleep, the same path a manual member sleep takes.
+- A member deleted by `deleteTTL` is removed from the squad automatically — its dangling ref is pruned on the next reconcile, which then feeds the normal [empty-squad and single-member-shrinkage handling](squads/lifecycle.md). Squads also have their own `orphanTTL` for reclaiming a squad once it is empty.
+
 ## Roles
 
 Agents have one of two roles:
@@ -79,7 +110,7 @@ Queued agents are admitted in **priority order**:
 - Default priority is `0`, so without explicit priority everyone competes equally
 - Ties are broken by creation timestamp (older first), then by name
 
-When an agent in `Phase=Running` transitions to `Sleeping`/`Succeeded`/`Failed` or is deleted, the operator re-evaluates queued siblings sharing the same template and admits the highest-priority one. A Running agent counts against the cap regardless of `taskStatus` — so an idle agent (taskStatus `Complete` but pod still alive) keeps holding its slot. Use `lifecycle: Sleep` if you want completed agents to free their slot automatically.
+When an agent in `Phase=Running` transitions to `Sleeping`/`Succeeded`/`Failed` or is deleted, the operator re-evaluates queued siblings sharing the same template and admits the highest-priority one. A Running agent counts against the cap regardless of `taskStatus` — so an idle agent (taskStatus `Complete` but pod still alive) keeps holding its slot. Use `lifecycle: Sleep` if you want completed agents to free their slot immediately, or `sleepTTL` to free it after a grace period.
 
 The agent's `status.phase` shows `Queued` and `status.queuePosition` exposes the 1-based position in the queue:
 

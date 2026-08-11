@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
 **connectors** | **List[str]** | connector names to attach | [optional] 
+**delete_ttl** | **str** |  | [optional] 
 **disallowed_tools** | **List[str]** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
 **instructions** | **str** |  | [optional] 
 **labels** | **Dict[str, str]** |  | [optional] 
@@ -17,6 +18,7 @@ Name | Type | Description | Notes
 **priority** | **int** | pointer so 0 vs unset is distinguishable | [optional] 
 **secret_refs** | **List[str]** | full replacement list of K8s secret names | [optional] 
 **skills** | **List[str]** | skill names to attach | [optional] 
+**sleep_ttl** | **str** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | custom system prompt | [optional] 
 **template_ref** | **str** |  | [optional] 

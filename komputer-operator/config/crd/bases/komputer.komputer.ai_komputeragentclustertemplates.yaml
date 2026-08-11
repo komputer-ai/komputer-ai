@@ -73,6 +73,12 @@ spec:
                 - key
                 - name
                 type: object
+              deleteTTL:
+                description: |-
+                  DeleteTTL is the default absolute lifetime after which agents using this template
+                  are deleted. Individual agents override it via their own spec.deleteTTL.
+                  Unset (default) means agents never auto-delete.
+                type: string
               maxConcurrentAgents:
                 default: 0
                 description: |-
@@ -8066,6 +8072,12 @@ spec:
                 required:
                 - containers
                 type: object
+              sleepTTL:
+                description: |-
+                  SleepTTL is the default idle timeout after which agents using this template are
+                  put to sleep. Individual agents override it via their own spec.sleepTTL.
+                  Unset (default) means agents never auto-sleep.
+                type: string
               storage:
                 description: Storage defines the PVC settings for agent workspaces.
                 properties:

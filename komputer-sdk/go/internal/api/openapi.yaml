@@ -2257,6 +2257,7 @@ components:
           skills:
           - skills
           - skills
+          sleepTTL: "{}"
           systemPrompt: systemPrompt
           disallowedTools:
           - disallowedTools
@@ -2269,6 +2270,7 @@ components:
           allowedTools:
           - allowedTools
           - allowedTools
+          deleteTTL: "{}"
           internalSystemPrompt: internalSystemPrompt
       properties:
         name:
@@ -2286,7 +2288,9 @@ components:
           connectors:
           - connectors
           - connectors
+          sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
+          lastActivityAt: lastActivityAt
           storage:
             size: size
             storageClassName: storageClassName
@@ -2299,6 +2303,7 @@ components:
           disallowedTools:
           - disallowedTools
           - disallowedTools
+          deleteExpiresAt: deleteExpiresAt
           memories:
           - memories
           - memories
@@ -2308,6 +2313,7 @@ components:
           lastTaskCostUSD: lastTaskCostUSD
           lastTaskMessage: lastTaskMessage
           taskStatus: taskStatus
+          deleteTTL: deleteTTL
           squadName: squadName
           queuePosition: 4
           podSpec:
@@ -2937,6 +2943,7 @@ components:
           totalTokens: 7
           labels:
             key: labels
+          sleepTTL: sleepTTL
           systemPrompt: systemPrompt
           squad: true
           name: name
@@ -2952,7 +2959,9 @@ components:
           connectors:
           - connectors
           - connectors
+          sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
+          lastActivityAt: lastActivityAt
           storage:
             size: size
             storageClassName: storageClassName
@@ -2965,6 +2974,7 @@ components:
           disallowedTools:
           - disallowedTools
           - disallowedTools
+          deleteExpiresAt: deleteExpiresAt
           memories:
           - memories
           - memories
@@ -2974,6 +2984,7 @@ components:
           lastTaskCostUSD: lastTaskCostUSD
           lastTaskMessage: lastTaskMessage
           taskStatus: taskStatus
+          deleteTTL: deleteTTL
           squadName: squadName
           queuePosition: 4
           podSpec:
@@ -3603,6 +3614,7 @@ components:
           totalTokens: 7
           labels:
             key: labels
+          sleepTTL: sleepTTL
           systemPrompt: systemPrompt
           squad: true
           name: name
@@ -3626,7 +3638,9 @@ components:
         connectors:
         - connectors
         - connectors
+        sleepExpiresAt: sleepExpiresAt
         totalCostUSD: totalCostUSD
+        lastActivityAt: lastActivityAt
         storage:
           size: size
           storageClassName: storageClassName
@@ -3639,6 +3653,7 @@ components:
         disallowedTools:
         - disallowedTools
         - disallowedTools
+        deleteExpiresAt: deleteExpiresAt
         memories:
         - memories
         - memories
@@ -3648,6 +3663,7 @@ components:
         lastTaskCostUSD: lastTaskCostUSD
         lastTaskMessage: lastTaskMessage
         taskStatus: taskStatus
+        deleteTTL: deleteTTL
         squadName: squadName
         queuePosition: 4
         podSpec:
@@ -4277,6 +4293,7 @@ components:
         totalTokens: 7
         labels:
           key: labels
+        sleepTTL: sleepTTL
         systemPrompt: systemPrompt
         squad: true
         name: name
@@ -4303,6 +4320,11 @@ components:
           type: array
         createdAt:
           type: string
+        deleteExpiresAt:
+          type: string
+        deleteTTL:
+          description: "absolute lifetime before auto-delete, e.g. \"24h\""
+          type: string
         disallowedTools:
           description: Tools removed from this agent
           items:
@@ -4323,6 +4345,11 @@ components:
           additionalProperties:
             type: string
           type: object
+        lastActivityAt:
+          description: |-
+            LastActivityAt is when the agent last saw task activity (RFC3339). The idle
+            clock sleepTTL is measured against.
+          type: string
         lastTaskCostUSD:
           type: string
         lastTaskMessage:
@@ -4360,6 +4387,14 @@ components:
           items:
             type: string
           type: array
+        sleepExpiresAt:
+          description: |-
+            SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
+            when the matching TTL is unset or its countdown isn't currently running.
+          type: string
+        sleepTTL:
+          description: "idle timeout before auto-sleep, e.g. \"30m\""
+          type: string
         squad:
           description: True when this agent is managed by a KomputerSquad
           type: boolean
@@ -5079,6 +5114,7 @@ components:
         skills:
         - skills
         - skills
+        sleepTTL: sleepTTL
         systemPrompt: systemPrompt
         disallowedTools:
         - disallowedTools
@@ -5093,6 +5129,7 @@ components:
         allowedTools:
         - allowedTools
         - allowedTools
+        deleteTTL: deleteTTL
       properties:
         allowedTools:
           description: |-
@@ -5107,6 +5144,11 @@ components:
           items:
             type: string
           type: array
+        deleteTTL:
+          description: |-
+            DeleteTTL deletes the agent this long after creation, as a Go duration string
+            (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
+          type: string
         disallowedTools:
           description: |-
             DisallowedTools removes these tools; everything else stays available.
@@ -5160,6 +5202,11 @@ components:
           items:
             type: string
           type: array
+        sleepTTL:
+          description: |-
+            SleepTTL puts the agent to sleep after this long with no activity, as a Go
+            duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
+          type: string
         storage:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
@@ -5366,6 +5413,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -5378,6 +5426,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
             internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
           name: name
@@ -5400,6 +5449,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -5412,6 +5462,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
             internalSystemPrompt: internalSystemPrompt
         name: name
         namespace: namespace
@@ -6211,6 +6262,7 @@ components:
         skills:
         - skills
         - skills
+        sleepTTL: sleepTTL
         systemPrompt: systemPrompt
         disallowedTools:
         - disallowedTools
@@ -6222,6 +6274,7 @@ components:
         allowedTools:
         - allowedTools
         - allowedTools
+        deleteTTL: deleteTTL
       properties:
         allowedTools:
           description: |-
@@ -6235,6 +6288,8 @@ components:
           items:
             type: string
           type: array
+        deleteTTL:
+          type: string
         disallowedTools:
           description: "DisallowedTools removes these tools; an explicit [] clears\
             \ the list."
@@ -6271,6 +6326,11 @@ components:
           items:
             type: string
           type: array
+        sleepTTL:
+          description: |-
+            SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
+            clears the TTL; omitting the field leaves it unchanged.
+          type: string
         storage:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
@@ -6358,6 +6418,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -6370,6 +6431,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
             internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
           name: name
@@ -6392,6 +6454,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -6404,6 +6467,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
             internalSystemPrompt: internalSystemPrompt
         orphanTTL: orphanTTL
       properties:
@@ -7819,6 +7883,30 @@ components:
           items:
             $ref: "#/components/schemas/v1.DownwardAPIVolumeFile"
           type: array
+      type: object
+    v1.Duration:
+      properties:
+        time.Duration:
+          enum:
+          - -9223372036854775808
+          - 9223372036854775807
+          - 1
+          - 1000
+          - 1000000
+          - 1000000000
+          - 60000000000
+          - 3600000000000
+          format: int64
+          type: integer
+          x-enum-varnames:
+          - minDuration
+          - maxDuration
+          - Nanosecond
+          - Microsecond
+          - Millisecond
+          - Second
+          - Minute
+          - Hour
       type: object
     v1.EmptyDirVolumeSource:
       properties:
@@ -13134,6 +13222,7 @@ components:
         skills:
         - skills
         - skills
+        sleepTTL: "{}"
         systemPrompt: systemPrompt
         disallowedTools:
         - disallowedTools
@@ -13146,6 +13235,7 @@ components:
         allowedTools:
         - allowedTools
         - allowedTools
+        deleteTTL: "{}"
         internalSystemPrompt: internalSystemPrompt
       properties:
         allowedTools:
@@ -13171,6 +13261,17 @@ components:
           items:
             type: string
           type: array
+        deleteTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+            metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+            does not reset on wake and applies in every phase, including Sleeping.
+            Unset (default) means the agent never auto-deletes.
+            Overrides the template's deleteTTL when set.
+            +optional
+          type: object
         disallowedTools:
           description: |-
             DisallowedTools removes these tools from the agent. Purely subtractive:
@@ -13271,6 +13372,19 @@ components:
           items:
             type: string
           type: array
+        sleepTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+            idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+            only starts once a task has actually started, and any later task event or wake
+            resets it. Never fires while a task is in progress, and an agent that has never
+            run a task is never auto-slept (use DeleteTTL to reclaim those).
+            Unset (default) means the agent never auto-sleeps.
+            Overrides the template's sleepTTL when set.
+            +optional
+          type: object
         storage:
           allOf:
           - $ref: "#/components/schemas/v1alpha1.StorageSpec"
@@ -13313,6 +13427,7 @@ components:
           skills:
           - skills
           - skills
+          sleepTTL: "{}"
           systemPrompt: systemPrompt
           disallowedTools:
           - disallowedTools
@@ -13325,6 +13440,7 @@ components:
           allowedTools:
           - allowedTools
           - allowedTools
+          deleteTTL: "{}"
           internalSystemPrompt: internalSystemPrompt
       properties:
         name:

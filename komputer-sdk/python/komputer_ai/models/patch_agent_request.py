@@ -31,6 +31,7 @@ class PatchAgentRequest(BaseModel):
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.", alias="allowedTools")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="connector names to attach")
+    delete_ttl: Optional[StrictStr] = Field(default=None, alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; an explicit [] clears the list.", alias="disallowedTools")
     instructions: Optional[StrictStr] = None
     labels: Optional[Dict[str, StrictStr]] = None
@@ -41,10 +42,11 @@ class PatchAgentRequest(BaseModel):
     priority: Optional[StrictInt] = Field(default=None, description="pointer so 0 vs unset is distinguishable")
     secret_refs: Optional[List[StrictStr]] = Field(default=None, description="full replacement list of K8s secret names", alias="secretRefs")
     skills: Optional[List[StrictStr]] = Field(default=None, description="skill names to attach")
+    sleep_ttl: Optional[StrictStr] = Field(default=None, description="SleepTTL / DeleteTTL are Go duration strings (e.g. \"30m\"). An explicit \"\" clears the TTL; omitting the field leaves it unchanged.", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="custom system prompt", alias="systemPrompt")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -105,6 +107,7 @@ class PatchAgentRequest(BaseModel):
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
             "connectors": obj.get("connectors"),
+            "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
@@ -115,6 +118,7 @@ class PatchAgentRequest(BaseModel):
             "priority": obj.get("priority"),
             "secretRefs": obj.get("secretRefs"),
             "skills": obj.get("skills"),
+            "sleepTTL": obj.get("sleepTTL"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
             "templateRef": obj.get("templateRef")
