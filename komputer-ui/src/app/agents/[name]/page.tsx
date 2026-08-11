@@ -27,6 +27,7 @@ import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
 import { LIFECYCLES } from "@/lib/constants";
 import { Textarea } from "@/components/kit/textarea";
+import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
 import {
   Select,
@@ -43,6 +44,21 @@ function fmtTokens(n: number): string {
   if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
   if (n >= 1000) { const v = n / 1000; return `${Number.isInteger(v) ? v : v.toFixed(1)}k`; }
   return String(n);
+}
+
+// The API returns Go duration strings ("30m0s", "24h0m0s"). Drop the zero-valued
+// trailing units so a badge reads "30m" / "24h" instead.
+function fmtDuration(d: string): string {
+  return d.replace(/(\d+h)0m0s$/, "$1").replace(/(\d+m)0s$/, "$1") || d;
+}
+
+// Tooltip for a TTL badge: the absolute time the transition is due. An absent
+// timestamp means that TTL's countdown isn't currently running (e.g. mid-task).
+function ttlTitle(verb: string, expiresAt?: string): string {
+  if (!expiresAt) return `${verb} once idle past this TTL`;
+  const t = new Date(expiresAt);
+  if (Number.isNaN(t.getTime())) return `${verb} once idle past this TTL`;
+  return `${verb} at ${t.toLocaleString()}`;
 }
 
 export default function AgentDetailPage() {
@@ -402,6 +418,16 @@ export default function AgentDetailPage() {
                     {agent.lifecycle}
                   </Badge>
                 )}
+                {agent.sleepTTL && (
+                  <Badge variant="secondary" className="text-xs" title={ttlTitle("Sleeps", agent.sleepExpiresAt)}>
+                    💤 {fmtDuration(agent.sleepTTL)}
+                  </Badge>
+                )}
+                {agent.deleteTTL && (
+                  <Badge variant="secondary" className="text-xs" title={ttlTitle("Deletes", agent.deleteExpiresAt)}>
+                    ⏳ {fmtDuration(agent.deleteTTL)}
+                  </Badge>
+                )}
               </div>
             )}
 
@@ -713,6 +739,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
 }) {
   const [model, setModel] = useState(agent.model);
   const [lifecycle, setLifecycle] = useState<string>(agent.lifecycle || "default");
+  // TTLs round-trip as Go duration strings; show the compact form so editing "30m"
+  // doesn't turn into "30m0s" on every save.
+  const [sleepTTL, setSleepTTL] = useState(fmtDuration(agent.sleepTTL ?? ""));
+  const [deleteTTL, setDeleteTTL] = useState(fmtDuration(agent.deleteTTL ?? ""));
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
   const [systemPromptOpen, setSystemPromptOpen] = useState(!!agent.systemPrompt);
@@ -763,7 +793,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const connectorsChanged = JSON.stringify(agentConnectors.sort()) !== JSON.stringify((agent.connectors ?? []).sort());
   const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
   const systemPromptChanged = systemPrompt !== (agent.systemPrompt ?? "");
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged;
+  const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
+  const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -778,6 +810,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (skillsChanged) patch.skills = agentSkills;
       if (connectorsChanged) patch.connectors = agentConnectors;
       if (systemPromptChanged) patch.systemPrompt = systemPrompt.trim() || "";
+      // Send "" to clear a TTL — the API treats explicit empty as "remove" and an
+      // omitted field as "leave unchanged".
+      if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
+      if (deleteTTLChanged) patch.deleteTTL = deleteTTL.trim();
       const updated = await patchAgent(agent.name, patch, agentNs);
       if (updated.errors && updated.errors.length > 0) {
         // Saved successfully but some live-pod sync steps failed. Surface the error
@@ -864,6 +900,31 @@ function SettingsCard({ agent, agentNs, onSaved }: {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Sleep TTL</Label>
+          <Input
+            value={sleepTTL}
+            onChange={(e) => setSleepTTL(e.target.value)}
+            placeholder="e.g. 30m"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Sleep after this long idle. Resets on activity. Empty to never sleep.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Delete TTL</Label>
+          <Input
+            value={deleteTTL}
+            onChange={(e) => setDeleteTTL(e.target.value)}
+            placeholder="e.g. 24h"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Delete this long after creation. Absolute — never resets. Empty to never delete.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

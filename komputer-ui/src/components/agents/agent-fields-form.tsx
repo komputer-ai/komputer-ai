@@ -41,6 +41,10 @@ export interface AgentFormValues {
   memoryLimit: string;
   storageSize: string;
   image: string;
+  /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
+  sleepTTL: string;
+  /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */
+  deleteTTL: string;
   // UI-only state (preserved across tab switches)
   systemPromptOpen: boolean;
   advancedOpen: boolean;
@@ -65,6 +69,8 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     cpu: "",
     memoryLimit: "",
     storageSize: "",
+    sleepTTL: "",
+    deleteTTL: "",
     image: "",
     systemPromptOpen: false,
     advancedOpen: false,
@@ -445,6 +451,26 @@ export function AgentFieldsForm({
                         autoComplete="off"
                       />
                     </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-sleep-ttl`}>Sleep TTL</Label>
+                      <Input
+                        id={`${idPrefix}-sleep-ttl`}
+                        placeholder="e.g. 30m"
+                        value={values.sleepTTL}
+                        onChange={(e) => patch("sleepTTL", e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-delete-ttl`}>Delete TTL</Label>
+                      <Input
+                        id={`${idPrefix}-delete-ttl`}
+                        placeholder="e.g. 24h"
+                        value={values.deleteTTL}
+                        onChange={(e) => patch("deleteTTL", e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -501,6 +527,8 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     priority: values.priority !== 0 ? values.priority : undefined,
     podSpec: podSpecOverride,
     storage: values.storageSize.trim() ? { size: values.storageSize.trim() } : undefined,
+    sleepTTL: values.sleepTTL.trim() || undefined,
+    deleteTTL: values.deleteTTL.trim() || undefined,
   };
 }
 
@@ -533,6 +561,8 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
   if (values.priority !== 0) spec.priority = values.priority;
   if (podSpecOverride) spec.podSpec = podSpecOverride;
   if (values.storageSize.trim()) spec.storage = { size: values.storageSize.trim() };
+  if (values.sleepTTL.trim()) spec.sleepTTL = values.sleepTTL.trim();
+  if (values.deleteTTL.trim()) spec.deleteTTL = values.deleteTTL.trim();
   return spec;
 }
 
