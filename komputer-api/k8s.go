@@ -232,20 +232,12 @@ func (k *K8sClient) UpdateManagedSecret(ctx context.Context, ns, name string, da
 	return secret, nil
 }
 
-// ToolPolicy carries an agent's tool allow/deny lists. Grouped into a struct
-// rather than two more positional []string params, which would give CreateAgent
-// six consecutive []string arguments and an easy transposition bug.
-type ToolPolicy struct {
-	Allowed    []string
-	Disallowed []string
-}
-
-func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, systemPrompt, model, templateRef, role string, secretNames []string, memories []string, skills []string, connectors []string, lifecycle, officeManager string, priority int32, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec, labels map[string]string, tools ToolPolicy) (*komputerv1alpha1.KomputerAgent, error) {
-	if model == "" {
-		model = "claude-sonnet-4-6"
+func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, officeManager string, cfg komputerv1alpha1.AgentConfigSpec) (*komputerv1alpha1.KomputerAgent, error) {
+	if cfg.Model == "" {
+		cfg.Model = "claude-sonnet-4-6"
 	}
-	if templateRef == "" {
-		templateRef = "default"
+	if cfg.TemplateRef == "" {
+		cfg.TemplateRef = "default"
 	}
 
 	agent := &komputerv1alpha1.KomputerAgent{
@@ -257,24 +249,10 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, int
 			},
 		},
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			TemplateRef:          templateRef,
+			AgentConfigSpec:      cfg,
 			Instructions:         instructions,
 			InternalSystemPrompt: internalSystemPrompt,
-			SystemPrompt:         systemPrompt,
-			Model:                model,
-			Role:                 role,
-			Secrets:              secretNames,
-			Memories:             memories,
-			Skills:               skills,
-			Connectors:           connectors,
-			AllowedTools:         tools.Allowed,
-			DisallowedTools:      tools.Disallowed,
-			Lifecycle:            komputerv1alpha1.AgentLifecycle(lifecycle),
 			OfficeManager:        officeManager,
-			Priority:             priority,
-			PodSpec:              podSpec,
-			Storage:              storage,
-			Labels:               labels,
 		},
 	}
 
@@ -846,19 +824,8 @@ func (k *K8sClient) CreateSchedule(ctx context.Context, ns string, req *CreateSc
 	}
 
 	if req.Agent != nil {
-		lifecycle := komputerv1alpha1.AgentLifecycle(req.Agent.Lifecycle)
-		if lifecycle == "" {
-			lifecycle = komputerv1alpha1.AgentLifecycleSleep
-		}
-		agentSpec := &komputerv1alpha1.ScheduleAgentSpec{
-			Model:       req.Agent.Model,
-			Lifecycle:   lifecycle,
-			Role:        req.Agent.Role,
-			TemplateRef: req.Agent.TemplateRef,
-		}
-		if len(req.Agent.SecretRefs) > 0 {
-			agentSpec.Secrets = req.Agent.SecretRefs
-		}
+		agentSpec := req.Agent.DeepCopy()
+		scheduleAgentDefaults(&agentSpec.AgentConfigSpec)
 		schedule.Spec.Agent = agentSpec
 	}
 
@@ -925,13 +892,9 @@ func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, req 
 		changed = true
 	}
 	if req.Agent != nil {
-		schedule.Spec.Agent = &komputerv1alpha1.ScheduleAgentSpec{
-			Model:       req.Agent.Model,
-			Lifecycle:   komputerv1alpha1.AgentLifecycle(req.Agent.Lifecycle),
-			Role:        req.Agent.Role,
-			TemplateRef: req.Agent.TemplateRef,
-			Secrets:     req.Agent.SecretRefs,
-		}
+		agentSpec := req.Agent.DeepCopy()
+		scheduleAgentDefaults(&agentSpec.AgentConfigSpec)
+		schedule.Spec.Agent = agentSpec
 		// Inline template replaces any AgentName reference.
 		schedule.Spec.AgentName = ""
 		changed = true

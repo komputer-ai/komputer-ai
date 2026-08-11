@@ -2998,29 +2998,6 @@
                 }
             }
         },
-        "main.CreateScheduleAgentSpec": {
-            "type": "object",
-            "properties": {
-                "lifecycle": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "secretRefs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "templateRef": {
-                    "type": "string"
-                }
-            }
-        },
         "main.CreateScheduleRequest": {
             "type": "object",
             "required": [
@@ -3030,7 +3007,7 @@
             ],
             "properties": {
                 "agent": {
-                    "$ref": "#/definitions/main.CreateScheduleAgentSpec"
+                    "$ref": "#/definitions/v1alpha1.ScheduleAgentSpec"
                 },
                 "agentName": {
                     "type": "string"
@@ -3318,7 +3295,7 @@
             "type": "object",
             "properties": {
                 "agent": {
-                    "$ref": "#/definitions/main.CreateScheduleAgentSpec"
+                    "$ref": "#/definitions/v1alpha1.ScheduleAgentSpec"
                 },
                 "agentName": {
                     "type": "string"
@@ -3383,7 +3360,7 @@
             "type": "object",
             "properties": {
                 "agent": {
-                    "$ref": "#/definitions/main.CreateScheduleAgentSpec"
+                    "$ref": "#/definitions/v1alpha1.ScheduleAgentSpec"
                 },
                 "agentName": {
                     "type": "string"
@@ -7889,6 +7866,104 @@
                 },
                 "namespace": {
                     "description": "defaults to squad's namespace",
+                    "type": "string"
+                }
+            }
+        },
+        "v1alpha1.ScheduleAgentSpec": {
+            "type": "object",
+            "properties": {
+                "allowedTools": {
+                    "description": "AllowedTools restricts the agent to exactly these tools. When empty, the\ndefault built-in tool set is used and all tools from attached connectors\nare permitted.\n\nSetting this REPLACES the default set rather than extending it, so an\nagent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector\ntools are not auto-added either — list them explicitly, e.g.\n\"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\"\nfor a single tool.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "connectors": {
+                    "description": "Connectors is a list of KomputerConnector names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "disallowedTools": {
+                    "description": "DisallowedTools removes these tools from the agent. Purely subtractive:\nthe default built-ins and all connector tools remain available except\nwhat is named here. Takes precedence over AllowedTools.\nSupports wildcards, e.g. \"mcp__figma__*\".\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels are user-defined key=value labels attached to this agent and\npropagated to all child resources (Pod, PVC, ConfigMap, Service).\nKeys starting with \"komputer.ai/\" are reserved for system labels and\nshould not be set directly through the API.\n+optional",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "lifecycle": {
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.AgentLifecycle"
+                        }
+                    ]
+                },
+                "memories": {
+                    "description": "Memories is a list of KomputerMemory names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "model": {
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "type": "string"
+                },
+                "podSpec": {
+                    "description": "PodSpec, when set, overrides the template's PodSpec for this agent.\nContainer fields are merged by name; non-zero fields from this PodSpec\noverride the template's container fields. Takes effect on next pod start\n(existing pods are not mutated).\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.PodSpec"
+                        }
+                    ]
+                },
+                "priority": {
+                    "description": "Priority controls admission order when the template's maxConcurrentAgents\nlimit is reached. Higher number = admitted first (matches K8s PodPriority).\nTies broken by creationTimestamp (older first). Defaults to 0.\n+kubebuilder:default=0\n+optional",
+                    "type": "integer"
+                },
+                "role": {
+                    "description": "Role is \"manager\" or \"worker\". Managers get orchestration tools.\nRole is \"manager\" or \"worker\". Defaults to \"manager\" for top-level agents.\nSub-agents created by managers are explicitly set to \"worker\".\n+kubebuilder:default=\"manager\"\n+kubebuilder:validation:Enum=worker;manager\n+optional",
+                    "type": "string"
+                },
+                "secrets": {
+                    "description": "Secrets is a list of K8s Secret names containing agent-specific secrets.\nEach key in each secret is injected as an env var into the agent pod.\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "skills": {
+                    "description": "Skills is a list of KomputerSkill names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "storage": {
+                    "description": "Storage, when set, overrides the template's storage settings for this agent.\nExisting PVCs are expanded in place when the storage class supports it.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.StorageSpec"
+                        }
+                    ]
+                },
+                "systemPrompt": {
+                    "description": "SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.\n+optional",
+                    "type": "string"
+                },
+                "templateRef": {
+                    "description": "TemplateRef is the name of the KomputerAgentTemplate to use.\n+kubebuilder:default=\"default\"",
                     "type": "string"
                 }
             }

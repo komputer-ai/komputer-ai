@@ -452,7 +452,25 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(req.Memories), req.SystemPrompt, req.Model, req.TemplateRef, role, req.SecretRefs, req.Memories, req.Skills, connectors, req.Lifecycle, req.OfficeManager, req.Priority, req.PodSpec, req.Storage, req.Labels, ToolPolicy{Allowed: req.AllowedTools, Disallowed: req.DisallowedTools})
+		agent, err := k8s.CreateAgent(c.Request.Context(), ns, req.Name, instructions,
+			buildInternalSystemPrompt(req.Memories), req.OfficeManager,
+			komputerv1alpha1.AgentConfigSpec{
+				TemplateRef:     req.TemplateRef,
+				SystemPrompt:    req.SystemPrompt,
+				Model:           req.Model,
+				Role:            role,
+				Secrets:         req.SecretRefs,
+				Skills:          req.Skills,
+				Memories:        req.Memories,
+				Connectors:      connectors,
+				AllowedTools:    req.AllowedTools,
+				DisallowedTools: req.DisallowedTools,
+				Lifecycle:       komputerv1alpha1.AgentLifecycle(req.Lifecycle),
+				Priority:        req.Priority,
+				PodSpec:         req.PodSpec,
+				Storage:         req.Storage,
+				Labels:          req.Labels,
+			})
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
 				c.JSON(http.StatusConflict, gin.H{"error": "agent already exists: " + req.Name})

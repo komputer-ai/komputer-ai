@@ -8,54 +8,59 @@ import (
 
 	"github.com/gin-gonic/gin"
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CreateScheduleRequest struct {
-	Name         string                   `json:"name" binding:"required"`
-	Schedule     string                   `json:"schedule" binding:"required"`
-	Instructions string                   `json:"instructions" binding:"required"`
-	Timezone     string                   `json:"timezone"`
-	AutoDelete   bool                     `json:"autoDelete"`
-	KeepAgents   bool                     `json:"keepAgents"`
-	AgentName    string                   `json:"agentName"`
-	Agent        *CreateScheduleAgentSpec `json:"agent"`
-	Namespace    string                   `json:"namespace"`
-}
-
-type CreateScheduleAgentSpec struct {
-	Model       string   `json:"model"`
-	Lifecycle   string   `json:"lifecycle"`
-	Role        string   `json:"role"`
-	TemplateRef string   `json:"templateRef"`
-	SecretRefs  []string `json:"secretRefs"`
+	Name         string                              `json:"name" binding:"required"`
+	Schedule     string                              `json:"schedule" binding:"required"`
+	Instructions string                              `json:"instructions" binding:"required"`
+	Timezone     string                              `json:"timezone"`
+	AutoDelete   bool                                `json:"autoDelete"`
+	KeepAgents   bool                                `json:"keepAgents"`
+	AgentName    string                              `json:"agentName"`
+	Agent        *komputerv1alpha1.ScheduleAgentSpec `json:"agent"`
+	Namespace    string                              `json:"namespace"`
 }
 
 type ScheduleResponse struct {
-	Name           string                   `json:"name"`
-	Namespace      string                   `json:"namespace"`
-	Schedule       string                   `json:"schedule"`
-	Instructions   string                   `json:"instructions"`
-	Timezone       string                   `json:"timezone,omitempty"`
-	AutoDelete     bool                     `json:"autoDelete,omitempty"`
-	KeepAgents     bool                     `json:"keepAgents,omitempty"`
-	Suspended      bool                     `json:"suspended,omitempty"`
-	Agent          *CreateScheduleAgentSpec `json:"agent,omitempty"`
-	Phase          string                   `json:"phase"`
-	AgentName      string                   `json:"agentName,omitempty"`
-	NextRunTime    string                   `json:"nextRunTime,omitempty"`
-	LastRunTime    string                   `json:"lastRunTime,omitempty"`
-	RunCount       int                      `json:"runCount,omitempty"`
-	SuccessfulRuns int                      `json:"successfulRuns,omitempty"`
-	FailedRuns     int                      `json:"failedRuns,omitempty"`
-	TotalCostUSD   string                   `json:"totalCostUSD,omitempty"`
-	LastRunCostUSD string                   `json:"lastRunCostUSD,omitempty"`
-	TotalTokens    int64                    `json:"totalTokens,omitempty"`
-	LastRunTokens  int64                    `json:"lastRunTokens,omitempty"`
-	LastRunStatus  string                   `json:"lastRunStatus,omitempty"`
-	CreatedAt      string                   `json:"createdAt"`
+	Name           string                              `json:"name"`
+	Namespace      string                              `json:"namespace"`
+	Schedule       string                              `json:"schedule"`
+	Instructions   string                              `json:"instructions"`
+	Timezone       string                              `json:"timezone,omitempty"`
+	AutoDelete     bool                                `json:"autoDelete,omitempty"`
+	KeepAgents     bool                                `json:"keepAgents,omitempty"`
+	Suspended      bool                                `json:"suspended,omitempty"`
+	Agent          *komputerv1alpha1.ScheduleAgentSpec `json:"agent,omitempty"`
+	Phase          string                              `json:"phase"`
+	AgentName      string                              `json:"agentName,omitempty"`
+	NextRunTime    string                              `json:"nextRunTime,omitempty"`
+	LastRunTime    string                              `json:"lastRunTime,omitempty"`
+	RunCount       int                                 `json:"runCount,omitempty"`
+	SuccessfulRuns int                                 `json:"successfulRuns,omitempty"`
+	FailedRuns     int                                 `json:"failedRuns,omitempty"`
+	TotalCostUSD   string                              `json:"totalCostUSD,omitempty"`
+	LastRunCostUSD string                              `json:"lastRunCostUSD,omitempty"`
+	TotalTokens    int64                               `json:"totalTokens,omitempty"`
+	LastRunTokens  int64                               `json:"lastRunTokens,omitempty"`
+	LastRunStatus  string                              `json:"lastRunStatus,omitempty"`
+	CreatedAt      string                              `json:"createdAt"`
+}
+
+// scheduleAgentDefaults applies the defaults a scheduled agent gets when the
+// caller leaves them unset. These live here rather than as kubebuilder markers
+// because the CRD carries the agent's defaults (role=manager, no lifecycle) and
+// schedules want different ones — a scheduled agent is a self-contained job, so
+// it defaults to a worker whose pod is reclaimed after each run.
+func scheduleAgentDefaults(cfg *komputerv1alpha1.AgentConfigSpec) {
+	if cfg.Role == "" {
+		cfg.Role = "worker"
+	}
+	if cfg.Lifecycle == "" {
+		cfg.Lifecycle = komputerv1alpha1.AgentLifecycleSleep
+	}
 }
 
 type ScheduleListResponse struct {
@@ -63,14 +68,14 @@ type ScheduleListResponse struct {
 }
 
 type PatchScheduleRequest struct {
-	Schedule     *string                  `json:"schedule,omitempty"`
-	Instructions *string                  `json:"instructions,omitempty"`
-	Timezone     *string                  `json:"timezone,omitempty"`
-	AutoDelete   *bool                    `json:"autoDelete,omitempty"`
-	KeepAgents   *bool                    `json:"keepAgents,omitempty"`
-	Suspended    *bool                    `json:"suspended,omitempty"`
-	AgentName    *string                  `json:"agentName,omitempty"`
-	Agent        *CreateScheduleAgentSpec `json:"agent,omitempty"`
+	Schedule     *string                             `json:"schedule,omitempty"`
+	Instructions *string                             `json:"instructions,omitempty"`
+	Timezone     *string                             `json:"timezone,omitempty"`
+	AutoDelete   *bool                               `json:"autoDelete,omitempty"`
+	KeepAgents   *bool                               `json:"keepAgents,omitempty"`
+	Suspended    *bool                               `json:"suspended,omitempty"`
+	AgentName    *string                             `json:"agentName,omitempty"`
+	Agent        *komputerv1alpha1.ScheduleAgentSpec `json:"agent,omitempty"`
 }
 
 type TriggerScheduleResponse struct {
@@ -112,15 +117,7 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 	if resp.AgentName == "" {
 		resp.AgentName = s.Spec.AgentName
 	}
-	if s.Spec.Agent != nil {
-		resp.Agent = &CreateScheduleAgentSpec{
-			Model:       s.Spec.Agent.Model,
-			Lifecycle:   string(s.Spec.Agent.Lifecycle),
-			Role:        s.Spec.Agent.Role,
-			TemplateRef: s.Spec.Agent.TemplateRef,
-			SecretRefs:  s.Spec.Agent.Secrets,
-		}
-	}
+	resp.Agent = s.Spec.Agent
 	return resp
 }
 
@@ -289,28 +286,14 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 		if schedule.Spec.Agent == nil {
 			return "", http.StatusNotFound, fmt.Errorf("agent %s does not exist and schedule has no agent template", agentName)
 		}
-		lifecycle := string(schedule.Spec.Agent.Lifecycle)
-		if lifecycle == "" {
-			lifecycle = string(komputerv1alpha1.AgentLifecycleSleep)
-		}
-		_, err := k8s.CreateAgent(
-			ctx, ns, agentName,
-			instructions, "", "",
-			schedule.Spec.Agent.Model,
-			schedule.Spec.Agent.TemplateRef,
-			schedule.Spec.Agent.Role,
-			schedule.Spec.Agent.Secrets,
-			nil, nil, nil,
-			lifecycle, "", 0,
-			(*corev1.PodSpec)(nil),
-			(*komputerv1alpha1.StorageSpec)(nil),
-			map[string]string{"komputer.ai/schedule": schedule.Name},
-			// ScheduleAgentSpec exposes no tool policy (same as memories/skills/
-			// connectors above), so scheduled agents keep the default tool set.
-			ToolPolicy{},
-		)
+		cfg := schedule.Spec.Agent.AgentConfigSpec
+		scheduleAgentDefaults(&cfg)
+		_, err := k8s.CreateAgent(ctx, ns, agentName, instructions, "", "", cfg)
 		if err != nil {
 			return "", http.StatusInternalServerError, fmt.Errorf("failed to create agent: %w", err)
+		}
+		if err := k8s.MergeAgentLabels(ctx, ns, agentName, map[string]string{"komputer.ai/schedule": schedule.Name}); err != nil {
+			Logger.Warnw("manual trigger: failed to label scheduled agent", "schedule", schedule.Name, "agent", agentName, "error", err)
 		}
 	} else {
 		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
