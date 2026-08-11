@@ -145,12 +145,12 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 					},
 				},
 				Spec: komputerv1alpha1.KomputerAgentSpec{
+					// The whole agent config passes through untouched, so any
+					// field added to AgentConfigSpec reaches scheduled agents
+					// with no change here.
+					AgentConfigSpec: *schedule.Spec.Agent.AgentConfigSpec.DeepCopy(),
+					// The schedule owns the instructions, not the template.
 					Instructions: schedule.Spec.Instructions,
-					Model:        schedule.Spec.Agent.Model,
-					Lifecycle:    schedule.Spec.Agent.Lifecycle,
-					Role:         schedule.Spec.Agent.Role,
-					TemplateRef:  schedule.Spec.Agent.TemplateRef,
-					Secrets:      schedule.Spec.Agent.Secrets,
 				},
 			}
 			// Set ownerReference to the schedule

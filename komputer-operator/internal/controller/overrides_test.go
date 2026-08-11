@@ -38,7 +38,9 @@ func TestApplyAgentOverrides_StorageOverride(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+			},
 		},
 	}
 	out := applyAgentOverrides(tpl, agent)
@@ -51,8 +53,10 @@ func TestApplyAgentOverrides_PodSpecOverride(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			PodSpec: &corev1.PodSpec{
-				Containers: []corev1.Container{{Name: "agent", Image: "custom:latest"}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				PodSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "agent", Image: "custom:latest"}},
+				},
 			},
 		},
 	}
@@ -66,14 +70,16 @@ func TestApplyAgentOverrides_PartialContainerMerge_PreservesImage(t *testing.T) 
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			PodSpec: &corev1.PodSpec{
-				Containers: []corev1.Container{{
-					Name: "agent",
-					Resources: corev1.ResourceRequirements{
-						Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-						Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-					},
-				}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				PodSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name: "agent",
+						Resources: corev1.ResourceRequirements{
+							Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+							Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+						},
+					}},
+				},
 			},
 		},
 	}
@@ -91,8 +97,10 @@ func TestApplyAgentOverrides_DoesNotMutateInput(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
-			PodSpec: &corev1.PodSpec{Containers: []corev1.Container{{Name: "agent", Image: "x:1"}}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+				PodSpec: &corev1.PodSpec{Containers: []corev1.Container{{Name: "agent", Image: "x:1"}}},
+			},
 		},
 	}
 	_ = applyAgentOverrides(tpl, agent)

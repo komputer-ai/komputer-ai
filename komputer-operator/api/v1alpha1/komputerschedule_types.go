@@ -27,22 +27,13 @@ const (
 )
 
 // ScheduleAgentSpec defines the template for creating an agent on each scheduled run.
+//
+// It inlines the full AgentConfigSpec, so a scheduled agent can be configured
+// with exactly what any other agent supports. Instructions are not part of the
+// template: they come from the schedule's own Instructions field, which is also
+// what a run forwards to an already-existing agent.
 type ScheduleAgentSpec struct {
-	// +kubebuilder:default="claude-sonnet-4-6"
-	// +optional
-	Model string `json:"model,omitempty"`
-	// +kubebuilder:validation:Enum="";Sleep;AutoDelete
-	// +kubebuilder:default="Sleep"
-	// +optional
-	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`
-	// +kubebuilder:default="worker"
-	// +optional
-	Role string `json:"role,omitempty"`
-	// +kubebuilder:default="default"
-	// +optional
-	TemplateRef string `json:"templateRef,omitempty"`
-	// +optional
-	Secrets []string `json:"secrets,omitempty"`
+	AgentConfigSpec `json:",inline"`
 }
 
 type KomputerScheduleSpec struct {
