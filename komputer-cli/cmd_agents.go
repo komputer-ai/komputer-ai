@@ -210,6 +210,12 @@ func registerAgentCommands(root *cobra.Command) {
 			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
 				body["lifecycle"] = lc
 			}
+			if sttl, _ := cmd.Flags().GetString("sleep-ttl"); sttl != "" {
+				body["sleepTTL"] = sttl
+			}
+			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
+				body["deleteTTL"] = dttl
+			}
 			if memFlags, _ := cmd.Flags().GetStringSlice("memory"); len(memFlags) > 0 {
 				body["memories"] = memFlags
 			}
@@ -301,6 +307,8 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	createCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
+	createCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
+	createCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	createCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
@@ -335,6 +343,14 @@ func registerAgentCommands(root *cobra.Command) {
 			if cmd.Flags().Changed("lifecycle") {
 				v, _ := cmd.Flags().GetString("lifecycle")
 				body["lifecycle"] = v
+			}
+			if cmd.Flags().Changed("sleep-ttl") {
+				v, _ := cmd.Flags().GetString("sleep-ttl")
+				body["sleepTTL"] = v
+			}
+			if cmd.Flags().Changed("delete-ttl") {
+				v, _ := cmd.Flags().GetString("delete-ttl")
+				body["deleteTTL"] = v
 			}
 			if cmd.Flags().Changed("system-prompt") {
 				v, _ := cmd.Flags().GetString("system-prompt")
@@ -409,6 +425,8 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
 	updateCmd.Flags().String("instructions", "", "New task instructions")
 	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
+	updateCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	updateCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	updateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
 	updateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
@@ -675,6 +693,12 @@ func registerAgentCommands(root *cobra.Command) {
 			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
 				body["lifecycle"] = lc
 			}
+			if sttl, _ := cmd.Flags().GetString("sleep-ttl"); sttl != "" {
+				body["sleepTTL"] = sttl
+			}
+			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
+				body["deleteTTL"] = dttl
+			}
 			if secretFlags, _ := cmd.Flags().GetStringSlice("secret"); len(secretFlags) > 0 {
 				secrets := make(map[string]string)
 				for _, s := range secretFlags {
@@ -752,6 +776,8 @@ func registerAgentCommands(root *cobra.Command) {
 	}
 	configCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
+	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
@@ -902,6 +928,12 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
 				body["lifecycle"] = lc
+			}
+			if sttl, _ := cmd.Flags().GetString("sleep-ttl"); sttl != "" {
+				body["sleepTTL"] = sttl
+			}
+			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
+				body["deleteTTL"] = dttl
 			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
@@ -1063,6 +1095,8 @@ func registerAgentCommands(root *cobra.Command) {
 	runCmd.Flags().String("model", "", "Claude model to use")
 	runCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
+	runCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
+	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	runCmd.Flags().String("system-prompt", "", "Custom system prompt to inject into the agent")
 	root.AddCommand(runCmd)
 
@@ -1189,9 +1223,9 @@ func registerAgentCommands(root *cobra.Command) {
 			chatDimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Inline(true)
 			chatWarnStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F59E0B")).Inline(true)
 			chatErrStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444")).Inline(true)
-			toolNameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Inline(true)        // light gray
+			toolNameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Inline(true)                // light gray
 			toolDetailStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true).Inline(true) // dim italic
-			toolIconStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#A78BFA")).Inline(true)               // purple
+			toolIconStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#A78BFA")).Inline(true)                // purple
 
 			for {
 				line, rlReadErr := rl.Readline()
@@ -1228,6 +1262,12 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 				if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
 					body["lifecycle"] = lc
+				}
+				if sttl, _ := cmd.Flags().GetString("sleep-ttl"); sttl != "" {
+					body["sleepTTL"] = sttl
+				}
+				if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
+					body["deleteTTL"] = dttl
 				}
 
 				// Retry on 409 (pod may still be starting)
@@ -1472,12 +1512,14 @@ func registerAgentCommands(root *cobra.Command) {
 	}
 	chatCmd.Flags().String("model", "", "Claude model to use")
 	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep or AutoDelete (default: empty, pod stays running)")
+	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
+	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	root.AddCommand(chatCmd)
 }
 
 // buildPodSpecOverride constructs a minimal podSpec map for the API from cpu/memory/image overrides.
 // CPU and memory are set on both requests and limits. Returns nil if no overrides are provided.
-// filterEmpty drops blank entries so `--allow-tool ''` sends an empty JSON array
+// filterEmpty drops blank entries so `--allow-tool ”` sends an empty JSON array
 // (clearing the policy) instead of a list containing one empty tool name.
 func filterEmpty(in []string) []string {
 	out := make([]string, 0, len(in))
