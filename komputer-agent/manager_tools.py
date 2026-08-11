@@ -50,6 +50,8 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "instructions": {"type": "string", "description": "Detailed task instructions for the sub-agent."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
             "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
+            "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
+            "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "model": {"type": "string", "description": "Claude model override (optional)."},
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
             "systemPrompt": {"type": "string", "description": "Custom system prompt defining the sub-agent's behavior, persona, or constraints (optional)."},
@@ -84,6 +86,10 @@ async def create_agent(args):
 
     if args.get("lifecycle"):
         payload["lifecycle"] = args["lifecycle"]
+    if args.get("sleepTTL"):
+        payload["sleepTTL"] = args["sleepTTL"]
+    if args.get("deleteTTL"):
+        payload["deleteTTL"] = args["deleteTTL"]
     if args.get("model"):
         payload["model"] = args["model"]
     if args.get("templateRef"):
@@ -589,10 +595,11 @@ async def list_agents(args):
 @tool(
     name="patch_agent",
     description=(
-        "Patch an existing agent's mutable settings: labels and tool permissions. "
+        "Patch an existing agent's mutable settings: labels, tool permissions, and TTLs. "
         "Existing labels are merged additively; this never removes labels. Tool "
         "lists are full replacements — pass an empty array to clear one. Tool "
-        "changes apply the next time the agent starts."
+        "changes apply the next time the agent starts. Pass an empty string for a TTL "
+        "to remove it."
     ),
     input_schema={
         "type": "object",
@@ -613,6 +620,8 @@ async def list_agents(args):
                 "items": {"type": "string"},
                 "description": "Replace the agent's blocked-tool list, keeping everything else available. Supports wildcards. Takes precedence over allowedTools. Pass [] to clear.",
             },
+            "sleepTTL": {"type": "string", "description": "Sleep the agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Pass '' to remove."},
+            "deleteTTL": {"type": "string", "description": "Delete the agent this long after creation, e.g. '24h'. Absolute — does not reset on wake. Pass '' to remove."},
         },
         "required": ["name"],
     },
@@ -627,8 +636,13 @@ async def patch_agent(args):
         body["allowedTools"] = args["allowedTools"]
     if args.get("disallowedTools") is not None:
         body["disallowedTools"] = args["disallowedTools"]
+    # `is not None` so an explicit "" reaches the API and clears the TTL.
+    if args.get("sleepTTL") is not None:
+        body["sleepTTL"] = args["sleepTTL"]
+    if args.get("deleteTTL") is not None:
+        body["deleteTTL"] = args["deleteTTL"]
     if not body:
-        return _err("patch_agent requires at least one field to update (e.g. labels, allowedTools).")
+        return _err("patch_agent requires at least one field to update (e.g. labels, allowedTools, sleepTTL).")
     return await _request("PATCH", f"/api/v1/agents/{name}", timeout=10, json=body)
 
 
@@ -1200,8 +1214,9 @@ async def list_templates(args):
         "is either an inline spec (creates a new agent as part of the squad) or a ref to an existing, sleeping agent. "
         "You can mix both in the same call. "
         "\n\n"
-        "Inline specs let you set name, instructions, role, model, lifecycle, systemPrompt, secrets, memories, "
-        "skills, connectors, templateRef, priority, and resources up-front — no need for separate attach_* calls. "
+        "Inline specs let you set name, instructions, role, model, lifecycle, sleepTTL, deleteTTL, systemPrompt, "
+        "secrets, memories, skills, connectors, templateRef, priority, and resources up-front — no need for "
+        "separate attach_* calls. "
         "Inherited from this manager: connectors, secrets (same as create_agent). "
         "\n\n"
         "Refs to existing agents must be asleep (Phase=Sleeping); running solo agents are rejected with 409. "
@@ -1240,6 +1255,8 @@ async def list_templates(args):
                         "cpu": {"type": "string", "description": "CPU request/limit override, e.g. '2' or '500m'."},
                         "memory_limit": {"type": "string", "description": "Memory request/limit override, e.g. '4Gi'."},
                         "image": {"type": "string", "description": "Container image override, e.g. 'custom:latest'."},
+                        "sleepTTL": {"type": "string", "description": "Sleep this member after this long with no activity, e.g. '30m'. Resets on every task. Omit to never auto-sleep."},
+                        "deleteTTL": {"type": "string", "description": "Delete this member this long after creation, e.g. '24h'. Absolute — does not reset on wake. Omit to never auto-delete."},
                     },
                 },
             },
@@ -1294,6 +1311,10 @@ async def create_squad(args):
             spec["connectors"] = list(m["connectors"])
         if m.get("storage_size"):
             spec["storage"] = {"size": m["storage_size"]}
+        if m.get("sleepTTL"):
+            spec["sleepTTL"] = m["sleepTTL"]
+        if m.get("deleteTTL"):
+            spec["deleteTTL"] = m["deleteTTL"]
 
         cpu = m.get("cpu")
         mem_limit = m.get("memory_limit")
