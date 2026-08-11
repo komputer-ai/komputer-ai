@@ -486,39 +486,8 @@ func registerScheduleCommands(root *cobra.Command) {
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
-			body := map[string]interface{}{}
-			if cmd.Flags().Changed("cron") {
-				cron, _ := cmd.Flags().GetString("cron")
-				body["schedule"] = cron
-			}
-			if cmd.Flags().Changed("instructions") {
-				instructions, _ := cmd.Flags().GetString("instructions")
-				body["instructions"] = instructions
-			}
-			if cmd.Flags().Changed("timezone") {
-				tz, _ := cmd.Flags().GetString("timezone")
-				body["timezone"] = tz
-			}
-			if cmd.Flags().Changed("auto-delete") {
-				v, _ := cmd.Flags().GetBool("auto-delete")
-				body["autoDelete"] = v
-			}
-			if cmd.Flags().Changed("keep-agents") {
-				v, _ := cmd.Flags().GetBool("keep-agents")
-				body["keepAgents"] = v
-			}
-			if cmd.Flags().Changed("suspended") {
-				v, _ := cmd.Flags().GetBool("suspended")
-				body["suspended"] = v
-			}
-			if cmd.Flags().Changed("agent") {
-				agent, _ := cmd.Flags().GetString("agent")
-				body["agentName"] = agent
-			}
-			// Agent template fields. PATCH replaces spec.agent wholesale, so start
-			// from the current value and overlay only what changed — otherwise
-			// updating one field wipes the rest.
-			var agentSpec map[string]interface{}
+			// PATCH replaces spec.agent wholesale, so read the schedule first and
+			// overlay only what changed — otherwise updating one field wipes the rest.
 			existingData, existingStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
 			if err != nil || existingStatus != 200 {
 				msg := fmt.Sprintf("failed to read schedule %q before update: %v", scheduleName, err)
@@ -534,64 +503,11 @@ func registerScheduleCommands(root *cobra.Command) {
 			var existing struct {
 				Agent map[string]interface{} `json:"agent"`
 			}
-			if jsonErr := json.Unmarshal(existingData, &existing); jsonErr == nil && existing.Agent != nil {
-				agentSpec = existing.Agent
-			} else {
-				agentSpec = map[string]interface{}{}
+			if jsonErr := json.Unmarshal(existingData, &existing); jsonErr != nil {
+				existing.Agent = nil
 			}
 
-			// agentSpec is pre-populated from the server, so its length says
-			// nothing about whether the caller asked for an agent change.
-			agentChanged := false
-			for _, f := range []struct{ flag, key string }{
-				{"model", "model"},
-				{"lifecycle", "lifecycle"},
-				{"role", "role"},
-				{"template-ref", "templateRef"},
-				{"template", "templateRef"},
-				{"system-prompt", "systemPrompt"},
-			} {
-				if cmd.Flags().Changed(f.flag) {
-					v, _ := cmd.Flags().GetString(f.flag)
-					agentSpec[f.key] = v
-					agentChanged = true
-				}
-			}
-			for _, f := range []struct{ flag, key string }{
-				{"secret", "secrets"},
-				{"skill", "skills"},
-				{"memory", "memories"},
-				{"allow-tool", "allowedTools"},
-				{"disallow-tool", "disallowedTools"},
-			} {
-				if cmd.Flags().Changed(f.flag) {
-					v, _ := cmd.Flags().GetStringSlice(f.flag)
-					agentSpec[f.key] = v
-					agentChanged = true
-				}
-			}
-			if cmd.Flags().Changed("priority") {
-				v, _ := cmd.Flags().GetInt32("priority")
-				agentSpec["priority"] = v
-				agentChanged = true
-			}
-			if cmd.Flags().Changed("storage") {
-				v, _ := cmd.Flags().GetString("storage")
-				agentSpec["storage"] = map[string]string{"size": v}
-				agentChanged = true
-			}
-			if cmd.Flags().Changed("cpu") || cmd.Flags().Changed("memory-limit") || cmd.Flags().Changed("image") {
-				cpu, _ := cmd.Flags().GetString("cpu")
-				memLimit, _ := cmd.Flags().GetString("memory-limit")
-				image, _ := cmd.Flags().GetString("image")
-				if ps := buildPodSpecOverride(cpu, memLimit, image); ps != nil {
-					agentSpec["podSpec"] = ps
-					agentChanged = true
-				}
-			}
-			if agentChanged {
-				body["agent"] = agentSpec
-			}
+			body := buildScheduleUpdateBody(cmd, existing.Agent)
 
 			if len(body) == 0 {
 				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
@@ -655,4 +571,174 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCmd.AddCommand(scheduleUpdateCmd)
 
 	root.AddCommand(scheduleCmd)
+}
+
+// buildScheduleUpdateBody assembles the PATCH body for `schedule update` from
+// the flags the caller changed.
+//
+// existingAgent is the schedule's current spec.agent as decoded from the API,
+// or nil when the schedule targets an agent by name instead. PATCH replaces
+// spec.agent wholesale rather than merging field by field, so the "agent" value
+// has to be the complete object: the changed flags are overlaid on top of
+// existingAgent, and podSpec/storage are merged into rather than replaced so
+// sibling overrides (image, memory, storageClassName) survive.
+//
+// The "agent" key is omitted entirely unless an agent flag actually changed.
+// Re-sending it on, say, a --cron-only update would be more than noise: the API
+// treats a non-nil agent as a switch to an inline template and clears
+// spec.agentName.
+func buildScheduleUpdateBody(cmd *cobra.Command, existingAgent map[string]interface{}) map[string]interface{} {
+	body := map[string]interface{}{}
+	if cmd.Flags().Changed("cron") {
+		cron, _ := cmd.Flags().GetString("cron")
+		body["schedule"] = cron
+	}
+	if cmd.Flags().Changed("instructions") {
+		instructions, _ := cmd.Flags().GetString("instructions")
+		body["instructions"] = instructions
+	}
+	if cmd.Flags().Changed("timezone") {
+		tz, _ := cmd.Flags().GetString("timezone")
+		body["timezone"] = tz
+	}
+	if cmd.Flags().Changed("auto-delete") {
+		v, _ := cmd.Flags().GetBool("auto-delete")
+		body["autoDelete"] = v
+	}
+	if cmd.Flags().Changed("keep-agents") {
+		v, _ := cmd.Flags().GetBool("keep-agents")
+		body["keepAgents"] = v
+	}
+	if cmd.Flags().Changed("suspended") {
+		v, _ := cmd.Flags().GetBool("suspended")
+		body["suspended"] = v
+	}
+	if cmd.Flags().Changed("agent") {
+		agent, _ := cmd.Flags().GetString("agent")
+		body["agentName"] = agent
+	}
+
+	agentSpec := existingAgent
+	if agentSpec == nil {
+		agentSpec = map[string]interface{}{}
+	}
+	// agentSpec is pre-populated from the server, so its length says nothing
+	// about whether the caller asked for an agent change.
+	agentChanged := false
+	for _, f := range []struct{ flag, key string }{
+		{"model", "model"},
+		{"lifecycle", "lifecycle"},
+		{"role", "role"},
+		{"template-ref", "templateRef"},
+		{"template", "templateRef"},
+		{"system-prompt", "systemPrompt"},
+	} {
+		if cmd.Flags().Changed(f.flag) {
+			v, _ := cmd.Flags().GetString(f.flag)
+			agentSpec[f.key] = v
+			agentChanged = true
+		}
+	}
+	for _, f := range []struct{ flag, key string }{
+		{"secret", "secrets"},
+		{"skill", "skills"},
+		{"memory", "memories"},
+		{"allow-tool", "allowedTools"},
+		{"disallow-tool", "disallowedTools"},
+	} {
+		if cmd.Flags().Changed(f.flag) {
+			v, _ := cmd.Flags().GetStringSlice(f.flag)
+			agentSpec[f.key] = v
+			agentChanged = true
+		}
+	}
+	if cmd.Flags().Changed("priority") {
+		v, _ := cmd.Flags().GetInt32("priority")
+		agentSpec["priority"] = v
+		agentChanged = true
+	}
+	if cmd.Flags().Changed("storage") {
+		v, _ := cmd.Flags().GetString("storage")
+		// Set only the size so storageClassName is not dropped.
+		if existing, ok := agentSpec["storage"].(map[string]interface{}); ok {
+			existing["size"] = v
+		} else {
+			agentSpec["storage"] = map[string]interface{}{"size": v}
+		}
+		agentChanged = true
+	}
+	if cmd.Flags().Changed("cpu") || cmd.Flags().Changed("memory-limit") || cmd.Flags().Changed("image") {
+		cpu, _ := cmd.Flags().GetString("cpu")
+		memLimit, _ := cmd.Flags().GetString("memory-limit")
+		image, _ := cmd.Flags().GetString("image")
+		if ps := mergePodSpecOverride(agentSpec["podSpec"], cpu, memLimit, image); ps != nil {
+			agentSpec["podSpec"] = ps
+			agentChanged = true
+		}
+	}
+	if agentChanged {
+		body["agent"] = agentSpec
+	}
+	return body
+}
+
+// mergePodSpecOverride overlays the cpu/memory/image overrides onto an existing
+// podSpec, setting only the fields the caller supplied so the others survive —
+// `--cpu 8` must not drop an image or memory override set earlier.
+//
+// existing is the raw podSpec decoded from the API, so its nested values are
+// map[string]interface{} / []interface{}. Anything that is not the shape we
+// know how to merge into falls back to building a fresh podSpec, which is the
+// replace-everything behavior. Returns nil when there is nothing to set.
+func mergePodSpecOverride(existing interface{}, cpu, memory, image string) map[string]interface{} {
+	if cpu == "" && memory == "" && image == "" {
+		return nil
+	}
+	podSpec, ok := existing.(map[string]interface{})
+	if !ok {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+	containers, ok := podSpec["containers"].([]interface{})
+	if !ok {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+	var agentContainer map[string]interface{}
+	for _, c := range containers {
+		container, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if name, _ := container["name"].(string); name == "agent" {
+			agentContainer = container
+			break
+		}
+	}
+	if agentContainer == nil {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+
+	if image != "" {
+		agentContainer["image"] = image
+	}
+	if cpu != "" || memory != "" {
+		resources, ok := agentContainer["resources"].(map[string]interface{})
+		if !ok {
+			resources = map[string]interface{}{}
+			agentContainer["resources"] = resources
+		}
+		for _, key := range []string{"requests", "limits"} {
+			quantities, ok := resources[key].(map[string]interface{})
+			if !ok {
+				quantities = map[string]interface{}{}
+				resources[key] = quantities
+			}
+			if cpu != "" {
+				quantities["cpu"] = cpu
+			}
+			if memory != "" {
+				quantities["memory"] = memory
+			}
+		}
+	}
+	return podSpec
 }
