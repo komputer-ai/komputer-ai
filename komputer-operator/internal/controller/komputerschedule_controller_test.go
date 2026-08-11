@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"reflect"
 	"testing"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
@@ -39,26 +40,19 @@ func TestBuildScheduledAgent_CarriesFullConfig(t *testing.T) {
 
 	agent := buildScheduledAgent(schedule, "nightly-agent")
 
+	// Assert the whole config structurally rather than field by field. A
+	// field-by-field test silently stops covering AgentConfigSpec the moment
+	// someone adds a 16th field, which is exactly the guarantee this function's
+	// doc comment makes. Structural equality keeps the test self-maintaining.
+	if !reflect.DeepEqual(agent.Spec.AgentConfigSpec, schedule.Spec.Agent.AgentConfigSpec) {
+		t.Errorf("agent config does not match the schedule's config\n got: %+v\nwant: %+v",
+			agent.Spec.AgentConfigSpec, schedule.Spec.Agent.AgentConfigSpec)
+	}
+
+	// Not covered by the equality check above: these two are the schedule's, not
+	// the template's.
 	if agent.Spec.Instructions != "run the nightly report" {
 		t.Errorf("instructions must come from the schedule, got %q", agent.Spec.Instructions)
-	}
-	if agent.Spec.Model != "claude-opus-4-6" || agent.Spec.Role != "worker" {
-		t.Errorf("model/role not carried: %q %q", agent.Spec.Model, agent.Spec.Role)
-	}
-	if len(agent.Spec.Skills) != 1 || agent.Spec.Skills[0] != "sql" {
-		t.Errorf("skills not carried: %v", agent.Spec.Skills)
-	}
-	if len(agent.Spec.AllowedTools) != 2 || agent.Spec.DisallowedTools[0] != "Bash" {
-		t.Errorf("tool policy not carried: %v / %v", agent.Spec.AllowedTools, agent.Spec.DisallowedTools)
-	}
-	if agent.Spec.Priority != 50 || agent.Spec.SystemPrompt != "be terse" {
-		t.Errorf("priority/systemPrompt not carried")
-	}
-	if agent.Spec.Storage == nil || agent.Spec.Storage.Size != "20Gi" {
-		t.Errorf("storage not carried")
-	}
-	if agent.Spec.PodSpec == nil || agent.Spec.PodSpec.Containers[0].Image != "custom:1" {
-		t.Errorf("podSpec not carried")
 	}
 	if agent.Labels["komputer.ai/schedule"] != "nightly" {
 		t.Errorf("schedule label missing: %v", agent.Labels)
