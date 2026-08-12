@@ -20,6 +20,11 @@ import (
 // not requeue", which would strand the agent until some other event woke it.
 const minTTLRequeue = time.Second
 
+// taskCancelRetryInterval is how long to wait before retrying a task cancellation that
+// failed (komputer-api unreachable, pod mid-restart). Short enough that an over-running
+// task is stopped promptly, long enough not to hammer the API.
+const taskCancelRetryInterval = 10 * time.Second
+
 // ttlAction is the transition an elapsed TTL asks for.
 type ttlAction int
 
@@ -259,21 +264,43 @@ func (r *KomputerAgentReconciler) applyTTL(
 	agent *komputerv1alpha1.KomputerAgent,
 	pod *corev1.Pod,
 	pvcName string,
-	sleepTTL, deleteTTL *metav1.Duration,
+	sleepTTL, deleteTTL, taskTimeout *metav1.Duration,
 ) (ctrl.Result, bool, error) {
 	log := logf.FromContext(ctx)
 
-	if sleepTTL == nil && deleteTTL == nil {
+	if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 		// Clear stale expiry timestamps if the TTLs were removed from the spec.
-		if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {
+		if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
+			agent.Status.TaskExpiresAt != nil {
 			if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 				s.SleepExpiresAt = nil
 				s.DeleteExpiresAt = nil
+				s.TaskExpiresAt = nil
 			}); err != nil {
 				return ctrl.Result{}, false, err
 			}
 		}
 		return ctrl.Result{}, false, nil
+	}
+
+	// The task deadline is evaluated before the TTLs because it is the one clock
+	// allowed to fire mid-task — evaluateTTL deliberately never sleeps a busy agent.
+	// Cancelling here means an over-running task is stopped rather than reported as
+	// merely running on its way out.
+	td := evaluateTaskDeadline(agent, taskTimeout, time.Now())
+	if td.Cancel {
+		log.Info("taskTimeout elapsed, cancelling task",
+			"agent", agent.Name, "taskTimeout", taskTimeout.Duration,
+			"taskStartedAt", agent.Status.TaskStartedAt)
+		// TODO: pass reason="timeout" once interruption reasons are supported —
+		// today this is indistinguishable from a user cancel in status.
+		if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
+			// Leave TaskExpiresAt set and retry on the next reconcile. The retry stops
+			// on its own once TaskStatus leaves the in-progress state.
+			log.Error(err, "Failed to cancel task on taskTimeout", "agent", agent.Name)
+			return ctrl.Result{RequeueAfter: taskCancelRetryInterval}, false, nil
+		}
+		// Fall through: the TTL clocks still need evaluating this reconcile.
 	}
 
 	// The issue calls for a warning when the ordering is nonsensical: a deleteTTL at
@@ -311,6 +338,8 @@ func (r *KomputerAgentReconciler) applyTTL(
 			// No pending sleep once asleep; the lifetime cap keeps its deadline.
 			s.SleepExpiresAt = nil
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			// A sleeping agent has no running task.
+			s.TaskExpiresAt = nil
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
@@ -319,15 +348,22 @@ func (r *KomputerAgentReconciler) applyTTL(
 
 	// Nothing fired — publish the projected deadlines so clients can show a countdown.
 	if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
-		!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) {
+		!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) ||
+		!timeEqual(agent.Status.TaskExpiresAt, td.ExpiresAt) {
 		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 			s.SleepExpiresAt = d.SleepExpiresAt
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			s.TaskExpiresAt = td.ExpiresAt
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
 	}
-	return ctrl.Result{RequeueAfter: d.RequeueAfter}, false, nil
+
+	requeue := d.RequeueAfter
+	if td.RequeueAfter > 0 && (requeue == 0 || td.RequeueAfter < requeue) {
+		requeue = td.RequeueAfter
+	}
+	return ctrl.Result{RequeueAfter: requeue}, false, nil
 }
 
 // timeEqual compares two optional timestamps at second granularity, matching how
