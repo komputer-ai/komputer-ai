@@ -199,13 +199,15 @@ func taskInProgress(s komputerv1alpha1.AgentTaskStatus) bool {
 	return s == komputerv1alpha1.AgentTaskInProgress || s == komputerv1alpha1.AgentTaskCompacting
 }
 
-// resolveAgentTTLs returns an agent's effective TTLs: its own spec values, falling
-// back to its template's defaults for whichever field it doesn't set.
+// resolveAgentTTLs returns an agent's three effective time bounds — sleepTTL,
+// deleteTTL and taskTimeout — as its own spec values, falling back to its template's
+// defaults for whichever field it doesn't set. The template is read at most once, and
+// not at all when the agent sets all three itself.
 //
 // The agent controller doesn't need this — it already merges the template via
 // applyAgentOverrides. This exists for the squad controller, which never builds a
 // merged template. A template that can't be read is treated as having no defaults:
-// TTLs must not be able to break squad reconciliation.
+// these bounds must not be able to break squad reconciliation.
 func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) (sleepTTL, deleteTTL, taskTimeout *metav1.Duration) {
 	sleepTTL, deleteTTL, taskTimeout = agent.Spec.SleepTTL, agent.Spec.DeleteTTL, agent.Spec.TaskTimeout
 	if sleepTTL != nil && deleteTTL != nil && taskTimeout != nil {

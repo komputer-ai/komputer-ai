@@ -650,16 +650,20 @@ func TestResolveAgentTTLs(t *testing.T) {
 		}
 	})
 
-	t.Run("skips the template lookup when both are set", func(t *testing.T) {
+	t.Run("skips the template lookup when all three are set", func(t *testing.T) {
 		agent := ttlAgent()
 		agent.Spec.SleepTTL = dur(time.Minute)
 		agent.Spec.DeleteTTL = dur(time.Hour)
-		// Empty client: a lookup would fail, proving none was attempted.
-		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).Build()
+		agent.Spec.TaskTimeout = dur(time.Hour)
+		// A nil client is the assertion: readTemplateSpec would dereference it and
+		// panic, so returning at all proves the short-circuit fired and no lookup
+		// was attempted. An empty fake client cannot prove this — its failed lookup
+		// takes the error path, which returns these same values anyway.
+		var c client.Client
 
-		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
-		if sleep.Duration != time.Minute || del.Duration != time.Hour {
-			t.Errorf("got %v/%v, want the agent's own values", sleep, del)
+		sleep, del, task := resolveAgentTTLs(ctx, c, agent)
+		if sleep.Duration != time.Minute || del.Duration != time.Hour || task.Duration != time.Hour {
+			t.Errorf("got %v/%v/%v, want the agent's own values", sleep, del, task)
 		}
 	})
 }
