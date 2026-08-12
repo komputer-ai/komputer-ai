@@ -663,3 +663,165 @@ func TestResolveAgentTTLs(t *testing.T) {
 		}
 	})
 }
+
+// ─── evaluateTaskDeadline (per-task wall-clock cap) ──────────────────────────
+
+// withTaskStartedAt sets the task clock to baseTime+offset.
+func withTaskStartedAt(offset time.Duration) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) {
+		t := metav1.NewTime(baseTime.Add(offset))
+		a.Status.TaskStartedAt = &t
+	}
+}
+
+func withPodName(name string) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) { a.Status.PodName = name }
+}
+
+// runningTask builds an agent mid-task on a live pod: the baseline every deadline
+// case starts from, so each case below varies exactly one thing.
+func runningTask(mutate ...func(*komputerv1alpha1.KomputerAgent)) *komputerv1alpha1.KomputerAgent {
+	base := []func(*komputerv1alpha1.KomputerAgent){
+		withPhase(komputerv1alpha1.AgentPhaseRunning),
+		withTaskStatus(komputerv1alpha1.AgentTaskInProgress),
+		withPodName("test-agent-pod"),
+		withTaskStartedAt(0),
+	}
+	return ttlAgent(append(base, mutate...)...)
+}
+
+func TestEvaluateTaskDeadline(t *testing.T) {
+	tests := []struct {
+		name        string
+		agent       *komputerv1alpha1.KomputerAgent
+		taskTimeout *metav1.Duration
+		now         time.Time
+		wantCancel  bool
+		wantExpiry  bool // whether ExpiresAt should be non-nil
+		// wantRequeue is checked only when non-zero.
+		wantRequeue time.Duration
+	}{
+		{
+			name:        "no timeout set does nothing",
+			agent:       runningTask(),
+			taskTimeout: nil,
+			now:         baseTime.Add(10 * time.Hour),
+		},
+		{
+			name:        "zero timeout is treated as unset",
+			agent:       runningTask(),
+			taskTimeout: dur(0),
+			now:         baseTime.Add(10 * time.Hour),
+		},
+		{
+			name:        "running task before the deadline publishes an expiry and requeues",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(10 * time.Minute),
+			wantExpiry:  true,
+			wantRequeue: 20 * time.Minute,
+		},
+		{
+			name:        "elapsed deadline cancels",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "deadline exactly reached cancels",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(30 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "compacting still counts as in progress",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskCompacting)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "completed task has no clock",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskComplete)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "errored task has no clock",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskError)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name: "task with no start time has no clock",
+			agent: runningTask(func(a *komputerv1alpha1.KomputerAgent) {
+				a.Status.TaskStartedAt = nil
+			}),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			// A task stuck InProgress after its pod died must not produce an endless
+			// retry loop against a pod that is not there.
+			name:        "no pod name means no clock",
+			agent:       runningTask(withPodName("")),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "non-running phase means no clock",
+			agent:       runningTask(withPhase(komputerv1alpha1.AgentPhaseSleeping)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "a deadline moments away is floored to minTTLRequeue",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(30*time.Minute - 10*time.Millisecond),
+			wantExpiry:  true,
+			wantRequeue: minTTLRequeue,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := evaluateTaskDeadline(tc.agent, tc.taskTimeout, tc.now)
+			if got.Cancel != tc.wantCancel {
+				t.Errorf("Cancel = %v, want %v", got.Cancel, tc.wantCancel)
+			}
+			if (got.ExpiresAt != nil) != tc.wantExpiry {
+				t.Errorf("ExpiresAt non-nil = %v, want %v", got.ExpiresAt != nil, tc.wantExpiry)
+			}
+			if tc.wantRequeue != 0 && got.RequeueAfter != tc.wantRequeue {
+				t.Errorf("RequeueAfter = %v, want %v", got.RequeueAfter, tc.wantRequeue)
+			}
+		})
+	}
+}
+
+// TestEvaluateTaskDeadlineSteerDoesNotReset pins the decision that steering a task does
+// not extend its deadline. A steer emits user_message and leaves TaskStatus at
+// InProgress, so TaskStartedAt is untouched and the deadline stays where it was.
+func TestEvaluateTaskDeadlineSteerDoesNotReset(t *testing.T) {
+	agent := runningTask()
+	timeout := dur(30 * time.Minute)
+
+	before := evaluateTaskDeadline(agent, timeout, baseTime.Add(10*time.Minute))
+	if before.ExpiresAt == nil {
+		t.Fatal("expected an expiry before the steer")
+	}
+	// Simulate a steer: activity happens, but TaskStartedAt is not re-stamped.
+	activity := metav1.NewTime(baseTime.Add(10 * time.Minute))
+	agent.Status.LastActivityAt = &activity
+
+	after := evaluateTaskDeadline(agent, timeout, baseTime.Add(11*time.Minute))
+	if after.ExpiresAt == nil {
+		t.Fatal("expected an expiry after the steer")
+	}
+	if !before.ExpiresAt.Time.Equal(after.ExpiresAt.Time) {
+		t.Errorf("steer moved the deadline: %v -> %v", before.ExpiresAt, after.ExpiresAt)
+	}
+}

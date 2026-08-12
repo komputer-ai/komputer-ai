@@ -115,6 +115,68 @@ func evaluateTTL(
 	return d
 }
 
+// taskDeadlineDecision is the outcome of evaluating an agent's taskTimeout at one instant.
+type taskDeadlineDecision struct {
+	// Cancel is true when the running task has outlived taskTimeout.
+	Cancel bool
+	// ExpiresAt is the projected cancellation time, for status. Nil when the clock
+	// isn't running.
+	ExpiresAt *metav1.Time
+	// RequeueAfter is when to re-evaluate. Zero means no deadline is pending.
+	RequeueAfter time.Duration
+}
+
+// evaluateTaskDeadline decides whether an agent's running task has exceeded taskTimeout
+// at time `now`. Pure function — reads only the agent and the resolved timeout, mutates
+// nothing.
+//
+// This is the mirror image of the sleepTTL clock in evaluateTTL. That one measures
+// idleness and deliberately never fires mid-task; this one measures a single task's
+// wall-clock runtime and only ever fires mid-task. It starts at Status.TaskStartedAt,
+// which the API worker stamps once per task and does not refresh, so steering cannot
+// extend the deadline — that is what makes taskTimeout a hard cap rather than an idle
+// bound.
+//
+// The clock only runs on an agent that is actually mid-task on a live pod. The pod guard
+// matters: a task left stuck at InProgress after its pod died would otherwise requeue
+// forever, trying to cancel a task on a pod that no longer exists. It is expressed via
+// Phase rather than a pod lookup so this stays a pure function and so the squad call
+// site — which has no pod object in hand — can use the identical condition.
+func evaluateTaskDeadline(
+	agent *komputerv1alpha1.KomputerAgent,
+	taskTimeout *metav1.Duration,
+	now time.Time,
+) taskDeadlineDecision {
+	var d taskDeadlineDecision
+
+	if taskTimeout == nil || taskTimeout.Duration <= 0 {
+		return d
+	}
+	if !taskInProgress(agent.Status.TaskStatus) {
+		return d
+	}
+	if agent.Status.TaskStartedAt == nil || agent.Status.TaskStartedAt.IsZero() {
+		return d
+	}
+	if agent.Status.PodName == "" || agent.Status.Phase != komputerv1alpha1.AgentPhaseRunning {
+		return d
+	}
+
+	deadline := agent.Status.TaskStartedAt.Time.Add(taskTimeout.Duration)
+	if !now.Before(deadline) {
+		d.Cancel = true
+		return d
+	}
+
+	t := metav1.NewTime(deadline)
+	d.ExpiresAt = &t
+	d.RequeueAfter = deadline.Sub(now)
+	if d.RequeueAfter < minTTLRequeue {
+		d.RequeueAfter = minTTLRequeue
+	}
+	return d
+}
+
 // idleSince returns the instant the agent's idle clock started, and whether it is
 // running at all. The clock is Status.LastActivityAt, which the API worker stamps on
 // every agent event — the first of them when a task starts.
