@@ -161,7 +161,7 @@ spec:
 
 ## Editing a schedule
 
-The cron expression, the instructions, and the agent configuration can all be updated after creation. In the UI, the schedule detail page has inline edit controls for the cron expression, the instructions, and the core agent fields (model, lifecycle, role, template) — the full field set is available when you create the schedule. From the CLI:
+The cron expression, the instructions, and the agent configuration can all be updated after creation. In the UI, the schedule detail page has inline edit controls for the cron expression, the instructions, and the core agent fields (model, lifecycle, role, template), and the create dialog covers most of the rest. Three fields — `allowedTools`, `disallowedTools`, and `labels` — have no UI input at all and must be set through the API, CLI, or SDK; the detail page displays the two tool lists once they are set, but `labels` is not surfaced in the UI. From the CLI:
 
 ```bash
 komputer schedule update my-schedule --cron "0 9 * * 1-5"
@@ -169,7 +169,9 @@ komputer schedule update my-schedule --instructions "Summarize yesterday's signu
 komputer schedule update my-schedule --model claude-opus-4-6 --skill markdown-reports
 ```
 
-`komputer schedule create` and `komputer schedule update` take the same agent flags — `--model`, `--role`, `--template`, `--secret`, `--skill`, `--memory`, `--allow-tool`, `--disallow-tool`, `--system-prompt`, `--priority`, `--cpu`, `--memory-limit`, `--storage`, `--image`, `--label`, `--lifecycle`. Attaching connectors to a scheduled agent is currently only available through the API, UI, and SDK, not the CLI.
+`komputer schedule create` and `komputer schedule update` take the same agent flags — `--model`, `--role`, `--template`, `--lifecycle`, `--secret`, `--skill`, `--memory`, `--allow-tool`, `--disallow-tool`, `--system-prompt`, `--priority`, `--cpu`, `--memory-limit`, `--storage`, `--image` — with one exception: **`--label` exists only on `create`**. `update` sends a PATCH body that replaces the label map wholesale rather than merging into it, so labels are deliberately left to creation time. To change them afterwards, PATCH `agent.labels` with the complete map or edit the CR directly.
+
+Attaching connectors to a scheduled agent is available through the API, UI, SDK, and the manager `schedule_agent` MCP tool — but not the CLI, which has no `--connector` flag.
 
 Remember that agent-config edits only affect agents created **after** the edit — see [`spec.agent` applies at agent creation only](#specagent-applies-at-agent-creation-only).
 
