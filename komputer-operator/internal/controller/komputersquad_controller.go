@@ -20,8 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
 	"sort"
 	"time"
 
@@ -773,47 +771,12 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 // be removed from the pod without a restart, but the agent's in-flight task can be
 // cancelled immediately.
 func (r *KomputerSquadReconciler) cancelTaskViaAPI(ctx context.Context, namespace, agentName string) error {
-	apiURL, err := r.getAPIURL(ctx)
-	if err != nil {
-		return err
-	}
-	cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel", apiURL, agentName)
-	httpClient := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cancelURL, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("cancel returned %d", resp.StatusCode)
-	}
-	return nil
+	return cancelAgentTaskViaAPI(ctx, r.Client, namespace, agentName)
 }
 
-// getAPIURL returns the API URL. Checks KOMPUTER_API_URL env var first (for local dev),
-// then falls back to KomputerConfig (for in-cluster).
-// Copied from KomputerScheduleReconciler.getAPIURL — intentionally duplicated to
-// keep blast radius minimal; a shared helper can be extracted in a future cleanup.
+// getAPIURL returns the API URL. See getKomputerAPIURL.
 func (r *KomputerSquadReconciler) getAPIURL(ctx context.Context) (string, error) {
-	if envURL := os.Getenv("KOMPUTER_API_URL"); envURL != "" {
-		return envURL, nil
-	}
-	configList := &komputerv1alpha1.KomputerConfigList{}
-	if err := r.List(ctx, configList); err != nil {
-		return "", err
-	}
-	if len(configList.Items) == 0 {
-		return "", fmt.Errorf("no KomputerConfig found")
-	}
-	url := configList.Items[0].Spec.APIURL
-	if url == "" {
-		return "", fmt.Errorf("KomputerConfig has no apiURL")
-	}
-	return url, nil
+	return getKomputerAPIURL(ctx, r.Client)
 }
 
 // buildSquadPodSpec constructs the desired Pod for the squad. Each agent gets

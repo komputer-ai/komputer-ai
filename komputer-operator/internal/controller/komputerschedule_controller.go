@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -416,24 +415,9 @@ func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, s
 	return ctrl.Result{RequeueAfter: delay}, nil
 }
 
-// getAPIURL returns the API URL. Checks KOMPUTER_API_URL env var first (for local dev),
-// then falls back to KomputerConfig (for in-cluster).
+// getAPIURL returns the API URL. See getKomputerAPIURL.
 func (r *KomputerScheduleReconciler) getAPIURL(ctx context.Context) (string, error) {
-	if envURL := os.Getenv("KOMPUTER_API_URL"); envURL != "" {
-		return envURL, nil
-	}
-	configList := &komputerv1alpha1.KomputerConfigList{}
-	if err := r.List(ctx, configList); err != nil {
-		return "", err
-	}
-	if len(configList.Items) == 0 {
-		return "", fmt.Errorf("no KomputerConfig found")
-	}
-	url := configList.Items[0].Spec.APIURL
-	if url == "" {
-		return "", fmt.Errorf("KomputerConfig has no apiURL")
-	}
-	return url, nil
+	return getKomputerAPIURL(ctx, r.Client)
 }
 
 // computeNextRunTime parses a cron expression in the given timezone and returns the next fire time in UTC.
