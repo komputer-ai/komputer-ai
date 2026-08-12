@@ -124,6 +124,12 @@ async def create_agent(args):
             "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules)."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. Default: 'worker'."},
             "model": {"type": "string", "description": "Claude model override."},
+            "skills": {"type": "array", "items": {"type": "string"}, "description": "KomputerSkill names to attach to the scheduled agent."},
+            "memories": {"type": "array", "items": {"type": "string"}, "description": "KomputerMemory names to attach to the scheduled agent."},
+            "connectors": {"type": "array", "items": {"type": "string"}, "description": "KomputerConnector names to attach, giving the agent that connector's MCP tools."},
+            "system_prompt": {"type": "string", "description": "Custom system prompt appended to the built-in one."},
+            "allowed_tools": {"type": "array", "items": {"type": "string"}, "description": "Restrict the agent to exactly these tools. REPLACES the default set; connector tools are not auto-added, so list them explicitly (e.g. 'mcp__figma__*')."},
+            "disallowed_tools": {"type": "array", "items": {"type": "string"}, "description": "Remove these tools, keeping all others. Takes precedence over allowed_tools."},
         },
         "required": ["name", "schedule", "instructions"],
     },
@@ -154,6 +160,18 @@ async def schedule_agent(args):
         }
         if args.get("model"):
             agent_spec["model"] = args["model"]
+        if args.get("skills"):
+            agent_spec["skills"] = args["skills"]
+        if args.get("memories"):
+            agent_spec["memories"] = args["memories"]
+        if args.get("connectors"):
+            agent_spec["connectors"] = args["connectors"]
+        if args.get("system_prompt"):
+            agent_spec["systemPrompt"] = args["system_prompt"]
+        if args.get("allowed_tools"):
+            agent_spec["allowedTools"] = args["allowed_tools"]
+        if args.get("disallowed_tools"):
+            agent_spec["disallowedTools"] = args["disallowed_tools"]
         # Secrets are inherited automatically by the operator from the office manager.
         payload["agent"] = agent_spec
 
