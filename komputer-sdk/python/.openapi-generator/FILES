@@ -9,7 +9,6 @@ docs/ConnectorsApi.md
 docs/CreateAgentRequest.md
 docs/CreateConnectorRequest.md
 docs/CreateMemoryRequest.md
-docs/CreateScheduleAgentSpec.md
 docs/CreateScheduleRequest.md
 docs/CreateSecretRequest.md
 docs/CreateSkillRequest.md
@@ -191,6 +190,7 @@ docs/V1alpha1AgentLifecycle.md
 docs/V1alpha1KomputerAgentSpec.md
 docs/V1alpha1KomputerSquadMember.md
 docs/V1alpha1KomputerSquadMemberRef.md
+docs/V1alpha1ScheduleAgentSpec.md
 docs/V1alpha1StorageSpec.md
 komputer_ai/__init__.py
 komputer_ai/api/__init__.py
@@ -216,7 +216,6 @@ komputer_ai/models/connector_response.py
 komputer_ai/models/create_agent_request.py
 komputer_ai/models/create_connector_request.py
 komputer_ai/models/create_memory_request.py
-komputer_ai/models/create_schedule_agent_spec.py
 komputer_ai/models/create_schedule_request.py
 komputer_ai/models/create_secret_request.py
 komputer_ai/models/create_skill_request.py
@@ -391,6 +390,7 @@ komputer_ai/models/v1alpha1_agent_lifecycle.py
 komputer_ai/models/v1alpha1_komputer_agent_spec.py
 komputer_ai/models/v1alpha1_komputer_squad_member.py
 komputer_ai/models/v1alpha1_komputer_squad_member_ref.py
+komputer_ai/models/v1alpha1_schedule_agent_spec.py
 komputer_ai/models/v1alpha1_storage_spec.py
 komputer_ai/py.typed
 komputer_ai/rest.py

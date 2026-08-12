@@ -443,7 +443,7 @@ func (c *Client) ListSchedules(ctx context.Context) (*komputer.ScheduleListRespo
 }
 
 type CreateScheduleOpts struct {
-	Agent      *komputer.CreateScheduleAgentSpec
+	Agent      *komputer.V1alpha1ScheduleAgentSpec
 	AgentName  *string
 	AutoDelete *bool
 	KeepAgents *bool
@@ -497,7 +497,7 @@ type PatchScheduleOpts struct {
 	KeepAgents   *bool
 	Suspended    *bool
 	AgentName    *string
-	Agent        *komputer.CreateScheduleAgentSpec
+	Agent        *komputer.V1alpha1ScheduleAgentSpec
 }
 
 func (c *Client) PatchSchedule(ctx context.Context, name string, opts ...PatchScheduleOpts) (*komputer.ScheduleResponse, *http.Response, error) {

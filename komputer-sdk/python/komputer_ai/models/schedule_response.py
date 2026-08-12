@@ -19,7 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpec
+from komputer_ai.models.v1alpha1_schedule_agent_spec import V1alpha1ScheduleAgentSpec
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -28,7 +28,7 @@ class ScheduleResponse(BaseModel):
     """
     ScheduleResponse
     """ # noqa: E501
-    agent: Optional[CreateScheduleAgentSpec] = None
+    agent: Optional[V1alpha1ScheduleAgentSpec] = None
     agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
@@ -106,7 +106,7 @@ class ScheduleResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "agent": CreateScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
+            "agent": V1alpha1ScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
             "agentName": obj.get("agentName"),
             "autoDelete": obj.get("autoDelete"),
             "createdAt": obj.get("createdAt"),

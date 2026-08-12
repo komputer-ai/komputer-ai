@@ -132,7 +132,6 @@ Class | Method | HTTP request | Description
  - [CreateAgentRequest](docs/CreateAgentRequest.md)
  - [CreateConnectorRequest](docs/CreateConnectorRequest.md)
  - [CreateMemoryRequest](docs/CreateMemoryRequest.md)
- - [CreateScheduleAgentSpec](docs/CreateScheduleAgentSpec.md)
  - [CreateScheduleRequest](docs/CreateScheduleRequest.md)
  - [CreateSecretRequest](docs/CreateSecretRequest.md)
  - [CreateSkillRequest](docs/CreateSkillRequest.md)
@@ -307,6 +306,7 @@ Class | Method | HTTP request | Description
  - [V1alpha1KomputerAgentSpec](docs/V1alpha1KomputerAgentSpec.md)
  - [V1alpha1KomputerSquadMember](docs/V1alpha1KomputerSquadMember.md)
  - [V1alpha1KomputerSquadMemberRef](docs/V1alpha1KomputerSquadMemberRef.md)
+ - [V1alpha1ScheduleAgentSpec](docs/V1alpha1ScheduleAgentSpec.md)
  - [V1alpha1StorageSpec](docs/V1alpha1StorageSpec.md)
 
 
