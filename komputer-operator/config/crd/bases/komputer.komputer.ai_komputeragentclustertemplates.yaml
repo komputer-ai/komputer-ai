@@ -8089,6 +8089,12 @@ spec:
                     description: StorageClassName is the optional storage class name.
                     type: string
                 type: object
+              taskTimeout:
+                description: |-
+                  TaskTimeout is the default per-task wall-clock cap for agents using this
+                  template. Individual agents override it via their own spec.taskTimeout.
+                  Unset (default) means tasks run without a time limit.
+                type: string
             required:
             - podSpec
             type: object

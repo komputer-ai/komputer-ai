@@ -186,6 +186,11 @@ func (in *KomputerAgentSpec) DeepCopyInto(out *KomputerAgentSpec) {
 		*out = new(v1.Duration)
 		**out = **in
 	}
+	if in.TaskTimeout != nil {
+		in, out := &in.TaskTimeout, &out.TaskTimeout
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.PodSpec != nil {
 		in, out := &in.PodSpec, &out.PodSpec
 		*out = new(corev1.PodSpec)
@@ -236,6 +241,14 @@ func (in *KomputerAgentStatus) DeepCopyInto(out *KomputerAgentStatus) {
 	}
 	if in.DeleteExpiresAt != nil {
 		in, out := &in.DeleteExpiresAt, &out.DeleteExpiresAt
+		*out = (*in).DeepCopy()
+	}
+	if in.TaskStartedAt != nil {
+		in, out := &in.TaskStartedAt, &out.TaskStartedAt
+		*out = (*in).DeepCopy()
+	}
+	if in.TaskExpiresAt != nil {
+		in, out := &in.TaskExpiresAt, &out.TaskExpiresAt
 		*out = (*in).DeepCopy()
 	}
 	if in.Conditions != nil {
@@ -328,6 +341,11 @@ func (in *KomputerAgentTemplateSpec) DeepCopyInto(out *KomputerAgentTemplateSpec
 	}
 	if in.DeleteTTL != nil {
 		in, out := &in.DeleteTTL, &out.DeleteTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.TaskTimeout != nil {
+		in, out := &in.TaskTimeout, &out.TaskTimeout
 		*out = new(v1.Duration)
 		**out = **in
 	}

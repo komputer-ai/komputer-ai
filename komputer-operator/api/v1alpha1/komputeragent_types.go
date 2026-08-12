@@ -145,6 +145,17 @@ type KomputerAgentSpec struct {
 	// Overrides the template's deleteTTL when set.
 	// +optional
 	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
+	// TaskTimeout cancels the agent's running task once it has been running for this
+	// long. The clock starts when a task starts (Status.TaskStartedAt) and never
+	// resets — steering a task does not extend it — so this is a hard wall-clock cap
+	// on a single task, not an idle timeout.
+	//
+	// Only the task is cancelled; the agent itself stays alive and any configured
+	// Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+	// Unset (default) means tasks run without a time limit.
+	// Overrides the template's taskTimeout when set.
+	// +optional
+	TaskTimeout *metav1.Duration `json:"taskTimeout,omitempty"`
 	// OfficeManager is the name of the manager agent that created this sub-agent.
 	// When set, the operator creates/joins a KomputerOffice for the group.
 	// +optional
@@ -241,6 +252,20 @@ type KomputerAgentStatus struct {
 	// Owned by operator.
 	// +optional
 	DeleteExpiresAt *metav1.Time `json:"deleteExpiresAt,omitempty"`
+	// TaskStartedAt is when the current (or most recent) task started. Stamped by the
+	// API worker when the agent transitions into an in-progress task status, and NOT
+	// refreshed while that task continues — a steer leaves it alone, which is what
+	// makes TaskTimeout a hard cap. It is never cleared, so on an idle agent it reads
+	// as "when the last task started".
+	// Managed by the API worker, not by the operator.
+	// +optional
+	TaskStartedAt *metav1.Time `json:"taskStartedAt,omitempty"`
+	// TaskExpiresAt is when the running task will be cancelled by TaskTimeout.
+	// nil when TaskTimeout is unset, no task is in progress, or the agent has no
+	// running pod.
+	// Owned by operator.
+	// +optional
+	TaskExpiresAt *metav1.Time `json:"taskExpiresAt,omitempty"`
 	// Squad indicates the agent is managed by a KomputerSquad. When true, the squad
 	// controller owns the agent's pod lifecycle; the agent controller skips reconciliation.
 	// Phase, PodName, etc. continue to reflect the real pod state (set by the squad controller).

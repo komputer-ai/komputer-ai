@@ -8186,6 +8186,18 @@ spec:
                 description: SystemPrompt is a custom system prompt provided by the
                   user, appended to the internal prompt.
                 type: string
+              taskTimeout:
+                description: |-
+                  TaskTimeout cancels the agent's running task once it has been running for this
+                  long. The clock starts when a task starts (Status.TaskStartedAt) and never
+                  resets — steering a task does not extend it — so this is a hard wall-clock cap
+                  on a single task, not an idle timeout.
+
+                  Only the task is cancelled; the agent itself stays alive and any configured
+                  Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+                  Unset (default) means tasks run without a time limit.
+                  Overrides the template's taskTimeout when set.
+                type: string
               templateRef:
                 default: default
                 description: TemplateRef is the name of the KomputerAgentTemplate
@@ -8348,6 +8360,24 @@ spec:
                 type: boolean
               startTime:
                 description: StartTime is when the agent was started.
+                format: date-time
+                type: string
+              taskExpiresAt:
+                description: |-
+                  TaskExpiresAt is when the running task will be cancelled by TaskTimeout.
+                  nil when TaskTimeout is unset, no task is in progress, or the agent has no
+                  running pod.
+                  Owned by operator.
+                format: date-time
+                type: string
+              taskStartedAt:
+                description: |-
+                  TaskStartedAt is when the current (or most recent) task started. Stamped by the
+                  API worker when the agent transitions into an in-progress task status, and NOT
+                  refreshed while that task continues — a steer leaves it alone, which is what
+                  makes TaskTimeout a hard cap. It is never cleared, so on an idle agent it reads
+                  as "when the last task started".
+                  Managed by the API worker, not by the operator.
                 format: date-time
                 type: string
               taskStatus:
