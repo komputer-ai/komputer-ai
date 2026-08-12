@@ -774,11 +774,6 @@ func (r *KomputerSquadReconciler) cancelTaskViaAPI(ctx context.Context, namespac
 	return cancelAgentTaskViaAPI(ctx, r.Client, namespace, agentName)
 }
 
-// getAPIURL returns the API URL. See getKomputerAPIURL.
-func (r *KomputerSquadReconciler) getAPIURL(ctx context.Context) (string, error) {
-	return getKomputerAPIURL(ctx, r.Client)
-}
-
 // buildSquadPodSpec constructs the desired Pod for the squad. Each agent gets
 // its own container (named after the agent). Volume mounts:
 //   - Own PVC at /workspace
