@@ -593,7 +593,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
 			WithObjects(tplWithTTLs("default", "default")).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m", sleep.Duration)
 		}
@@ -609,7 +609,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
 			WithObjects(tplWithTTLs("default", "default")).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m", sleep.Duration)
 		}
@@ -629,7 +629,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		}
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(clusterTpl).Build()
 
-		sleep, _ := resolveAgentTTLs(ctx, c, agent)
+		sleep, _, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep == nil || sleep.Duration != 15*time.Minute {
 			t.Errorf("sleepTTL = %v, want the cluster template's 15m", sleep)
 		}
@@ -641,7 +641,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		agent.Spec.SleepTTL = dur(5 * time.Minute)
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m to survive", sleep.Duration)
 		}
@@ -657,7 +657,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		// Empty client: a lookup would fail, proving none was attempted.
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != time.Minute || del.Duration != time.Hour {
 			t.Errorf("got %v/%v, want the agent's own values", sleep, del)
 		}
@@ -824,4 +824,71 @@ func TestEvaluateTaskDeadlineSteerDoesNotReset(t *testing.T) {
 	if !before.ExpiresAt.Time.Equal(after.ExpiresAt.Time) {
 		t.Errorf("steer moved the deadline: %v -> %v", before.ExpiresAt, after.ExpiresAt)
 	}
+}
+
+// ─── resolveAgentTTLs: taskTimeout (agent spec over template defaults) ───────
+
+func TestResolveAgentTaskTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	newAgent := func(taskTimeout *metav1.Duration) *komputerv1alpha1.KomputerAgent {
+		return &komputerv1alpha1.KomputerAgent{
+			ObjectMeta: metav1.ObjectMeta{Name: "a", Namespace: "default"},
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				TemplateRef: "default",
+				TaskTimeout: taskTimeout,
+			},
+		}
+	}
+	// Local helper: TestResolveAgentTTLs has its own tplWithTTLs, but it is a closure
+	// scoped to that test, so this one needs its own.
+	tplWithTask := func(taskTimeout *metav1.Duration) *komputerv1alpha1.KomputerAgentTemplate {
+		return &komputerv1alpha1.KomputerAgentTemplate{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: taskTimeout},
+		}
+	}
+
+	t.Run("agent value wins over template", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(dur(2 * time.Hour))).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(dur(30*time.Minute)))
+		if task == nil || task.Duration != 30*time.Minute {
+			t.Errorf("taskTimeout = %v, want 30m", task)
+		}
+	})
+
+	t.Run("template supplies the default", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(dur(2 * time.Hour))).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task == nil || task.Duration != 2*time.Hour {
+			t.Errorf("taskTimeout = %v, want 2h", task)
+		}
+	})
+
+	t.Run("cluster template used when no namespaced template exists", func(t *testing.T) {
+		clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{
+			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Spec:       komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: dur(45 * time.Minute)},
+		}
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(clusterTpl).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task == nil || task.Duration != 45*time.Minute {
+			t.Errorf("taskTimeout = %v, want 45m", task)
+		}
+	})
+
+	t.Run("nil everywhere stays nil", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(nil)).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task != nil {
+			t.Errorf("taskTimeout = %v, want nil", task)
+		}
+	})
 }

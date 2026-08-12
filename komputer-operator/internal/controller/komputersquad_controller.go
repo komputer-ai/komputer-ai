@@ -345,7 +345,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 	survivors := make([]*komputerv1alpha1.KomputerAgent, 0, len(agents))
 
 	for _, agent := range agents {
-		sleepTTL, deleteTTL := resolveAgentTTLs(ctx, r.Client, agent)
+		sleepTTL, deleteTTL, _ := resolveAgentTTLs(ctx, r.Client, agent)
 		if sleepTTL == nil && deleteTTL == nil {
 			// Clear stale expiries if the TTLs were removed from the spec.
 			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {

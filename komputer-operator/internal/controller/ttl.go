@@ -206,10 +206,10 @@ func taskInProgress(s komputerv1alpha1.AgentTaskStatus) bool {
 // applyAgentOverrides. This exists for the squad controller, which never builds a
 // merged template. A template that can't be read is treated as having no defaults:
 // TTLs must not be able to break squad reconciliation.
-func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) (sleepTTL, deleteTTL *metav1.Duration) {
-	sleepTTL, deleteTTL = agent.Spec.SleepTTL, agent.Spec.DeleteTTL
-	if sleepTTL != nil && deleteTTL != nil {
-		return sleepTTL, deleteTTL // nothing left for the template to supply
+func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) (sleepTTL, deleteTTL, taskTimeout *metav1.Duration) {
+	sleepTTL, deleteTTL, taskTimeout = agent.Spec.SleepTTL, agent.Spec.DeleteTTL, agent.Spec.TaskTimeout
+	if sleepTTL != nil && deleteTTL != nil && taskTimeout != nil {
+		return sleepTTL, deleteTTL, taskTimeout // nothing left for the template to supply
 	}
 
 	templateRef := agent.Spec.TemplateRef
@@ -218,7 +218,7 @@ func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alp
 	}
 	spec, err := readTemplateSpec(ctx, c, templateRef, agent.Namespace)
 	if err != nil {
-		return sleepTTL, deleteTTL
+		return sleepTTL, deleteTTL, taskTimeout
 	}
 	if sleepTTL == nil {
 		sleepTTL = spec.SleepTTL
@@ -226,7 +226,10 @@ func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alp
 	if deleteTTL == nil {
 		deleteTTL = spec.DeleteTTL
 	}
-	return sleepTTL, deleteTTL
+	if taskTimeout == nil {
+		taskTimeout = spec.TaskTimeout
+	}
+	return sleepTTL, deleteTTL, taskTimeout
 }
 
 // readTemplateSpec resolves a template by name: namespaced first, then cluster-scoped,

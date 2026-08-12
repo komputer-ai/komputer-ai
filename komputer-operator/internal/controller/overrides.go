@@ -30,6 +30,9 @@ func applyAgentOverrides(template *komputerv1alpha1.KomputerAgentTemplate, agent
 	if agent.Spec.DeleteTTL != nil {
 		out.Spec.DeleteTTL = agent.Spec.DeleteTTL.DeepCopy()
 	}
+	if agent.Spec.TaskTimeout != nil {
+		out.Spec.TaskTimeout = agent.Spec.TaskTimeout.DeepCopy()
+	}
 	return out
 }
 

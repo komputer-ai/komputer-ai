@@ -170,3 +170,32 @@ func TestApplyAgentOverrides_TTLs(t *testing.T) {
 		}
 	})
 }
+
+func TestApplyAgentOverridesTaskTimeout(t *testing.T) {
+	t.Run("agent value overrides the template", func(t *testing.T) {
+		tpl := &komputerv1alpha1.KomputerAgentTemplate{
+			Spec: komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: dur(2 * time.Hour)},
+		}
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{TaskTimeout: dur(30 * time.Minute)},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.TaskTimeout == nil || out.Spec.TaskTimeout.Duration != 30*time.Minute {
+			t.Errorf("TaskTimeout = %v, want 30m", out.Spec.TaskTimeout)
+		}
+		if tpl.Spec.TaskTimeout.Duration != 2*time.Hour {
+			t.Error("applyAgentOverrides mutated the input template")
+		}
+	})
+
+	t.Run("template value survives when the agent has none", func(t *testing.T) {
+		tpl := &komputerv1alpha1.KomputerAgentTemplate{
+			Spec: komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: dur(2 * time.Hour)},
+		}
+		agent := &komputerv1alpha1.KomputerAgent{}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.TaskTimeout == nil || out.Spec.TaskTimeout.Duration != 2*time.Hour {
+			t.Errorf("TaskTimeout = %v, want 2h", out.Spec.TaskTimeout)
+		}
+	})
+}
