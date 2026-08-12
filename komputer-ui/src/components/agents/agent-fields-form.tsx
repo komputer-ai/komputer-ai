@@ -20,7 +20,7 @@ import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
-import type { TemplateResponse } from "@/lib/types";
+import type { ScheduleAgentSpec, TemplateResponse } from "@/lib/types";
 import { LIFECYCLES } from "@/lib/constants";
 
 export interface AgentFormValues {
@@ -82,6 +82,12 @@ export interface AgentFieldsFormProps {
   hideNameAndNamespace?: boolean;
   /** When true, hide only the Namespace field (squad mode — squad owns namespace, agent still gets a name) */
   hideNamespaceOnly?: boolean;
+  /**
+   * When true, hide the Instructions field. Use when the parent owns the
+   * instructions (schedules supply them per run), so the form doesn't render a
+   * second Instructions box whose contents would be silently discarded.
+   */
+  hideInstructions?: boolean;
   /** Optional id prefix for input ids (avoid collisions when multiple forms exist) */
   idPrefix?: string;
 }
@@ -92,6 +98,7 @@ export function AgentFieldsForm({
   active,
   hideNameAndNamespace = false,
   hideNamespaceOnly = false,
+  hideInstructions = false,
   idPrefix = "agent",
 }: AgentFieldsFormProps) {
   const advancedRef = useRef<HTMLDivElement>(null);
@@ -208,16 +215,18 @@ export function AgentFieldsForm({
         </AnimatePresence>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}-instructions`}>Instructions</Label>
-        <Textarea
-          id={`${idPrefix}-instructions`}
-          placeholder="Describe what this agent should do..."
-          value={values.instructions}
-          onChange={(e) => patch("instructions", e.target.value)}
-          style={{ minHeight: 200 }}
-        />
-      </div>
+      {!hideInstructions && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${idPrefix}-instructions`}>Instructions</Label>
+          <Textarea
+            id={`${idPrefix}-instructions`}
+            placeholder="Describe what this agent should do..."
+            value={values.instructions}
+            onChange={(e) => patch("instructions", e.target.value)}
+            style={{ minHeight: 200 }}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
@@ -501,6 +510,31 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     priority: values.priority !== 0 ? values.priority : undefined,
     podSpec: podSpecOverride,
     storage: values.storageSize.trim() ? { size: values.storageSize.trim() } : undefined,
+  };
+}
+
+/**
+ * Build a schedule's inline agent template from the shared form values.
+ *
+ * Deliberately omits `name`, `namespace` and `instructions` — the schedule owns
+ * those and supplies the instructions to each run. Note the key is `secrets`,
+ * matching the CR's AgentConfigSpec, whereas the agents API uses `secretRefs`.
+ */
+export function buildScheduleAgentSpec(values: AgentFormValues): ScheduleAgentSpec {
+  const base = buildCreateAgentRequest(values, { includeNamespace: false });
+  return {
+    model: base.model,
+    lifecycle: base.lifecycle,
+    role: base.role,
+    templateRef: base.templateRef,
+    secrets: base.secretRefs,
+    skills: base.skills,
+    memories: base.memories,
+    connectors: base.connectors,
+    systemPrompt: base.systemPrompt,
+    priority: base.priority,
+    podSpec: base.podSpec,
+    storage: base.storage,
   };
 }
 
