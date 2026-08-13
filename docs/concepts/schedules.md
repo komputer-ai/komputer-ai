@@ -169,9 +169,7 @@ komputer schedule update my-schedule --instructions "Summarize yesterday's signu
 komputer schedule update my-schedule --model claude-opus-4-6 --skill markdown-reports
 ```
 
-`komputer schedule create` and `komputer schedule update` take the same agent flags — `--model`, `--role`, `--template`, `--lifecycle`, `--secret`, `--skill`, `--memory`, `--allow-tool`, `--disallow-tool`, `--system-prompt`, `--priority`, `--cpu`, `--memory-limit`, `--storage`, `--image` — with one exception: **`--label` exists only on `create`**; the code does not record why. To set labels on an existing schedule, edit the CR directly with `kubectl`, or PATCH it through the API using the read-modify-write pattern described below.
-
-Attaching connectors to a scheduled agent is available through the API, UI, SDK, and the manager `schedule_agent` MCP tool — but not the CLI, which has no `--connector` flag.
+`komputer schedule create` and `komputer schedule update` take the same agent flags — `--model`, `--role`, `--template`, `--lifecycle`, `--secret`, `--skill`, `--memory`, `--connector`, `--allow-tool`, `--disallow-tool`, `--system-prompt`, `--priority`, `--cpu`, `--memory-limit`, `--storage`, `--image` — with one exception: **`--label` exists only on `create`**; the code does not record why. To set labels on an existing schedule, edit the CR directly with `kubectl`, or PATCH it through the API using the read-modify-write pattern described below.
 
 Remember that agent-config edits only affect agents created **after** the edit — see [`spec.agent` applies at agent creation only](#specagent-applies-at-agent-creation-only).
 

@@ -206,6 +206,45 @@ func TestScheduleUpdateBodyMergesPodSpec(t *testing.T) {
 	}
 }
 
+// TestScheduleUpdateBodyOverlaysConnectors covers the --connector overlay:
+// passing it replaces the schedule's connector list, and leaving it off keeps
+// whatever the GET returned rather than blanking it.
+func TestScheduleUpdateBodyOverlaysConnectors(t *testing.T) {
+	tests := []struct {
+		name string
+		// Applied in order; the same flag twice mimics passing it twice on the
+		// command line, which is how --connector is meant to be repeated.
+		flags []map[string]string
+		want  []interface{}
+	}{
+		{
+			name:  "repeated --connector replaces the existing list",
+			flags: []map[string]string{{"connector": "linear"}, {"connector": "slack"}},
+			want:  []interface{}{"linear", "slack"},
+		},
+		{
+			name:  "no --connector keeps the list from the GET",
+			flags: []map[string]string{{"model": "claude-opus-4-6"}},
+			want:  []interface{}{"figma"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newScheduleUpdateCmd(t)
+			for _, f := range tt.flags {
+				setFlags(t, cmd, f)
+			}
+
+			agent := agentOf(t, buildScheduleUpdateBody(cmd, existingScheduleAgent()))
+
+			if !reflect.DeepEqual(agent["connectors"], tt.want) {
+				t.Errorf("agent.connectors = %v, want %v", agent["connectors"], tt.want)
+			}
+		})
+	}
+}
+
 // TestScheduleUpdateBodyMergesStorage covers the other half of the finding:
 // --storage sets the size and must leave storageClassName alone.
 func TestScheduleUpdateBodyMergesStorage(t *testing.T) {

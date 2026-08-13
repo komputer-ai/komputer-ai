@@ -293,6 +293,7 @@ func registerScheduleCommands(root *cobra.Command) {
 				spec.Secrets, _ = cmd.Flags().GetStringSlice("secret")
 				spec.Skills, _ = cmd.Flags().GetStringSlice("skill")
 				spec.Memories, _ = cmd.Flags().GetStringSlice("memory")
+				spec.Connectors, _ = cmd.Flags().GetStringSlice("connector")
 				spec.AllowedTools, _ = cmd.Flags().GetStringSlice("allow-tool")
 				spec.DisallowedTools, _ = cmd.Flags().GetStringSlice("disallow-tool")
 				if storageSize != "" {
@@ -374,6 +375,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCreateCmd.Flags().StringSlice("secret", nil, "Secret names to attach (repeatable)")
 	scheduleCreateCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	scheduleCreateCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	scheduleCreateCmd.Flags().StringSlice("connector", nil, "Connector names to attach (repeatable, e.g. --connector github)")
 	scheduleCreateCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
 	scheduleCreateCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable), e.g. --disallow-tool Bash --disallow-tool mcp__figma__use_figma")
 	scheduleCreateCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
@@ -510,7 +512,7 @@ func registerScheduleCommands(root *cobra.Command) {
 			body := buildScheduleUpdateBody(cmd, existing.Agent)
 
 			if len(body) == 0 {
-				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
+				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --connector, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
 				if jsonMode {
 					dieJSON(msg, 400)
 				}
@@ -560,6 +562,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleUpdateCmd.Flags().StringSlice("secret", nil, "Secret names to attach (repeatable)")
 	scheduleUpdateCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	scheduleUpdateCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	scheduleUpdateCmd.Flags().StringSlice("connector", nil, "Connector names to attach (repeatable, e.g. --connector github)")
 	scheduleUpdateCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
 	scheduleUpdateCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable), e.g. --disallow-tool Bash --disallow-tool mcp__figma__use_figma")
 	scheduleUpdateCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
@@ -643,6 +646,7 @@ func buildScheduleUpdateBody(cmd *cobra.Command, existingAgent map[string]interf
 		{"secret", "secrets"},
 		{"skill", "skills"},
 		{"memory", "memories"},
+		{"connector", "connectors"},
 		{"allow-tool", "allowedTools"},
 		{"disallow-tool", "disallowedTools"},
 	} {
