@@ -17,7 +17,7 @@ Key features:
 - **Cost tracking** — Tracks total cost and per-run cost across all scheduled runs
 - **Manual trigger** — Fire a schedule immediately, outside its cron cadence (UI: "Run now"; CLI: `komputer schedule trigger <name>`)
 
-Schedules created through the API, CLI, UI, or SDK default to `Sleep` lifecycle for their agents, so compute is only used during the actual task execution. See [Defaults](#defaults) for the exact behavior, including how it differs under a raw `kubectl apply`.
+Schedules default to `Sleep` lifecycle for their agents, so compute is only used during the actual task execution. See [Defaults](#defaults) for the exact behavior, including the one default a raw `kubectl apply` does not get.
 
 ## Minimal schedule
 
@@ -103,16 +103,18 @@ spec:
 
 ### Defaults
 
-A scheduled agent is a self-contained job, so two fields default differently than they would on a hand-written agent. When you omit them, the API fills in — and because the CLI, UI, SDK, and manager MCP tools all go through the API, every one of those clients gets the same behavior:
+A scheduled agent is a self-contained job, so two fields default differently than they would on a hand-written agent:
 
 - **`role: worker`** — a scheduled agent runs one task; it isn't there to orchestrate sub-agents. Set `role: manager` explicitly if you want it to.
 - **`lifecycle: Sleep`** — the pod is torn down between runs and the workspace PVC is preserved, so compute is only spent during the run itself.
+
+Neither value comes from the CRD. `spec.agent` inlines the same shared config block the agent spec uses, so the CRD necessarily carries the *agent's* defaults — `role: manager`, and no `lifecycle` at all. The schedule's two defaults are applied by the API on top of that, and because the CLI, UI, SDK, and manager MCP tools all go through the API, every one of those clients gets the same behavior. The operator applies the `lifecycle` default a second time when it renders the agent, so a schedule written straight to the cluster with `kubectl` gets that one too.
 
 Every other field falls back to the agent CRD's own default (`model: claude-sonnet-4-6`, `templateRef: default`, `priority: 0`) or is simply unset.
 
 > **⚠ Raw `kubectl apply` gets `role: manager`, not `worker`.**
 >
-> The `worker` default is applied by the API, CLI, UI, SDK, and MCP paths — not by the CRD. `spec.agent` inlines the same shared config the agent spec uses, which carries the agent's own CRD default of `manager`, and the Kubernetes API server stamps CRD defaults on every write. The operator therefore never observes an empty `role` and cannot tell "unset" from "deliberately manager".
+> The `worker` default is applied by the API, CLI, UI, SDK, and MCP paths — not by the CRD. The shared config block carries the agent's own CRD default of `manager`, and the Kubernetes API server stamps CRD defaults on every write. The operator therefore never observes an empty `role` and cannot tell "unset" from "deliberately manager", so it cannot repeat the coercion the way it does for `lifecycle` — that field has no CRD default, so it does still arrive empty and the operator can fix it up.
 >
 > This is inherent to sharing one spec between agents and schedules, not an oversight — removing the CRD default would change the agents CRD and break the parity this feature is built on. **If you apply a schedule with `kubectl` and want a worker, say so explicitly:**
 >
@@ -120,8 +122,8 @@ Every other field falls back to the agent CRD's own default (`model: claude-sonn
 >   agent:
 >     role: worker
 > ```
->
-> `lifecycle` has no CRD default, so its `Sleep` default is likewise API-side only; a `kubectl`-applied schedule gets the empty lifecycle (pod stays running after each run).
+
+Because the operator's `lifecycle` default is applied while rendering the agent, it does not write back to the schedule. A `kubectl`-applied schedule that omitted `lifecycle` keeps showing an empty `spec.agent.lifecycle`, while the agent it creates has `lifecycle: Sleep` — read the agent, not the schedule, to confirm what a run will do.
 
 ### `spec.agent` applies at agent creation only
 

@@ -287,10 +287,23 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 // buildScheduledAgent renders the schedule's agent template into a KomputerAgent.
-// The entire AgentConfigSpec passes through untouched, so any field added to it
-// reaches scheduled agents with no change here. Instructions are the schedule's,
-// not the template's — the same value a run forwards to an existing agent.
+// The AgentConfigSpec passes through as-is apart from the lifecycle backstop
+// below, so any field added to it reaches scheduled agents with no change here.
+// Instructions are the schedule's, not the template's — the same value a run
+// forwards to an existing agent.
 func buildScheduledAgent(schedule *komputerv1alpha1.KomputerSchedule, agentName string) *komputerv1alpha1.KomputerAgent {
+	cfg := *schedule.Spec.Agent.AgentConfigSpec.DeepCopy()
+
+	// The shared AgentConfigSpec carries the agent's defaults, where an empty
+	// lifecycle means "keep the pod running". A scheduled agent that never
+	// sleeps leaks a pod between runs, so schedules default to Sleep — the same
+	// coercion the API applies, repeated here for schedules written directly
+	// with kubectl, which the API never sees. Applied to the copy so the
+	// schedule CR is not mutated.
+	if cfg.Lifecycle == "" {
+		cfg.Lifecycle = komputerv1alpha1.AgentLifecycleSleep
+	}
+
 	return &komputerv1alpha1.KomputerAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentName,
@@ -300,7 +313,7 @@ func buildScheduledAgent(schedule *komputerv1alpha1.KomputerSchedule, agentName 
 			},
 		},
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			AgentConfigSpec: *schedule.Spec.Agent.AgentConfigSpec.DeepCopy(),
+			AgentConfigSpec: cfg,
 			Instructions:    schedule.Spec.Instructions,
 		},
 	}
