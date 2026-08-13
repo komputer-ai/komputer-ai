@@ -244,6 +244,13 @@ func registerScheduleCommands(root *cobra.Command) {
 				fmt.Println(errorStyle.Render("--cron flag is required"))
 				os.Exit(1)
 			}
+			if msg := scheduleAgentFlagConflict(cmd); msg != "" {
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
 
 			timezone, _ := cmd.Flags().GetString("timezone")
 			autoDelete, _ := cmd.Flags().GetBool("auto-delete")
@@ -488,6 +495,15 @@ func registerScheduleCommands(root *cobra.Command) {
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
+			// Guard before the GET so a contradictory invocation costs no request.
+			if msg := scheduleAgentFlagConflict(cmd); msg != "" {
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
+
 			// PATCH replaces spec.agent wholesale, so read the schedule first and
 			// overlay only what changed — otherwise updating one field wipes the rest.
 			existingData, existingStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
@@ -574,6 +590,58 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCmd.AddCommand(scheduleUpdateCmd)
 
 	root.AddCommand(scheduleCmd)
+}
+
+// scheduleAgentConfigFlags are the flags that configure an inline agent
+// template on `schedule create` / `schedule update`. Both commands register
+// most of them; --label is create-only and --template-ref is update-only, which
+// is harmless here because pflag reports an unregistered flag as unchanged.
+//
+// scheduleOwnFlags are the flags that configure the schedule itself. Every flag
+// on either command belongs to exactly one of these two lists — see
+// TestScheduleFlagsAreClassified, which fails when a new flag lands in neither.
+var (
+	scheduleAgentConfigFlags = []string{
+		"model", "lifecycle", "role", "template", "template-ref", "system-prompt",
+		"secret", "skill", "memory", "connector", "allow-tool", "disallow-tool",
+		"priority", "cpu", "memory-limit", "storage", "image", "label",
+	}
+	scheduleOwnFlags = []string{
+		"cron", "instructions", "timezone", "auto-delete", "keep-agents",
+		"suspended", "agent",
+	}
+)
+
+// scheduleAgentFlagConflict reports --agent combined with any agent-config
+// flag, returning the error message to show or "" when the flags are coherent.
+//
+// The two are contradictory: --agent points the schedule at an agent it does
+// not own, so there is no inline template for the agent-config flags to
+// configure. Left unguarded the commands did silently opposite things — create
+// dropped the agent flags, while update sent both and let the API apply "agent"
+// last, destroying the --agent reference.
+//
+// Conflicts are detected from the flags the caller changed, not from the
+// resulting values: --lifecycle defaults to "Sleep" on create, so a value-based
+// check would fire on every invocation.
+//
+// Returns a message rather than exiting so tests can drive the real commands.
+func scheduleAgentFlagConflict(cmd *cobra.Command) string {
+	agent, _ := cmd.Flags().GetString("agent")
+	if agent == "" {
+		return ""
+	}
+	var conflicting []string
+	for _, name := range scheduleAgentConfigFlags {
+		if cmd.Flags().Changed(name) {
+			conflicting = append(conflicting, "--"+name)
+		}
+	}
+	if len(conflicting) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("--agent %s cannot be combined with %s: --agent targets an existing agent, whose configuration this schedule does not own. Pass --agent on its own to drive that agent, or drop it to configure an inline agent template.",
+		agent, strings.Join(conflicting, ", "))
 }
 
 // buildScheduleUpdateBody assembles the PATCH body for `schedule update` from

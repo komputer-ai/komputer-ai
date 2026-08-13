@@ -3,14 +3,16 @@ package main
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// newScheduleUpdateCmd returns the real `schedule update` command, so these
-// tests exercise the production flag registration rather than a copy of it.
-func newScheduleUpdateCmd(t *testing.T) *cobra.Command {
+// newScheduleCmd returns a real `schedule <name>` subcommand, so these tests
+// exercise the production flag registration rather than a copy of it.
+func newScheduleCmd(t *testing.T, name string) *cobra.Command {
 	t.Helper()
 	root := &cobra.Command{Use: "komputer"}
 	registerScheduleCommands(root)
@@ -19,13 +21,18 @@ func newScheduleUpdateCmd(t *testing.T) *cobra.Command {
 			continue
 		}
 		for _, sub := range c.Commands() {
-			if sub.Name() == "update" {
+			if sub.Name() == name {
 				return sub
 			}
 		}
 	}
-	t.Fatal("schedule update command not found")
+	t.Fatalf("schedule %s command not found", name)
 	return nil
+}
+
+func newScheduleUpdateCmd(t *testing.T) *cobra.Command {
+	t.Helper()
+	return newScheduleCmd(t, "update")
 }
 
 // setFlags marks each flag as Changed, which is what buildScheduleUpdateBody keys off.
@@ -300,6 +307,111 @@ func TestScheduleUpdateBodyWithoutExistingAgent(t *testing.T) {
 			t.Errorf("agent key must be absent, got %v", asJSON(t, body))
 		}
 	})
+}
+
+// TestScheduleAgentFlagConflict covers the guard on --agent plus agent-config
+// flags. Before it, the same flag pair did silently opposite things: create
+// dropped the agent flags, update destroyed the --agent reference.
+func TestScheduleAgentFlagConflict(t *testing.T) {
+	tests := []struct {
+		name     string
+		flags    map[string]string
+		wantsIn  []string // substrings the message must name
+		conflict bool
+	}{
+		{
+			name:  "no --agent, agent flags are fine",
+			flags: map[string]string{"skill": "sql"},
+		},
+		{
+			name:  "--agent alone is fine",
+			flags: map[string]string{"agent": "my-agent"},
+		},
+		{
+			name:     "--agent with --skill conflicts",
+			flags:    map[string]string{"agent": "my-agent", "skill": "sql"},
+			wantsIn:  []string{"my-agent", "--skill"},
+			conflict: true,
+		},
+		{
+			name:     "--agent with several agent flags names them all",
+			flags:    map[string]string{"agent": "my-agent", "model": "claude-opus-4-6", "priority": "5"},
+			wantsIn:  []string{"--model", "--priority"},
+			conflict: true,
+		},
+		{
+			name:  "--agent with a schedule-level flag is fine",
+			flags: map[string]string{"agent": "my-agent", "timezone": "UTC"},
+		},
+	}
+
+	// Both commands take the same flag pair and must reject it identically.
+	for _, cmdName := range []string{"create", "update"} {
+		for _, tt := range tests {
+			t.Run(cmdName+"/"+tt.name, func(t *testing.T) {
+				cmd := newScheduleCmd(t, cmdName)
+				setFlags(t, cmd, tt.flags)
+
+				got := scheduleAgentFlagConflict(cmd)
+
+				if !tt.conflict {
+					if got != "" {
+						t.Fatalf("flags %v should be accepted, got error %q", tt.flags, got)
+					}
+					return
+				}
+				if got == "" {
+					t.Fatalf("flags %v should be rejected, got no error", tt.flags)
+				}
+				for _, want := range tt.wantsIn {
+					if !strings.Contains(got, want) {
+						t.Errorf("error message must name %q, got %q", want, got)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestScheduleAgentFlagConflictIgnoresDefaultedLifecycle pins why the guard
+// keys off Changed rather than the resulting value: --lifecycle carries a
+// "Sleep" default on create, so a value-based check would reject every
+// `--agent` invocation.
+func TestScheduleAgentFlagConflictIgnoresDefaultedLifecycle(t *testing.T) {
+	cmd := newScheduleCmd(t, "create")
+	if lc, _ := cmd.Flags().GetString("lifecycle"); lc == "" {
+		t.Fatal("this test is pointless unless --lifecycle has a non-empty default on create")
+	}
+	setFlags(t, cmd, map[string]string{"agent": "my-agent"})
+
+	if got := scheduleAgentFlagConflict(cmd); got != "" {
+		t.Errorf("--agent alone must be accepted despite the --lifecycle default, got %q", got)
+	}
+}
+
+// TestScheduleFlagsAreClassified keeps the guard from rotting. Every flag on
+// create and update must be classified as agent-config or schedule-level, so
+// adding a flag to either command without deciding which it is fails here
+// instead of silently escaping the mutual-exclusion check.
+func TestScheduleFlagsAreClassified(t *testing.T) {
+	classified := map[string]bool{}
+	for _, name := range scheduleAgentConfigFlags {
+		classified[name] = true
+	}
+	for _, name := range scheduleOwnFlags {
+		classified[name] = true
+	}
+
+	for _, cmdName := range []string{"create", "update"} {
+		t.Run(cmdName, func(t *testing.T) {
+			cmd := newScheduleCmd(t, cmdName)
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				if !classified[f.Name] {
+					t.Errorf("flag --%s on `schedule %s` is in neither scheduleAgentConfigFlags nor scheduleOwnFlags; classify it so the --agent guard covers it", f.Name, cmdName)
+				}
+			})
+		})
+	}
 }
 
 // TestMergePodSpecOverrideFallsBackOnUnknownShapes pins the fallback: an

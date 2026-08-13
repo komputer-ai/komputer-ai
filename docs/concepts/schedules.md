@@ -173,6 +173,8 @@ komputer schedule update my-schedule --model claude-opus-4-6 --skill markdown-re
 
 `komputer schedule create` and `komputer schedule update` take the same agent flags — `--model`, `--role`, `--template`, `--lifecycle`, `--secret`, `--skill`, `--memory`, `--connector`, `--allow-tool`, `--disallow-tool`, `--system-prompt`, `--priority`, `--cpu`, `--memory-limit`, `--storage`, `--image` — with one exception: **`--label` exists only on `create`**; the code does not record why. To set labels on an existing schedule, edit the CR directly with `kubectl`, or PATCH it through the API using the read-modify-write pattern described below.
 
+None of those agent flags can be combined with `--agent`, on either command: `--agent` points the schedule at an agent it does not own, so there is no inline template left to configure and both commands reject the pair rather than silently picking a winner.
+
 Remember that agent-config edits only affect agents created **after** the edit — see [`spec.agent` applies at agent creation only](#specagent-applies-at-agent-creation-only).
 
 > **⚠ A raw `PATCH` replaces `spec.agent` wholesale — it does not merge.**
