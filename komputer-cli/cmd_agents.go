@@ -216,6 +216,9 @@ func registerAgentCommands(root *cobra.Command) {
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
 			}
+			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
+				body["taskTimeout"] = ttimeout
+			}
 			if memFlags, _ := cmd.Flags().GetStringSlice("memory"); len(memFlags) > 0 {
 				body["memories"] = memFlags
 			}
@@ -300,6 +303,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	createCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	createCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	createCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	createCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
@@ -342,6 +346,10 @@ func registerAgentCommands(root *cobra.Command) {
 			if cmd.Flags().Changed("delete-ttl") {
 				v, _ := cmd.Flags().GetString("delete-ttl")
 				body["deleteTTL"] = v
+			}
+			if cmd.Flags().Changed("task-timeout") {
+				v, _ := cmd.Flags().GetString("task-timeout")
+				body["taskTimeout"] = v
 			}
 			if cmd.Flags().Changed("system-prompt") {
 				v, _ := cmd.Flags().GetString("system-prompt")
@@ -409,6 +417,7 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	updateCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	updateCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	updateCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	updateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
 	updateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
@@ -681,6 +690,9 @@ func registerAgentCommands(root *cobra.Command) {
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
 			}
+			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
+				body["taskTimeout"] = ttimeout
+			}
 			if secretFlags, _ := cmd.Flags().GetStringSlice("secret"); len(secretFlags) > 0 {
 				secrets := make(map[string]string)
 				for _, s := range secretFlags {
@@ -760,6 +772,7 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	configCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
@@ -916,6 +929,9 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
+			}
+			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
+				body["taskTimeout"] = ttimeout
 			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
@@ -1079,6 +1095,7 @@ func registerAgentCommands(root *cobra.Command) {
 	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
 	runCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	runCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	runCmd.Flags().String("system-prompt", "", "Custom system prompt to inject into the agent")
 	root.AddCommand(runCmd)
 
@@ -1250,6 +1267,9 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 				if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 					body["deleteTTL"] = dttl
+				}
+				if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
+					body["taskTimeout"] = ttimeout
 				}
 
 				// Retry on 409 (pod may still be starting)
@@ -1496,6 +1516,7 @@ func registerAgentCommands(root *cobra.Command) {
 	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep or AutoDelete (default: empty, pod stays running)")
 	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	chatCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	root.AddCommand(chatCmd)
 }
 

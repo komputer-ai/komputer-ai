@@ -15,6 +15,9 @@ type AgentResponse struct {
 	LastActivityAt  string            `json:"lastActivityAt,omitempty"`
 	SleepExpiresAt  string            `json:"sleepExpiresAt,omitempty"`
 	DeleteExpiresAt string            `json:"deleteExpiresAt,omitempty"`
+	TaskTimeout     string            `json:"taskTimeout,omitempty"`
+	TaskStartedAt   string            `json:"taskStartedAt,omitempty"`
+	TaskExpiresAt   string            `json:"taskExpiresAt,omitempty"`
 	LastTaskCostUSD string            `json:"lastTaskCostUSD"`
 	TotalCostUSD    string            `json:"totalCostUSD"`
 	CreatedAt       string            `json:"createdAt"`
