@@ -985,7 +985,7 @@ func (k *K8sClient) DeleteSchedule(ctx context.Context, ns, name string) error {
 }
 
 // PatchAgentSpec patches mutable spec fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL TTLUpdate) error {
+func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, taskTimeout TTLUpdate) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -1023,6 +1023,10 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	}
 	if deleteTTL.Set && !durationEqual(agent.Spec.DeleteTTL, deleteTTL.Value) {
 		agent.Spec.DeleteTTL = deleteTTL.Value
+		changed = true
+	}
+	if taskTimeout.Set && !durationEqual(agent.Spec.TaskTimeout, taskTimeout.Value) {
+		agent.Spec.TaskTimeout = taskTimeout.Value
 		changed = true
 	}
 	if !changed {
