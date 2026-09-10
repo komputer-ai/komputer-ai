@@ -15,6 +15,11 @@ import (
 )
 
 // baseTime is a fixed reference so every case reads as an explicit offset from it.
+//
+// Only for the pure evaluateTTL tests, which are handed an explicit now derived
+// from it. The applyTTL tests below read the real wall clock, so their fixtures
+// must be now-relative (withCreatedAgo / withLastActivityAgo) — anchoring those
+// to a fixed date rots silently as the date recedes past the TTLs under test.
 var baseTime = time.Date(2026, 8, 10, 12, 0, 0, 0, time.UTC)
 
 func dur(d time.Duration) *metav1.Duration {
@@ -43,6 +48,23 @@ func ttlAgent(mutate ...func(*komputerv1alpha1.KomputerAgent)) *komputerv1alpha1
 func withLastActivity(offset time.Duration) func(*komputerv1alpha1.KomputerAgent) {
 	return func(a *komputerv1alpha1.KomputerAgent) {
 		t := metav1.NewTime(baseTime.Add(offset))
+		a.Status.LastActivityAt = &t
+	}
+}
+
+// withCreatedAgo backdates creationTimestamp by d from real time.Now(), which is
+// what the deleteTTL lifetime cap is measured against on the applyTTL path.
+func withCreatedAgo(d time.Duration) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) {
+		a.CreationTimestamp = metav1.NewTime(time.Now().Add(-d))
+	}
+}
+
+// withLastActivityAgo sets the idle clock d before real time.Now(), which is what
+// the sleepTTL is measured against on the applyTTL path.
+func withLastActivityAgo(d time.Duration) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) {
+		t := metav1.NewTime(time.Now().Add(-d))
 		a.Status.LastActivityAt = &t
 	}
 }
@@ -380,7 +402,7 @@ func agentPod(name, ns string) *corev1.Pod {
 
 func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(-time.Hour)) // idle for an hour
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour)) // idle for an hour
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
@@ -421,7 +443,7 @@ func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 
 func TestApplyTTL_SleepStillWatchesPendingDelete(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(-time.Hour))
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour))
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
@@ -448,7 +470,7 @@ func TestApplyTTL_SleepStillWatchesPendingDelete(t *testing.T) {
 
 func TestApplyTTL_SleepWithNoPodStillSleeps(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(-time.Hour))
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour))
 	r := newTTLReconciler(t, agent)
 
 	// A nil pod (deleted out from under us) must not panic or error.
@@ -482,7 +504,7 @@ func TestApplyTTL_DeleteRemovesAgent(t *testing.T) {
 
 func TestApplyTTL_NoTTLsIsANoOp(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(-time.Hour))
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour))
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
@@ -504,8 +526,7 @@ func TestApplyTTL_NoTTLsIsANoOp(t *testing.T) {
 
 func TestApplyTTL_PublishesExpiryTimestampsWhenPending(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(0))
-	agent.Status.LastActivityAt = &metav1.Time{Time: time.Now()}
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(0))
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
@@ -554,7 +575,7 @@ func TestApplyTTL_ClearsStaleExpiriesWhenTTLsRemoved(t *testing.T) {
 
 func TestApplyTTL_InProgressTaskIsNotSlept(t *testing.T) {
 	ctx := context.Background()
-	agent := ttlAgent(withLastActivity(-time.Hour), withTaskStatus(komputerv1alpha1.AgentTaskInProgress))
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour), withTaskStatus(komputerv1alpha1.AgentTaskInProgress))
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
