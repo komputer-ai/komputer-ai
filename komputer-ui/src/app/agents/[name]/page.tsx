@@ -428,6 +428,19 @@ export default function AgentDetailPage() {
                     ⏳ {fmtDuration(agent.deleteTTL)}
                   </Badge>
                 )}
+                {agent.taskTimeout && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs"
+                    title={
+                      agent.taskExpiresAt
+                        ? ttlTitle("Cancels", agent.taskExpiresAt)
+                        : "Cancels a task that runs longer than this"
+                    }
+                  >
+                    ⏱ {fmtDuration(agent.taskTimeout)}
+                  </Badge>
+                )}
               </div>
             )}
 
@@ -743,6 +756,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   // doesn't turn into "30m0s" on every save.
   const [sleepTTL, setSleepTTL] = useState(fmtDuration(agent.sleepTTL ?? ""));
   const [deleteTTL, setDeleteTTL] = useState(fmtDuration(agent.deleteTTL ?? ""));
+  const [taskTimeout, setTaskTimeout] = useState(fmtDuration(agent.taskTimeout ?? ""));
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
   const [systemPromptOpen, setSystemPromptOpen] = useState(!!agent.systemPrompt);
@@ -795,7 +809,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const systemPromptChanged = systemPrompt !== (agent.systemPrompt ?? "");
   const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
   const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged;
+  const taskTimeoutChanged = taskTimeout.trim() !== fmtDuration(agent.taskTimeout ?? "");
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -814,6 +829,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       // omitted field as "leave unchanged".
       if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
       if (deleteTTLChanged) patch.deleteTTL = deleteTTL.trim();
+      if (taskTimeoutChanged) patch.taskTimeout = taskTimeout.trim();
       const updated = await patchAgent(agent.name, patch, agentNs);
       if (updated.errors && updated.errors.length > 0) {
         // Saved successfully but some live-pod sync steps failed. Surface the error
@@ -923,6 +939,17 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           />
           <p className="text-[11px] text-[var(--color-text-muted)]">
             Delete this long after creation. Absolute — never resets. Empty to never delete.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Task Timeout</Label>
+          <Input
+            value={taskTimeout}
+            onChange={(e) => setTaskTimeout(e.target.value)}
+            placeholder="e.g. 30m"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Cancel a single task that runs this long. Steering does not extend it. Empty for no limit.
           </p>
         </div>
       </div>
