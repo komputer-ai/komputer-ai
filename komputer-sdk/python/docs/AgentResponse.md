@@ -37,7 +37,10 @@ Name | Type | Description | Notes
 **status** | **str** |  | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | Custom system prompt (spec.systemPrompt) | [optional] 
+**task_expires_at** | **str** |  | [optional] 
+**task_started_at** | **str** | TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running. | [optional] 
 **task_status** | **str** |  | [optional] 
+**task_timeout** | **str** | per-task wall-clock cap, e.g. \&quot;30m\&quot; | [optional] 
 **total_cost_usd** | **str** |  | [optional] 
 **total_tokens** | **int** |  | [optional] 
 

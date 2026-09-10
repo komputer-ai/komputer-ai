@@ -38,7 +38,10 @@ Name | Type
 `status` | string
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
+`taskExpiresAt` | string
+`taskStartedAt` | string
 `taskStatus` | string
+`taskTimeout` | string
 `totalCostUSD` | string
 `totalTokens` | number
 
@@ -81,7 +84,10 @@ const example = {
   "status": null,
   "storage": null,
   "systemPrompt": null,
+  "taskExpiresAt": null,
+  "taskStartedAt": null,
   "taskStatus": null,
+  "taskTimeout": null,
   "totalCostUSD": null,
   "totalTokens": null,
 } satisfies AgentResponse

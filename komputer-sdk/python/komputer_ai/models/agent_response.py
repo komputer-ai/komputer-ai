@@ -61,10 +61,13 @@ class AgentResponse(BaseModel):
     status: Optional[StrictStr] = None
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="Custom system prompt (spec.systemPrompt)", alias="systemPrompt")
+    task_expires_at: Optional[StrictStr] = Field(default=None, alias="taskExpiresAt")
+    task_started_at: Optional[StrictStr] = Field(default=None, description="TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.", alias="taskStartedAt")
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
+    task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskStatus", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -155,7 +158,10 @@ class AgentResponse(BaseModel):
             "status": obj.get("status"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskExpiresAt": obj.get("taskExpiresAt"),
+            "taskStartedAt": obj.get("taskStartedAt"),
             "taskStatus": obj.get("taskStatus"),
+            "taskTimeout": obj.get("taskTimeout"),
             "totalCostUSD": obj.get("totalCostUSD"),
             "totalTokens": obj.get("totalTokens")
         })

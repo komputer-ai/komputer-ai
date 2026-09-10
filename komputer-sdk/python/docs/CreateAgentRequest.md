@@ -25,6 +25,7 @@ Name | Type | Description | Notes
 **sleep_ttl** | **str** | SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \&quot;30m\&quot;, \&quot;2h\&quot;). Empty means never auto-sleep. | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | optional custom system prompt | [optional] 
+**task_timeout** | **str** | TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \&quot;30m\&quot;). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit. | [optional] 
 **template_ref** | **str** |  | [optional] 
 
 ## Example

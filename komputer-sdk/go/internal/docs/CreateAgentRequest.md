@@ -24,6 +24,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to **string** | SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \&quot;30m\&quot;, \&quot;2h\&quot;). Empty means never auto-sleep. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | optional custom system prompt | [optional] 
+**TaskTimeout** | Pointer to **string** | TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \&quot;30m\&quot;). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit. | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
 ## Methods
@@ -534,6 +535,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *CreateAgentRequest) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskTimeout
+
+`func (o *CreateAgentRequest) GetTaskTimeout() string`
+
+GetTaskTimeout returns the TaskTimeout field if non-nil, zero value otherwise.
+
+### GetTaskTimeoutOk
+
+`func (o *CreateAgentRequest) GetTaskTimeoutOk() (*string, bool)`
+
+GetTaskTimeoutOk returns a tuple with the TaskTimeout field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskTimeout
+
+`func (o *CreateAgentRequest) SetTaskTimeout(v string)`
+
+SetTaskTimeout sets TaskTimeout field to given value.
+
+### HasTaskTimeout
+
+`func (o *CreateAgentRequest) HasTaskTimeout() bool`
+
+HasTaskTimeout returns a boolean if a field has been set.
 
 ### GetTemplateRef
 

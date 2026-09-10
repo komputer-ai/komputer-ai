@@ -50,8 +50,9 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     sleep_ttl: Optional[V1Duration] = Field(default=None, description="SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template's sleepTTL when set. +optional", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = Field(default=None, description="Storage, when set, overrides the template's storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional")
     system_prompt: Optional[StrictStr] = Field(default=None, description="SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional", alias="systemPrompt")
+    task_timeout: Optional[V1Duration] = Field(default=None, description="TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, description="TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"", alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -104,6 +105,9 @@ class V1alpha1KomputerAgentSpec(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of storage
         if self.storage:
             _dict['storage'] = self.storage.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of task_timeout
+        if self.task_timeout:
+            _dict['taskTimeout'] = self.task_timeout.to_dict()
         return _dict
 
     @classmethod
@@ -135,6 +139,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
             "sleepTTL": V1Duration.from_dict(obj["sleepTTL"]) if obj.get("sleepTTL") is not None else None,
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskTimeout": V1Duration.from_dict(obj["taskTimeout"]) if obj.get("taskTimeout") is not None else None,
             "templateRef": obj.get("templateRef")
         })
         return _obj

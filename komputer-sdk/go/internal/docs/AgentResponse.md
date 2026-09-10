@@ -36,7 +36,10 @@ Name | Type | Description | Notes
 **Status** | Pointer to **string** |  | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | Custom system prompt (spec.systemPrompt) | [optional] 
+**TaskExpiresAt** | Pointer to **string** |  | [optional] 
+**TaskStartedAt** | Pointer to **string** | TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running. | [optional] 
 **TaskStatus** | Pointer to **string** |  | [optional] 
+**TaskTimeout** | Pointer to **string** | per-task wall-clock cap, e.g. \&quot;30m\&quot; | [optional] 
 **TotalCostUSD** | Pointer to **string** |  | [optional] 
 **TotalTokens** | Pointer to **int32** |  | [optional] 
 
@@ -859,6 +862,56 @@ SetSystemPrompt sets SystemPrompt field to given value.
 
 HasSystemPrompt returns a boolean if a field has been set.
 
+### GetTaskExpiresAt
+
+`func (o *AgentResponse) GetTaskExpiresAt() string`
+
+GetTaskExpiresAt returns the TaskExpiresAt field if non-nil, zero value otherwise.
+
+### GetTaskExpiresAtOk
+
+`func (o *AgentResponse) GetTaskExpiresAtOk() (*string, bool)`
+
+GetTaskExpiresAtOk returns a tuple with the TaskExpiresAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskExpiresAt
+
+`func (o *AgentResponse) SetTaskExpiresAt(v string)`
+
+SetTaskExpiresAt sets TaskExpiresAt field to given value.
+
+### HasTaskExpiresAt
+
+`func (o *AgentResponse) HasTaskExpiresAt() bool`
+
+HasTaskExpiresAt returns a boolean if a field has been set.
+
+### GetTaskStartedAt
+
+`func (o *AgentResponse) GetTaskStartedAt() string`
+
+GetTaskStartedAt returns the TaskStartedAt field if non-nil, zero value otherwise.
+
+### GetTaskStartedAtOk
+
+`func (o *AgentResponse) GetTaskStartedAtOk() (*string, bool)`
+
+GetTaskStartedAtOk returns a tuple with the TaskStartedAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskStartedAt
+
+`func (o *AgentResponse) SetTaskStartedAt(v string)`
+
+SetTaskStartedAt sets TaskStartedAt field to given value.
+
+### HasTaskStartedAt
+
+`func (o *AgentResponse) HasTaskStartedAt() bool`
+
+HasTaskStartedAt returns a boolean if a field has been set.
+
 ### GetTaskStatus
 
 `func (o *AgentResponse) GetTaskStatus() string`
@@ -883,6 +936,31 @@ SetTaskStatus sets TaskStatus field to given value.
 `func (o *AgentResponse) HasTaskStatus() bool`
 
 HasTaskStatus returns a boolean if a field has been set.
+
+### GetTaskTimeout
+
+`func (o *AgentResponse) GetTaskTimeout() string`
+
+GetTaskTimeout returns the TaskTimeout field if non-nil, zero value otherwise.
+
+### GetTaskTimeoutOk
+
+`func (o *AgentResponse) GetTaskTimeoutOk() (*string, bool)`
+
+GetTaskTimeoutOk returns a tuple with the TaskTimeout field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskTimeout
+
+`func (o *AgentResponse) SetTaskTimeout(v string)`
+
+SetTaskTimeout sets TaskTimeout field to given value.
+
+### HasTaskTimeout
+
+`func (o *AgentResponse) HasTaskTimeout() bool`
+
+HasTaskTimeout returns a boolean if a field has been set.
 
 ### GetTotalCostUSD
 

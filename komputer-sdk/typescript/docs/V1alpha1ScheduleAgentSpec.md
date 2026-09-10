@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
 `connectors` | Array&lt;string&gt;
+`deleteTTL` | [V1Duration](V1Duration.md)
 `disallowedTools` | Array&lt;string&gt;
 `labels` | { [key: string]: string; }
 `lifecycle` | [V1alpha1AgentLifecycle](V1alpha1AgentLifecycle.md)
@@ -18,8 +19,10 @@ Name | Type
 `role` | string
 `secrets` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`sleepTTL` | [V1Duration](V1Duration.md)
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
+`taskTimeout` | [V1Duration](V1Duration.md)
 `templateRef` | string
 
 ## Example
@@ -31,6 +34,7 @@ import type { V1alpha1ScheduleAgentSpec } from '@komputer-ai/sdk'
 const example = {
   "allowedTools": null,
   "connectors": null,
+  "deleteTTL": null,
   "disallowedTools": null,
   "labels": null,
   "lifecycle": null,
@@ -41,8 +45,10 @@ const example = {
   "role": null,
   "secrets": null,
   "skills": null,
+  "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
+  "taskTimeout": null,
   "templateRef": null,
 } satisfies V1alpha1ScheduleAgentSpec
 

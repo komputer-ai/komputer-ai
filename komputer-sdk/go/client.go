@@ -55,6 +55,7 @@ type CreateAgentOpts struct {
 	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
+	TaskTimeout     *string
 	TemplateRef     *string
 }
 
@@ -88,6 +89,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.TaskTimeout != nil {
+			req.TaskTimeout = o.TaskTimeout
 		}
 		if o.Namespace != nil {
 			req.Namespace = o.Namespace
@@ -169,6 +173,7 @@ type PatchAgentOpts struct {
 	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
+	TaskTimeout     *string
 	TemplateRef     *string
 }
 
@@ -214,6 +219,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.TaskTimeout != nil {
+			req.TaskTimeout = o.TaskTimeout
 		}
 		if o.Storage != nil {
 			req.Storage = o.Storage

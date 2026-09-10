@@ -162,6 +162,14 @@ export interface CreateAgentRequest {
      */
     systemPrompt?: string;
     /**
+     * TaskTimeout cancels a running task once it has run this long, as a Go duration
+     * string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
+     * it. Empty means tasks run without a time limit.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    taskTimeout?: string;
+    /**
      * 
      * @type {string}
      * @memberof CreateAgentRequest
@@ -208,6 +216,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskTimeout': json['taskTimeout'] == null ? undefined : json['taskTimeout'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
 }
@@ -243,6 +252,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskTimeout': value['taskTimeout'],
         'templateRef': value['templateRef'],
     };
 }

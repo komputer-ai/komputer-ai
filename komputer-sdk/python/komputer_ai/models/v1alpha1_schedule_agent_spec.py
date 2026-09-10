@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.v1_duration import V1Duration
 from komputer_ai.models.v1_pod_spec import V1PodSpec
 from komputer_ai.models.v1alpha1_agent_lifecycle import V1alpha1AgentLifecycle
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
@@ -32,6 +33,7 @@ class V1alpha1ScheduleAgentSpec(BaseModel):
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional", alias="allowedTools")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional")
+    delete_ttl: Optional[V1Duration] = Field(default=None, description="DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template's deleteTTL when set. +optional", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional", alias="disallowedTools")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \"komputer.ai/\" are reserved for system labels and should not be set directly through the API. +optional")
     lifecycle: Optional[V1alpha1AgentLifecycle] = Field(default=None, description="Lifecycle controls what happens after task completion. Empty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC, \"AutoDelete\" deletes the entire agent after task completion. +kubebuilder:validation:Enum=\"\";Sleep;AutoDelete +optional")
@@ -42,10 +44,12 @@ class V1alpha1ScheduleAgentSpec(BaseModel):
     role: Optional[StrictStr] = Field(default=None, description="Role is \"manager\" or \"worker\". Managers get orchestration tools. Role is \"manager\" or \"worker\". Defaults to \"manager\" for top-level agents. Sub-agents created by managers are explicitly set to \"worker\". +kubebuilder:default=\"manager\" +kubebuilder:validation:Enum=worker;manager +optional")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Secrets is a list of K8s Secret names containing agent-specific secrets. Each key in each secret is injected as an env var into the agent pod. +optional")
     skills: Optional[List[StrictStr]] = Field(default=None, description="Skills is a list of KomputerSkill names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional")
+    sleep_ttl: Optional[V1Duration] = Field(default=None, description="SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template's sleepTTL when set. +optional", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = Field(default=None, description="Storage, when set, overrides the template's storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional")
     system_prompt: Optional[StrictStr] = Field(default=None, description="SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional", alias="systemPrompt")
+    task_timeout: Optional[V1Duration] = Field(default=None, description="TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, description="TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"", alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "disallowedTools", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "role", "secrets", "skills", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -86,12 +90,21 @@ class V1alpha1ScheduleAgentSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of delete_ttl
+        if self.delete_ttl:
+            _dict['deleteTTL'] = self.delete_ttl.to_dict()
         # override the default output from pydantic by calling `to_dict()` of pod_spec
         if self.pod_spec:
             _dict['podSpec'] = self.pod_spec.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of sleep_ttl
+        if self.sleep_ttl:
+            _dict['sleepTTL'] = self.sleep_ttl.to_dict()
         # override the default output from pydantic by calling `to_dict()` of storage
         if self.storage:
             _dict['storage'] = self.storage.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of task_timeout
+        if self.task_timeout:
+            _dict['taskTimeout'] = self.task_timeout.to_dict()
         return _dict
 
     @classmethod
@@ -106,6 +119,7 @@ class V1alpha1ScheduleAgentSpec(BaseModel):
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
             "connectors": obj.get("connectors"),
+            "deleteTTL": V1Duration.from_dict(obj["deleteTTL"]) if obj.get("deleteTTL") is not None else None,
             "disallowedTools": obj.get("disallowedTools"),
             "labels": obj.get("labels"),
             "lifecycle": obj.get("lifecycle"),
@@ -116,8 +130,10 @@ class V1alpha1ScheduleAgentSpec(BaseModel):
             "role": obj.get("role"),
             "secrets": obj.get("secrets"),
             "skills": obj.get("skills"),
+            "sleepTTL": V1Duration.from_dict(obj["sleepTTL"]) if obj.get("sleepTTL") is not None else None,
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskTimeout": V1Duration.from_dict(obj["taskTimeout"]) if obj.get("taskTimeout") is not None else None,
             "templateRef": obj.get("templateRef")
         })
         return _obj
