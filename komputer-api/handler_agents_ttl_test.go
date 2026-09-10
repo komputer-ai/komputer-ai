@@ -238,3 +238,32 @@ func TestDurationEqual(t *testing.T) {
 		t.Error("different durations compared equal")
 	}
 }
+
+func TestTaskStatusStartsTask(t *testing.T) {
+	tests := []struct {
+		name string
+		prev komputerv1alpha1.AgentTaskStatus
+		next komputerv1alpha1.AgentTaskStatus
+		want bool
+	}{
+		{name: "idle to in progress starts a task", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		{name: "empty to in progress starts a task", prev: "", next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		{name: "error to in progress starts a task", prev: komputerv1alpha1.AgentTaskError, next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		// A steer keeps the agent in progress; re-stamping here would let a user
+		// extend taskTimeout indefinitely by steering.
+		{name: "in progress to in progress does not restart", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskInProgress, want: false},
+		{name: "compacting to in progress does not restart", prev: komputerv1alpha1.AgentTaskCompacting, next: komputerv1alpha1.AgentTaskInProgress, want: false},
+		{name: "in progress to compacting does not restart", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskCompacting, want: false},
+		{name: "idle to compacting starts a task", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskCompacting, want: true},
+		{name: "in progress to complete does not start", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskComplete, want: false},
+		{name: "complete to complete does not start", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskComplete, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := taskStatusStartsTask(tc.prev, tc.next); got != tc.want {
+				t.Errorf("taskStatusStartsTask(%q, %q) = %v, want %v", tc.prev, tc.next, got, tc.want)
+			}
+		})
+	}
+}

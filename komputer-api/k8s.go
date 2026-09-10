@@ -1611,6 +1611,23 @@ func (k *K8sClient) PatchAgentPhase(ctx context.Context, ns, agentName string, p
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// agentTaskInProgress reports whether a task status means the agent is mid-task.
+// Compacting is a transient sub-state of InProgress, so it counts as busy.
+// Mirrors taskInProgress in the operator's ttl.go.
+func agentTaskInProgress(s komputerv1alpha1.AgentTaskStatus) bool {
+	return s == komputerv1alpha1.AgentTaskInProgress || s == komputerv1alpha1.AgentTaskCompacting
+}
+
+// taskStatusStartsTask reports whether a status transition marks the start of a new
+// task — that is, the agent was not mid-task and now is.
+//
+// Deliberately false for in-progress → in-progress. A steer keeps the agent in progress
+// and must not re-stamp Status.TaskStartedAt, or a user could extend spec.taskTimeout
+// indefinitely by steering and the hard cap would degrade into an idle bound.
+func taskStatusStartsTask(prev, next komputerv1alpha1.AgentTaskStatus) bool {
+	return !agentTaskInProgress(prev) && agentTaskInProgress(next)
+}
+
 func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
@@ -1619,12 +1636,18 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	}
 
 	original := agent.DeepCopy()
+	prevTaskStatus := agent.Status.TaskStatus
 	agent.Status.TaskStatus = komputerv1alpha1.AgentTaskStatus(taskStatus)
 	agent.Status.LastTaskMessage = lastMessage
 	// Every event counts as activity — this is the clock the operator's sleepTTL
 	// measures idleness against, so refreshing it here keeps a busy agent awake.
 	now := metav1.Now()
 	agent.Status.LastActivityAt = &now
+	// The task clock, by contrast, is stamped once per task and never refreshed, so
+	// spec.taskTimeout stays a hard cap that steering cannot extend.
+	if taskStatusStartsTask(prevTaskStatus, agent.Status.TaskStatus) {
+		agent.Status.TaskStartedAt = &now
+	}
 	if sessionID != "" {
 		agent.Status.SessionID = sessionID
 	}
