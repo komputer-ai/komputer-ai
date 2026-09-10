@@ -52,6 +52,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
+            "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},
             "model": {"type": "string", "description": "Claude model override (optional)."},
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
             "systemPrompt": {"type": "string", "description": "Custom system prompt defining the sub-agent's behavior, persona, or constraints (optional)."},
@@ -90,6 +91,8 @@ async def create_agent(args):
         payload["sleepTTL"] = args["sleepTTL"]
     if args.get("deleteTTL"):
         payload["deleteTTL"] = args["deleteTTL"]
+    if args.get("taskTimeout"):
+        payload["taskTimeout"] = args["taskTimeout"]
     if args.get("model"):
         payload["model"] = args["model"]
     if args.get("templateRef"):
@@ -640,6 +643,7 @@ async def list_agents(args):
             },
             "sleepTTL": {"type": "string", "description": "Sleep the agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Pass '' to remove."},
             "deleteTTL": {"type": "string", "description": "Delete the agent this long after creation, e.g. '24h'. Absolute — does not reset on wake. Pass '' to remove."},
+            "taskTimeout": {"type": "string", "description": "Cancel the agent's task if it runs longer than this, e.g. '30m', '2h'. Pass '' to remove."},
         },
         "required": ["name"],
     },
@@ -659,6 +663,8 @@ async def patch_agent(args):
         body["sleepTTL"] = args["sleepTTL"]
     if args.get("deleteTTL") is not None:
         body["deleteTTL"] = args["deleteTTL"]
+    if args.get("taskTimeout") is not None:
+        body["taskTimeout"] = args["taskTimeout"]
     if not body:
         return _err("patch_agent requires at least one field to update (e.g. labels, allowedTools, sleepTTL).")
     return await _request("PATCH", f"/api/v1/agents/{name}", timeout=10, json=body)

@@ -39,7 +39,7 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 - **Sleep**: One task now, may reuse later. Workspace preserved. Call delete_agent when fully done.
 - *(empty)*: Multiple tasks in sequence. Pod stays running. MUST call delete_agent when done.
 
-For long-lived agents, add `sleepTTL` (sleep after that long idle, e.g. `30m`) and/or `deleteTTL` (hard lifetime from creation, e.g. `24h`) so an agent you forget to clean up doesn't hold resources forever.
+For long-lived agents, add `sleepTTL` (sleep after that long idle, e.g. `30m`) and/or `deleteTTL` (hard lifetime from creation, e.g. `24h`) so an agent you forget to clean up doesn't hold resources forever. Use `taskTimeout` (e.g. `1h`) to cap how long any single task may run.
 
 Use update_agent to change a sub-agent's model, systemPrompt (persona), instructions, storage, image, resources, or tool permissions (allowedTools/disallowedTools) before its next task — overrides apply when the next pod starts.
 
