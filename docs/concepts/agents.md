@@ -331,4 +331,4 @@ In both cases the agent cannot execute the tool; the difference is whether it kn
 - Both fields apply to squad members too — squad members use the same agent spec.
 - Changes to an existing agent take effect the **next time the agent starts**, because the tool policy is applied when the agent's Claude session is constructed. Put the agent to sleep and wake it to apply immediately.
 - When a tool is blocked, the agent is told which tool was denied and why, so it adapts and reports the limitation instead of failing silently.
-- Scheduled agents created from a `KomputerSchedule` template always use the default tool set — `ScheduleAgentSpec` does not expose tool permissions.
+- Scheduled agents support both fields too — set them under `spec.agent` on the `KomputerSchedule`, which accepts the full agent config. See [Schedules → Agent configuration](./schedules.md#agent-configuration).

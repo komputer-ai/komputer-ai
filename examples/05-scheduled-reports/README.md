@@ -21,11 +21,22 @@ komputer schedule get daily-standup-report
 ## Schedule fields explained
 
 ```yaml
-schedule: "0 9 * * 1-5"   # 9 AM, Monday through Friday
+schedule: "0 9 * * 1-5"       # 9 AM, Monday through Friday
 timezone: "America/New_York"  # IANA timezone
 agent:
-  lifecycle: AutoDelete     # each run creates + deletes a fresh agent
+  lifecycle: AutoDelete       # each run creates + deletes a fresh agent
+  role: worker                # see note below
+  skills: [markdown-reports]  # attach a KomputerSkill
+  disallowedTools: [Bash]     # keep every other tool, drop the shell
+  storage: { size: 20Gi }     # override the template's PVC size
 ```
+
+`spec.agent` accepts **every field a `KomputerAgent` spec accepts except `instructions`** — those come from the schedule's own top-level `instructions`. See [Schedules → Agent configuration](../../docs/concepts/schedules.md#agent-configuration) for the full list.
+
+Two things to know about this example:
+
+- **`role: worker` is set explicitly on purpose.** The `worker` default for schedules is applied by the API, CLI, UI, and SDK — not by the CRD. A schedule applied straight through `kubectl` picks up the agent CRD's own default of `manager` unless you say otherwise.
+- **The `markdown-reports` skill and `team-conventions` memory must exist**, or they are silently skipped (the operator logs and continues). Create them first, or drop those two lines.
 
 ## Managing the schedule
 

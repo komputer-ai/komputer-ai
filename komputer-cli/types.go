@@ -65,12 +65,26 @@ type OfficeListResponse struct {
 	Offices []OfficeResponse `json:"offices"`
 }
 
+// ScheduleAgentSpec mirrors the KomputerAgent config a schedule stamps onto
+// every agent it creates. Field names and JSON keys track the CR's
+// AgentConfigSpec — in particular the secret list is "secrets" (names of K8s
+// Secrets), not "secretRefs".
 type ScheduleAgentSpec struct {
-	Model       string   `json:"model,omitempty"`
-	Lifecycle   string   `json:"lifecycle,omitempty"`
-	Role        string   `json:"role,omitempty"`
-	TemplateRef string   `json:"templateRef,omitempty"`
-	SecretRefs  []string `json:"secretRefs,omitempty"`
+	Model           string            `json:"model,omitempty"`
+	Lifecycle       string            `json:"lifecycle,omitempty"`
+	Role            string            `json:"role,omitempty"`
+	TemplateRef     string            `json:"templateRef,omitempty"`
+	Secrets         []string          `json:"secrets,omitempty"`
+	Skills          []string          `json:"skills,omitempty"`
+	Memories        []string          `json:"memories,omitempty"`
+	Connectors      []string          `json:"connectors,omitempty"`
+	AllowedTools    []string          `json:"allowedTools,omitempty"`
+	DisallowedTools []string          `json:"disallowedTools,omitempty"`
+	SystemPrompt    string            `json:"systemPrompt,omitempty"`
+	Priority        int32             `json:"priority,omitempty"`
+	PodSpec         map[string]any    `json:"podSpec,omitempty"`
+	Storage         map[string]string `json:"storage,omitempty"`
+	Labels          map[string]string `json:"labels,omitempty"`
 }
 
 type ScheduleResponse struct {

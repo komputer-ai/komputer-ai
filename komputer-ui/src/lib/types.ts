@@ -76,12 +76,27 @@ export interface OfficeListResponse {
   offices: OfficeResponse[];
 }
 
+/**
+ * The inline agent template a schedule uses to create an agent on each run.
+ * Mirrors the CR's AgentConfigSpec, so the JSON key is `secrets` — not
+ * `secretRefs`, which is what the *agents* API uses.
+ */
 export interface ScheduleAgentSpec {
   model?: string;
   lifecycle?: string;
   role?: string;
   templateRef?: string;
-  secretRefs?: string[];
+  secrets?: string[];
+  skills?: string[];
+  memories?: string[];
+  connectors?: string[];
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  systemPrompt?: string;
+  priority?: number;
+  podSpec?: Record<string, unknown>;
+  storage?: { size?: string };
+  labels?: Record<string, string>;
 }
 
 export interface ScheduleResponse {
@@ -165,11 +180,7 @@ export interface CreateScheduleRequest {
   autoDelete?: boolean;
   keepAgents?: boolean;
   agentName?: string;
-  agent?: {
-    model?: string;
-    lifecycle?: string;
-    role?: string;
-  };
+  agent?: ScheduleAgentSpec;
   namespace?: string;
 }
 

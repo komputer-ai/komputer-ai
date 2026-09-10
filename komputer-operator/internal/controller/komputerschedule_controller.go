@@ -135,23 +135,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if errors.IsNotFound(agentErr) {
 		if schedule.Spec.Agent != nil {
 			// Agent doesn't exist + spec.Agent is set: create from template
-			agent = &komputerv1alpha1.KomputerAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      agentName,
-					Namespace: schedule.Namespace,
-					Labels: map[string]string{
-						"komputer.ai/schedule": schedule.Name,
-					},
-				},
-				Spec: komputerv1alpha1.KomputerAgentSpec{
-					Instructions: schedule.Spec.Instructions,
-					Model:        schedule.Spec.Agent.Model,
-					Lifecycle:    schedule.Spec.Agent.Lifecycle,
-					Role:         schedule.Spec.Agent.Role,
-					TemplateRef:  schedule.Spec.Agent.TemplateRef,
-					Secrets:      schedule.Spec.Agent.Secrets,
-				},
-			}
+			agent = buildScheduledAgent(schedule, agentName)
 			// Set ownerReference to the schedule
 			if err := ctrl.SetControllerReference(schedule, agent, r.Scheme); err != nil {
 				log.Error(err, "Failed to set owner reference on agent")
@@ -299,6 +283,39 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// 11. Requeue after 15s to check agent completion
 	return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+}
+
+// buildScheduledAgent renders the schedule's agent template into a KomputerAgent.
+// The AgentConfigSpec passes through as-is apart from the lifecycle backstop
+// below, so any field added to it reaches scheduled agents with no change here.
+// Instructions are the schedule's, not the template's — the same value a run
+// forwards to an existing agent.
+func buildScheduledAgent(schedule *komputerv1alpha1.KomputerSchedule, agentName string) *komputerv1alpha1.KomputerAgent {
+	cfg := *schedule.Spec.Agent.AgentConfigSpec.DeepCopy()
+
+	// The shared AgentConfigSpec carries the agent's defaults, where an empty
+	// lifecycle means "keep the pod running". A scheduled agent that never
+	// sleeps leaks a pod between runs, so schedules default to Sleep — the same
+	// coercion the API applies, repeated here for schedules written directly
+	// with kubectl, which the API never sees. Applied to the copy so the
+	// schedule CR is not mutated.
+	if cfg.Lifecycle == "" {
+		cfg.Lifecycle = komputerv1alpha1.AgentLifecycleSleep
+	}
+
+	return &komputerv1alpha1.KomputerAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      agentName,
+			Namespace: schedule.Namespace,
+			Labels: map[string]string{
+				"komputer.ai/schedule": schedule.Name,
+			},
+		},
+		Spec: komputerv1alpha1.KomputerAgentSpec{
+			AgentConfigSpec: cfg,
+			Instructions:    schedule.Spec.Instructions,
+		},
+	}
 }
 
 // reconcileAgentCompletion checks if the triggered agent has finished its task.

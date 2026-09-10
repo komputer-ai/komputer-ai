@@ -24,9 +24,14 @@ import {
 } from "@/components/kit/select";
 import { ChevronRight, Check } from "lucide-react";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
+import {
+  AgentFieldsForm,
+  makeDefaultAgentFormValues,
+  buildScheduleAgentSpec,
+  type AgentFormValues,
+} from "@/components/agents/agent-fields-form";
 import { createSchedule, listAgents } from "@/lib/api";
 import type { CreateScheduleRequest } from "@/lib/types";
-import { LIFECYCLES } from "@/lib/constants";
 import { namespacedHref } from "@/lib/namespaced-href";
 
 type CreateScheduleModalProps = {
@@ -47,7 +52,11 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
   const [autoDelete, setAutoDelete] = useState(false);
   const [keepAgents, setKeepAgents] = useState(false);
   const [agentRef, setAgentRef] = useState("");
-  const [lifecycle, setLifecycle] = useState("Sleep");
+  // Inline agent template, used when no existing agent is referenced. Role and
+  // lifecycle mirror the defaults the API applies server-side for schedules.
+  const [agentValues, setAgentValues] = useState<AgentFormValues>(
+    makeDefaultAgentFormValues({ role: "worker", lifecycle: "Sleep" })
+  );
   const [availableAgents, setAvailableAgents] = useState<{ name: string; namespace: string }[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +79,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
     setAutoDelete(false);
     setKeepAgents(false);
     setAgentRef("");
-    setLifecycle("Sleep");
+    setAgentValues(makeDefaultAgentFormValues({ role: "worker", lifecycle: "Sleep" }));
     setAdvancedOpen(false);
     setError(null);
   }
@@ -109,9 +118,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
       if (agentRef.trim()) {
         req.agentName = agentRef.trim();
       } else {
-        req.agent = {
-          lifecycle: lifecycle === "default" ? "" : lifecycle,
-        };
+        req.agent = buildScheduleAgentSpec(agentValues);
       }
 
       await createSchedule(req);
@@ -156,7 +163,15 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
               />
             </div>
 
-            <NamespaceSelector value={namespace} onChange={setNamespace} />
+            <NamespaceSelector
+              value={namespace}
+              onChange={(v) => {
+                setNamespace(v);
+                // Keep the agent form's namespace in sync so its template,
+                // secret and connector option lists stay correctly scoped.
+                setAgentValues((prev) => ({ ...prev, namespace: v }));
+              }}
+            />
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="schedule-cron">Cron Expression</Label>
@@ -273,22 +288,20 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
                         </Select>
                       </div>
 
-                      {/* Lifecycle — only when no agent ref */}
+                      {/* Agent template — only when creating a new agent */}
                       {!agentRef.trim() && (
-                        <div className="flex flex-col gap-1.5">
-                          <Label>Lifecycle</Label>
-                          <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {LIFECYCLES.map((l) => (
-                                <SelectItem key={l.value} value={l.value}>
-                                  {l.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="flex flex-col gap-3 pt-3 border-t border-[var(--color-border)]">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">
+                            Agent Template
+                          </span>
+                          <AgentFieldsForm
+                            values={agentValues}
+                            onChange={setAgentValues}
+                            active={open}
+                            hideNameAndNamespace
+                            hideInstructions
+                            idPrefix="schedule"
+                          />
                         </div>
                       )}
                     </div>

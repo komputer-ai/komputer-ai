@@ -30,8 +30,10 @@ func TestToolPolicyEnvVarsOmittedWhenUnset(t *testing.T) {
 
 func TestToolPolicyEnvVarsSerializeAsJSONArrays(t *testing.T) {
 	envVars := buildToolPolicyEnvVars(&komputerv1alpha1.KomputerAgentSpec{
-		AllowedTools:    []string{"Read", "mcp__figma__*"},
-		DisallowedTools: []string{"Bash"},
+		AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+			AllowedTools:    []string{"Read", "mcp__figma__*"},
+			DisallowedTools: []string{"Bash"},
+		},
 	})
 
 	got, ok := toolPolicyEnvValue(envVars, "KOMPUTER_ALLOWED_TOOLS")
@@ -53,7 +55,9 @@ func TestToolPolicyEnvVarsSerializeAsJSONArrays(t *testing.T) {
 
 func TestToolPolicyEnvVarsIndependent(t *testing.T) {
 	envVars := buildToolPolicyEnvVars(&komputerv1alpha1.KomputerAgentSpec{
-		DisallowedTools: []string{"mcp__figma__use_figma"},
+		AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+			DisallowedTools: []string{"mcp__figma__use_figma"},
+		},
 	})
 	if _, ok := toolPolicyEnvValue(envVars, "KOMPUTER_ALLOWED_TOOLS"); ok {
 		t.Error("allowed must stay omitted when only disallowed is set")

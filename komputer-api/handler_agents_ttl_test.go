@@ -162,8 +162,10 @@ func TestFillAgentTTL(t *testing.T) {
 
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			SleepTTL:  &metav1.Duration{Duration: 30 * time.Minute},
-			DeleteTTL: &metav1.Duration{Duration: 24 * time.Hour},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				SleepTTL:  &metav1.Duration{Duration: 30 * time.Minute},
+				DeleteTTL: &metav1.Duration{Duration: 24 * time.Hour},
+			},
 		},
 		Status: komputerv1alpha1.KomputerAgentStatus{
 			LastActivityAt:  &activity,

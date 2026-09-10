@@ -170,7 +170,9 @@ func TestReconcileAgentSecrets_HappyPath(t *testing.T) {
 	}
 	agent := &komputerv1alpha1.KomputerAgent{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-agent", Namespace: "agent-ns"},
-		Spec:       komputerv1alpha1.KomputerAgentSpec{TemplateRef: "default"},
+		Spec: komputerv1alpha1.KomputerAgentSpec{
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: "default"},
+		},
 	}
 	config := &komputerv1alpha1.KomputerConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "default"},

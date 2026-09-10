@@ -119,9 +119,11 @@ var _ = Describe("KomputerAgent Controller", func() {
 				Namespace: "default",
 			},
 			Spec: komputerv1alpha1.KomputerAgentSpec{
-				TemplateRef:  "default",
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					TemplateRef: "default",
+					Model:       "claude-sonnet-4-6",
+				},
 				Instructions: "Do a test task",
-				Model:        "claude-sonnet-4-6",
 			},
 		}
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "test-agent", Namespace: "default"}, &komputerv1alpha1.KomputerAgent{})
@@ -264,7 +266,8 @@ var _ = Describe("KomputerAgent Controller", func() {
 				return &komputerv1alpha1.KomputerAgent{
 					ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
 					Spec: komputerv1alpha1.KomputerAgentSpec{
-						Instructions: "x", TemplateRef: "default",
+						AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: "default"},
+						Instructions:    "x",
 					},
 				}
 			}
@@ -337,7 +340,10 @@ var _ = Describe("KomputerAgent Controller", func() {
 			// so the reconciler doesn't transition it back to Pending.
 			r1 := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-r1", Namespace: "default"},
-				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default"},
+				Spec: komputerv1alpha1.KomputerAgentSpec{
+					AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: "default"},
+					Instructions:    "x",
+				},
 			}
 			Expect(k8sClient.Create(ctx, r1)).To(Succeed())
 			Eventually(func() error {
@@ -352,13 +358,19 @@ var _ = Describe("KomputerAgent Controller", func() {
 
 			low := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-low", Namespace: "default"},
-				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 0},
+				Spec: komputerv1alpha1.KomputerAgentSpec{
+					AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: "default", Priority: 0},
+					Instructions:    "x",
+				},
 			}
 			Expect(k8sClient.Create(ctx, low)).To(Succeed())
 			time.Sleep(50 * time.Millisecond)
 			high := &komputerv1alpha1.KomputerAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "p-high", Namespace: "default"},
-				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "x", TemplateRef: "default", Priority: 100},
+				Spec: komputerv1alpha1.KomputerAgentSpec{
+					AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: "default", Priority: 100},
+					Instructions:    "x",
+				},
 			}
 			Expect(k8sClient.Create(ctx, high)).To(Succeed())
 

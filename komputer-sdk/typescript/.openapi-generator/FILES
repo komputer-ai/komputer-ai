@@ -9,7 +9,6 @@ docs/ConnectorsApi.md
 docs/CreateAgentRequest.md
 docs/CreateConnectorRequest.md
 docs/CreateMemoryRequest.md
-docs/CreateScheduleAgentSpec.md
 docs/CreateScheduleRequest.md
 docs/CreateSecretRequest.md
 docs/CreateSkillRequest.md
@@ -192,6 +191,7 @@ docs/V1alpha1AgentLifecycle.md
 docs/V1alpha1KomputerAgentSpec.md
 docs/V1alpha1KomputerSquadMember.md
 docs/V1alpha1KomputerSquadMemberRef.md
+docs/V1alpha1ScheduleAgentSpec.md
 docs/V1alpha1StorageSpec.md
 src/apis/AgentsApi.ts
 src/apis/ConnectorsApi.ts
@@ -211,7 +211,6 @@ src/models/ConnectorResponse.ts
 src/models/CreateAgentRequest.ts
 src/models/CreateConnectorRequest.ts
 src/models/CreateMemoryRequest.ts
-src/models/CreateScheduleAgentSpec.ts
 src/models/CreateScheduleRequest.ts
 src/models/CreateSecretRequest.ts
 src/models/CreateSkillRequest.ts
@@ -387,6 +386,7 @@ src/models/V1alpha1AgentLifecycle.ts
 src/models/V1alpha1KomputerAgentSpec.ts
 src/models/V1alpha1KomputerSquadMember.ts
 src/models/V1alpha1KomputerSquadMemberRef.ts
+src/models/V1alpha1ScheduleAgentSpec.ts
 src/models/V1alpha1StorageSpec.ts
 src/models/index.ts
 src/runtime.ts

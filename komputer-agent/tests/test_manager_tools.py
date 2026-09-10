@@ -546,3 +546,45 @@ async def test_update_agent_clears_policy_with_empty_array(mock_api):
     result = await manager_tools.update_agent.handler({"name": "a1", "allowedTools": []})
     assert not result.get("isError")
     assert mock_api.last_json == {"allowedTools": []}
+
+
+# --- schedule_agent agent config ---
+
+@pytest.mark.asyncio
+async def test_schedule_agent_forwards_agent_config(mock_api):
+    mock_api.set("POST", "/api/v1/schedules", {"name": "nightly"})
+    result = await manager_tools.schedule_agent.handler({
+        "name": "nightly",
+        "schedule": "0 9 * * *",
+        "instructions": "report",
+        "skills": ["sql"],
+        "memories": ["schema"],
+        "connectors": ["github"],
+        "system_prompt": "be terse",
+        "allowed_tools": ["Read"],
+        "disallowed_tools": ["Bash"],
+    })
+    assert not result.get("isError")
+
+    agent = mock_api.last_json["agent"]
+    assert agent["skills"] == ["sql"]
+    assert agent["memories"] == ["schema"]
+    assert agent["connectors"] == ["github"]
+    assert agent["systemPrompt"] == "be terse"
+    assert agent["allowedTools"] == ["Read"]
+    assert agent["disallowedTools"] == ["Bash"]
+
+
+@pytest.mark.asyncio
+async def test_schedule_agent_omits_unset_config(mock_api):
+    mock_api.set("POST", "/api/v1/schedules", {"name": "plain"})
+    await manager_tools.schedule_agent.handler({
+        "name": "plain",
+        "schedule": "0 9 * * *",
+        "instructions": "report",
+    })
+
+    agent = mock_api.last_json.get("agent", {})
+    for key in ("skills", "memories", "connectors", "systemPrompt",
+                "allowedTools", "disallowedTools"):
+        assert key not in agent, f"{key} must be omitted when unset"

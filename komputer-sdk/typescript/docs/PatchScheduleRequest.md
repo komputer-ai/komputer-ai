@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`agent` | [CreateScheduleAgentSpec](CreateScheduleAgentSpec.md)
+`agent` | [V1alpha1ScheduleAgentSpec](V1alpha1ScheduleAgentSpec.md)
 `agentName` | string
 `autoDelete` | boolean
 `instructions` | string

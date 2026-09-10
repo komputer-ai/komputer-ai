@@ -157,7 +157,10 @@ export default function ScheduleDetailPage() {
         (cur.role ?? "") !== next.role ||
         (cur.templateRef ?? "") !== next.templateRef
       ) {
-        patch.agent = next;
+        // The API replaces spec.agent wholesale, and this editor only exposes
+        // four of its fields — spread the current spec so skills, memories,
+        // secrets and the rest survive an edit here.
+        patch.agent = { ...cur, ...next };
       }
     }
     if (Object.keys(patch).length === 0) {
@@ -282,6 +285,9 @@ export default function ScheduleDetailPage() {
     );
   }
 
+  // Inline agent template — present only when the schedule creates a new agent
+  // each run rather than referencing an existing one.
+  const agentSpec = schedule.agent;
   const runCount = schedule.runCount ?? 0;
   const successfulRuns = schedule.successfulRuns ?? 0;
   const successRate =
@@ -820,6 +826,81 @@ export default function ScheduleDetailPage() {
             </div>
           )}
         </section>
+
+        {/* Agent configuration — the inline template used to create an agent
+            each run. Hidden while the Details editor is open, since that editor
+            already surfaces the fields it can change. */}
+        {agentSpec && !editingDetails && (
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+              Agent Configuration
+            </h2>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {(
+                [
+                  ["Model", agentSpec.model, true],
+                  ["Role", agentSpec.role, false],
+                  ["Lifecycle", agentSpec.lifecycle, false],
+                  ["Template", agentSpec.templateRef, true],
+                  ["Priority", agentSpec.priority ? String(agentSpec.priority) : undefined, false],
+                  ["Storage", agentSpec.storage?.size, false],
+                ] as const
+              )
+                .filter(([, value]) => value)
+                .map(([label, value, mono]) => (
+                  <div key={label}>
+                    <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+                    <p
+                      className={`mt-0.5 text-sm text-[var(--color-text)] ${mono ? "font-mono" : ""}`}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
+
+              {(
+                [
+                  ["Skills", agentSpec.skills],
+                  ["Memories", agentSpec.memories],
+                  ["Connectors", agentSpec.connectors],
+                  ["Secrets", agentSpec.secrets],
+                  ["Allowed Tools", agentSpec.allowedTools],
+                  ["Disallowed Tools", agentSpec.disallowedTools],
+                ] as const
+              )
+                .filter(([, items]) => items?.length)
+                .map(([label, items]) => {
+                  const blocked = label === "Disallowed Tools";
+                  return (
+                    <div key={label} className="sm:col-span-2">
+                      <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {items?.map((item) => (
+                          <Badge
+                            key={item}
+                            variant={blocked ? "outline" : "secondary"}
+                            className={blocked ? "font-mono line-through" : "font-mono"}
+                          >
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {agentSpec.systemPrompt && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-[var(--color-text-secondary)]">System Prompt</span>
+                  <div className="mt-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] whitespace-pre-wrap">
+                    {agentSpec.systemPrompt}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </motion.div>
     </div>
   );

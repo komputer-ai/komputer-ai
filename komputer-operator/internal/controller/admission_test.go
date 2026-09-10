@@ -28,8 +28,10 @@ import (
 func mkAgent(name, tpl string, prio int32, age time.Duration, phase komputerv1alpha1.KomputerAgentPhase) komputerv1alpha1.KomputerAgent {
 	return komputerv1alpha1.KomputerAgent{
 		ObjectMeta: metav1.ObjectMeta{Name: name, CreationTimestamp: metav1.NewTime(time.Now().Add(-age))},
-		Spec:       komputerv1alpha1.KomputerAgentSpec{TemplateRef: tpl, Priority: prio},
-		Status:     komputerv1alpha1.KomputerAgentStatus{Phase: phase},
+		Spec: komputerv1alpha1.KomputerAgentSpec{
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TemplateRef: tpl, Priority: prio},
+		},
+		Status: komputerv1alpha1.KomputerAgentStatus{Phase: phase},
 	}
 }
 

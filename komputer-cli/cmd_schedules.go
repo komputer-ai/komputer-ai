@@ -244,6 +244,13 @@ func registerScheduleCommands(root *cobra.Command) {
 				fmt.Println(errorStyle.Render("--cron flag is required"))
 				os.Exit(1)
 			}
+			if msg := scheduleAgentFlagConflict(cmd); msg != "" {
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
 
 			timezone, _ := cmd.Flags().GetString("timezone")
 			autoDelete, _ := cmd.Flags().GetBool("auto-delete")
@@ -271,14 +278,41 @@ func registerScheduleCommands(root *cobra.Command) {
 				// Reference existing agent
 				body["agentName"] = agent
 			} else {
-				// Create agent from template
-				agentSpec := map[string]interface{}{
-					"lifecycle": lifecycle,
+				// Create agent from template. Role and model are left empty when
+				// unset — the API defaults them (role=worker) for schedules.
+				role, _ := cmd.Flags().GetString("role")
+				templateRef, _ := cmd.Flags().GetString("template")
+				systemPrompt, _ := cmd.Flags().GetString("system-prompt")
+				priority, _ := cmd.Flags().GetInt32("priority")
+				cpu, _ := cmd.Flags().GetString("cpu")
+				memLimit, _ := cmd.Flags().GetString("memory-limit")
+				image, _ := cmd.Flags().GetString("image")
+				storageSize, _ := cmd.Flags().GetString("storage")
+
+				spec := &ScheduleAgentSpec{
+					Model:        model,
+					Lifecycle:    lifecycle,
+					Role:         role,
+					TemplateRef:  templateRef,
+					SystemPrompt: systemPrompt,
+					Priority:     priority,
 				}
-				if model != "" {
-					agentSpec["model"] = model
+				spec.Secrets, _ = cmd.Flags().GetStringSlice("secret")
+				spec.Skills, _ = cmd.Flags().GetStringSlice("skill")
+				spec.Memories, _ = cmd.Flags().GetStringSlice("memory")
+				spec.Connectors, _ = cmd.Flags().GetStringSlice("connector")
+				spec.AllowedTools, _ = cmd.Flags().GetStringSlice("allow-tool")
+				spec.DisallowedTools, _ = cmd.Flags().GetStringSlice("disallow-tool")
+				if storageSize != "" {
+					spec.Storage = map[string]string{"size": storageSize}
 				}
-				body["agent"] = agentSpec
+				spec.PodSpec = buildPodSpecOverride(cpu, memLimit, image)
+
+				if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
+					spec.Labels = parseLabelFlags(labelFlags)
+				}
+
+				body["agent"] = spec
 			}
 			if ns != "" {
 				body["namespace"] = ns
@@ -343,6 +377,21 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCreateCmd.Flags().String("agent", "", "Reference existing agent instead of creating one")
 	scheduleCreateCmd.Flags().String("model", "", "Claude model")
 	scheduleCreateCmd.Flags().String("lifecycle", "Sleep", "Agent lifecycle (default: Sleep)")
+	scheduleCreateCmd.Flags().String("template", "", "KomputerAgentTemplate name")
+	scheduleCreateCmd.Flags().String("role", "", "Agent role: worker (default for schedules) or manager")
+	scheduleCreateCmd.Flags().StringSlice("secret", nil, "Secret names to attach (repeatable)")
+	scheduleCreateCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
+	scheduleCreateCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	scheduleCreateCmd.Flags().StringSlice("connector", nil, "Connector names to attach (repeatable, e.g. --connector github)")
+	scheduleCreateCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
+	scheduleCreateCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable), e.g. --disallow-tool Bash --disallow-tool mcp__figma__use_figma")
+	scheduleCreateCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
+	scheduleCreateCmd.Flags().Int32("priority", 0, "Queue priority (higher = admitted first when template cap is reached; default 0)")
+	scheduleCreateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
+	scheduleCreateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
+	scheduleCreateCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
+	scheduleCreateCmd.Flags().String("image", "", "Override agent container image.")
+	scheduleCreateCmd.Flags().StringArray("label", nil, "Label key=value (repeatable, e.g. --label team=core)")
 	scheduleCmd.AddCommand(scheduleCreateCmd)
 
 	// ── schedule delete ────────────────────────────────────────────────
@@ -446,58 +495,40 @@ func registerScheduleCommands(root *cobra.Command) {
 			ep := resolveEndpoint(cmd)
 			scheduleName := args[0]
 
-			body := map[string]interface{}{}
-			if cmd.Flags().Changed("cron") {
-				cron, _ := cmd.Flags().GetString("cron")
-				body["schedule"] = cron
-			}
-			if cmd.Flags().Changed("instructions") {
-				instructions, _ := cmd.Flags().GetString("instructions")
-				body["instructions"] = instructions
-			}
-			if cmd.Flags().Changed("timezone") {
-				tz, _ := cmd.Flags().GetString("timezone")
-				body["timezone"] = tz
-			}
-			if cmd.Flags().Changed("auto-delete") {
-				v, _ := cmd.Flags().GetBool("auto-delete")
-				body["autoDelete"] = v
-			}
-			if cmd.Flags().Changed("keep-agents") {
-				v, _ := cmd.Flags().GetBool("keep-agents")
-				body["keepAgents"] = v
-			}
-			if cmd.Flags().Changed("suspended") {
-				v, _ := cmd.Flags().GetBool("suspended")
-				body["suspended"] = v
-			}
-			if cmd.Flags().Changed("agent") {
-				agent, _ := cmd.Flags().GetString("agent")
-				body["agentName"] = agent
-			}
-			// Agent template fields — if any is set, build the inline template.
-			agentSpec := map[string]interface{}{}
-			for _, f := range []struct{ flag, key string }{
-				{"model", "model"},
-				{"lifecycle", "lifecycle"},
-				{"role", "role"},
-				{"template-ref", "templateRef"},
-			} {
-				if cmd.Flags().Changed(f.flag) {
-					v, _ := cmd.Flags().GetString(f.flag)
-					agentSpec[f.key] = v
+			// Guard before the GET so a contradictory invocation costs no request.
+			if msg := scheduleAgentFlagConflict(cmd); msg != "" {
+				if jsonMode {
+					dieJSON(msg, 400)
 				}
-			}
-			if cmd.Flags().Changed("secret") {
-				secrets, _ := cmd.Flags().GetStringSlice("secret")
-				agentSpec["secretRefs"] = secrets
-			}
-			if len(agentSpec) > 0 {
-				body["agent"] = agentSpec
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
 			}
 
+			// PATCH replaces spec.agent wholesale, so read the schedule first and
+			// overlay only what changed — otherwise updating one field wipes the rest.
+			existingData, existingStatus, err := apiRequest("GET", fmt.Sprintf("%s/api/v1/schedules/%s%s", ep, url.PathEscape(scheduleName), nsQuery(cmd)), nil)
+			if err != nil || existingStatus != 200 {
+				msg := fmt.Sprintf("failed to read schedule %q before update: %v", scheduleName, err)
+				if err == nil {
+					msg = fmt.Sprintf("failed to read schedule %q before update: API error (%d): %s", scheduleName, existingStatus, string(existingData))
+				}
+				if jsonMode {
+					dieJSON(msg, existingStatus)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
+			var existing struct {
+				Agent map[string]interface{} `json:"agent"`
+			}
+			if jsonErr := json.Unmarshal(existingData, &existing); jsonErr != nil {
+				existing.Agent = nil
+			}
+
+			body := buildScheduleUpdateBody(cmd, existing.Agent)
+
 			if len(body) == 0 {
-				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template-ref, --secret"
+				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --connector, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
 				if jsonMode {
 					dieJSON(msg, 400)
 				}
@@ -540,8 +571,246 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleUpdateCmd.Flags().String("lifecycle", "", "Agent template: lifecycle (Sleep, AutoDelete, or empty)")
 	scheduleUpdateCmd.Flags().String("role", "", "Agent template: role")
 	scheduleUpdateCmd.Flags().String("template-ref", "", "Agent template: KomputerAgentTemplate ref")
-	scheduleUpdateCmd.Flags().StringSlice("secret", nil, "Agent template: secret refs (repeatable)")
+	// `schedule update` shipped with --template-ref while `agents create` uses
+	// --template; keep the old spelling working while the two converge.
+	scheduleUpdateCmd.Flags().String("template", "", "KomputerAgentTemplate name")
+	_ = scheduleUpdateCmd.Flags().MarkDeprecated("template-ref", "use --template instead")
+	scheduleUpdateCmd.Flags().StringSlice("secret", nil, "Secret names to attach (repeatable)")
+	scheduleUpdateCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
+	scheduleUpdateCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
+	scheduleUpdateCmd.Flags().StringSlice("connector", nil, "Connector names to attach (repeatable, e.g. --connector github)")
+	scheduleUpdateCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
+	scheduleUpdateCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable), e.g. --disallow-tool Bash --disallow-tool mcp__figma__use_figma")
+	scheduleUpdateCmd.Flags().String("system-prompt", "", "Custom system prompt for the agent")
+	scheduleUpdateCmd.Flags().Int32("priority", 0, "Queue priority (higher = admitted first when template cap is reached; default 0)")
+	scheduleUpdateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
+	scheduleUpdateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
+	scheduleUpdateCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
+	scheduleUpdateCmd.Flags().String("image", "", "Override agent container image.")
 	scheduleCmd.AddCommand(scheduleUpdateCmd)
 
 	root.AddCommand(scheduleCmd)
+}
+
+// scheduleAgentConfigFlags are the flags that configure an inline agent
+// template on `schedule create` / `schedule update`. Both commands register
+// most of them; --label is create-only and --template-ref is update-only, which
+// is harmless here because pflag reports an unregistered flag as unchanged.
+//
+// scheduleOwnFlags are the flags that configure the schedule itself. Every flag
+// on either command belongs to exactly one of these two lists — see
+// TestScheduleFlagsAreClassified, which fails when a new flag lands in neither.
+var (
+	scheduleAgentConfigFlags = []string{
+		"model", "lifecycle", "role", "template", "template-ref", "system-prompt",
+		"secret", "skill", "memory", "connector", "allow-tool", "disallow-tool",
+		"priority", "cpu", "memory-limit", "storage", "image", "label",
+	}
+	scheduleOwnFlags = []string{
+		"cron", "instructions", "timezone", "auto-delete", "keep-agents",
+		"suspended", "agent",
+	}
+)
+
+// scheduleAgentFlagConflict reports --agent combined with any agent-config
+// flag, returning the error message to show or "" when the flags are coherent.
+//
+// The two are contradictory: --agent points the schedule at an agent it does
+// not own, so there is no inline template for the agent-config flags to
+// configure. Left unguarded the commands did silently opposite things — create
+// dropped the agent flags, while update sent both and let the API apply "agent"
+// last, destroying the --agent reference.
+//
+// Conflicts are detected from the flags the caller changed, not from the
+// resulting values: --lifecycle defaults to "Sleep" on create, so a value-based
+// check would fire on every invocation.
+//
+// Returns a message rather than exiting so tests can drive the real commands.
+func scheduleAgentFlagConflict(cmd *cobra.Command) string {
+	agent, _ := cmd.Flags().GetString("agent")
+	if agent == "" {
+		return ""
+	}
+	var conflicting []string
+	for _, name := range scheduleAgentConfigFlags {
+		if cmd.Flags().Changed(name) {
+			conflicting = append(conflicting, "--"+name)
+		}
+	}
+	if len(conflicting) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("--agent %s cannot be combined with %s: --agent targets an existing agent, whose configuration this schedule does not own. Pass --agent on its own to drive that agent, or drop it to configure an inline agent template.",
+		agent, strings.Join(conflicting, ", "))
+}
+
+// buildScheduleUpdateBody assembles the PATCH body for `schedule update` from
+// the flags the caller changed.
+//
+// existingAgent is the schedule's current spec.agent as decoded from the API,
+// or nil when the schedule targets an agent by name instead. PATCH replaces
+// spec.agent wholesale rather than merging field by field, so the "agent" value
+// has to be the complete object: the changed flags are overlaid on top of
+// existingAgent, and podSpec/storage are merged into rather than replaced so
+// sibling overrides (image, memory, storageClassName) survive.
+//
+// The "agent" key is omitted entirely unless an agent flag actually changed.
+// Re-sending it on, say, a --cron-only update would be more than noise: the API
+// treats a non-nil agent as a switch to an inline template and clears
+// spec.agentName.
+func buildScheduleUpdateBody(cmd *cobra.Command, existingAgent map[string]interface{}) map[string]interface{} {
+	body := map[string]interface{}{}
+	if cmd.Flags().Changed("cron") {
+		cron, _ := cmd.Flags().GetString("cron")
+		body["schedule"] = cron
+	}
+	if cmd.Flags().Changed("instructions") {
+		instructions, _ := cmd.Flags().GetString("instructions")
+		body["instructions"] = instructions
+	}
+	if cmd.Flags().Changed("timezone") {
+		tz, _ := cmd.Flags().GetString("timezone")
+		body["timezone"] = tz
+	}
+	if cmd.Flags().Changed("auto-delete") {
+		v, _ := cmd.Flags().GetBool("auto-delete")
+		body["autoDelete"] = v
+	}
+	if cmd.Flags().Changed("keep-agents") {
+		v, _ := cmd.Flags().GetBool("keep-agents")
+		body["keepAgents"] = v
+	}
+	if cmd.Flags().Changed("suspended") {
+		v, _ := cmd.Flags().GetBool("suspended")
+		body["suspended"] = v
+	}
+	if cmd.Flags().Changed("agent") {
+		agent, _ := cmd.Flags().GetString("agent")
+		body["agentName"] = agent
+	}
+
+	agentSpec := existingAgent
+	if agentSpec == nil {
+		agentSpec = map[string]interface{}{}
+	}
+	// agentSpec is pre-populated from the server, so its length says nothing
+	// about whether the caller asked for an agent change.
+	agentChanged := false
+	for _, f := range []struct{ flag, key string }{
+		{"model", "model"},
+		{"lifecycle", "lifecycle"},
+		{"role", "role"},
+		{"template-ref", "templateRef"},
+		{"template", "templateRef"},
+		{"system-prompt", "systemPrompt"},
+	} {
+		if cmd.Flags().Changed(f.flag) {
+			v, _ := cmd.Flags().GetString(f.flag)
+			agentSpec[f.key] = v
+			agentChanged = true
+		}
+	}
+	for _, f := range []struct{ flag, key string }{
+		{"secret", "secrets"},
+		{"skill", "skills"},
+		{"memory", "memories"},
+		{"connector", "connectors"},
+		{"allow-tool", "allowedTools"},
+		{"disallow-tool", "disallowedTools"},
+	} {
+		if cmd.Flags().Changed(f.flag) {
+			v, _ := cmd.Flags().GetStringSlice(f.flag)
+			agentSpec[f.key] = v
+			agentChanged = true
+		}
+	}
+	if cmd.Flags().Changed("priority") {
+		v, _ := cmd.Flags().GetInt32("priority")
+		agentSpec["priority"] = v
+		agentChanged = true
+	}
+	if cmd.Flags().Changed("storage") {
+		v, _ := cmd.Flags().GetString("storage")
+		// Set only the size so storageClassName is not dropped.
+		if existing, ok := agentSpec["storage"].(map[string]interface{}); ok {
+			existing["size"] = v
+		} else {
+			agentSpec["storage"] = map[string]interface{}{"size": v}
+		}
+		agentChanged = true
+	}
+	if cmd.Flags().Changed("cpu") || cmd.Flags().Changed("memory-limit") || cmd.Flags().Changed("image") {
+		cpu, _ := cmd.Flags().GetString("cpu")
+		memLimit, _ := cmd.Flags().GetString("memory-limit")
+		image, _ := cmd.Flags().GetString("image")
+		if ps := mergePodSpecOverride(agentSpec["podSpec"], cpu, memLimit, image); ps != nil {
+			agentSpec["podSpec"] = ps
+			agentChanged = true
+		}
+	}
+	if agentChanged {
+		body["agent"] = agentSpec
+	}
+	return body
+}
+
+// mergePodSpecOverride overlays the cpu/memory/image overrides onto an existing
+// podSpec, setting only the fields the caller supplied so the others survive —
+// `--cpu 8` must not drop an image or memory override set earlier.
+//
+// existing is the raw podSpec decoded from the API, so its nested values are
+// map[string]interface{} / []interface{}. Anything that is not the shape we
+// know how to merge into falls back to building a fresh podSpec, which is the
+// replace-everything behavior. Returns nil when there is nothing to set.
+func mergePodSpecOverride(existing interface{}, cpu, memory, image string) map[string]interface{} {
+	if cpu == "" && memory == "" && image == "" {
+		return nil
+	}
+	podSpec, ok := existing.(map[string]interface{})
+	if !ok {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+	containers, ok := podSpec["containers"].([]interface{})
+	if !ok {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+	var agentContainer map[string]interface{}
+	for _, c := range containers {
+		container, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if name, _ := container["name"].(string); name == "agent" {
+			agentContainer = container
+			break
+		}
+	}
+	if agentContainer == nil {
+		return buildPodSpecOverride(cpu, memory, image)
+	}
+
+	if image != "" {
+		agentContainer["image"] = image
+	}
+	if cpu != "" || memory != "" {
+		resources, ok := agentContainer["resources"].(map[string]interface{})
+		if !ok {
+			resources = map[string]interface{}{}
+			agentContainer["resources"] = resources
+		}
+		for _, key := range []string{"requests", "limits"} {
+			quantities, ok := resources[key].(map[string]interface{})
+			if !ok {
+				quantities = map[string]interface{}{}
+				resources[key] = quantities
+			}
+			if cpu != "" {
+				quantities["cpu"] = cpu
+			}
+			if memory != "" {
+				quantities["memory"] = memory
+			}
+		}
+	}
+	return podSpec
 }
