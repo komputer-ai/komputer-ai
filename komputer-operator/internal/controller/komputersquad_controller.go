@@ -343,13 +343,30 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 	survivors := make([]*komputerv1alpha1.KomputerAgent, 0, len(agents))
 
 	for _, agent := range agents {
-		sleepTTL, deleteTTL, _ := resolveAgentTTLs(ctx, r.Client, agent)
-		if sleepTTL == nil && deleteTTL == nil {
+		sleepTTL, deleteTTL, taskTimeout := resolveAgentTTLs(ctx, r.Client, agent)
+
+		// Task deadline first: it is the one clock allowed to fire mid-task. A member
+		// whose cancel fails is left alone and retried on the next reconcile rather
+		// than failing the whole squad.
+		td := evaluateTaskDeadline(agent, taskTimeout, time.Now())
+		if td.Cancel {
+			log.Info("taskTimeout elapsed, cancelling squad member task",
+				"squad", squad.Name, "agent", agent.Name, "taskTimeout", taskTimeout.Duration,
+				"taskStartedAt", agent.Status.TaskStartedAt)
+			// TODO: pass reason="timeout" once interruption reasons are supported.
+			if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
+				log.Error(err, "Failed to cancel squad member task on taskTimeout", "agent", agent.Name)
+			}
+		}
+
+		if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 			// Clear stale expiries if the TTLs were removed from the spec.
-			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {
+			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
+				agent.Status.TaskExpiresAt != nil {
 				original := agent.DeepCopy()
 				agent.Status.SleepExpiresAt = nil
 				agent.Status.DeleteExpiresAt = nil
+				agent.Status.TaskExpiresAt = nil
 				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 					log.Error(err, "Failed to clear TTL expiries on squad member", "agent", agent.Name)
 				}
@@ -379,6 +396,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			agent.Status.Message = "Sleeping — idle past sleepTTL. Send a new task to wake up."
 			agent.Status.SleepExpiresAt = nil
 			agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+			agent.Status.TaskExpiresAt = nil
 			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 				log.Error(err, "Failed to sleep squad member on sleepTTL", "agent", agent.Name)
 			}
@@ -386,10 +404,12 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 
 		default:
 			if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
-				!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) {
+				!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) ||
+				!timeEqual(agent.Status.TaskExpiresAt, td.ExpiresAt) {
 				original := agent.DeepCopy()
 				agent.Status.SleepExpiresAt = d.SleepExpiresAt
 				agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+				agent.Status.TaskExpiresAt = td.ExpiresAt
 				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 					log.Error(err, "Failed to publish TTL expiries on squad member", "agent", agent.Name)
 				}

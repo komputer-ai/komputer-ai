@@ -262,3 +262,97 @@ func TestApplyMemberTTLs_AllMembersExpiredLeavesNoSurvivors(t *testing.T) {
 		t.Errorf("survivors = %d, want 0", len(survivors))
 	}
 }
+
+// ─── task deadline for squad members ─────────────────────────────────────────
+
+// busyMember builds a squad member mid-task on a live pod, with the task clock started
+// `runningFor` ago — the state a task deadline is evaluated against.
+func busyMember(name string, runningFor time.Duration) *komputerv1alpha1.KomputerAgent {
+	started := metav1.NewTime(time.Now().Add(-runningFor))
+	return squadMember(name, runningFor, func(a *komputerv1alpha1.KomputerAgent) {
+		a.Status.TaskStatus = komputerv1alpha1.AgentTaskInProgress
+		a.Status.PodName = "test-squad-pod"
+		a.Status.TaskStartedAt = &started
+	})
+}
+
+func TestApplyMemberTTLs_PublishesTaskExpiry(t *testing.T) {
+	ctx := context.Background()
+	m := busyMember("member-a", 5*time.Minute)
+	m.Spec.TaskTimeout = dur(30 * time.Minute)
+	squad := testSquad("member-a")
+	r := newSquadTTLReconciler(t, squad, m)
+
+	survivors := r.applyMemberTTLs(ctx, squad, []*komputerv1alpha1.KomputerAgent{m})
+	if len(survivors) != 1 {
+		t.Fatalf("survivors = %d, want 1 — a busy member must not be dropped", len(survivors))
+	}
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(ctx, types.NamespacedName{Name: "member-a", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get member: %v", err)
+	}
+	if got.Status.TaskExpiresAt == nil {
+		t.Fatal("TaskExpiresAt not published for a member with a running task and a taskTimeout")
+	}
+	// Started 5m ago with a 30m cap, so the deadline is ~25m out.
+	remaining := time.Until(got.Status.TaskExpiresAt.Time)
+	if remaining < 24*time.Minute || remaining > 26*time.Minute {
+		t.Errorf("TaskExpiresAt is %v away, want ~25m", remaining)
+	}
+}
+
+func TestApplyMemberTTLs_ClearsTaskExpiryWhenTimeoutRemoved(t *testing.T) {
+	ctx := context.Background()
+	stale := metav1.NewTime(time.Now().Add(10 * time.Minute))
+	m := busyMember("member-a", 5*time.Minute)
+	m.Spec.TaskTimeout = nil // removed from spec
+	m.Status.TaskExpiresAt = &stale
+	squad := testSquad("member-a")
+	r := newSquadTTLReconciler(t, squad, m)
+
+	r.applyMemberTTLs(ctx, squad, []*komputerv1alpha1.KomputerAgent{m})
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(ctx, types.NamespacedName{Name: "member-a", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get member: %v", err)
+	}
+	if got.Status.TaskExpiresAt != nil {
+		t.Errorf("TaskExpiresAt = %v, want nil after the timeout was removed", got.Status.TaskExpiresAt)
+	}
+}
+
+// An idle member must never get a task deadline, however long it has existed.
+func TestApplyMemberTTLs_NoTaskExpiryWhenIdle(t *testing.T) {
+	ctx := context.Background()
+	m := squadMember("member-a", time.Hour) // TaskStatus=Complete
+	m.Spec.TaskTimeout = dur(30 * time.Minute)
+	squad := testSquad("member-a")
+	r := newSquadTTLReconciler(t, squad, m)
+
+	r.applyMemberTTLs(ctx, squad, []*komputerv1alpha1.KomputerAgent{m})
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(ctx, types.NamespacedName{Name: "member-a", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get member: %v", err)
+	}
+	if got.Status.TaskExpiresAt != nil {
+		t.Errorf("TaskExpiresAt = %v, want nil for an idle member", got.Status.TaskExpiresAt)
+	}
+}
+
+// An elapsed deadline attempts a cancel. The fake client has no KomputerConfig, so
+// getKomputerAPIURL fails — which is the point: a failed cancel must be logged and the
+// member kept, never dropped from the squad or allowed to fail the reconcile.
+func TestApplyMemberTTLs_FailedCancelKeepsMember(t *testing.T) {
+	ctx := context.Background()
+	m := busyMember("member-a", time.Hour)
+	m.Spec.TaskTimeout = dur(30 * time.Minute)
+	squad := testSquad("member-a")
+	r := newSquadTTLReconciler(t, squad, m)
+
+	survivors := r.applyMemberTTLs(ctx, squad, []*komputerv1alpha1.KomputerAgent{m})
+	if len(survivors) != 1 {
+		t.Fatalf("survivors = %d, want 1 — a failed cancel must not drop the member", len(survivors))
+	}
+}
