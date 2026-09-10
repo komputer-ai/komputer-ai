@@ -10,11 +10,30 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// expiryHint renders a dimmed countdown for a TTL expiry timestamp, e.g.
+// "  (sleeps in 12m)". Returns "" when the timestamp is absent or unparseable —
+// an empty expiry just means that TTL's clock isn't currently running.
+func expiryHint(verb, expiresAt string) string {
+	if expiresAt == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339, expiresAt)
+	if err != nil {
+		return ""
+	}
+	remaining := time.Until(t)
+	if remaining <= 0 {
+		return dimStyle.Render(fmt.Sprintf("  (%s now)", verb))
+	}
+	return dimStyle.Render(fmt.Sprintf("  (%s in %s)", verb, remaining.Round(time.Second)))
+}
 
 func printAgent(a AgentResponse) {
 	fmt.Println(headerStyle.Render(fmt.Sprintf("  %s  ", a.Name)))
@@ -53,6 +72,12 @@ func printAgent(a AgentResponse) {
 	row("Namespace:", a.Namespace)
 	if a.Lifecycle != "" {
 		row("Lifecycle:", a.Lifecycle)
+	}
+	if a.SleepTTL != "" {
+		row("Sleep TTL:", a.SleepTTL+expiryHint("sleeps", a.SleepExpiresAt))
+	}
+	if a.DeleteTTL != "" {
+		row("Delete TTL:", a.DeleteTTL+expiryHint("deletes", a.DeleteExpiresAt))
 	}
 	if a.LastTaskCostUSD != "" {
 		row("Last Task Cost:", "$"+a.LastTaskCostUSD)

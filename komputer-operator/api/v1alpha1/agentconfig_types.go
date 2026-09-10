@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // AgentConfigSpec is the set of agent settings a user can configure. It is
@@ -84,6 +85,22 @@ type AgentConfigSpec struct {
 	// +kubebuilder:validation:Enum="";Sleep;AutoDelete
 	// +optional
 	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`
+	// SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+	// idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+	// only starts once a task has actually started, and any later task event or wake
+	// resets it. Never fires while a task is in progress, and an agent that has never
+	// run a task is never auto-slept (use DeleteTTL to reclaim those).
+	// Unset (default) means the agent never auto-sleeps.
+	// Overrides the template's sleepTTL when set.
+	// +optional
+	SleepTTL *metav1.Duration `json:"sleepTTL,omitempty"`
+	// DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+	// metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+	// does not reset on wake and applies in every phase, including Sleeping.
+	// Unset (default) means the agent never auto-deletes.
+	// Overrides the template's deleteTTL when set.
+	// +optional
+	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
 	// Priority controls admission order when the template's maxConcurrentAgents
 	// limit is reached. Higher number = admitted first (matches K8s PodPriority).
 	// Ties broken by creationTimestamp (older first). Defaults to 0.

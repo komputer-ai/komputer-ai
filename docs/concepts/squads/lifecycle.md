@@ -30,6 +30,8 @@ UI: Sleep button on the agent detail page or "Sleep all" on the squad detail pag
 CLI: `komputer agent patch <name> --lifecycle Sleep`
 API: `PATCH /api/v1/agents/<name>` with `{"lifecycle": "Sleep"}`
 
+Members can also sleep themselves on a timer via `spec.sleepTTL`, and delete themselves via `spec.deleteTTL` — set per member (or inherited from its template) exactly as for a solo agent. See [agent TTLs](../agents.md#ttls--auto-sleep-and-auto-delete). A TTL-slept member follows the same path as a manual sleep: phase only, with the shared pod torn down once every member is asleep. A TTL-deleted member is pruned from the squad on the next reconcile, which can in turn trigger single-member shrinkage or the orphan TTL below.
+
 ## Leave squad (single agent)
 
 Removing one agent from a squad — the agent stays alive as a solo agent, its workspace is preserved, and any in-flight task on that member is cancelled.

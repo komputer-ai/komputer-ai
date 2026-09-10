@@ -2667,6 +2667,13 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "deleteExpiresAt": {
+                    "type": "string"
+                },
+                "deleteTTL": {
+                    "description": "absolute lifetime before auto-delete, e.g. \"24h\"",
+                    "type": "string"
+                },
                 "disallowedTools": {
                     "description": "Tools removed from this agent",
                     "type": "array",
@@ -2690,6 +2697,10 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "lastActivityAt": {
+                    "description": "LastActivityAt is when the agent last saw task activity (RFC3339). The idle\nclock sleepTTL is measured against.",
+                    "type": "string"
                 },
                 "lastTaskCostUSD": {
                     "type": "string"
@@ -2744,6 +2755,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "sleepExpiresAt": {
+                    "description": "SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty\nwhen the matching TTL is unset or its countdown isn't currently running.",
+                    "type": "string"
+                },
+                "sleepTTL": {
+                    "description": "idle timeout before auto-sleep, e.g. \"30m\"",
+                    "type": "string"
                 },
                 "squad": {
                     "description": "True when this agent is managed by a KomputerSquad",
@@ -2854,6 +2873,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "deleteTTL": {
+                    "description": "DeleteTTL deletes the agent this long after creation, as a Go duration string\n(e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.",
+                    "type": "string"
+                },
                 "disallowedTools": {
                     "description": "DisallowedTools removes these tools; everything else stays available.\nTakes precedence over AllowedTools. Supports wildcards.",
                     "type": "array",
@@ -2920,6 +2943,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "sleepTTL": {
+                    "description": "SleepTTL puts the agent to sleep after this long with no activity, as a Go\nduration string (e.g. \"30m\", \"2h\"). Empty means never auto-sleep.",
+                    "type": "string"
                 },
                 "storage": {
                     "$ref": "#/definitions/v1alpha1.StorageSpec"
@@ -3224,6 +3251,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "deleteTTL": {
+                    "type": "string"
+                },
                 "disallowedTools": {
                     "description": "DisallowedTools removes these tools; an explicit [] clears the list.",
                     "type": "array",
@@ -3273,6 +3303,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "sleepTTL": {
+                    "description": "SleepTTL / DeleteTTL are Go duration strings (e.g. \"30m\"). An explicit \"\"\nclears the TTL; omitting the field leaves it unchanged.",
+                    "type": "string"
                 },
                 "storage": {
                     "$ref": "#/definitions/v1alpha1.StorageSpec"
@@ -4343,6 +4377,35 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/v1.DownwardAPIVolumeFile"
                     }
+                }
+            }
+        },
+        "v1.Duration": {
+            "type": "object",
+            "properties": {
+                "time.Duration": {
+                    "type": "integer",
+                    "format": "int64",
+                    "enum": [
+                        -9223372036854775808,
+                        9223372036854775807,
+                        1,
+                        1000,
+                        1000000,
+                        1000000000,
+                        60000000000,
+                        3600000000000
+                    ],
+                    "x-enum-varnames": [
+                        "minDuration",
+                        "maxDuration",
+                        "Nanosecond",
+                        "Microsecond",
+                        "Millisecond",
+                        "Second",
+                        "Minute",
+                        "Hour"
+                    ]
                 }
             }
         },
@@ -7751,6 +7814,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "deleteTTL": {
+                    "description": "DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since\nmetadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it\ndoes not reset on wake and applies in every phase, including Sleeping.\nUnset (default) means the agent never auto-deletes.\nOverrides the template's deleteTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
+                },
                 "disallowedTools": {
                     "description": "DisallowedTools removes these tools from the agent. Purely subtractive:\nthe default built-ins and all connector tools remain available except\nwhat is named here. Takes precedence over AllowedTools.\nSupports wildcards, e.g. \"mcp__figma__*\".\n+optional",
                     "type": "array",
@@ -7825,6 +7896,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "sleepTTL": {
+                    "description": "SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been\nidle for this long. Idle is measured from Status.LastActivityAt, so the clock\nonly starts once a task has actually started, and any later task event or wake\nresets it. Never fires while a task is in progress, and an agent that has never\nrun a task is never auto-slept (use DeleteTTL to reclaim those).\nUnset (default) means the agent never auto-sleeps.\nOverrides the template's sleepTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
                 },
                 "storage": {
                     "description": "Storage, when set, overrides the template's storage settings for this agent.\nExisting PVCs are expanded in place when the storage class supports it.\n+optional",

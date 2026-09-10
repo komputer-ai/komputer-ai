@@ -39,6 +39,8 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 - **Sleep**: One task now, may reuse later. Workspace preserved. Call delete_agent when fully done.
 - *(empty)*: Multiple tasks in sequence. Pod stays running. MUST call delete_agent when done.
 
+For long-lived agents, add `sleepTTL` (sleep after that long idle, e.g. `30m`) and/or `deleteTTL` (hard lifetime from creation, e.g. `24h`) so an agent you forget to clean up doesn't hold resources forever.
+
 Use update_agent to change a sub-agent's model, systemPrompt (persona), instructions, storage, image, resources, or tool permissions (allowedTools/disallowedTools) before its next task — overrides apply when the next pod starts.
 
 **Bedrock models.** When `$CLAUDE_CODE_USE_BEDROCK` is set, pass Bedrock inference-profile IDs (not friendly names) to `create_agent`/`update_agent`, prefixed by region from `$AWS_REGION` (us-* → `us.`, eu-* → `eu.`, ap-* → `apac.`). Use the latest variants — `<prefix>.anthropic.claude-sonnet-4-6`, `<prefix>.anthropic.claude-opus-4-7`, `<prefix>.anthropic.claude-haiku-4-5-20251001-v1:0` — not older `-4-5-20250929-v1:0` IDs.

@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
 `connectors` | Array&lt;string&gt;
+`deleteTTL` | [V1Duration](V1Duration.md)
 `disallowedTools` | Array&lt;string&gt;
 `instructions` | string
 `internalSystemPrompt` | string
@@ -21,6 +22,7 @@ Name | Type
 `role` | string
 `secrets` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`sleepTTL` | [V1Duration](V1Duration.md)
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
 `templateRef` | string
@@ -34,6 +36,7 @@ import type { V1alpha1KomputerAgentSpec } from '@komputer-ai/sdk'
 const example = {
   "allowedTools": null,
   "connectors": null,
+  "deleteTTL": null,
   "disallowedTools": null,
   "instructions": null,
   "internalSystemPrompt": null,
@@ -47,6 +50,7 @@ const example = {
   "role": null,
   "secrets": null,
   "skills": null,
+  "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
   "templateRef": null,

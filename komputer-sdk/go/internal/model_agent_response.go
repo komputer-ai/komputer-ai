@@ -25,6 +25,9 @@ type AgentResponse struct {
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
+	DeleteExpiresAt *string `json:"deleteExpiresAt,omitempty"`
+	// absolute lifetime before auto-delete, e.g. \"24h\"
+	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// Tools removed from this agent
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
 	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.
@@ -32,6 +35,8 @@ type AgentResponse struct {
 	// User task (spec.instructions)
 	Instructions *string `json:"instructions,omitempty"`
 	Labels *map[string]string `json:"labels,omitempty"`
+	// LastActivityAt is when the agent last saw task activity (RFC3339). The idle clock sleepTTL is measured against.
+	LastActivityAt *string `json:"lastActivityAt,omitempty"`
 	LastTaskCostUSD *string `json:"lastTaskCostUSD,omitempty"`
 	LastTaskMessage *string `json:"lastTaskMessage,omitempty"`
 	Lifecycle *string `json:"lifecycle,omitempty"`
@@ -49,6 +54,10 @@ type AgentResponse struct {
 	Secrets []string `json:"secrets,omitempty"`
 	// KomputerSkill names attached to this agent
 	Skills []string `json:"skills,omitempty"`
+	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.
+	SleepExpiresAt *string `json:"sleepExpiresAt,omitempty"`
+	// idle timeout before auto-sleep, e.g. \"30m\"
+	SleepTTL *string `json:"sleepTTL,omitempty"`
 	// True when this agent is managed by a KomputerSquad
 	Squad *bool `json:"squad,omitempty"`
 	// Name of the squad managing this agent (when Squad=true)
@@ -207,6 +216,70 @@ func (o *AgentResponse) SetCreatedAt(v string) {
 	o.CreatedAt = &v
 }
 
+// GetDeleteExpiresAt returns the DeleteExpiresAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetDeleteExpiresAt() string {
+	if o == nil || IsNil(o.DeleteExpiresAt) {
+		var ret string
+		return ret
+	}
+	return *o.DeleteExpiresAt
+}
+
+// GetDeleteExpiresAtOk returns a tuple with the DeleteExpiresAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetDeleteExpiresAtOk() (*string, bool) {
+	if o == nil || IsNil(o.DeleteExpiresAt) {
+		return nil, false
+	}
+	return o.DeleteExpiresAt, true
+}
+
+// HasDeleteExpiresAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasDeleteExpiresAt() bool {
+	if o != nil && !IsNil(o.DeleteExpiresAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeleteExpiresAt gets a reference to the given string and assigns it to the DeleteExpiresAt field.
+func (o *AgentResponse) SetDeleteExpiresAt(v string) {
+	o.DeleteExpiresAt = &v
+}
+
+// GetDeleteTTL returns the DeleteTTL field value if set, zero value otherwise.
+func (o *AgentResponse) GetDeleteTTL() string {
+	if o == nil || IsNil(o.DeleteTTL) {
+		var ret string
+		return ret
+	}
+	return *o.DeleteTTL
+}
+
+// GetDeleteTTLOk returns a tuple with the DeleteTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetDeleteTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.DeleteTTL) {
+		return nil, false
+	}
+	return o.DeleteTTL, true
+}
+
+// HasDeleteTTL returns a boolean if a field has been set.
+func (o *AgentResponse) HasDeleteTTL() bool {
+	if o != nil && !IsNil(o.DeleteTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetDeleteTTL gets a reference to the given string and assigns it to the DeleteTTL field.
+func (o *AgentResponse) SetDeleteTTL(v string) {
+	o.DeleteTTL = &v
+}
+
 // GetDisallowedTools returns the DisallowedTools field value if set, zero value otherwise.
 func (o *AgentResponse) GetDisallowedTools() []string {
 	if o == nil || IsNil(o.DisallowedTools) {
@@ -333,6 +406,38 @@ func (o *AgentResponse) HasLabels() bool {
 // SetLabels gets a reference to the given map[string]string and assigns it to the Labels field.
 func (o *AgentResponse) SetLabels(v map[string]string) {
 	o.Labels = &v
+}
+
+// GetLastActivityAt returns the LastActivityAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetLastActivityAt() string {
+	if o == nil || IsNil(o.LastActivityAt) {
+		var ret string
+		return ret
+	}
+	return *o.LastActivityAt
+}
+
+// GetLastActivityAtOk returns a tuple with the LastActivityAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetLastActivityAtOk() (*string, bool) {
+	if o == nil || IsNil(o.LastActivityAt) {
+		return nil, false
+	}
+	return o.LastActivityAt, true
+}
+
+// HasLastActivityAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasLastActivityAt() bool {
+	if o != nil && !IsNil(o.LastActivityAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetLastActivityAt gets a reference to the given string and assigns it to the LastActivityAt field.
+func (o *AgentResponse) SetLastActivityAt(v string) {
+	o.LastActivityAt = &v
 }
 
 // GetLastTaskCostUSD returns the LastTaskCostUSD field value if set, zero value otherwise.
@@ -783,6 +888,70 @@ func (o *AgentResponse) SetSkills(v []string) {
 	o.Skills = v
 }
 
+// GetSleepExpiresAt returns the SleepExpiresAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetSleepExpiresAt() string {
+	if o == nil || IsNil(o.SleepExpiresAt) {
+		var ret string
+		return ret
+	}
+	return *o.SleepExpiresAt
+}
+
+// GetSleepExpiresAtOk returns a tuple with the SleepExpiresAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetSleepExpiresAtOk() (*string, bool) {
+	if o == nil || IsNil(o.SleepExpiresAt) {
+		return nil, false
+	}
+	return o.SleepExpiresAt, true
+}
+
+// HasSleepExpiresAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasSleepExpiresAt() bool {
+	if o != nil && !IsNil(o.SleepExpiresAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetSleepExpiresAt gets a reference to the given string and assigns it to the SleepExpiresAt field.
+func (o *AgentResponse) SetSleepExpiresAt(v string) {
+	o.SleepExpiresAt = &v
+}
+
+// GetSleepTTL returns the SleepTTL field value if set, zero value otherwise.
+func (o *AgentResponse) GetSleepTTL() string {
+	if o == nil || IsNil(o.SleepTTL) {
+		var ret string
+		return ret
+	}
+	return *o.SleepTTL
+}
+
+// GetSleepTTLOk returns a tuple with the SleepTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetSleepTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.SleepTTL) {
+		return nil, false
+	}
+	return o.SleepTTL, true
+}
+
+// HasSleepTTL returns a boolean if a field has been set.
+func (o *AgentResponse) HasSleepTTL() bool {
+	if o != nil && !IsNil(o.SleepTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetSleepTTL gets a reference to the given string and assigns it to the SleepTTL field.
+func (o *AgentResponse) SetSleepTTL(v string) {
+	o.SleepTTL = &v
+}
+
 // GetSquad returns the Squad field value if set, zero value otherwise.
 func (o *AgentResponse) GetSquad() bool {
 	if o == nil || IsNil(o.Squad) {
@@ -1061,6 +1230,12 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
 	}
+	if !IsNil(o.DeleteExpiresAt) {
+		toSerialize["deleteExpiresAt"] = o.DeleteExpiresAt
+	}
+	if !IsNil(o.DeleteTTL) {
+		toSerialize["deleteTTL"] = o.DeleteTTL
+	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
 	}
@@ -1072,6 +1247,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Labels) {
 		toSerialize["labels"] = o.Labels
+	}
+	if !IsNil(o.LastActivityAt) {
+		toSerialize["lastActivityAt"] = o.LastActivityAt
 	}
 	if !IsNil(o.LastTaskCostUSD) {
 		toSerialize["lastTaskCostUSD"] = o.LastTaskCostUSD
@@ -1114,6 +1292,12 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills
+	}
+	if !IsNil(o.SleepExpiresAt) {
+		toSerialize["sleepExpiresAt"] = o.SleepExpiresAt
+	}
+	if !IsNil(o.SleepTTL) {
+		toSerialize["sleepTTL"] = o.SleepTTL
 	}
 	if !IsNil(o.Squad) {
 		toSerialize["squad"] = o.Squad

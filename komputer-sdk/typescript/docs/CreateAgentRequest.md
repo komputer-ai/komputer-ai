@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
 `connectors` | Array&lt;string&gt;
+`deleteTTL` | string
 `disallowedTools` | Array&lt;string&gt;
 `instructions` | string
 `labels` | { [key: string]: string; }
@@ -22,6 +23,7 @@ Name | Type
 `role` | string
 `secretRefs` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`sleepTTL` | string
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
 `templateRef` | string
@@ -35,6 +37,7 @@ import type { CreateAgentRequest } from '@komputer-ai/sdk'
 const example = {
   "allowedTools": null,
   "connectors": null,
+  "deleteTTL": null,
   "disallowedTools": null,
   "instructions": null,
   "labels": null,
@@ -49,6 +52,7 @@ const example = {
   "role": null,
   "secretRefs": null,
   "skills": null,
+  "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
   "templateRef": null,

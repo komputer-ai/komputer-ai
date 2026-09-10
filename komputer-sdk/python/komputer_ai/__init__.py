@@ -99,6 +99,7 @@ __all__ = [
     "V1DownwardAPIProjection",
     "V1DownwardAPIVolumeFile",
     "V1DownwardAPIVolumeSource",
+    "V1Duration",
     "V1EmptyDirVolumeSource",
     "V1EnvFromSource",
     "V1EnvVar",
@@ -308,6 +309,7 @@ from komputer_ai.models.v1_dns_policy import V1DNSPolicy as V1DNSPolicy
 from komputer_ai.models.v1_downward_api_projection import V1DownwardAPIProjection as V1DownwardAPIProjection
 from komputer_ai.models.v1_downward_api_volume_file import V1DownwardAPIVolumeFile as V1DownwardAPIVolumeFile
 from komputer_ai.models.v1_downward_api_volume_source import V1DownwardAPIVolumeSource as V1DownwardAPIVolumeSource
+from komputer_ai.models.v1_duration import V1Duration as V1Duration
 from komputer_ai.models.v1_empty_dir_volume_source import V1EmptyDirVolumeSource as V1EmptyDirVolumeSource
 from komputer_ai.models.v1_env_from_source import V1EnvFromSource as V1EnvFromSource
 from komputer_ai.models.v1_env_var import V1EnvVar as V1EnvVar

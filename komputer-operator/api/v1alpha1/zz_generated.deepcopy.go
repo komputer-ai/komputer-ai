@@ -21,8 +21,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -59,9 +59,19 @@ func (in *AgentConfigSpec) DeepCopyInto(out *AgentConfigSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.SleepTTL != nil {
+		in, out := &in.SleepTTL, &out.SleepTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.DeleteTTL != nil {
+		in, out := &in.DeleteTTL, &out.DeleteTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.PodSpec != nil {
 		in, out := &in.PodSpec, &out.PodSpec
-		*out = new(v1.PodSpec)
+		*out = new(corev1.PodSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Storage != nil {
@@ -232,9 +242,21 @@ func (in *KomputerAgentStatus) DeepCopyInto(out *KomputerAgentStatus) {
 		in, out := &in.CompletionTime, &out.CompletionTime
 		*out = (*in).DeepCopy()
 	}
+	if in.LastActivityAt != nil {
+		in, out := &in.LastActivityAt, &out.LastActivityAt
+		*out = (*in).DeepCopy()
+	}
+	if in.SleepExpiresAt != nil {
+		in, out := &in.SleepExpiresAt, &out.SleepExpiresAt
+		*out = (*in).DeepCopy()
+	}
+	if in.DeleteExpiresAt != nil {
+		in, out := &in.DeleteExpiresAt, &out.DeleteExpiresAt
+		*out = (*in).DeepCopy()
+	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]metav1.Condition, len(*in))
+		*out = make([]v1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -315,6 +337,16 @@ func (in *KomputerAgentTemplateSpec) DeepCopyInto(out *KomputerAgentTemplateSpec
 	*out = *in
 	in.PodSpec.DeepCopyInto(&out.PodSpec)
 	in.Storage.DeepCopyInto(&out.Storage)
+	if in.SleepTTL != nil {
+		in, out := &in.SleepTTL, &out.SleepTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.DeleteTTL != nil {
+		in, out := &in.DeleteTTL, &out.DeleteTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.AnthropicKeySecretRef != nil {
 		in, out := &in.AnthropicKeySecretRef, &out.AnthropicKeySecretRef
 		*out = new(SecretKeyRef)
@@ -501,7 +533,7 @@ func (in *KomputerConnectorSpec) DeepCopyInto(out *KomputerConnectorSpec) {
 	*out = *in
 	if in.AuthSecretKeyRef != nil {
 		in, out := &in.AuthSecretKeyRef, &out.AuthSecretKeyRef
-		*out = new(v1.SecretKeySelector)
+		*out = new(corev1.SecretKeySelector)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -1051,7 +1083,7 @@ func (in *KomputerSquadSpec) DeepCopyInto(out *KomputerSquadSpec) {
 	}
 	if in.OrphanTTL != nil {
 		in, out := &in.OrphanTTL, &out.OrphanTTL
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 }

@@ -24,6 +24,12 @@ func applyAgentOverrides(template *komputerv1alpha1.KomputerAgentTemplate, agent
 	if agent.Spec.PodSpec != nil {
 		mergePodSpec(&out.Spec.PodSpec, agent.Spec.PodSpec)
 	}
+	if agent.Spec.SleepTTL != nil {
+		out.Spec.SleepTTL = agent.Spec.SleepTTL.DeepCopy()
+	}
+	if agent.Spec.DeleteTTL != nil {
+		out.Spec.DeleteTTL = agent.Spec.DeleteTTL.DeepCopy()
+	}
 	return out
 }
 

@@ -40,6 +40,7 @@ func (c *Client) ListAgents(ctx context.Context) (*komputer.AgentListResponse, *
 type CreateAgentOpts struct {
 	AllowedTools    []string
 	Connectors      []string
+	DeleteTTL       *string
 	DisallowedTools []string
 	Lifecycle       *string
 	Memories        []string
@@ -51,6 +52,7 @@ type CreateAgentOpts struct {
 	Role            *string
 	SecretRefs      []string
 	Skills          []string
+	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
 	TemplateRef     *string
@@ -69,6 +71,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
 		}
+		if o.DeleteTTL != nil {
+			req.DeleteTTL = o.DeleteTTL
+		}
 		if o.DisallowedTools != nil {
 			req.DisallowedTools = o.DisallowedTools
 		}
@@ -80,6 +85,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.Model != nil {
 			req.Model = o.Model
+		}
+		if o.SleepTTL != nil {
+			req.SleepTTL = o.SleepTTL
 		}
 		if o.Namespace != nil {
 			req.Namespace = o.Namespace
@@ -148,6 +156,7 @@ func (c *Client) GetAgent(ctx context.Context, name string) (*komputer.AgentResp
 type PatchAgentOpts struct {
 	AllowedTools    []string
 	Connectors      []string
+	DeleteTTL       *string
 	DisallowedTools []string
 	Instructions    *string
 	Lifecycle       *string
@@ -157,6 +166,7 @@ type PatchAgentOpts struct {
 	Priority        *int32
 	SecretRefs      []string
 	Skills          []string
+	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
 	TemplateRef     *string
@@ -171,6 +181,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
+		}
+		if o.DeleteTTL != nil {
+			req.DeleteTTL = o.DeleteTTL
 		}
 		if o.DisallowedTools != nil {
 			req.DisallowedTools = o.DisallowedTools
@@ -198,6 +211,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.Skills != nil {
 			req.Skills = o.Skills
+		}
+		if o.SleepTTL != nil {
+			req.SleepTTL = o.SleepTTL
 		}
 		if o.Storage != nil {
 			req.Storage = o.Storage

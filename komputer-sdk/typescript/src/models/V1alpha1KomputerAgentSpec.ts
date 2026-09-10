@@ -27,6 +27,13 @@ import {
     V1alpha1StorageSpecToJSON,
     V1alpha1StorageSpecToJSONTyped,
 } from './V1alpha1StorageSpec';
+import type { V1Duration } from './V1Duration';
+import {
+    V1DurationFromJSON,
+    V1DurationFromJSONTyped,
+    V1DurationToJSON,
+    V1DurationToJSONTyped,
+} from './V1Duration';
 import type { V1PodSpec } from './V1PodSpec';
 import {
     V1PodSpecFromJSON,
@@ -64,6 +71,17 @@ export interface V1alpha1KomputerAgentSpec {
      * @memberof V1alpha1KomputerAgentSpec
      */
     connectors?: Array<string>;
+    /**
+     * DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+     * metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+     * does not reset on wake and applies in every phase, including Sleeping.
+     * Unset (default) means the agent never auto-deletes.
+     * Overrides the template's deleteTTL when set.
+     * +optional
+     * @type {V1Duration}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    deleteTTL?: V1Duration;
     /**
      * DisallowedTools removes these tools from the agent. Purely subtractive:
      * the default built-ins and all connector tools remain available except
@@ -178,6 +196,19 @@ export interface V1alpha1KomputerAgentSpec {
      */
     skills?: Array<string>;
     /**
+     * SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+     * idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+     * only starts once a task has actually started, and any later task event or wake
+     * resets it. Never fires while a task is in progress, and an agent that has never
+     * run a task is never auto-slept (use DeleteTTL to reclaim those).
+     * Unset (default) means the agent never auto-sleeps.
+     * Overrides the template's sleepTTL when set.
+     * +optional
+     * @type {V1Duration}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    sleepTTL?: V1Duration;
+    /**
      * Storage, when set, overrides the template's storage settings for this agent.
      * Existing PVCs are expanded in place when the storage class supports it.
      * +optional
@@ -222,6 +253,7 @@ export function V1alpha1KomputerAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
+        'deleteTTL': json['deleteTTL'] == null ? undefined : V1DurationFromJSON(json['deleteTTL']),
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'internalSystemPrompt': json['internalSystemPrompt'] == null ? undefined : json['internalSystemPrompt'],
@@ -235,6 +267,7 @@ export function V1alpha1KomputerAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         'role': json['role'] == null ? undefined : json['role'],
         'secrets': json['secrets'] == null ? undefined : json['secrets'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'sleepTTL': json['sleepTTL'] == null ? undefined : V1DurationFromJSON(json['sleepTTL']),
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
@@ -254,6 +287,7 @@ export function V1alpha1KomputerAgentSpecToJSONTyped(value?: V1alpha1KomputerAge
         
         'allowedTools': value['allowedTools'],
         'connectors': value['connectors'],
+        'deleteTTL': V1DurationToJSON(value['deleteTTL']),
         'disallowedTools': value['disallowedTools'],
         'instructions': value['instructions'],
         'internalSystemPrompt': value['internalSystemPrompt'],
@@ -267,6 +301,7 @@ export function V1alpha1KomputerAgentSpecToJSONTyped(value?: V1alpha1KomputerAge
         'role': value['role'],
         'secrets': value['secrets'],
         'skills': value['skills'],
+        'sleepTTL': V1DurationToJSON(value['sleepTTL']),
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
         'templateRef': value['templateRef'],

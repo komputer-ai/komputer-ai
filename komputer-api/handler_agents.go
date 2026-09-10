@@ -36,6 +36,12 @@ type CreateAgentRequest struct {
 	// Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools"`
 	Lifecycle     string   `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
+	// SleepTTL puts the agent to sleep after this long with no activity, as a Go
+	// duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
+	SleepTTL string `json:"sleepTTL,omitempty"`
+	// DeleteTTL deletes the agent this long after creation, as a Go duration string
+	// (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
+	DeleteTTL     string   `json:"deleteTTL,omitempty"`
 	OfficeManager string   `json:"officeManager"` // set by manager MCP tool
 	SystemPrompt  string   `json:"systemPrompt"`  // optional custom system prompt
 	Priority      int32    `json:"priority,omitempty"` // queue priority; higher = admitted first
@@ -55,6 +61,15 @@ type AgentResponse struct {
 	TaskStatus      string   `json:"taskStatus,omitempty"`
 	LastTaskMessage string   `json:"lastTaskMessage,omitempty"`
 	Lifecycle       string   `json:"lifecycle,omitempty"`
+	SleepTTL        string   `json:"sleepTTL,omitempty"`  // idle timeout before auto-sleep, e.g. "30m"
+	DeleteTTL       string   `json:"deleteTTL,omitempty"` // absolute lifetime before auto-delete, e.g. "24h"
+	// LastActivityAt is when the agent last saw task activity (RFC3339). The idle
+	// clock sleepTTL is measured against.
+	LastActivityAt string `json:"lastActivityAt,omitempty"`
+	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
+	// when the matching TTL is unset or its countdown isn't currently running.
+	SleepExpiresAt  string   `json:"sleepExpiresAt,omitempty"`
+	DeleteExpiresAt string   `json:"deleteExpiresAt,omitempty"`
 	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
 	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
 	TotalTokens          int64    `json:"totalTokens,omitempty"`
@@ -195,6 +210,63 @@ type AgentListResponse struct {
 	Agents []AgentResponse `json:"agents"`
 }
 
+// parseTTL converts a Go duration string into a *metav1.Duration. An empty string
+// yields nil (TTL unset). Rejects zero and negative values, which would otherwise
+// mean "expire immediately" and delete an agent the moment it is created.
+func parseTTL(field, value string) (*metav1.Duration, error) {
+	if value == "" {
+		return nil, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s: %w", field, err)
+	}
+	if d <= 0 {
+		return nil, fmt.Errorf("invalid %s: must be a positive duration, got %q", field, value)
+	}
+	return &metav1.Duration{Duration: d}, nil
+}
+
+// parseTTLUpdate builds a tri-state TTL patch from an optional duration string.
+// A nil pointer leaves the field alone; an explicit "" clears it.
+func parseTTLUpdate(field string, value *string) (TTLUpdate, error) {
+	if value == nil {
+		return TTLUpdate{}, nil
+	}
+	d, err := parseTTL(field, *value)
+	if err != nil {
+		return TTLUpdate{}, err
+	}
+	return TTLUpdate{Set: true, Value: d}, nil
+}
+
+// withAgentTTL returns resp with the agent's TTL fields populated. A pass-through
+// so the inline c.JSON(...) response sites stay single expressions.
+func withAgentTTL(resp AgentResponse, agent *komputerv1alpha1.KomputerAgent) AgentResponse {
+	fillAgentTTL(&resp, agent)
+	return resp
+}
+
+// fillAgentTTL copies an agent's TTL spec and status timestamps onto a response.
+// Kept as a helper because every response path needs all five fields.
+func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
+	if agent.Spec.SleepTTL != nil {
+		resp.SleepTTL = agent.Spec.SleepTTL.Duration.String()
+	}
+	if agent.Spec.DeleteTTL != nil {
+		resp.DeleteTTL = agent.Spec.DeleteTTL.Duration.String()
+	}
+	if agent.Status.LastActivityAt != nil {
+		resp.LastActivityAt = agent.Status.LastActivityAt.Format(time.RFC3339)
+	}
+	if agent.Status.SleepExpiresAt != nil {
+		resp.SleepExpiresAt = agent.Status.SleepExpiresAt.Format(time.RFC3339)
+	}
+	if agent.Status.DeleteExpiresAt != nil {
+		resp.DeleteExpiresAt = agent.Status.DeleteExpiresAt.Format(time.RFC3339)
+	}
+}
+
 type PatchAgentRequest struct {
 	Model        *string   `json:"model,omitempty"`
 	Lifecycle    *string   `json:"lifecycle,omitempty"`
@@ -210,6 +282,10 @@ type PatchAgentRequest struct {
 	// DisallowedTools removes these tools; an explicit [] clears the list.
 	DisallowedTools *[]string `json:"disallowedTools,omitempty"`
 	SystemPrompt *string   `json:"systemPrompt,omitempty"` // custom system prompt
+	// SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
+	// clears the TTL; omitting the field leaves it unchanged.
+	SleepTTL     *string   `json:"sleepTTL,omitempty"`
+	DeleteTTL    *string   `json:"deleteTTL,omitempty"`
 	Priority     *int32    `json:"priority,omitempty"`    // pointer so 0 vs unset is distinguishable
 	PodSpec      *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage      *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
@@ -251,6 +327,19 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		if err := validateUserLabels(req.Labels); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Parse TTLs up front so a malformed duration 400s before any side effects
+		// (namespace creation, secret mirroring) happen.
+		sleepTTL, err := parseTTL("sleepTTL", req.SleepTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		deleteTTL, err := parseTTL("deleteTTL", req.DeleteTTL)
+		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -329,7 +418,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				}
 				Logger.Infow("waking sleeping agent", "namespace", ns, "agent_name", req.Name)
 				agentActionsTotal.WithLabelValues("wake", "success").Inc()
-				c.JSON(http.StatusOK, AgentResponse{
+				c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
 					Name:            existing.Name,
 					Namespace:       existing.Namespace,
 					Model:           existing.Spec.Model,
@@ -355,7 +444,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Storage:         existing.Spec.Storage,
 					Labels:          existing.Spec.Labels,
 					CompletionTime:  formatTime(existing.Status.CompletionTime),
-				})
+				}, existing))
 				return
 			}
 
@@ -395,9 +484,20 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				}
 			}
 
+			// Update TTLs if this request carried new ones. Only non-empty values are
+			// applied — an omitted TTL on a task request must not silently clear an
+			// existing one, since callers routinely send just name + instructions.
+			if sleepTTL != nil || deleteTTL != nil {
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil,
+					TTLUpdate{Set: sleepTTL != nil, Value: sleepTTL},
+					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL}); err != nil {
+					Logger.Warnw("failed to patch TTLs", "agent_name", req.Name, "error", err)
+				}
+			}
+
 			Logger.Infow("forwarded task to existing agent", "namespace", ns, "agent_name", req.Name)
 			agentActionsTotal.WithLabelValues("wake", "success").Inc()
-			c.JSON(http.StatusOK, AgentResponse{
+			c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
 				Name:            existing.Name,
 				Namespace:       existing.Namespace,
 				Model:           existing.Spec.Model,
@@ -425,7 +525,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Storage:         existing.Spec.Storage,
 				Labels:          existing.Spec.Labels,
 				CompletionTime:  formatTime(existing.Status.CompletionTime),
-			})
+			}, existing))
 			return
 		}
 
@@ -466,6 +566,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				AllowedTools:    req.AllowedTools,
 				DisallowedTools: req.DisallowedTools,
 				Lifecycle:       komputerv1alpha1.AgentLifecycle(req.Lifecycle),
+				SleepTTL:        sleepTTL,
+				DeleteTTL:       deleteTTL,
 				Priority:        req.Priority,
 				PodSpec:         req.PodSpec,
 				Storage:         req.Storage,
@@ -483,7 +585,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		Logger.Infow("created new agent", "namespace", ns, "agent_name", req.Name)
 		agentActionsTotal.WithLabelValues("create", "success").Inc()
-		c.JSON(http.StatusOK, AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
 			Name:         agent.Name,
 			Namespace:    agent.Namespace,
 			Model:        agent.Spec.Model,
@@ -505,7 +607,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Storage:      agent.Spec.Storage,
 			Labels:       agent.Spec.Labels,
 			CompletionTime: formatTime(agent.Status.CompletionTime),
-		})
+		}, agent))
 	}
 }
 
@@ -701,7 +803,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
 			Name:            agent.Name,
 			Namespace:       agent.Namespace,
 			Model:           agent.Spec.Model,
@@ -731,7 +833,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
 			Labels:             agent.Spec.Labels,
 			CompletionTime:     formatTime(agent.Status.CompletionTime),
-		})
+		}, agent))
 	}
 }
 
@@ -863,7 +965,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			if statusFilter != "" && !strings.EqualFold(statusFilter, string(a.Status.Phase)) {
 				continue
 			}
-			resp.Agents = append(resp.Agents, AgentResponse{
+			resp.Agents = append(resp.Agents, withAgentTTL(AgentResponse{
 				Name:            a.Name,
 				Namespace:       a.Namespace,
 				Model:           a.Spec.Model,
@@ -893,7 +995,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				SquadName:          squadByAgent[a.Namespace+"/"+a.Name],
 				Labels:             a.Spec.Labels,
 				CompletionTime:     formatTime(a.Status.CompletionTime),
-			})
+			}, &a))
 		}
 
 		c.JSON(http.StatusOK, resp)
@@ -925,7 +1027,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -935,6 +1037,16 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
+		}
+		sleepTTL, err := parseTTLUpdate("sleepTTL", req.SleepTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		deleteTTL, err := parseTTLUpdate("deleteTTL", req.DeleteTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 
 		var nonFatalErrors []string
@@ -946,7 +1058,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1. Patch CR spec first — this is the source of truth.
-		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority); err != nil {
+		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL); err != nil {
 			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
@@ -1102,7 +1214,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			modelContextWindow = freshContextWindow
 		}
 		agentActionsTotal.WithLabelValues(patchAction, "success").Inc()
-		c.JSON(http.StatusOK, AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
 			Name:            updated.Name,
 			Namespace:       updated.Namespace,
 			Model:           updated.Spec.Model,
@@ -1133,6 +1245,6 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Errors:             nonFatalErrors,
 			Labels:             updated.Spec.Labels,
 			CompletionTime:     formatTime(updated.Status.CompletionTime),
-		})
+		}, updated))
 	}
 }

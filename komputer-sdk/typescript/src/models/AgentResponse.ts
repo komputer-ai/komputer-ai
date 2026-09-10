@@ -59,6 +59,18 @@ export interface AgentResponse {
      */
     createdAt?: string;
     /**
+     * 
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    deleteExpiresAt?: string;
+    /**
+     * absolute lifetime before auto-delete, e.g. "24h"
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    deleteTTL?: string;
+    /**
      * Tools removed from this agent
      * @type {Array<string>}
      * @memberof AgentResponse
@@ -84,6 +96,13 @@ export interface AgentResponse {
      * @memberof AgentResponse
      */
     labels?: { [key: string]: string; };
+    /**
+     * LastActivityAt is when the agent last saw task activity (RFC3339). The idle
+     * clock sleepTTL is measured against.
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    lastActivityAt?: string;
     /**
      * 
      * @type {string}
@@ -169,6 +188,19 @@ export interface AgentResponse {
      */
     skills?: Array<string>;
     /**
+     * SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
+     * when the matching TTL is unset or its countdown isn't currently running.
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    sleepExpiresAt?: string;
+    /**
+     * idle timeout before auto-sleep, e.g. "30m"
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    sleepTTL?: string;
+    /**
      * True when this agent is managed by a KomputerSquad
      * @type {boolean}
      * @memberof AgentResponse
@@ -239,10 +271,13 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'completionTime': json['completionTime'] == null ? undefined : json['completionTime'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
+        'deleteExpiresAt': json['deleteExpiresAt'] == null ? undefined : json['deleteExpiresAt'],
+        'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
         'errors': json['errors'] == null ? undefined : json['errors'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
+        'lastActivityAt': json['lastActivityAt'] == null ? undefined : json['lastActivityAt'],
         'lastTaskCostUSD': json['lastTaskCostUSD'] == null ? undefined : json['lastTaskCostUSD'],
         'lastTaskMessage': json['lastTaskMessage'] == null ? undefined : json['lastTaskMessage'],
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
@@ -257,6 +292,8 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'queueReason': json['queueReason'] == null ? undefined : json['queueReason'],
         'secrets': json['secrets'] == null ? undefined : json['secrets'],
         'skills': json['skills'] == null ? undefined : json['skills'],
+        'sleepExpiresAt': json['sleepExpiresAt'] == null ? undefined : json['sleepExpiresAt'],
+        'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'squad': json['squad'] == null ? undefined : json['squad'],
         'squadName': json['squadName'] == null ? undefined : json['squadName'],
         'status': json['status'] == null ? undefined : json['status'],
@@ -283,10 +320,13 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'completionTime': value['completionTime'],
         'connectors': value['connectors'],
         'createdAt': value['createdAt'],
+        'deleteExpiresAt': value['deleteExpiresAt'],
+        'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
         'errors': value['errors'],
         'instructions': value['instructions'],
         'labels': value['labels'],
+        'lastActivityAt': value['lastActivityAt'],
         'lastTaskCostUSD': value['lastTaskCostUSD'],
         'lastTaskMessage': value['lastTaskMessage'],
         'lifecycle': value['lifecycle'],
@@ -301,6 +341,8 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'queueReason': value['queueReason'],
         'secrets': value['secrets'],
         'skills': value['skills'],
+        'sleepExpiresAt': value['sleepExpiresAt'],
+        'sleepTTL': value['sleepTTL'],
         'squad': value['squad'],
         'squadName': value['squadName'],
         'status': value['status'],

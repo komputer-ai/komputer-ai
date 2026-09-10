@@ -8,10 +8,13 @@ Name | Type | Description | Notes
 **CompletionTime** | Pointer to **string** |  | [optional] 
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
+**DeleteExpiresAt** | Pointer to **string** |  | [optional] 
+**DeleteTTL** | Pointer to **string** | absolute lifetime before auto-delete, e.g. \&quot;24h\&quot; | [optional] 
 **DisallowedTools** | Pointer to **[]string** | Tools removed from this agent | [optional] 
 **Errors** | Pointer to **[]string** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **Instructions** | Pointer to **string** | User task (spec.instructions) | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
+**LastActivityAt** | Pointer to **string** | LastActivityAt is when the agent last saw task activity (RFC3339). The idle clock sleepTTL is measured against. | [optional] 
 **LastTaskCostUSD** | Pointer to **string** |  | [optional] 
 **LastTaskMessage** | Pointer to **string** |  | [optional] 
 **Lifecycle** | Pointer to **string** |  | [optional] 
@@ -26,6 +29,8 @@ Name | Type | Description | Notes
 **QueueReason** | Pointer to **string** |  | [optional] 
 **Secrets** | Pointer to **[]string** | Key names from K8s Secrets (not values) | [optional] 
 **Skills** | Pointer to **[]string** | KomputerSkill names attached to this agent | [optional] 
+**SleepExpiresAt** | Pointer to **string** | SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t currently running. | [optional] 
+**SleepTTL** | Pointer to **string** | idle timeout before auto-sleep, e.g. \&quot;30m\&quot; | [optional] 
 **Squad** | Pointer to **bool** | True when this agent is managed by a KomputerSquad | [optional] 
 **SquadName** | Pointer to **string** | Name of the squad managing this agent (when Squad&#x3D;true) | [optional] 
 **Status** | Pointer to **string** |  | [optional] 
@@ -154,6 +159,56 @@ SetCreatedAt sets CreatedAt field to given value.
 
 HasCreatedAt returns a boolean if a field has been set.
 
+### GetDeleteExpiresAt
+
+`func (o *AgentResponse) GetDeleteExpiresAt() string`
+
+GetDeleteExpiresAt returns the DeleteExpiresAt field if non-nil, zero value otherwise.
+
+### GetDeleteExpiresAtOk
+
+`func (o *AgentResponse) GetDeleteExpiresAtOk() (*string, bool)`
+
+GetDeleteExpiresAtOk returns a tuple with the DeleteExpiresAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDeleteExpiresAt
+
+`func (o *AgentResponse) SetDeleteExpiresAt(v string)`
+
+SetDeleteExpiresAt sets DeleteExpiresAt field to given value.
+
+### HasDeleteExpiresAt
+
+`func (o *AgentResponse) HasDeleteExpiresAt() bool`
+
+HasDeleteExpiresAt returns a boolean if a field has been set.
+
+### GetDeleteTTL
+
+`func (o *AgentResponse) GetDeleteTTL() string`
+
+GetDeleteTTL returns the DeleteTTL field if non-nil, zero value otherwise.
+
+### GetDeleteTTLOk
+
+`func (o *AgentResponse) GetDeleteTTLOk() (*string, bool)`
+
+GetDeleteTTLOk returns a tuple with the DeleteTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDeleteTTL
+
+`func (o *AgentResponse) SetDeleteTTL(v string)`
+
+SetDeleteTTL sets DeleteTTL field to given value.
+
+### HasDeleteTTL
+
+`func (o *AgentResponse) HasDeleteTTL() bool`
+
+HasDeleteTTL returns a boolean if a field has been set.
+
 ### GetDisallowedTools
 
 `func (o *AgentResponse) GetDisallowedTools() []string`
@@ -253,6 +308,31 @@ SetLabels sets Labels field to given value.
 `func (o *AgentResponse) HasLabels() bool`
 
 HasLabels returns a boolean if a field has been set.
+
+### GetLastActivityAt
+
+`func (o *AgentResponse) GetLastActivityAt() string`
+
+GetLastActivityAt returns the LastActivityAt field if non-nil, zero value otherwise.
+
+### GetLastActivityAtOk
+
+`func (o *AgentResponse) GetLastActivityAtOk() (*string, bool)`
+
+GetLastActivityAtOk returns a tuple with the LastActivityAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetLastActivityAt
+
+`func (o *AgentResponse) SetLastActivityAt(v string)`
+
+SetLastActivityAt sets LastActivityAt field to given value.
+
+### HasLastActivityAt
+
+`func (o *AgentResponse) HasLastActivityAt() bool`
+
+HasLastActivityAt returns a boolean if a field has been set.
 
 ### GetLastTaskCostUSD
 
@@ -603,6 +683,56 @@ SetSkills sets Skills field to given value.
 `func (o *AgentResponse) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetSleepExpiresAt
+
+`func (o *AgentResponse) GetSleepExpiresAt() string`
+
+GetSleepExpiresAt returns the SleepExpiresAt field if non-nil, zero value otherwise.
+
+### GetSleepExpiresAtOk
+
+`func (o *AgentResponse) GetSleepExpiresAtOk() (*string, bool)`
+
+GetSleepExpiresAtOk returns a tuple with the SleepExpiresAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSleepExpiresAt
+
+`func (o *AgentResponse) SetSleepExpiresAt(v string)`
+
+SetSleepExpiresAt sets SleepExpiresAt field to given value.
+
+### HasSleepExpiresAt
+
+`func (o *AgentResponse) HasSleepExpiresAt() bool`
+
+HasSleepExpiresAt returns a boolean if a field has been set.
+
+### GetSleepTTL
+
+`func (o *AgentResponse) GetSleepTTL() string`
+
+GetSleepTTL returns the SleepTTL field if non-nil, zero value otherwise.
+
+### GetSleepTTLOk
+
+`func (o *AgentResponse) GetSleepTTLOk() (*string, bool)`
+
+GetSleepTTLOk returns a tuple with the SleepTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSleepTTL
+
+`func (o *AgentResponse) SetSleepTTL(v string)`
+
+SetSleepTTL sets SleepTTL field to given value.
+
+### HasSleepTTL
+
+`func (o *AgentResponse) HasSleepTTL() bool`
+
+HasSleepTTL returns a boolean if a field has been set.
 
 ### GetSquad
 

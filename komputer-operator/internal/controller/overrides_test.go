@@ -2,6 +2,7 @@ package controller
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -110,4 +111,76 @@ func TestApplyAgentOverrides_DoesNotMutateInput(t *testing.T) {
 	if tpl.Spec.PodSpec.Containers[0].Image != "img:v1" {
 		t.Fatal("template podSpec was mutated")
 	}
+}
+
+func TestApplyAgentOverrides_TTLs(t *testing.T) {
+	t.Run("agent TTLs override template defaults", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.SleepTTL = &metav1.Duration{Duration: time.Hour}
+		tpl.Spec.DeleteTTL = &metav1.Duration{Duration: 48 * time.Hour}
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL:  &metav1.Duration{Duration: 30 * time.Minute},
+					DeleteTTL: &metav1.Duration{Duration: 24 * time.Hour},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.SleepTTL.Duration != 30*time.Minute {
+			t.Errorf("sleepTTL = %v, want 30m", out.Spec.SleepTTL.Duration)
+		}
+		if out.Spec.DeleteTTL.Duration != 24*time.Hour {
+			t.Errorf("deleteTTL = %v, want 24h", out.Spec.DeleteTTL.Duration)
+		}
+	})
+
+	t.Run("template TTLs are inherited when the agent sets none", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.SleepTTL = &metav1.Duration{Duration: time.Hour}
+		tpl.Spec.DeleteTTL = &metav1.Duration{Duration: 48 * time.Hour}
+		out := applyAgentOverrides(tpl, &komputerv1alpha1.KomputerAgent{})
+		if out.Spec.SleepTTL.Duration != time.Hour {
+			t.Errorf("sleepTTL = %v, want the template's 1h", out.Spec.SleepTTL.Duration)
+		}
+		if out.Spec.DeleteTTL.Duration != 48*time.Hour {
+			t.Errorf("deleteTTL = %v, want the template's 48h", out.Spec.DeleteTTL.Duration)
+		}
+	})
+
+	t.Run("each TTL is overridden independently", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.SleepTTL = &metav1.Duration{Duration: time.Hour}
+		tpl.Spec.DeleteTTL = &metav1.Duration{Duration: 48 * time.Hour}
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.SleepTTL.Duration != 5*time.Minute {
+			t.Errorf("sleepTTL = %v, want the agent's 5m", out.Spec.SleepTTL.Duration)
+		}
+		if out.Spec.DeleteTTL.Duration != 48*time.Hour {
+			t.Errorf("deleteTTL = %v, want the template's 48h to survive", out.Spec.DeleteTTL.Duration)
+		}
+	})
+
+	t.Run("does not mutate the template", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.SleepTTL = &metav1.Duration{Duration: time.Hour}
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				},
+			},
+		}
+		_ = applyAgentOverrides(tpl, agent)
+		if tpl.Spec.SleepTTL.Duration != time.Hour {
+			t.Errorf("template sleepTTL was mutated to %v", tpl.Spec.SleepTTL.Duration)
+		}
+	})
 }

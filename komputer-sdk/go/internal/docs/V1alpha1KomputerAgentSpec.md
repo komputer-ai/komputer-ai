@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\&quot;Read\&quot;] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \&quot;mcp__figma__*\&quot; for a whole connector or \&quot;mcp__figma__get_design_context\&quot; for a single tool. +optional | [optional] 
 **Connectors** | Pointer to **[]string** | Connectors is a list of KomputerConnector names to attach to this agent. Names can be \&quot;name\&quot; (same namespace) or \&quot;namespace/name\&quot; (cross-namespace). +optional | [optional] 
+**DeleteTTL** | Pointer to [**V1Duration**](V1Duration.md) | DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template&#39;s deleteTTL when set. +optional | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. +optional | [optional] 
 **Instructions** | Pointer to **string** | Instructions is the user&#39;s task for the Claude agent. | [optional] 
 **InternalSystemPrompt** | Pointer to **string** | InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional | [optional] 
@@ -19,6 +20,7 @@ Name | Type | Description | Notes
 **Role** | Pointer to **string** | Role is \&quot;manager\&quot; or \&quot;worker\&quot;. Managers get orchestration tools. Role is \&quot;manager\&quot; or \&quot;worker\&quot;. Defaults to \&quot;manager\&quot; for top-level agents. Sub-agents created by managers are explicitly set to \&quot;worker\&quot;. +kubebuilder:default&#x3D;\&quot;manager\&quot; +kubebuilder:validation:Enum&#x3D;worker;manager +optional | [optional] 
 **Secrets** | Pointer to **[]string** | Secrets is a list of K8s Secret names containing agent-specific secrets. Each key in each secret is injected as an env var into the agent pod. +optional | [optional] 
 **Skills** | Pointer to **[]string** | Skills is a list of KomputerSkill names to attach to this agent. Names can be \&quot;name\&quot; (same namespace) or \&quot;namespace/name\&quot; (cross-namespace). +optional | [optional] 
+**SleepTTL** | Pointer to [**V1Duration**](V1Duration.md) | SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template&#39;s sleepTTL when set. +optional | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) | Storage, when set, overrides the template&#39;s storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional | [optional] 
 **SystemPrompt** | Pointer to **string** | SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional | [optional] 
 **TemplateRef** | Pointer to **string** | TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default&#x3D;\&quot;default\&quot; | [optional] 
@@ -91,6 +93,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *V1alpha1KomputerAgentSpec) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDeleteTTL
+
+`func (o *V1alpha1KomputerAgentSpec) GetDeleteTTL() V1Duration`
+
+GetDeleteTTL returns the DeleteTTL field if non-nil, zero value otherwise.
+
+### GetDeleteTTLOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetDeleteTTLOk() (*V1Duration, bool)`
+
+GetDeleteTTLOk returns a tuple with the DeleteTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDeleteTTL
+
+`func (o *V1alpha1KomputerAgentSpec) SetDeleteTTL(v V1Duration)`
+
+SetDeleteTTL sets DeleteTTL field to given value.
+
+### HasDeleteTTL
+
+`func (o *V1alpha1KomputerAgentSpec) HasDeleteTTL() bool`
+
+HasDeleteTTL returns a boolean if a field has been set.
 
 ### GetDisallowedTools
 
@@ -416,6 +443,31 @@ SetSkills sets Skills field to given value.
 `func (o *V1alpha1KomputerAgentSpec) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetSleepTTL
+
+`func (o *V1alpha1KomputerAgentSpec) GetSleepTTL() V1Duration`
+
+GetSleepTTL returns the SleepTTL field if non-nil, zero value otherwise.
+
+### GetSleepTTLOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetSleepTTLOk() (*V1Duration, bool)`
+
+GetSleepTTLOk returns a tuple with the SleepTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSleepTTL
+
+`func (o *V1alpha1KomputerAgentSpec) SetSleepTTL(v V1Duration)`
+
+SetSleepTTL sets SleepTTL field to given value.
+
+### HasSleepTTL
+
+`func (o *V1alpha1KomputerAgentSpec) HasSleepTTL() bool`
+
+HasSleepTTL returns a boolean if a field has been set.
 
 ### GetStorage
 

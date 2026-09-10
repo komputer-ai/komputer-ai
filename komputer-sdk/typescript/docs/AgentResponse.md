@@ -10,10 +10,13 @@ Name | Type
 `completionTime` | string
 `connectors` | Array&lt;string&gt;
 `createdAt` | string
+`deleteExpiresAt` | string
+`deleteTTL` | string
 `disallowedTools` | Array&lt;string&gt;
 `errors` | Array&lt;string&gt;
 `instructions` | string
 `labels` | { [key: string]: string; }
+`lastActivityAt` | string
 `lastTaskCostUSD` | string
 `lastTaskMessage` | string
 `lifecycle` | string
@@ -28,6 +31,8 @@ Name | Type
 `queueReason` | string
 `secrets` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
+`sleepExpiresAt` | string
+`sleepTTL` | string
 `squad` | boolean
 `squadName` | string
 `status` | string
@@ -48,10 +53,13 @@ const example = {
   "completionTime": null,
   "connectors": null,
   "createdAt": null,
+  "deleteExpiresAt": null,
+  "deleteTTL": null,
   "disallowedTools": null,
   "errors": null,
   "instructions": null,
   "labels": null,
+  "lastActivityAt": null,
   "lastTaskCostUSD": null,
   "lastTaskMessage": null,
   "lifecycle": null,
@@ -66,6 +74,8 @@ const example = {
   "queueReason": null,
   "secrets": null,
   "skills": null,
+  "sleepExpiresAt": null,
+  "sleepTTL": null,
   "squad": null,
   "squadName": null,
   "status": null,

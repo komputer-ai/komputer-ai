@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
 **Connectors** | Pointer to **[]string** | connector names to attach | [optional] 
+**DeleteTTL** | Pointer to **string** |  | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
 **Instructions** | Pointer to **string** |  | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
@@ -16,6 +17,7 @@ Name | Type | Description | Notes
 **Priority** | Pointer to **int32** | pointer so 0 vs unset is distinguishable | [optional] 
 **SecretRefs** | Pointer to **[]string** | full replacement list of K8s secret names | [optional] 
 **Skills** | Pointer to **[]string** | skill names to attach | [optional] 
+**SleepTTL** | Pointer to **string** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | custom system prompt | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
@@ -88,6 +90,31 @@ SetConnectors sets Connectors field to given value.
 `func (o *PatchAgentRequest) HasConnectors() bool`
 
 HasConnectors returns a boolean if a field has been set.
+
+### GetDeleteTTL
+
+`func (o *PatchAgentRequest) GetDeleteTTL() string`
+
+GetDeleteTTL returns the DeleteTTL field if non-nil, zero value otherwise.
+
+### GetDeleteTTLOk
+
+`func (o *PatchAgentRequest) GetDeleteTTLOk() (*string, bool)`
+
+GetDeleteTTLOk returns a tuple with the DeleteTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDeleteTTL
+
+`func (o *PatchAgentRequest) SetDeleteTTL(v string)`
+
+SetDeleteTTL sets DeleteTTL field to given value.
+
+### HasDeleteTTL
+
+`func (o *PatchAgentRequest) HasDeleteTTL() bool`
+
+HasDeleteTTL returns a boolean if a field has been set.
 
 ### GetDisallowedTools
 
@@ -338,6 +365,31 @@ SetSkills sets Skills field to given value.
 `func (o *PatchAgentRequest) HasSkills() bool`
 
 HasSkills returns a boolean if a field has been set.
+
+### GetSleepTTL
+
+`func (o *PatchAgentRequest) GetSleepTTL() string`
+
+GetSleepTTL returns the SleepTTL field if non-nil, zero value otherwise.
+
+### GetSleepTTLOk
+
+`func (o *PatchAgentRequest) GetSleepTTLOk() (*string, bool)`
+
+GetSleepTTLOk returns a tuple with the SleepTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSleepTTL
+
+`func (o *PatchAgentRequest) SetSleepTTL(v string)`
+
+SetSleepTTL sets SleepTTL field to given value.
+
+### HasSleepTTL
+
+`func (o *PatchAgentRequest) HasSleepTTL() bool`
+
+HasSleepTTL returns a boolean if a field has been set.
 
 ### GetStorage
 

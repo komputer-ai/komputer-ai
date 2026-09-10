@@ -142,6 +142,16 @@ func (r *KomputerSquadReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
+	// 6b. Enforce each member's sleepTTL / deleteTTL. Runs before the pod is
+	// reconciled so a member slept here is already counted by the all-sleeping check.
+	agents = r.applyMemberTTLs(ctx, squad, agents)
+	if len(agents) == 0 {
+		// Every member was deleted by its deleteTTL. Requeue so markMembersAsSquad
+		// prunes the dangling refs, which then routes into handleEmptySquad.
+		log.Info("All squad members deleted by deleteTTL", "squad", squad.Name)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
 	// 7. Get KomputerConfig (needed for env vars in containers).
 	komputerConfig, err := r.getSquadConfig(ctx)
 	if err != nil {
@@ -309,6 +319,88 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 	}
 
 	return agents, nil
+}
+
+// applyMemberTTLs enforces each member's sleepTTL/deleteTTL and returns the members
+// that survived. TTLs come from the member's own agent spec, falling back to its
+// template's defaults — the same resolution solo agents get.
+//
+// Two things differ from the solo path, both because members share one pod:
+//   - Sleeping a member only sets Phase=Sleeping. There is no per-member pod to
+//     delete; reconcileSquadPod tears the shared pod down once every member is
+//     asleep, which is the same path a manual member sleep takes.
+//   - A member deleted by deleteTTL is dropped from the returned slice so the pod
+//     isn't rebuilt around an agent on its way out. Its dangling squad ref is pruned
+//     by markMembersAsSquad on the next reconcile, which then feeds the normal
+//     empty-squad / single-member-shrinkage handling.
+//
+// A member whose TTL evaluation fails is left alone rather than failing the whole
+// squad — one bad member must not stall its siblings.
+func (r *KomputerSquadReconciler) applyMemberTTLs(
+	ctx context.Context,
+	squad *komputerv1alpha1.KomputerSquad,
+	agents []*komputerv1alpha1.KomputerAgent,
+) []*komputerv1alpha1.KomputerAgent {
+	log := logf.FromContext(ctx)
+	survivors := make([]*komputerv1alpha1.KomputerAgent, 0, len(agents))
+
+	for _, agent := range agents {
+		sleepTTL, deleteTTL := resolveAgentTTLs(ctx, r.Client, agent)
+		if sleepTTL == nil && deleteTTL == nil {
+			// Clear stale expiries if the TTLs were removed from the spec.
+			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {
+				original := agent.DeepCopy()
+				agent.Status.SleepExpiresAt = nil
+				agent.Status.DeleteExpiresAt = nil
+				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+					log.Error(err, "Failed to clear TTL expiries on squad member", "agent", agent.Name)
+				}
+			}
+			survivors = append(survivors, agent)
+			continue
+		}
+
+		d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now())
+
+		switch d.Action {
+		case ttlActionDelete:
+			log.Info("deleteTTL elapsed, deleting squad member",
+				"squad", squad.Name, "agent", agent.Name, "deleteTTL", deleteTTL.Duration)
+			if err := r.Delete(ctx, agent); err != nil && !apierrors.IsNotFound(err) {
+				// Keep it as a survivor so the pod keeps working until the delete lands.
+				log.Error(err, "Failed to delete squad member on deleteTTL", "agent", agent.Name)
+				survivors = append(survivors, agent)
+			}
+
+		case ttlActionSleep:
+			idleFrom, _ := idleSince(agent)
+			log.Info("sleepTTL elapsed, sleeping squad member",
+				"squad", squad.Name, "agent", agent.Name, "sleepTTL", sleepTTL.Duration, "idleSince", idleFrom)
+			original := agent.DeepCopy()
+			agent.Status.Phase = komputerv1alpha1.AgentPhaseSleeping
+			agent.Status.Message = "Sleeping — idle past sleepTTL. Send a new task to wake up."
+			agent.Status.SleepExpiresAt = nil
+			agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				log.Error(err, "Failed to sleep squad member on sleepTTL", "agent", agent.Name)
+			}
+			survivors = append(survivors, agent)
+
+		default:
+			if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
+				!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) {
+				original := agent.DeepCopy()
+				agent.Status.SleepExpiresAt = d.SleepExpiresAt
+				agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+					log.Error(err, "Failed to publish TTL expiries on squad member", "agent", agent.Name)
+				}
+			}
+			survivors = append(survivors, agent)
+		}
+	}
+
+	return survivors
 }
 
 // ensureMemberPVCs ensures each member agent has a PVC. Reuses the agent's existing PVC
