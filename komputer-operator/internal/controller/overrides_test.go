@@ -191,7 +191,9 @@ func TestApplyAgentOverridesTaskTimeout(t *testing.T) {
 			Spec: komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: dur(2 * time.Hour)},
 		}
 		agent := &komputerv1alpha1.KomputerAgent{
-			Spec: komputerv1alpha1.KomputerAgentSpec{TaskTimeout: dur(30 * time.Minute)},
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{TaskTimeout: dur(30 * time.Minute)},
+			},
 		}
 		out := applyAgentOverrides(tpl, agent)
 		if out.Spec.TaskTimeout == nil || out.Spec.TaskTimeout.Duration != 30*time.Minute {

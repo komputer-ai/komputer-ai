@@ -860,8 +860,10 @@ func TestResolveAgentTaskTimeout(t *testing.T) {
 		return &komputerv1alpha1.KomputerAgent{
 			ObjectMeta: metav1.ObjectMeta{Name: "a", Namespace: "default"},
 			Spec: komputerv1alpha1.KomputerAgentSpec{
-				TemplateRef: "default",
-				TaskTimeout: taskTimeout,
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					TemplateRef: "default",
+					TaskTimeout: taskTimeout,
+				},
 			},
 		}
 	}
