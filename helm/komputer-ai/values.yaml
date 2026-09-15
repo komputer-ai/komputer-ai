@@ -175,12 +175,13 @@ externalRedis:
 # out-of-band (see README); the operator mirrors it into every agent namespace
 # and injects ANTHROPIC_API_KEY automatically.
 #
-# Required UNLESS bedrock.enabled=true. When Bedrock is enabled the chart
-# omits the anthropicKeySecretRef from the cluster template and sets
-# CLAUDE_CODE_USE_BEDROCK on the agent pod instead; agents authenticate to
-# AWS via IRSA (recommended on EKS) or AWS credentials.
+# Required UNLESS bedrock.enabled=true or vertex.enabled=true. When a managed
+# provider is enabled the chart omits the anthropicKeySecretRef from the cluster
+# template and sets the provider env vars on the agent pod instead; agents
+# authenticate to the cloud provider (IRSA/AWS creds for Bedrock, GKE Workload
+# Identity/service-account key for Vertex) rather than with an Anthropic key.
 anthropicKeySecret:
-  # -- Name of the Secret containing the Anthropic API key. Required unless bedrock.enabled=true.
+  # -- Name of the Secret containing the Anthropic API key. Required unless bedrock.enabled=true or vertex.enabled=true.
   name: ""
   # -- Key inside the Secret.
   key: api-key
@@ -189,9 +190,22 @@ anthropicKeySecret:
 
 # -- AWS Bedrock configuration. When enabled, agents use Bedrock instead of the Anthropic API.
 # Auth: use IRSA on EKS (recommended) or provide AWS credentials via a secret.
+# Mutually exclusive with vertex.enabled.
 bedrock:
   enabled: false
   region: "us-east-1"
+
+# -- Google Vertex AI configuration. When enabled, agents use Vertex instead of the Anthropic API.
+# Auth: use GKE Workload Identity (recommended) — annotate agent.serviceAccount with
+# iam.gke.io/gcp-service-account — or provide a service-account key via a secret.
+# Model IDs must be pinned (name@YYYYMMDD, e.g. claude-sonnet-4-5@20250929).
+# Mutually exclusive with bedrock.enabled.
+vertex:
+  enabled: false
+  # -- GCP project ID for Vertex requests (ANTHROPIC_VERTEX_PROJECT_ID).
+  projectId: ""
+  # -- Vertex region (CLOUD_ML_REGION): "global", "us"/"eu", or e.g. "us-east5".
+  region: "us-east5"
 
 # -- KomputerConfig settings
 config:

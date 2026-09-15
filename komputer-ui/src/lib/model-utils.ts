@@ -24,3 +24,16 @@ export function isBedrockModelId(value: string): boolean {
   if (value.startsWith("arn:")) return true;
   return /^(us|eu|apac|global)\.anthropic\./.test(value);
 }
+
+/**
+ * True when `value` is a pinned Google Vertex AI model id.
+ *
+ * Vertex ids are pinned to a version date with an `@` suffix, e.g.
+ * `claude-sonnet-4-5@20250929`. Friendly Anthropic-API names like
+ * `claude-sonnet-4-6` have no `@` and return `false`. Mutually exclusive with
+ * `isBedrockModelId` (Bedrock ids never contain `@`).
+ */
+export function isVertexModelId(value: string): boolean {
+  if (!value) return false;
+  return /@\d{6,}$/.test(value);
+}

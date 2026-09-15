@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Cpu, Plus, X } from "lucide-react";
 import { MODELS } from "@/lib/constants";
 import { loadCustomModels, addCustomModel } from "@/lib/custom-models";
-import { isBedrockModelId } from "@/lib/model-utils";
+import { isBedrockModelId, isVertexModelId } from "@/lib/model-utils";
 import { ChipSelect, type ChipSelectOption } from "@/components/kit/chip-select";
 import { BedrockBadge } from "@/components/shared/bedrock-badge";
+import { VertexBadge } from "@/components/shared/vertex-badge";
 
 export interface ModelChipProps {
   value: string;
@@ -58,6 +59,7 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
           <span className="inline-flex items-center gap-1.5 min-w-0">
             <span className="truncate">{m}</span>
             {isBedrockModelId(m) && <BedrockBadge />}
+            {isVertexModelId(m) && <VertexBadge />}
           </span>
         ),
         icon: <Cpu className="size-3 shrink-0 text-[var(--color-text-muted)]" />,
@@ -70,6 +72,7 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
       <Cpu className="size-3 text-[var(--color-brand-blue)]" />
       <span className="font-mono text-[var(--color-text)]">{shortModelLabel(value)}</span>
       {isBedrockModelId(value) && <BedrockBadge />}
+      {isVertexModelId(value) && <VertexBadge />}
     </>
   );
 
@@ -100,7 +103,7 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
                 setDraft("");
               }
             }}
-            placeholder="model id (friendly or Bedrock)"
+            placeholder="model id (friendly, Bedrock, or Vertex)"
             className="flex-1 h-6 rounded px-2 text-[12px] font-mono bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-blue)]/60"
           />
           <button

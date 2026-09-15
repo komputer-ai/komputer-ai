@@ -6,8 +6,9 @@ import { ChevronDown, Check, Plus, X } from "lucide-react";
 import { Label } from "@/components/kit/label";
 import { MODELS } from "@/lib/constants";
 import { loadCustomModels, addCustomModel } from "@/lib/custom-models";
-import { isBedrockModelId } from "@/lib/model-utils";
+import { isBedrockModelId, isVertexModelId } from "@/lib/model-utils";
 import { BedrockBadge } from "@/components/shared/bedrock-badge";
+import { VertexBadge } from "@/components/shared/vertex-badge";
 
 type ModelSelectorProps = {
   value: string;
@@ -110,6 +111,7 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
           <span className="flex items-center gap-1.5 min-w-0">
             <span className="truncate">{value || "select a model"}</span>
             {isBedrockModelId(value) && <BedrockBadge />}
+            {isVertexModelId(value) && <VertexBadge />}
           </span>
           <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
@@ -133,7 +135,7 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       onKeyDown={handleAddKeyDown}
-                      placeholder="model id (friendly or Bedrock)"
+                      placeholder="model id (friendly, Bedrock, or Vertex)"
                       className="flex-1 h-6 rounded px-2 text-[12px] font-[family-name:var(--font-mono)] bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand-blue)]/60"
                     />
                     <button
@@ -172,6 +174,7 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{value}</span>
                     {isBedrockModelId(value) && <BedrockBadge />}
+            {isVertexModelId(value) && <VertexBadge />}
                   </span>
                   <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />
                 </div>
@@ -187,6 +190,7 @@ export function ModelSelector({ value, onChange, label = "Model" }: ModelSelecto
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span className="truncate font-[family-name:var(--font-mono)] text-[13px]">{m}</span>
                     {isBedrockModelId(m) && <BedrockBadge />}
+                    {isVertexModelId(m) && <VertexBadge />}
                   </span>
                   {value === m && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
                 </div>

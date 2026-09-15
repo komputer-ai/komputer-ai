@@ -166,7 +166,7 @@ func reconcileAgentSecrets(
 	}
 
 	// Build the set of sources to mirror. The Anthropic key secret is only
-	// mirrored when configured — when omitted (Bedrock mode), there is no
+	// mirrored when configured — when omitted (Bedrock/Vertex mode), there is no
 	// Anthropic secret to mirror.
 	var sources []sourceRef
 	if anthropicRef != nil {
