@@ -4717,6 +4717,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -4728,6 +4729,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -4767,6 +4769,7 @@ components:
             skills:
             - skills
             - skills
+            sleepTTL: "{}"
             systemPrompt: systemPrompt
             disallowedTools:
             - disallowedTools
@@ -4778,6 +4781,7 @@ components:
             allowedTools:
             - allowedTools
             - allowedTools
+            deleteTTL: "{}"
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
@@ -4825,6 +4829,7 @@ components:
           skills:
           - skills
           - skills
+          sleepTTL: "{}"
           systemPrompt: systemPrompt
           disallowedTools:
           - disallowedTools
@@ -4836,6 +4841,7 @@ components:
           allowedTools:
           - allowedTools
           - allowedTools
+          deleteTTL: "{}"
         successfulRuns: 5
         timezone: timezone
         totalCostUSD: totalCostUSD
@@ -11688,6 +11694,7 @@ components:
         skills:
         - skills
         - skills
+        sleepTTL: "{}"
         systemPrompt: systemPrompt
         disallowedTools:
         - disallowedTools
@@ -11699,6 +11706,7 @@ components:
         allowedTools:
         - allowedTools
         - allowedTools
+        deleteTTL: "{}"
       properties:
         allowedTools:
           description: |-
@@ -11723,6 +11731,17 @@ components:
           items:
             type: string
           type: array
+        deleteTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+            metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+            does not reset on wake and applies in every phase, including Sleeping.
+            Unset (default) means the agent never auto-deletes.
+            Overrides the template's deleteTTL when set.
+            +optional
+          type: object
         disallowedTools:
           description: |-
             DisallowedTools removes these tools from the agent. Purely subtractive:
@@ -11809,6 +11828,19 @@ components:
           items:
             type: string
           type: array
+        sleepTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+            idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+            only starts once a task has actually started, and any later task event or wake
+            resets it. Never fires while a task is in progress, and an agent that has never
+            run a task is never auto-slept (use DeleteTTL to reclaim those).
+            Unset (default) means the agent never auto-sleeps.
+            Overrides the template's sleepTTL when set.
+            +optional
+          type: object
         storage:
           allOf:
           - $ref: "#/components/schemas/v1alpha1.StorageSpec"
