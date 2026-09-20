@@ -698,6 +698,79 @@
                         }
                     }
                 }
+            },
+            "patch": {
+                "description": "Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed \u003cname\u003e-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "connectors"
+                ],
+                "summary": "Update connector token",
+                "operationId": "updateConnector",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Connector name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "description": "New token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.UpdateConnectorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Connector updated",
+                        "schema": {
+                            "$ref": "#/definitions/main.ConnectorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Connector not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/connectors/{name}/tools": {
@@ -3612,6 +3685,21 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.UpdateConnectorRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "namespace": {
+                    "type": "string"
+                },
+                "token": {
+                    "description": "new auth token; replaces the value in the connector's secret",
                     "type": "string"
                 }
             }

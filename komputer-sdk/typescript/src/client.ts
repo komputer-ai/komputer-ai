@@ -14,7 +14,7 @@
 
 import { Configuration, ResponseError } from "./runtime";
 import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, SquadsApi, TemplatesApi } from "./apis";
-import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec } from "./models";
+import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateConnectorRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec } from "./models";
 import { AgentEventStream } from "./watch";
 import type { AgentEvent } from "./watch";
 export type { AgentEvent } from "./watch";
@@ -270,6 +270,12 @@ export class KomputerClient {
 
   async getConnector(name: string) {
     return this._connectors.getConnector({ name });
+  }
+
+  /** Replace the auth token of a token/header connector. */
+  async updateConnector(params: { name: string; token: string; namespace?: string }) {
+    const request: UpdateConnectorRequest = { token: params.token, namespace: params.namespace };
+    return this._connectors.updateConnector({ name: params.name, request });
   }
 
   async deleteConnector(name: string) {

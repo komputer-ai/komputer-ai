@@ -9,6 +9,7 @@ Method | HTTP request | Description
 [**get_connector**](ConnectorsApi.md#get_connector) | **GET** /connectors/{name} | Get connector details
 [**list_connector_tools**](ConnectorsApi.md#list_connector_tools) | **GET** /connectors/{name}/tools | List connector tools
 [**list_connectors**](ConnectorsApi.md#list_connectors) | **GET** /connectors | List connectors
+[**update_connector**](ConnectorsApi.md#update_connector) | **PATCH** /connectors/{name} | Update connector token
 
 
 # **create_connector**
@@ -360,6 +361,82 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | List of connectors |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **update_connector**
+> ConnectorResponse update_connector(name, request, namespace=namespace)
+
+Update connector token
+
+Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.connector_response import ConnectorResponse
+from komputer_ai.models.update_connector_request import UpdateConnectorRequest
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.ConnectorsApi(api_client)
+    name = 'name_example' # str | Connector name
+    request = komputer_ai.UpdateConnectorRequest() # UpdateConnectorRequest | New token
+    namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+
+    try:
+        # Update connector token
+        api_response = api_instance.update_connector(name, request, namespace=namespace)
+        print("The response of ConnectorsApi->update_connector:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling ConnectorsApi->update_connector: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Connector name | 
+ **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md)| New token | 
+ **namespace** | **str**| Kubernetes namespace | [optional] 
+
+### Return type
+
+[**ConnectorResponse**](ConnectorResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Connector updated |  -  |
+**400** | Bad request |  -  |
+**404** | Connector not found |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

@@ -62,6 +62,7 @@ func TestMethodsExist(t *testing.T) {
 		c.CreateConnector,
 		c.ListConnectors,
 		c.GetConnector,
+		c.UpdateConnector,
 		c.DeleteConnector,
 		c.ListConnectorTools,
 		// Offices

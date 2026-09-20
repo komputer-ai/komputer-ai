@@ -142,6 +142,9 @@ class TestKwargsMethodsExist:
     def test_has_get_connector(self):
         assert callable(self.client.get_connector)
 
+    def test_has_update_connector(self):
+        assert callable(self.client.update_connector)
+
     def test_has_delete_connector(self):
         assert callable(self.client.delete_connector)
 

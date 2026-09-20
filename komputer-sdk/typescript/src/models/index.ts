@@ -33,6 +33,7 @@ export * from './SquadListResponse';
 export * from './SquadMemberResponse';
 export * from './SquadResponse';
 export * from './TriggerScheduleResponse';
+export * from './UpdateConnectorRequest';
 export * from './UpdateSecretRequest';
 export * from './V1AWSElasticBlockStoreVolumeSource';
 export * from './V1Affinity';

@@ -767,6 +767,26 @@ async def create_connector(args):
     return await _request("POST", "/api/v1/connectors", timeout=30, json=payload)
 
 
+@tool(
+    name="update_connector_token",
+    description="Replace the auth token of an existing token/header connector (e.g. after the old token expired or was rotated). The new value is written into the connector's secret. Not for OAuth connectors — those must be reconnected by a human via the UI/CLI.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Connector name."},
+            "token": {"type": "string", "description": "The new auth token."},
+        },
+        "required": ["name", "token"],
+    },
+)
+async def update_connector_token(args):
+    name = _sanitize_name(args["name"])
+    return await _request(
+        "PATCH", f"/api/v1/connectors/{name}", timeout=30,
+        json={"token": args["token"], "namespace": NAMESPACE},
+    )
+
+
 async def _agent_list_field_patch(agent_name, field_name, mutator):
     """Helper: GET agent, mutate one of its list fields, PATCH it back.
 
@@ -1463,5 +1483,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, create_connector, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, create_connector, update_connector_token, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )

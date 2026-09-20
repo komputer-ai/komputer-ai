@@ -664,6 +664,19 @@ func (c *Client) GetConnector(ctx context.Context, name string) (*komputer.Conne
 	return c.api.ConnectorsAPI.GetConnector(ctx, name).Execute()
 }
 
+type UpdateConnectorOpts struct {
+	Namespace *string
+}
+
+// UpdateConnector replaces the auth token of a token/header connector.
+func (c *Client) UpdateConnector(ctx context.Context, name string, token string, opts ...UpdateConnectorOpts) (*komputer.ConnectorResponse, *http.Response, error) {
+	req := komputer.UpdateConnectorRequest{Token: token}
+	if len(opts) > 0 && opts[0].Namespace != nil {
+		req.Namespace = opts[0].Namespace
+	}
+	return c.api.ConnectorsAPI.UpdateConnector(ctx, name).Request(req).Execute()
+}
+
 func (c *Client) DeleteConnector(ctx context.Context, name string) (map[string]string, *http.Response, error) {
 	return c.api.ConnectorsAPI.DeleteConnector(ctx, name).Execute()
 }

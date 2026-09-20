@@ -1,19 +1,21 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plug, Users, ExternalLink, Wrench, Calendar, Loader2, AlertCircle } from "lucide-react";
+import { Plug, Users, ExternalLink, Wrench, Calendar, Loader2, AlertCircle, KeyRound, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/kit/dialog";
+import { Button } from "@/components/kit/button";
+import { Input } from "@/components/kit/input";
 import { formatRelativeTime } from "@/lib/utils";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
 import { ConnectorLogo } from "@/components/connectors/connector-logo";
-import { getConnectorTools } from "@/lib/api";
+import { getConnectorTools, updateConnector } from "@/lib/api";
 import type { ConnectorResponse } from "@/lib/types";
 
 type MCPTool = { name: string; description: string };
@@ -33,16 +35,21 @@ type Props = {
   connector: ConnectorResponse | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onUpdated?: () => void;
 };
 
-export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) {
+export function ConnectorDetailDialog({ connector, open, onOpenChange, onUpdated }: Props) {
   const { getByService } = useConnectorTemplates();
   const [tools, setTools] = useState<MCPTool[]>([]);
   const [loading, setLoading] = useState(false);
   const [toolError, setToolError] = useState<string | null>(null);
+  const [newToken, setNewToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [tokenSaved, setTokenSaved] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || !connector) return;
+  const loadTools = useCallback(() => {
+    if (!connector) return;
     setTools([]);
     setToolError(null);
     setLoading(true);
@@ -50,9 +57,38 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
       .then((res) => setTools(res.tools ?? []))
       .catch((e) => setToolError(e instanceof Error ? e.message : "Failed to fetch tools"))
       .finally(() => setLoading(false));
-  }, [open, connector]);
+  }, [connector]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNewToken("");
+    setTokenSaved(false);
+    setTokenError(null);
+    loadTools();
+  }, [open, loadTools]);
+
+  async function handleUpdateToken(e: React.FormEvent) {
+    e.preventDefault();
+    if (!connector || !newToken.trim()) return;
+    setSavingToken(true);
+    setTokenError(null);
+    setTokenSaved(false);
+    try {
+      await updateConnector(connector.name, { token: newToken.trim(), namespace: connector.namespace });
+      setNewToken("");
+      setTokenSaved(true);
+      onUpdated?.();
+      // Re-fetch tools so the user sees right away whether the new token works.
+      loadTools();
+    } catch (err: unknown) {
+      setTokenError(err instanceof Error ? err.message : "Failed to update token.");
+    } finally {
+      setSavingToken(false);
+    }
+  }
 
   if (!connector) return null;
+  const canUpdateToken = connector.authType !== "oauth";
 
   const tpl = getByService(connector.service);
   const color = tpl?.color ?? "#8899A6";
@@ -98,7 +134,7 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
           {connector.agentNames && connector.agentNames.length > 0 && (
             <div>
               <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] mb-2">Attached Agents</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
                 {connector.agentNames.map((a) => (
                   <span key={a} className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
                     {a}
@@ -106,6 +142,35 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange }: Props) 
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Update auth token — OAuth connectors are reconnected via the OAuth flow instead */}
+          {canUpdateToken && (
+            <form onSubmit={handleUpdateToken}>
+              <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-1.5">
+                <KeyRound className="w-3 h-3" />
+                Auth Token
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="password"
+                  placeholder={connector.authSecretName ? "Paste a new token to replace the current one" : "Paste a token to add authentication"}
+                  value={newToken}
+                  onChange={(e) => { setNewToken(e.target.value); setTokenSaved(false); }}
+                  autoComplete="off"
+                  className="font-[family-name:var(--font-mono)] h-8 text-[12px]"
+                />
+                <Button type="submit" size="sm" disabled={savingToken || !newToken.trim()}>
+                  {savingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Update"}
+                </Button>
+              </div>
+              {tokenSaved && (
+                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-green-400">
+                  <Check className="w-3 h-3" /> Token updated. Running agents pick it up on their next start.
+                </p>
+              )}
+              {tokenError && <p className="mt-1.5 text-[11px] text-red-400">{tokenError}</p>}
+            </form>
           )}
 
           {/* Available tools */}

@@ -15,9 +15,10 @@ import type { ConnectorResponse } from "@/lib/types";
 type ConnectorCardsProps = {
   connectors: ConnectorResponse[];
   onDelete: (name: string, namespace: string) => void;
+  onUpdated?: () => void;
 };
 
-export function ConnectorCards({ connectors, onDelete }: ConnectorCardsProps) {
+export function ConnectorCards({ connectors, onDelete, onUpdated }: ConnectorCardsProps) {
   const { getByService } = useConnectorTemplates();
   const [selectedConnector, setSelectedConnector] = useState<ConnectorResponse | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -109,6 +110,7 @@ export function ConnectorCards({ connectors, onDelete }: ConnectorCardsProps) {
       connector={selectedConnector}
       open={detailOpen}
       onOpenChange={setDetailOpen}
+      onUpdated={onUpdated}
     />
     </>
   );

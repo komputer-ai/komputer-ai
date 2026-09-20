@@ -92,6 +92,15 @@ async def test_get_connector(mock_api):
 
 
 @pytest.mark.asyncio
+async def test_update_connector_token_patches_connector(mock_api):
+    mock_api.set("PATCH", "/api/v1/connectors/slack", {"name": "slack", "authType": "token"})
+    result = await manager_tools.update_connector_token.handler({"name": "slack", "token": "xoxp-new"})
+    assert not result.get("isError")
+    assert mock_api.calls == [("PATCH", "/api/v1/connectors/slack")]
+    assert mock_api.last_json["token"] == "xoxp-new"
+
+
+@pytest.mark.asyncio
 async def test_attach_connector_appends_to_existing(mock_api):
     mock_api.set("GET", "/api/v1/agents/foo", {"name": "foo", "connectors": ["github"]})
     mock_api.set("PATCH", "/api/v1/agents/foo", {"name": "foo"})

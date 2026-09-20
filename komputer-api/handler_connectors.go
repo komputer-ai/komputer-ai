@@ -28,6 +28,12 @@ type CreateConnectorRequest struct {
 	Namespace         string  `json:"namespace"`
 }
 
+// UpdateConnectorRequest rotates the auth token of a token/header connector.
+type UpdateConnectorRequest struct {
+	Token     string `json:"token" binding:"required"` // new auth token; replaces the value in the connector's secret
+	Namespace string `json:"namespace"`
+}
+
 type ConnectorResponse struct {
 	Name           string   `json:"name"`
 	Namespace      string   `json:"namespace"`
@@ -147,6 +153,82 @@ func getConnector(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, connectorToResponse(conn, nil))
+	}
+}
+
+// updateConnector rotates the auth token of an existing connector.
+// @ID updateConnector
+// @Summary Update connector token
+// @Description Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+// @Tags connectors
+// @Accept json
+// @Produce json
+// @Param name path string true "Connector name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Param request body UpdateConnectorRequest true "New token"
+// @Success 200 {object} ConnectorResponse "Connector updated"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 404 {object} map[string]string "Connector not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /connectors/{name} [patch]
+func updateConnector(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		var req UpdateConnectorRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+		ns := req.Namespace
+		if ns == "" {
+			ns = resolveNamespace(c, k8s)
+		}
+		ctx := c.Request.Context()
+		conn, err := k8s.GetConnector(ctx, ns, name)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "connector not found"})
+			return
+		}
+		if conn.Spec.AuthType == "oauth" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "OAuth connectors cannot take a static token; reconnect via the OAuth flow instead"})
+			return
+		}
+
+		// Existing secret: overwrite only the referenced key so shared secrets keep their other keys.
+		if ref := conn.Spec.AuthSecretKeyRef; ref != nil {
+			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, ref.Name, ref.Key, req.Token); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update token: " + err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, connectorToResponse(conn, nil))
+			return
+		}
+
+		// No secret yet: create one the same way the create flow does, then point the CR at it.
+		secretName := conn.Name + "-credentials"
+		secretKey := "token"
+		if _, err := k8s.CreateManagedSecret(ctx, conn.Namespace, secretName, map[string]string{secretKey: req.Token}); err != nil {
+			if !errors.IsAlreadyExists(err) {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create secret: " + err.Error()})
+				return
+			}
+			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, secretName, secretKey, req.Token); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update token: " + err.Error()})
+				return
+			}
+		}
+		k8s.SetSecretOwnerRef(ctx, conn.Namespace, secretName, conn.Name, string(conn.UID))
+		// A connector without auth becomes a bearer-token connector; "header" stays as-is.
+		authType := ""
+		if conn.Spec.AuthType == "" || conn.Spec.AuthType == "none" {
+			authType = "token"
+		}
+		updated, err := k8s.SetConnectorAuthSecret(ctx, conn.Namespace, conn.Name, authType, secretName, secretKey)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update connector: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, connectorToResponse(updated, nil))
 	}
 }
 

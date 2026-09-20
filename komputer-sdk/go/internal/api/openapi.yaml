@@ -606,6 +606,71 @@ paths:
       summary: Get connector details
       tags:
       - connectors
+    patch:
+      description: "Replaces the auth token of a token/header connector. Writes the\
+        \ new value into the connector's existing secret, or creates a managed <name>-credentials\
+        \ secret if the connector has none. OAuth connectors are rejected; reconnect\
+        \ them via the OAuth flow instead."
+      operationId: updateConnector
+      parameters:
+      - description: Connector name
+        explode: false
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Kubernetes namespace
+        explode: true
+        in: query
+        name: namespace
+        required: false
+        schema:
+          type: string
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConnectorRequest"
+        description: New token
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorResponse"
+          description: Connector updated
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Connector not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Update connector token
+      tags:
+      - connectors
+      x-codegen-request-body-name: request
   /connectors/{name}/tools:
     get:
       description: Calls the MCP server's tools/list endpoint and returns the available
@@ -6923,6 +6988,19 @@ components:
           type: string
         status:
           type: string
+      type: object
+    UpdateConnectorRequest:
+      example:
+        namespace: namespace
+        token: token
+      properties:
+        namespace:
+          type: string
+        token:
+          description: new auth token; replaces the value in the connector's secret
+          type: string
+      required:
+      - token
       type: object
     UpdateSecretRequest:
       example:

@@ -81,7 +81,7 @@ export default function ConnectorsPage() {
                 {error}
               </div>
             ) : (
-              <ConnectorCards connectors={filtered} onDelete={handleDelete} />
+              <ConnectorCards connectors={filtered} onDelete={handleDelete} onUpdated={refresh} />
             )}
           </>
         )}

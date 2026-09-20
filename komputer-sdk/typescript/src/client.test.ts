@@ -76,6 +76,7 @@ describe("Connector methods exist", () => {
   it("has createConnector", () => expect(typeof client.createConnector).toBe("function"));
   it("has listConnectors", () => expect(typeof client.listConnectors).toBe("function"));
   it("has getConnector", () => expect(typeof client.getConnector).toBe("function"));
+  it("has updateConnector", () => expect(typeof client.updateConnector).toBe("function"));
   it("has deleteConnector", () => expect(typeof client.deleteConnector).toBe("function"));
 });
 

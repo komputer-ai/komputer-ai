@@ -395,6 +395,65 @@ func registerConnectorCommands(root *cobra.Command) {
 	connCreateCmd.Flags().String("client-secret", "", "OAuth client secret")
 	connCmd.AddCommand(connCreateCmd)
 
+	// ── connector update ────────────────────────────────────────────────
+	connUpdateCmd := &cobra.Command{
+		Use:   "update <name>",
+		Short: "Update a connector's auth token (token/header connectors only)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			token, _ := cmd.Flags().GetString("token")
+			ns, _ := cmd.Flags().GetString("namespace")
+
+			if token == "" {
+				msg := "--token is required"
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
+
+			body := map[string]interface{}{"token": token}
+			if ns != "" {
+				body["namespace"] = ns
+			}
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/connectors/%s", ep, url.PathEscape(args[0])), body)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Connector %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Connector %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			var c ConnectorResponse
+			json.Unmarshal(data, &c)
+			if jsonMode {
+				printJSON(c)
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Connector %q token updated", args[0])))
+			fmt.Println(dimStyle.Render("  Running agents pick up the new token on their next start (sleep/wake)."))
+		},
+	}
+	connUpdateCmd.Flags().String("token", "", "New auth token (required)")
+	connCmd.AddCommand(connUpdateCmd)
+
 	// ── connector delete ────────────────────────────────────────────────
 	connCmd.AddCommand(&cobra.Command{
 		Use:     "delete <name>",

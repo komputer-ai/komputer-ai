@@ -9,6 +9,7 @@ Method | HTTP request | Description
 [**GetConnector**](ConnectorsAPI.md#GetConnector) | **Get** /connectors/{name} | Get connector details
 [**ListConnectorTools**](ConnectorsAPI.md#ListConnectorTools) | **Get** /connectors/{name}/tools | List connector tools
 [**ListConnectors**](ConnectorsAPI.md#ListConnectors) | **Get** /connectors | List connectors
+[**UpdateConnector**](ConnectorsAPI.md#UpdateConnector) | **Patch** /connectors/{name} | Update connector token
 
 
 
@@ -353,6 +354,80 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## UpdateConnector
+
+> ConnectorResponse UpdateConnector(ctx, name).Request(request).Namespace(namespace).Execute()
+
+Update connector token
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Connector name
+	request := *openapiclient.NewUpdateConnectorRequest("Token_example") // UpdateConnectorRequest | New token
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.ConnectorsAPI.UpdateConnector(context.Background(), name).Request(request).Namespace(namespace).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ConnectorsAPI.UpdateConnector``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `UpdateConnector`: ConnectorResponse
+	fmt.Fprintf(os.Stdout, "Response from `ConnectorsAPI.UpdateConnector`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Connector name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiUpdateConnectorRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md) | New token | 
+ **namespace** | **string** | Kubernetes namespace | 
+
+### Return type
+
+[**ConnectorResponse**](ConnectorResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

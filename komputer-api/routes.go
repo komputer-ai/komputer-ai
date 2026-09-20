@@ -119,6 +119,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.POST("/connectors", createConnector(k8s))
 		v1.GET("/connectors", listConnectors(k8s))
 		v1.GET("/connectors/:name", getConnector(k8s))
+		v1.PATCH("/connectors/:name", updateConnector(k8s))
 		v1.GET("/connectors/:name/tools", listConnectorTools(k8s))
 		v1.DELETE("/connectors/:name", deleteConnector(k8s))
 

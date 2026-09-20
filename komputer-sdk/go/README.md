@@ -130,6 +130,7 @@ c.DeleteSecret(ctx, "api-keys")
 c.CreateConnector(ctx, "slack", "slack", "https://mcp.slack.com",
     client.CreateConnectorOpts{AuthType: client.PtrString("token")})
 c.PatchAgent(ctx, "my-agent", client.PatchAgentOpts{Connectors: []string{"slack"}})
+c.UpdateConnector(ctx, "slack", "xoxp-new-token") // rotate the token in place
 c.DeleteConnector(ctx, "slack")
 ```
 

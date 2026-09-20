@@ -242,6 +242,11 @@ export interface CreateConnectorRequest {
   namespace?: string;
 }
 
+export interface UpdateConnectorRequest {
+  token: string;
+  namespace?: string;
+}
+
 export interface TemplateResponse {
   name: string;
   scope: 'namespace' | 'cluster';

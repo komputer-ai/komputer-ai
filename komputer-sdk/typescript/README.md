@@ -102,6 +102,7 @@ await client.deleteSecret(name)
 await client.createConnector({ name, service, url, ... })
 await client.getConnector(name)
 await client.listConnectors()
+await client.updateConnector({ name, token })  // rotate the token in place
 await client.deleteConnector(name)
 await client.listConnectorTools(name)
 ```
