@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**agent** | [**CreateScheduleAgentSpec**](CreateScheduleAgentSpec.md) |  | [optional] 
+**agent** | [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **agent_name** | **str** |  | [optional] 
 **auto_delete** | **bool** |  | [optional] 
 **created_at** | **str** |  | [optional] 

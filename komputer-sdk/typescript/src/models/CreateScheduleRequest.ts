@@ -13,13 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
-import type { CreateScheduleAgentSpec } from './CreateScheduleAgentSpec';
+import type { V1alpha1ScheduleAgentSpec } from './V1alpha1ScheduleAgentSpec';
 import {
-    CreateScheduleAgentSpecFromJSON,
-    CreateScheduleAgentSpecFromJSONTyped,
-    CreateScheduleAgentSpecToJSON,
-    CreateScheduleAgentSpecToJSONTyped,
-} from './CreateScheduleAgentSpec';
+    V1alpha1ScheduleAgentSpecFromJSON,
+    V1alpha1ScheduleAgentSpecFromJSONTyped,
+    V1alpha1ScheduleAgentSpecToJSON,
+    V1alpha1ScheduleAgentSpecToJSONTyped,
+} from './V1alpha1ScheduleAgentSpec';
 
 /**
  * 
@@ -29,10 +29,10 @@ import {
 export interface CreateScheduleRequest {
     /**
      * 
-     * @type {CreateScheduleAgentSpec}
+     * @type {V1alpha1ScheduleAgentSpec}
      * @memberof CreateScheduleRequest
      */
-    agent?: CreateScheduleAgentSpec;
+    agent?: V1alpha1ScheduleAgentSpec;
     /**
      * 
      * @type {string}
@@ -103,7 +103,7 @@ export function CreateScheduleRequestFromJSONTyped(json: any, ignoreDiscriminato
     }
     return {
         
-        'agent': json['agent'] == null ? undefined : CreateScheduleAgentSpecFromJSON(json['agent']),
+        'agent': json['agent'] == null ? undefined : V1alpha1ScheduleAgentSpecFromJSON(json['agent']),
         'agentName': json['agentName'] == null ? undefined : json['agentName'],
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'instructions': json['instructions'],
@@ -126,7 +126,7 @@ export function CreateScheduleRequestToJSONTyped(value?: CreateScheduleRequest |
 
     return {
         
-        'agent': CreateScheduleAgentSpecToJSON(value['agent']),
+        'agent': V1alpha1ScheduleAgentSpecToJSON(value['agent']),
         'agentName': value['agentName'],
         'autoDelete': value['autoDelete'],
         'instructions': value['instructions'],

@@ -8,10 +8,23 @@ spec:
   instructions: >
     Generate a daily standup summary. Check the /workspace/tasks.md file for
     current tasks and update it with today's progress. Write a brief standup
-    report to /workspace/standups/$(date +%Y-%m-%d).md covering:
+    report to /workspace/standups/<today's date in YYYY-MM-DD>.md covering:
     - What was completed yesterday
     - What is planned for today
     - Any blockers
+  # spec.agent accepts every field a KomputerAgent spec accepts except
+  # instructions — those come from spec.instructions above.
   agent:
     model: claude-sonnet-4-6
     lifecycle: AutoDelete
+    # Set role explicitly: applying with kubectl gets the agent CRD's default
+    # of "manager". Only the API, CLI, UI and SDK default schedules to worker.
+    role: worker
+    skills:
+      - markdown-reports
+    memories:
+      - team-conventions
+    disallowedTools:
+      - Bash            # this report only needs Read/Write, no shell
+    storage:
+      size: 20Gi

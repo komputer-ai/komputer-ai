@@ -1,0 +1,451 @@
+package main
+
+import (
+	"encoding/json"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
+
+// newScheduleCmd returns a real `schedule <name>` subcommand, so these tests
+// exercise the production flag registration rather than a copy of it.
+func newScheduleCmd(t *testing.T, name string) *cobra.Command {
+	t.Helper()
+	root := &cobra.Command{Use: "komputer"}
+	registerScheduleCommands(root)
+	for _, c := range root.Commands() {
+		if c.Name() != "schedule" {
+			continue
+		}
+		for _, sub := range c.Commands() {
+			if sub.Name() == name {
+				return sub
+			}
+		}
+	}
+	t.Fatalf("schedule %s command not found", name)
+	return nil
+}
+
+func newScheduleUpdateCmd(t *testing.T) *cobra.Command {
+	t.Helper()
+	return newScheduleCmd(t, "update")
+}
+
+// setFlags marks each flag as Changed, which is what buildScheduleUpdateBody keys off.
+func setFlags(t *testing.T, cmd *cobra.Command, flags map[string]string) {
+	t.Helper()
+	for name, value := range flags {
+		if err := cmd.Flags().Set(name, value); err != nil {
+			t.Fatalf("set --%s=%q: %v", name, value, err)
+		}
+	}
+}
+
+// existingScheduleAgent is a schedule's spec.agent as it comes back from the
+// API: every field populated, nested values in the shape json.Unmarshal
+// produces. Returns a fresh copy per call because the merge mutates in place.
+func existingScheduleAgent() map[string]interface{} {
+	return map[string]interface{}{
+		"templateRef":     "big",
+		"model":           "claude-sonnet-4-6",
+		"role":            "worker",
+		"lifecycle":       "Sleep",
+		"secrets":         []interface{}{"gh-token"},
+		"skills":          []interface{}{"sql", "python-expert"},
+		"memories":        []interface{}{"schema"},
+		"connectors":      []interface{}{"figma"},
+		"allowedTools":    []interface{}{"Read", "Grep"},
+		"disallowedTools": []interface{}{"Bash"},
+		"systemPrompt":    "be terse",
+		"priority":        float64(7),
+		"podSpec": map[string]interface{}{
+			"containers": []interface{}{
+				map[string]interface{}{
+					"name":  "agent",
+					"image": "ghcr.io/komputer-ai/agent:1",
+					"resources": map[string]interface{}{
+						"limits":   map[string]interface{}{"cpu": "2", "memory": "4Gi"},
+						"requests": map[string]interface{}{"cpu": "2", "memory": "4Gi"},
+					},
+				},
+			},
+		},
+		"storage": map[string]interface{}{"size": "20Gi", "storageClassName": "gp3"},
+		"labels":  map[string]interface{}{"team": "core"},
+	}
+}
+
+// asJSON round-trips a value through JSON so assertions compare what actually
+// goes over the wire, not the Go types that happen to hold it.
+func asJSON(t *testing.T, v interface{}) map[string]interface{} {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	return out
+}
+
+// agentOf pulls the "agent" object out of a body, failing if it is missing.
+func agentOf(t *testing.T, body map[string]interface{}) map[string]interface{} {
+	t.Helper()
+	got := asJSON(t, body)
+	agent, ok := got["agent"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("body has no agent object: %v", got)
+	}
+	return agent
+}
+
+// TestScheduleUpdateBodyPreservesUnchangedAgentFields is the core guard on the
+// read-modify-write: PATCH replaces spec.agent wholesale, so changing one field
+// must still send every other field back untouched.
+func TestScheduleUpdateBodyPreservesUnchangedAgentFields(t *testing.T) {
+	cmd := newScheduleUpdateCmd(t)
+	setFlags(t, cmd, map[string]string{"model": "claude-opus-4-6"})
+
+	body := buildScheduleUpdateBody(cmd, existingScheduleAgent())
+
+	got := asJSON(t, body)
+	if len(got) != 1 {
+		t.Errorf("body should carry only the agent object, got keys %v", got)
+	}
+	agent := agentOf(t, body)
+
+	want := existingScheduleAgent()
+	want["model"] = "claude-opus-4-6"
+	if !reflect.DeepEqual(agent, asJSON(t, want)) {
+		t.Errorf("agent object was not preserved\n got: %v\nwant: %v", agent, asJSON(t, want))
+	}
+}
+
+// TestScheduleUpdateBodyOmitsAgentWhenUnchanged guards the agentChanged flag.
+// The agent object is pre-populated from the server, so a length check would
+// wrongly send it — and the API clears spec.agentName whenever agent is present.
+func TestScheduleUpdateBodyOmitsAgentWhenUnchanged(t *testing.T) {
+	cmd := newScheduleUpdateCmd(t)
+	setFlags(t, cmd, map[string]string{"cron": "5 * * * *"})
+
+	body := buildScheduleUpdateBody(cmd, existingScheduleAgent())
+
+	if _, present := body["agent"]; present {
+		t.Errorf("agent key must be absent when no agent flag changed, got %v", asJSON(t, body))
+	}
+	want := map[string]interface{}{"schedule": "5 * * * *"}
+	if !reflect.DeepEqual(asJSON(t, body), want) {
+		t.Errorf("body = %v, want %v", asJSON(t, body), want)
+	}
+}
+
+// TestScheduleUpdateBodyMergesPodSpec covers the sibling-field destruction the
+// review caught: --cpu alone must not drop the image or memory overrides.
+func TestScheduleUpdateBodyMergesPodSpec(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+		want  map[string]interface{}
+	}{
+		{
+			name:  "cpu only keeps image and memory",
+			flags: map[string]string{"cpu": "8"},
+			want: map[string]interface{}{
+				"name":  "agent",
+				"image": "ghcr.io/komputer-ai/agent:1",
+				"resources": map[string]interface{}{
+					"limits":   map[string]interface{}{"cpu": "8", "memory": "4Gi"},
+					"requests": map[string]interface{}{"cpu": "8", "memory": "4Gi"},
+				},
+			},
+		},
+		{
+			name:  "image only keeps cpu and memory",
+			flags: map[string]string{"image": "ghcr.io/komputer-ai/agent:2"},
+			want: map[string]interface{}{
+				"name":  "agent",
+				"image": "ghcr.io/komputer-ai/agent:2",
+				"resources": map[string]interface{}{
+					"limits":   map[string]interface{}{"cpu": "2", "memory": "4Gi"},
+					"requests": map[string]interface{}{"cpu": "2", "memory": "4Gi"},
+				},
+			},
+		},
+		{
+			name:  "memory only keeps image and cpu",
+			flags: map[string]string{"memory-limit": "16Gi"},
+			want: map[string]interface{}{
+				"name":  "agent",
+				"image": "ghcr.io/komputer-ai/agent:1",
+				"resources": map[string]interface{}{
+					"limits":   map[string]interface{}{"cpu": "2", "memory": "16Gi"},
+					"requests": map[string]interface{}{"cpu": "2", "memory": "16Gi"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newScheduleUpdateCmd(t)
+			setFlags(t, cmd, tt.flags)
+
+			agent := agentOf(t, buildScheduleUpdateBody(cmd, existingScheduleAgent()))
+
+			podSpec, ok := agent["podSpec"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("agent has no podSpec: %v", agent)
+			}
+			containers, ok := podSpec["containers"].([]interface{})
+			if !ok || len(containers) != 1 {
+				t.Fatalf("podSpec.containers = %v, want exactly one container", podSpec["containers"])
+			}
+			if !reflect.DeepEqual(containers[0], tt.want) {
+				t.Errorf("agent container\n got: %v\nwant: %v", containers[0], tt.want)
+			}
+		})
+	}
+}
+
+// TestScheduleUpdateBodyOverlaysConnectors covers the --connector overlay:
+// passing it replaces the schedule's connector list, and leaving it off keeps
+// whatever the GET returned rather than blanking it.
+func TestScheduleUpdateBodyOverlaysConnectors(t *testing.T) {
+	tests := []struct {
+		name string
+		// Applied in order; the same flag twice mimics passing it twice on the
+		// command line, which is how --connector is meant to be repeated.
+		flags []map[string]string
+		want  []interface{}
+	}{
+		{
+			name:  "repeated --connector replaces the existing list",
+			flags: []map[string]string{{"connector": "linear"}, {"connector": "slack"}},
+			want:  []interface{}{"linear", "slack"},
+		},
+		{
+			name:  "no --connector keeps the list from the GET",
+			flags: []map[string]string{{"model": "claude-opus-4-6"}},
+			want:  []interface{}{"figma"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newScheduleUpdateCmd(t)
+			for _, f := range tt.flags {
+				setFlags(t, cmd, f)
+			}
+
+			agent := agentOf(t, buildScheduleUpdateBody(cmd, existingScheduleAgent()))
+
+			if !reflect.DeepEqual(agent["connectors"], tt.want) {
+				t.Errorf("agent.connectors = %v, want %v", agent["connectors"], tt.want)
+			}
+		})
+	}
+}
+
+// TestScheduleUpdateBodyMergesStorage covers the other half of the finding:
+// --storage sets the size and must leave storageClassName alone.
+func TestScheduleUpdateBodyMergesStorage(t *testing.T) {
+	cmd := newScheduleUpdateCmd(t)
+	setFlags(t, cmd, map[string]string{"storage": "50Gi"})
+
+	agent := agentOf(t, buildScheduleUpdateBody(cmd, existingScheduleAgent()))
+
+	want := map[string]interface{}{"size": "50Gi", "storageClassName": "gp3"}
+	if !reflect.DeepEqual(agent["storage"], want) {
+		t.Errorf("agent.storage = %v, want %v", agent["storage"], want)
+	}
+}
+
+// TestScheduleUpdateBodyWithoutExistingAgent covers a schedule that targets an
+// agent by name: there is nothing to merge into, so the flags build a fresh
+// inline template and the podSpec/storage fallbacks kick in.
+func TestScheduleUpdateBodyWithoutExistingAgent(t *testing.T) {
+	t.Run("agent flag builds a fresh template", func(t *testing.T) {
+		cmd := newScheduleUpdateCmd(t)
+		setFlags(t, cmd, map[string]string{"model": "claude-opus-4-6", "storage": "50Gi"})
+
+		agent := agentOf(t, buildScheduleUpdateBody(cmd, nil))
+
+		want := map[string]interface{}{
+			"model":   "claude-opus-4-6",
+			"storage": map[string]interface{}{"size": "50Gi"},
+		}
+		if !reflect.DeepEqual(agent, want) {
+			t.Errorf("agent = %v, want %v", agent, want)
+		}
+	})
+
+	t.Run("cpu falls back to a freshly built podSpec", func(t *testing.T) {
+		cmd := newScheduleUpdateCmd(t)
+		setFlags(t, cmd, map[string]string{"cpu": "8"})
+
+		agent := agentOf(t, buildScheduleUpdateBody(cmd, nil))
+
+		want := asJSON(t, map[string]interface{}{"podSpec": buildPodSpecOverride("8", "", "")})
+		if !reflect.DeepEqual(agent, want) {
+			t.Errorf("agent = %v, want %v", agent, want)
+		}
+	})
+
+	t.Run("non-agent flag still omits the agent key", func(t *testing.T) {
+		cmd := newScheduleUpdateCmd(t)
+		setFlags(t, cmd, map[string]string{"cron": "5 * * * *"})
+
+		body := buildScheduleUpdateBody(cmd, nil)
+
+		if _, present := body["agent"]; present {
+			t.Errorf("agent key must be absent, got %v", asJSON(t, body))
+		}
+	})
+}
+
+// TestScheduleAgentFlagConflict covers the guard on --agent plus agent-config
+// flags. Before it, the same flag pair did silently opposite things: create
+// dropped the agent flags, update destroyed the --agent reference.
+func TestScheduleAgentFlagConflict(t *testing.T) {
+	tests := []struct {
+		name     string
+		flags    map[string]string
+		wantsIn  []string // substrings the message must name
+		conflict bool
+	}{
+		{
+			name:  "no --agent, agent flags are fine",
+			flags: map[string]string{"skill": "sql"},
+		},
+		{
+			name:  "--agent alone is fine",
+			flags: map[string]string{"agent": "my-agent"},
+		},
+		{
+			name:     "--agent with --skill conflicts",
+			flags:    map[string]string{"agent": "my-agent", "skill": "sql"},
+			wantsIn:  []string{"my-agent", "--skill"},
+			conflict: true,
+		},
+		{
+			name:     "--agent with several agent flags names them all",
+			flags:    map[string]string{"agent": "my-agent", "model": "claude-opus-4-6", "priority": "5"},
+			wantsIn:  []string{"--model", "--priority"},
+			conflict: true,
+		},
+		{
+			name:  "--agent with a schedule-level flag is fine",
+			flags: map[string]string{"agent": "my-agent", "timezone": "UTC"},
+		},
+	}
+
+	// Both commands take the same flag pair and must reject it identically.
+	for _, cmdName := range []string{"create", "update"} {
+		for _, tt := range tests {
+			t.Run(cmdName+"/"+tt.name, func(t *testing.T) {
+				cmd := newScheduleCmd(t, cmdName)
+				setFlags(t, cmd, tt.flags)
+
+				got := scheduleAgentFlagConflict(cmd)
+
+				if !tt.conflict {
+					if got != "" {
+						t.Fatalf("flags %v should be accepted, got error %q", tt.flags, got)
+					}
+					return
+				}
+				if got == "" {
+					t.Fatalf("flags %v should be rejected, got no error", tt.flags)
+				}
+				for _, want := range tt.wantsIn {
+					if !strings.Contains(got, want) {
+						t.Errorf("error message must name %q, got %q", want, got)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestScheduleAgentFlagConflictIgnoresDefaultedLifecycle pins why the guard
+// keys off Changed rather than the resulting value: --lifecycle carries a
+// "Sleep" default on create, so a value-based check would reject every
+// `--agent` invocation.
+func TestScheduleAgentFlagConflictIgnoresDefaultedLifecycle(t *testing.T) {
+	cmd := newScheduleCmd(t, "create")
+	if lc, _ := cmd.Flags().GetString("lifecycle"); lc == "" {
+		t.Fatal("this test is pointless unless --lifecycle has a non-empty default on create")
+	}
+	setFlags(t, cmd, map[string]string{"agent": "my-agent"})
+
+	if got := scheduleAgentFlagConflict(cmd); got != "" {
+		t.Errorf("--agent alone must be accepted despite the --lifecycle default, got %q", got)
+	}
+}
+
+// TestScheduleFlagsAreClassified keeps the guard from rotting. Every flag on
+// create and update must be classified as agent-config or schedule-level, so
+// adding a flag to either command without deciding which it is fails here
+// instead of silently escaping the mutual-exclusion check.
+func TestScheduleFlagsAreClassified(t *testing.T) {
+	classified := map[string]bool{}
+	for _, name := range scheduleAgentConfigFlags {
+		classified[name] = true
+	}
+	for _, name := range scheduleOwnFlags {
+		classified[name] = true
+	}
+
+	for _, cmdName := range []string{"create", "update"} {
+		t.Run(cmdName, func(t *testing.T) {
+			cmd := newScheduleCmd(t, cmdName)
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				if !classified[f.Name] {
+					t.Errorf("flag --%s on `schedule %s` is in neither scheduleAgentConfigFlags nor scheduleOwnFlags; classify it so the --agent guard covers it", f.Name, cmdName)
+				}
+			})
+		})
+	}
+}
+
+// TestMergePodSpecOverrideFallsBackOnUnknownShapes pins the fallback: an
+// unexpected podSpec shape must degrade to replace-everything, never panic.
+func TestMergePodSpecOverrideFallsBackOnUnknownShapes(t *testing.T) {
+	fresh := buildPodSpecOverride("8", "", "")
+	tests := []struct {
+		name     string
+		existing interface{}
+	}{
+		{"nil", nil},
+		{"not an object", "podSpec"},
+		{"no containers key", map[string]interface{}{"restartPolicy": "Never"}},
+		{"containers not a list", map[string]interface{}{"containers": "agent"}},
+		{"no container named agent", map[string]interface{}{
+			"containers": []interface{}{map[string]interface{}{"name": "sidecar"}},
+		}},
+		{"container entries not objects", map[string]interface{}{
+			"containers": []interface{}{"agent"},
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mergePodSpecOverride(tt.existing, "8", "", "")
+			if !reflect.DeepEqual(got, fresh) {
+				t.Errorf("mergePodSpecOverride(%v) = %v, want fallback %v", tt.existing, got, fresh)
+			}
+		})
+	}
+
+	t.Run("no overrides returns nil", func(t *testing.T) {
+		if got := mergePodSpecOverride(existingScheduleAgent()["podSpec"], "", "", ""); got != nil {
+			t.Errorf("mergePodSpecOverride with no overrides = %v, want nil", got)
+		}
+	})
+}

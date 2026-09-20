@@ -19,7 +19,7 @@ var _ MappedNullable = &PatchScheduleRequest{}
 
 // PatchScheduleRequest struct for PatchScheduleRequest
 type PatchScheduleRequest struct {
-	Agent *CreateScheduleAgentSpec `json:"agent,omitempty"`
+	Agent *V1alpha1ScheduleAgentSpec `json:"agent,omitempty"`
 	AgentName *string `json:"agentName,omitempty"`
 	AutoDelete *bool `json:"autoDelete,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
@@ -47,9 +47,9 @@ func NewPatchScheduleRequestWithDefaults() *PatchScheduleRequest {
 }
 
 // GetAgent returns the Agent field value if set, zero value otherwise.
-func (o *PatchScheduleRequest) GetAgent() CreateScheduleAgentSpec {
+func (o *PatchScheduleRequest) GetAgent() V1alpha1ScheduleAgentSpec {
 	if o == nil || IsNil(o.Agent) {
-		var ret CreateScheduleAgentSpec
+		var ret V1alpha1ScheduleAgentSpec
 		return ret
 	}
 	return *o.Agent
@@ -57,7 +57,7 @@ func (o *PatchScheduleRequest) GetAgent() CreateScheduleAgentSpec {
 
 // GetAgentOk returns a tuple with the Agent field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *PatchScheduleRequest) GetAgentOk() (*CreateScheduleAgentSpec, bool) {
+func (o *PatchScheduleRequest) GetAgentOk() (*V1alpha1ScheduleAgentSpec, bool) {
 	if o == nil || IsNil(o.Agent) {
 		return nil, false
 	}
@@ -73,8 +73,8 @@ func (o *PatchScheduleRequest) HasAgent() bool {
 	return false
 }
 
-// SetAgent gets a reference to the given CreateScheduleAgentSpec and assigns it to the Agent field.
-func (o *PatchScheduleRequest) SetAgent(v CreateScheduleAgentSpec) {
+// SetAgent gets a reference to the given V1alpha1ScheduleAgentSpec and assigns it to the Agent field.
+func (o *PatchScheduleRequest) SetAgent(v V1alpha1ScheduleAgentSpec) {
 	o.Agent = &v
 }
 

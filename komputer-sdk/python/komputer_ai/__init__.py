@@ -44,7 +44,6 @@ __all__ = [
     "CreateAgentRequest",
     "CreateConnectorRequest",
     "CreateMemoryRequest",
-    "CreateScheduleAgentSpec",
     "CreateScheduleRequest",
     "CreateSecretRequest",
     "CreateSkillRequest",
@@ -220,6 +219,7 @@ __all__ = [
     "V1alpha1KomputerAgentSpec",
     "V1alpha1KomputerSquadMember",
     "V1alpha1KomputerSquadMemberRef",
+    "V1alpha1ScheduleAgentSpec",
     "V1alpha1StorageSpec",
 ]
 
@@ -254,7 +254,6 @@ from komputer_ai.models.connector_response import ConnectorResponse as Connector
 from komputer_ai.models.create_agent_request import CreateAgentRequest as CreateAgentRequest
 from komputer_ai.models.create_connector_request import CreateConnectorRequest as CreateConnectorRequest
 from komputer_ai.models.create_memory_request import CreateMemoryRequest as CreateMemoryRequest
-from komputer_ai.models.create_schedule_agent_spec import CreateScheduleAgentSpec as CreateScheduleAgentSpec
 from komputer_ai.models.create_schedule_request import CreateScheduleRequest as CreateScheduleRequest
 from komputer_ai.models.create_secret_request import CreateSecretRequest as CreateSecretRequest
 from komputer_ai.models.create_skill_request import CreateSkillRequest as CreateSkillRequest
@@ -430,5 +429,6 @@ from komputer_ai.models.v1alpha1_agent_lifecycle import V1alpha1AgentLifecycle a
 from komputer_ai.models.v1alpha1_komputer_agent_spec import V1alpha1KomputerAgentSpec as V1alpha1KomputerAgentSpec
 from komputer_ai.models.v1alpha1_komputer_squad_member import V1alpha1KomputerSquadMember as V1alpha1KomputerSquadMember
 from komputer_ai.models.v1alpha1_komputer_squad_member_ref import V1alpha1KomputerSquadMemberRef as V1alpha1KomputerSquadMemberRef
+from komputer_ai.models.v1alpha1_schedule_agent_spec import V1alpha1ScheduleAgentSpec as V1alpha1ScheduleAgentSpec
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec as V1alpha1StorageSpec
 

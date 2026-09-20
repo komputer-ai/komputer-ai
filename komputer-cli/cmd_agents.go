@@ -246,16 +246,7 @@ func registerAgentCommands(root *cobra.Command) {
 				body["storage"] = map[string]interface{}{"size": storage}
 			}
 			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
-				labelMap := map[string]string{}
-				for _, l := range labelFlags {
-					eq := strings.Index(l, "=")
-					if eq <= 0 || eq == len(l)-1 {
-						fmt.Println(errorStyle.Render(fmt.Sprintf("invalid --label %q: expected key=value", l)))
-						os.Exit(1)
-					}
-					labelMap[l[:eq]] = l[eq+1:]
-				}
-				body["labels"] = labelMap
+				body["labels"] = parseLabelFlags(labelFlags)
 			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
@@ -369,16 +360,7 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 			}
 			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
-				labelMap := map[string]string{}
-				for _, l := range labelFlags {
-					eq := strings.Index(l, "=")
-					if eq <= 0 || eq == len(l)-1 {
-						fmt.Println(errorStyle.Render(fmt.Sprintf("invalid --label %q: expected key=value", l)))
-						os.Exit(1)
-					}
-					labelMap[l[:eq]] = l[eq+1:]
-				}
-				body["labels"] = labelMap
+				body["labels"] = parseLabelFlags(labelFlags)
 			}
 
 			if len(body) == 0 {

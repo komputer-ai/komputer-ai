@@ -9,7 +9,6 @@ from komputer_ai.models import (
     CreateAgentRequest,
     CreateConnectorRequest,
     CreateMemoryRequest,
-    CreateScheduleAgentSpec,
     CreateScheduleRequest,
     CreateSecretRequest,
     CreateSkillRequest,
@@ -27,6 +26,7 @@ from komputer_ai.models import (
     SecretResponse,
     SkillResponse,
     UpdateSecretRequest,
+    V1alpha1ScheduleAgentSpec,
 )
 
 
@@ -237,7 +237,7 @@ class TestCreateScheduleRequest:
         assert req.schedule == "0 9 * * *"
 
     def test_with_agent_spec(self):
-        agent_spec = CreateScheduleAgentSpec(
+        agent_spec = V1alpha1ScheduleAgentSpec(
             model="claude-sonnet-4-6", lifecycle="AutoDelete"
         )
         req = CreateScheduleRequest(

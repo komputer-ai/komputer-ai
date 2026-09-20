@@ -27,7 +27,7 @@ from komputer_ai.api.templates_api import TemplatesApi
 from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.exceptions import ApiException
 from komputer_ai.models import (
-    AddSquadMemberRequest, CompactAgentRequest, CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleAgentSpec, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, CreateSquadRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, PatchSquadRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1StorageSpec,
+    AddSquadMemberRequest, CompactAgentRequest, CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, CreateSquadRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, PatchSquadRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec,
 )
 
 
@@ -160,7 +160,7 @@ class KomputerClient:
     def list_schedules(self):
         return self.schedules.list_schedules()
 
-    def create_schedule(self, name: str, instructions: str, schedule: str, *, agent: Optional[CreateScheduleAgentSpec] = None, agent_name: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, namespace: Optional[str] = None, timezone: Optional[str] = None):
+    def create_schedule(self, name: str, instructions: str, schedule: str, *, agent: Optional[V1alpha1ScheduleAgentSpec] = None, agent_name: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, namespace: Optional[str] = None, timezone: Optional[str] = None):
         try:
             return self.schedules.create_schedule(CreateScheduleRequest(agent=agent, agent_name=agent_name, auto_delete=auto_delete, instructions=instructions, keep_agents=keep_agents, name=name, namespace=namespace, schedule=schedule, timezone=timezone))
         except ApiException as e:
@@ -171,7 +171,7 @@ class KomputerClient:
     def get_schedule(self, name: str):
         return self.schedules.get_schedule(name)
 
-    def patch_schedule(self, name: str, *, schedule: Optional[str] = None, instructions: Optional[str] = None, timezone: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, suspended: Optional[bool] = None, agent_name: Optional[str] = None, agent: Optional[CreateScheduleAgentSpec] = None):
+    def patch_schedule(self, name: str, *, schedule: Optional[str] = None, instructions: Optional[str] = None, timezone: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, suspended: Optional[bool] = None, agent_name: Optional[str] = None, agent: Optional[V1alpha1ScheduleAgentSpec] = None):
         return self.schedules.patch_schedule(name, PatchScheduleRequest(schedule=schedule, instructions=instructions, timezone=timezone, auto_delete=auto_delete, keep_agents=keep_agents, suspended=suspended, agent_name=agent_name, agent=agent))
 
     def delete_schedule(self, name: str):

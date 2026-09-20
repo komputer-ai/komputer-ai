@@ -5285,41 +5285,39 @@ components:
       - content
       - name
       type: object
-    CreateScheduleAgentSpec:
-      example:
-        lifecycle: lifecycle
-        role: role
-        templateRef: templateRef
-        model: model
-        secretRefs:
-        - secretRefs
-        - secretRefs
-      properties:
-        lifecycle:
-          type: string
-        model:
-          type: string
-        role:
-          type: string
-        secretRefs:
-          items:
-            type: string
-          type: array
-        templateRef:
-          type: string
-      type: object
     CreateScheduleRequest:
       example:
         instructions: instructions
         schedule: schedule
         agent:
-          lifecycle: lifecycle
+          connectors:
+          - connectors
+          - connectors
           role: role
           templateRef: templateRef
+          storage: "{}"
+          podSpec: "{}"
+          priority: 0
+          secrets:
+          - secrets
+          - secrets
+          labels:
+            key: labels
+          lifecycle: "{}"
+          skills:
+          - skills
+          - skills
+          systemPrompt: systemPrompt
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
+          memories:
+          - memories
+          - memories
           model: model
-          secretRefs:
-          - secretRefs
-          - secretRefs
+          allowedTools:
+          - allowedTools
+          - allowedTools
         timezone: timezone
         autoDelete: true
         name: name
@@ -5328,7 +5326,7 @@ components:
         keepAgents: true
       properties:
         agent:
-          $ref: "#/components/schemas/CreateScheduleAgentSpec"
+          $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
           type: string
         autoDelete:
@@ -6354,13 +6352,34 @@ components:
         instructions: instructions
         schedule: schedule
         agent:
-          lifecycle: lifecycle
+          connectors:
+          - connectors
+          - connectors
           role: role
           templateRef: templateRef
+          storage: "{}"
+          podSpec: "{}"
+          priority: 0
+          secrets:
+          - secrets
+          - secrets
+          labels:
+            key: labels
+          lifecycle: "{}"
+          skills:
+          - skills
+          - skills
+          systemPrompt: systemPrompt
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
+          memories:
+          - memories
+          - memories
           model: model
-          secretRefs:
-          - secretRefs
-          - secretRefs
+          allowedTools:
+          - allowedTools
+          - allowedTools
         timezone: timezone
         autoDelete: true
         agentName: agentName
@@ -6368,7 +6387,7 @@ components:
         suspended: true
       properties:
         agent:
-          $ref: "#/components/schemas/CreateScheduleAgentSpec"
+          $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
           type: string
         autoDelete:
@@ -6484,22 +6503,43 @@ components:
         - phase: phase
           instructions: instructions
           agent:
-            lifecycle: lifecycle
+            connectors:
+            - connectors
+            - connectors
             role: role
             templateRef: templateRef
+            storage: "{}"
+            podSpec: "{}"
+            priority: 0
+            secrets:
+            - secrets
+            - secrets
+            labels:
+              key: labels
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            systemPrompt: systemPrompt
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
             model: model
-            secretRefs:
-            - secretRefs
-            - secretRefs
+            allowedTools:
+            - allowedTools
+            - allowedTools
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
           lastRunStatus: lastRunStatus
           agentName: agentName
-          failedRuns: 0
+          failedRuns: 6
           lastRunCostUSD: lastRunCostUSD
-          totalTokens: 5
-          lastRunTokens: 6
+          totalTokens: 2
+          lastRunTokens: 1
           suspended: true
           createdAt: createdAt
           schedule: schedule
@@ -6509,26 +6549,47 @@ components:
           name: name
           namespace: namespace
           keepAgents: true
-          runCount: 1
+          runCount: 5
         - phase: phase
           instructions: instructions
           agent:
-            lifecycle: lifecycle
+            connectors:
+            - connectors
+            - connectors
             role: role
             templateRef: templateRef
+            storage: "{}"
+            podSpec: "{}"
+            priority: 0
+            secrets:
+            - secrets
+            - secrets
+            labels:
+              key: labels
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            systemPrompt: systemPrompt
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
             model: model
-            secretRefs:
-            - secretRefs
-            - secretRefs
+            allowedTools:
+            - allowedTools
+            - allowedTools
           successfulRuns: 5
           timezone: timezone
           totalCostUSD: totalCostUSD
           lastRunStatus: lastRunStatus
           agentName: agentName
-          failedRuns: 0
+          failedRuns: 6
           lastRunCostUSD: lastRunCostUSD
-          totalTokens: 5
-          lastRunTokens: 6
+          totalTokens: 2
+          lastRunTokens: 1
           suspended: true
           createdAt: createdAt
           schedule: schedule
@@ -6538,7 +6599,7 @@ components:
           name: name
           namespace: namespace
           keepAgents: true
-          runCount: 1
+          runCount: 5
       properties:
         schedules:
           items:
@@ -6550,22 +6611,43 @@ components:
         phase: phase
         instructions: instructions
         agent:
-          lifecycle: lifecycle
+          connectors:
+          - connectors
+          - connectors
           role: role
           templateRef: templateRef
+          storage: "{}"
+          podSpec: "{}"
+          priority: 0
+          secrets:
+          - secrets
+          - secrets
+          labels:
+            key: labels
+          lifecycle: "{}"
+          skills:
+          - skills
+          - skills
+          systemPrompt: systemPrompt
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
+          memories:
+          - memories
+          - memories
           model: model
-          secretRefs:
-          - secretRefs
-          - secretRefs
+          allowedTools:
+          - allowedTools
+          - allowedTools
         successfulRuns: 5
         timezone: timezone
         totalCostUSD: totalCostUSD
         lastRunStatus: lastRunStatus
         agentName: agentName
-        failedRuns: 0
+        failedRuns: 6
         lastRunCostUSD: lastRunCostUSD
-        totalTokens: 5
-        lastRunTokens: 6
+        totalTokens: 2
+        lastRunTokens: 1
         suspended: true
         createdAt: createdAt
         schedule: schedule
@@ -6575,10 +6657,10 @@ components:
         name: name
         namespace: namespace
         keepAgents: true
-        runCount: 1
+        runCount: 5
       properties:
         agent:
-          $ref: "#/components/schemas/CreateScheduleAgentSpec"
+          $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
           type: string
         autoDelete:
@@ -13466,6 +13548,165 @@ components:
           type: string
         namespace:
           description: defaults to squad's namespace
+          type: string
+      type: object
+    v1alpha1.ScheduleAgentSpec:
+      example:
+        connectors:
+        - connectors
+        - connectors
+        role: role
+        templateRef: templateRef
+        storage: "{}"
+        podSpec: "{}"
+        priority: 0
+        secrets:
+        - secrets
+        - secrets
+        labels:
+          key: labels
+        lifecycle: "{}"
+        skills:
+        - skills
+        - skills
+        systemPrompt: systemPrompt
+        disallowedTools:
+        - disallowedTools
+        - disallowedTools
+        memories:
+        - memories
+        - memories
+        model: model
+        allowedTools:
+        - allowedTools
+        - allowedTools
+      properties:
+        allowedTools:
+          description: |-
+            AllowedTools restricts the agent to exactly these tools. When empty, the
+            default built-in tool set is used and all tools from attached connectors
+            are permitted.
+
+            Setting this REPLACES the default set rather than extending it, so an
+            agent given only ["Read"] loses Bash, Write, Edit and the rest. Connector
+            tools are not auto-added either — list them explicitly, e.g.
+            "mcp__figma__*" for a whole connector or "mcp__figma__get_design_context"
+            for a single tool.
+            +optional
+          items:
+            type: string
+          type: array
+        connectors:
+          description: |-
+            Connectors is a list of KomputerConnector names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        disallowedTools:
+          description: |-
+            DisallowedTools removes these tools from the agent. Purely subtractive:
+            the default built-ins and all connector tools remain available except
+            what is named here. Takes precedence over AllowedTools.
+            Supports wildcards, e.g. "mcp__figma__*".
+            +optional
+          items:
+            type: string
+          type: array
+        labels:
+          additionalProperties:
+            type: string
+          description: |-
+            Labels are user-defined key=value labels attached to this agent and
+            propagated to all child resources (Pod, PVC, ConfigMap, Service).
+            Keys starting with "komputer.ai/" are reserved for system labels and
+            should not be set directly through the API.
+            +optional
+          type: object
+        lifecycle:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.AgentLifecycle"
+          description: |-
+            Lifecycle controls what happens after task completion.
+            Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
+            "AutoDelete" deletes the entire agent after task completion.
+            +kubebuilder:validation:Enum="";Sleep;AutoDelete
+            +optional
+          type: object
+        memories:
+          description: |-
+            Memories is a list of KomputerMemory names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        model:
+          description: |-
+            Model is the Claude model to use.
+            +kubebuilder:default="claude-sonnet-4-6"
+          type: string
+        podSpec:
+          allOf:
+          - $ref: "#/components/schemas/v1.PodSpec"
+          description: |-
+            PodSpec, when set, overrides the template's PodSpec for this agent.
+            Container fields are merged by name; non-zero fields from this PodSpec
+            override the template's container fields. Takes effect on next pod start
+            (existing pods are not mutated).
+            +optional
+          type: object
+        priority:
+          description: |-
+            Priority controls admission order when the template's maxConcurrentAgents
+            limit is reached. Higher number = admitted first (matches K8s PodPriority).
+            Ties broken by creationTimestamp (older first). Defaults to 0.
+            +kubebuilder:default=0
+            +optional
+          type: integer
+        role:
+          description: |-
+            Role is "manager" or "worker". Managers get orchestration tools.
+            Role is "manager" or "worker". Defaults to "manager" for top-level agents.
+            Sub-agents created by managers are explicitly set to "worker".
+            +kubebuilder:default="manager"
+            +kubebuilder:validation:Enum=worker;manager
+            +optional
+          type: string
+        secrets:
+          description: |-
+            Secrets is a list of K8s Secret names containing agent-specific secrets.
+            Each key in each secret is injected as an env var into the agent pod.
+            +optional
+          items:
+            type: string
+          type: array
+        skills:
+          description: |-
+            Skills is a list of KomputerSkill names to attach to this agent.
+            Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
+            +optional
+          items:
+            type: string
+          type: array
+        storage:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.StorageSpec"
+          description: |-
+            Storage, when set, overrides the template's storage settings for this agent.
+            Existing PVCs are expanded in place when the storage class supports it.
+            +optional
+          type: object
+        systemPrompt:
+          description: |-
+            SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
+            +optional
+          type: string
+        templateRef:
+          description: |-
+            TemplateRef is the name of the KomputerAgentTemplate to use.
+            +kubebuilder:default="default"
           type: string
       type: object
     v1alpha1.StorageSpec:

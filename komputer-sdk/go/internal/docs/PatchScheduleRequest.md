@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**Agent** | Pointer to [**CreateScheduleAgentSpec**](CreateScheduleAgentSpec.md) |  | [optional] 
+**Agent** | Pointer to [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **AgentName** | Pointer to **string** |  | [optional] 
 **AutoDelete** | Pointer to **bool** |  | [optional] 
 **Instructions** | Pointer to **string** |  | [optional] 
@@ -34,20 +34,20 @@ but it doesn't guarantee that properties required by API are set
 
 ### GetAgent
 
-`func (o *PatchScheduleRequest) GetAgent() CreateScheduleAgentSpec`
+`func (o *PatchScheduleRequest) GetAgent() V1alpha1ScheduleAgentSpec`
 
 GetAgent returns the Agent field if non-nil, zero value otherwise.
 
 ### GetAgentOk
 
-`func (o *PatchScheduleRequest) GetAgentOk() (*CreateScheduleAgentSpec, bool)`
+`func (o *PatchScheduleRequest) GetAgentOk() (*V1alpha1ScheduleAgentSpec, bool)`
 
 GetAgentOk returns a tuple with the Agent field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetAgent
 
-`func (o *PatchScheduleRequest) SetAgent(v CreateScheduleAgentSpec)`
+`func (o *PatchScheduleRequest) SetAgent(v V1alpha1ScheduleAgentSpec)`
 
 SetAgent sets Agent field to given value.
 

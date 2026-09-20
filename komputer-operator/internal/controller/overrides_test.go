@@ -39,7 +39,9 @@ func TestApplyAgentOverrides_StorageOverride(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+			},
 		},
 	}
 	out := applyAgentOverrides(tpl, agent)
@@ -52,8 +54,10 @@ func TestApplyAgentOverrides_PodSpecOverride(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			PodSpec: &corev1.PodSpec{
-				Containers: []corev1.Container{{Name: "agent", Image: "custom:latest"}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				PodSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "agent", Image: "custom:latest"}},
+				},
 			},
 		},
 	}
@@ -67,14 +71,16 @@ func TestApplyAgentOverrides_PartialContainerMerge_PreservesImage(t *testing.T) 
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			PodSpec: &corev1.PodSpec{
-				Containers: []corev1.Container{{
-					Name: "agent",
-					Resources: corev1.ResourceRequirements{
-						Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-						Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-					},
-				}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				PodSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name: "agent",
+						Resources: corev1.ResourceRequirements{
+							Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+							Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+						},
+					}},
+				},
 			},
 		},
 	}
@@ -92,8 +98,10 @@ func TestApplyAgentOverrides_DoesNotMutateInput(t *testing.T) {
 	tpl := tplFixture()
 	agent := &komputerv1alpha1.KomputerAgent{
 		Spec: komputerv1alpha1.KomputerAgentSpec{
-			Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
-			PodSpec: &corev1.PodSpec{Containers: []corev1.Container{{Name: "agent", Image: "x:1"}}},
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				Storage: &komputerv1alpha1.StorageSpec{Size: "20Gi"},
+				PodSpec: &corev1.PodSpec{Containers: []corev1.Container{{Name: "agent", Image: "x:1"}}},
+			},
 		},
 	}
 	_ = applyAgentOverrides(tpl, agent)
@@ -112,8 +120,10 @@ func TestApplyAgentOverrides_TTLs(t *testing.T) {
 		tpl.Spec.DeleteTTL = &metav1.Duration{Duration: 48 * time.Hour}
 		agent := &komputerv1alpha1.KomputerAgent{
 			Spec: komputerv1alpha1.KomputerAgentSpec{
-				SleepTTL:  &metav1.Duration{Duration: 30 * time.Minute},
-				DeleteTTL: &metav1.Duration{Duration: 24 * time.Hour},
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL:  &metav1.Duration{Duration: 30 * time.Minute},
+					DeleteTTL: &metav1.Duration{Duration: 24 * time.Hour},
+				},
 			},
 		}
 		out := applyAgentOverrides(tpl, agent)
@@ -144,7 +154,9 @@ func TestApplyAgentOverrides_TTLs(t *testing.T) {
 		tpl.Spec.DeleteTTL = &metav1.Duration{Duration: 48 * time.Hour}
 		agent := &komputerv1alpha1.KomputerAgent{
 			Spec: komputerv1alpha1.KomputerAgentSpec{
-				SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				},
 			},
 		}
 		out := applyAgentOverrides(tpl, agent)
@@ -161,7 +173,9 @@ func TestApplyAgentOverrides_TTLs(t *testing.T) {
 		tpl.Spec.SleepTTL = &metav1.Duration{Duration: time.Hour}
 		agent := &komputerv1alpha1.KomputerAgent{
 			Spec: komputerv1alpha1.KomputerAgentSpec{
-				SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					SleepTTL: &metav1.Duration{Duration: 5 * time.Minute},
+				},
 			},
 		}
 		_ = applyAgentOverrides(tpl, agent)
