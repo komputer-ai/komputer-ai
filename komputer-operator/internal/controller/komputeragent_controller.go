@@ -283,11 +283,13 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// 7. Enforce sleepTTL / deleteTTL. Resolved TTLs live on the merged template
-	// (applyAgentOverrides has already overlaid the agent's own values). Runs before
-	// status reconciliation so an expired agent isn't reported Running on its way out.
-	sleepTTL, deleteTTL := template.Spec.SleepTTL, template.Spec.DeleteTTL
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL)
+	// 7. Enforce sleepTTL / deleteTTL and the taskTimeout deadline. Resolved bounds live
+	// on the merged template (applyAgentOverrides has already overlaid the agent's own
+	// values). Runs before status reconciliation so an expired agent isn't reported
+	// Running on its way out, and an over-running task is cancelled rather than reported
+	// as merely running.
+	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout)
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
 		return ctrl.Result{}, err

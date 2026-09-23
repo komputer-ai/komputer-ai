@@ -20,8 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
 	"sort"
 	"time"
 
@@ -345,13 +343,30 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 	survivors := make([]*komputerv1alpha1.KomputerAgent, 0, len(agents))
 
 	for _, agent := range agents {
-		sleepTTL, deleteTTL := resolveAgentTTLs(ctx, r.Client, agent)
-		if sleepTTL == nil && deleteTTL == nil {
+		sleepTTL, deleteTTL, taskTimeout := resolveAgentTTLs(ctx, r.Client, agent)
+
+		// Task deadline first: it is the one clock allowed to fire mid-task. A member
+		// whose cancel fails is left alone and retried on the next reconcile rather
+		// than failing the whole squad.
+		td := evaluateTaskDeadline(agent, taskTimeout, time.Now())
+		if td.Cancel {
+			log.Info("taskTimeout elapsed, cancelling squad member task",
+				"squad", squad.Name, "agent", agent.Name, "taskTimeout", taskTimeout.Duration,
+				"taskStartedAt", agent.Status.TaskStartedAt)
+			// TODO: pass reason="timeout" once interruption reasons are supported.
+			if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
+				log.Error(err, "Failed to cancel squad member task on taskTimeout", "agent", agent.Name)
+			}
+		}
+
+		if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 			// Clear stale expiries if the TTLs were removed from the spec.
-			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {
+			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
+				agent.Status.TaskExpiresAt != nil {
 				original := agent.DeepCopy()
 				agent.Status.SleepExpiresAt = nil
 				agent.Status.DeleteExpiresAt = nil
+				agent.Status.TaskExpiresAt = nil
 				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 					log.Error(err, "Failed to clear TTL expiries on squad member", "agent", agent.Name)
 				}
@@ -381,6 +396,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			agent.Status.Message = "Sleeping — idle past sleepTTL. Send a new task to wake up."
 			agent.Status.SleepExpiresAt = nil
 			agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+			agent.Status.TaskExpiresAt = nil
 			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 				log.Error(err, "Failed to sleep squad member on sleepTTL", "agent", agent.Name)
 			}
@@ -388,10 +404,12 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 
 		default:
 			if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
-				!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) {
+				!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) ||
+				!timeEqual(agent.Status.TaskExpiresAt, td.ExpiresAt) {
 				original := agent.DeepCopy()
 				agent.Status.SleepExpiresAt = d.SleepExpiresAt
 				agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
+				agent.Status.TaskExpiresAt = td.ExpiresAt
 				if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 					log.Error(err, "Failed to publish TTL expiries on squad member", "agent", agent.Name)
 				}
@@ -773,47 +791,7 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 // be removed from the pod without a restart, but the agent's in-flight task can be
 // cancelled immediately.
 func (r *KomputerSquadReconciler) cancelTaskViaAPI(ctx context.Context, namespace, agentName string) error {
-	apiURL, err := r.getAPIURL(ctx)
-	if err != nil {
-		return err
-	}
-	cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel", apiURL, agentName)
-	httpClient := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cancelURL, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("cancel returned %d", resp.StatusCode)
-	}
-	return nil
-}
-
-// getAPIURL returns the API URL. Checks KOMPUTER_API_URL env var first (for local dev),
-// then falls back to KomputerConfig (for in-cluster).
-// Copied from KomputerScheduleReconciler.getAPIURL — intentionally duplicated to
-// keep blast radius minimal; a shared helper can be extracted in a future cleanup.
-func (r *KomputerSquadReconciler) getAPIURL(ctx context.Context) (string, error) {
-	if envURL := os.Getenv("KOMPUTER_API_URL"); envURL != "" {
-		return envURL, nil
-	}
-	configList := &komputerv1alpha1.KomputerConfigList{}
-	if err := r.List(ctx, configList); err != nil {
-		return "", err
-	}
-	if len(configList.Items) == 0 {
-		return "", fmt.Errorf("no KomputerConfig found")
-	}
-	url := configList.Items[0].Spec.APIURL
-	if url == "" {
-		return "", fmt.Errorf("KomputerConfig has no apiURL")
-	}
-	return url, nil
+	return cancelAgentTaskViaAPI(ctx, r.Client, namespace, agentName)
 }
 
 // buildSquadPodSpec constructs the desired Pod for the squad. Each agent gets

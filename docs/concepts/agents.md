@@ -19,14 +19,15 @@ By default, agent pods stay running after task completion. You can change this b
 
 Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically.
 
-## TTLs — Auto-Sleep and Auto-Delete
+## Timeouts — Auto-Sleep, Auto-Delete, and Task Caps
 
-Lifecycle modes fire the instant a task finishes. TTLs instead act on **elapsed time**, so an agent you forget about doesn't hold a pod or a PVC forever:
+Lifecycle modes fire the instant a task finishes. TTLs instead act on **elapsed time**, so an agent you forget about doesn't hold a pod or a PVC forever, and `taskTimeout` caps how long any single task may run:
 
 - **`spec.sleepTTL`** — An **idle timeout**. Once the agent has gone this long without activity, the operator deletes its pod and sets `Phase=Sleeping` (workspace preserved), exactly like a manual sleep. The clock is `status.lastActivityAt`, first stamped when the agent reports `task_started` and refreshed on every later event, on wake, and when a task is forwarded — so any work resets the countdown. It never fires mid-task, and never on an already-sleeping agent. **An agent that has never started a task has no idle clock and is never auto-slept**, so a `sleepTTL` shorter than pod startup can't sleep an agent before its first task runs; use `deleteTTL` to reclaim agents that are never used.
 - **`spec.deleteTTL`** — An **absolute lifetime** measured from `metadata.creationTimestamp`. When it elapses the whole agent is deleted (pod + PVC, via owner references). Unlike `sleepTTL` it does not reset on wake and applies in every phase — including `Sleeping`, which is what makes it a cap rather than a suggestion. It will interrupt a running task.
+- **`spec.taskTimeout`** — A **per-task wall-clock cap**. Once a single task has been running this long, the operator cancels it — the same interruption a manual cancel produces — and the agent stays alive for the next task. The clock is `status.taskStartedAt`, stamped once when the task starts and never refreshed, so **steering does not extend the deadline**; this is a hard cap, not an idle timeout. It only runs while a task is in progress on a running pod, and `status.taskExpiresAt` shows when it will fire. A cancelled task reports `taskStatus=Complete` like any other cancel, so any `lifecycle` you set still applies afterwards.
 
-Both take Go duration strings (`30m`, `2h`, `1h30m`). Note that Go has no day unit — use `24h`, not `1d`. Both are optional and independent; set `sleepTTL` below `deleteTTL` for the natural "keep warm → hibernate → clean up" sequence (the operator logs a warning if `deleteTTL <= sleepTTL`, since the agent would be deleted before it ever slept).
+All three take Go duration strings (`30m`, `2h`, `1h30m`). Note that Go has no day unit — use `24h`, not `1d`. All three are optional and independent; set `sleepTTL` below `deleteTTL` for the natural "keep warm → hibernate → clean up" sequence (the operator logs a warning if `deleteTTL <= sleepTTL`, since the agent would be deleted before it ever slept).
 
 ```yaml
 apiVersion: komputer.komputer.ai/v1alpha1

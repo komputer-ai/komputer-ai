@@ -224,6 +224,21 @@ export interface V1alpha1KomputerAgentSpec {
      */
     systemPrompt?: string;
     /**
+     * TaskTimeout cancels the agent's running task once it has been running for this
+     * long. The clock starts when a task starts (Status.TaskStartedAt) and never
+     * resets — steering a task does not extend it — so this is a hard wall-clock cap
+     * on a single task, not an idle timeout.
+     * 
+     * Only the task is cancelled; the agent itself stays alive and any configured
+     * Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+     * Unset (default) means tasks run without a time limit.
+     * Overrides the template's taskTimeout when set.
+     * +optional
+     * @type {V1Duration}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    taskTimeout?: V1Duration;
+    /**
      * TemplateRef is the name of the KomputerAgentTemplate to use.
      * +kubebuilder:default="default"
      * @type {string}
@@ -270,6 +285,7 @@ export function V1alpha1KomputerAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         'sleepTTL': json['sleepTTL'] == null ? undefined : V1DurationFromJSON(json['sleepTTL']),
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskTimeout': json['taskTimeout'] == null ? undefined : V1DurationFromJSON(json['taskTimeout']),
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
 }
@@ -304,6 +320,7 @@ export function V1alpha1KomputerAgentSpecToJSONTyped(value?: V1alpha1KomputerAge
         'sleepTTL': V1DurationToJSON(value['sleepTTL']),
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskTimeout': V1DurationToJSON(value['taskTimeout']),
         'templateRef': value['templateRef'],
     };
 }

@@ -20,6 +20,11 @@ import (
 // not requeue", which would strand the agent until some other event woke it.
 const minTTLRequeue = time.Second
 
+// taskCancelRetryInterval is how long to wait before retrying a task cancellation that
+// failed (komputer-api unreachable, pod mid-restart). Short enough that an over-running
+// task is stopped promptly, long enough not to hammer the API.
+const taskCancelRetryInterval = 10 * time.Second
+
 // ttlAction is the transition an elapsed TTL asks for.
 type ttlAction int
 
@@ -115,6 +120,68 @@ func evaluateTTL(
 	return d
 }
 
+// taskDeadlineDecision is the outcome of evaluating an agent's taskTimeout at one instant.
+type taskDeadlineDecision struct {
+	// Cancel is true when the running task has outlived taskTimeout.
+	Cancel bool
+	// ExpiresAt is the projected cancellation time, for status. Nil when the clock
+	// isn't running.
+	ExpiresAt *metav1.Time
+	// RequeueAfter is when to re-evaluate. Zero means no deadline is pending.
+	RequeueAfter time.Duration
+}
+
+// evaluateTaskDeadline decides whether an agent's running task has exceeded taskTimeout
+// at time `now`. Pure function — reads only the agent and the resolved timeout, mutates
+// nothing.
+//
+// This is the mirror image of the sleepTTL clock in evaluateTTL. That one measures
+// idleness and deliberately never fires mid-task; this one measures a single task's
+// wall-clock runtime and only ever fires mid-task. It starts at Status.TaskStartedAt,
+// which the API worker stamps once per task and does not refresh, so steering cannot
+// extend the deadline — that is what makes taskTimeout a hard cap rather than an idle
+// bound.
+//
+// The clock only runs on an agent that is actually mid-task on a live pod. The pod guard
+// matters: a task left stuck at InProgress after its pod died would otherwise requeue
+// forever, trying to cancel a task on a pod that no longer exists. It is expressed via
+// Phase rather than a pod lookup so this stays a pure function and so the squad call
+// site — which has no pod object in hand — can use the identical condition.
+func evaluateTaskDeadline(
+	agent *komputerv1alpha1.KomputerAgent,
+	taskTimeout *metav1.Duration,
+	now time.Time,
+) taskDeadlineDecision {
+	var d taskDeadlineDecision
+
+	if taskTimeout == nil || taskTimeout.Duration <= 0 {
+		return d
+	}
+	if !taskInProgress(agent.Status.TaskStatus) {
+		return d
+	}
+	if agent.Status.TaskStartedAt == nil || agent.Status.TaskStartedAt.IsZero() {
+		return d
+	}
+	if agent.Status.PodName == "" || agent.Status.Phase != komputerv1alpha1.AgentPhaseRunning {
+		return d
+	}
+
+	deadline := agent.Status.TaskStartedAt.Time.Add(taskTimeout.Duration)
+	if !now.Before(deadline) {
+		d.Cancel = true
+		return d
+	}
+
+	t := metav1.NewTime(deadline)
+	d.ExpiresAt = &t
+	d.RequeueAfter = deadline.Sub(now)
+	if d.RequeueAfter < minTTLRequeue {
+		d.RequeueAfter = minTTLRequeue
+	}
+	return d
+}
+
 // idleSince returns the instant the agent's idle clock started, and whether it is
 // running at all. The clock is Status.LastActivityAt, which the API worker stamps on
 // every agent event — the first of them when a task starts.
@@ -137,17 +204,19 @@ func taskInProgress(s komputerv1alpha1.AgentTaskStatus) bool {
 	return s == komputerv1alpha1.AgentTaskInProgress || s == komputerv1alpha1.AgentTaskCompacting
 }
 
-// resolveAgentTTLs returns an agent's effective TTLs: its own spec values, falling
-// back to its template's defaults for whichever field it doesn't set.
+// resolveAgentTTLs returns an agent's three effective time bounds — sleepTTL,
+// deleteTTL and taskTimeout — as its own spec values, falling back to its template's
+// defaults for whichever field it doesn't set. The template is read at most once, and
+// not at all when the agent sets all three itself.
 //
 // The agent controller doesn't need this — it already merges the template via
 // applyAgentOverrides. This exists for the squad controller, which never builds a
 // merged template. A template that can't be read is treated as having no defaults:
-// TTLs must not be able to break squad reconciliation.
-func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) (sleepTTL, deleteTTL *metav1.Duration) {
-	sleepTTL, deleteTTL = agent.Spec.SleepTTL, agent.Spec.DeleteTTL
-	if sleepTTL != nil && deleteTTL != nil {
-		return sleepTTL, deleteTTL // nothing left for the template to supply
+// these bounds must not be able to break squad reconciliation.
+func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) (sleepTTL, deleteTTL, taskTimeout *metav1.Duration) {
+	sleepTTL, deleteTTL, taskTimeout = agent.Spec.SleepTTL, agent.Spec.DeleteTTL, agent.Spec.TaskTimeout
+	if sleepTTL != nil && deleteTTL != nil && taskTimeout != nil {
+		return sleepTTL, deleteTTL, taskTimeout // nothing left for the template to supply
 	}
 
 	templateRef := agent.Spec.TemplateRef
@@ -156,7 +225,7 @@ func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alp
 	}
 	spec, err := readTemplateSpec(ctx, c, templateRef, agent.Namespace)
 	if err != nil {
-		return sleepTTL, deleteTTL
+		return sleepTTL, deleteTTL, taskTimeout
 	}
 	if sleepTTL == nil {
 		sleepTTL = spec.SleepTTL
@@ -164,7 +233,10 @@ func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alp
 	if deleteTTL == nil {
 		deleteTTL = spec.DeleteTTL
 	}
-	return sleepTTL, deleteTTL
+	if taskTimeout == nil {
+		taskTimeout = spec.TaskTimeout
+	}
+	return sleepTTL, deleteTTL, taskTimeout
 }
 
 // readTemplateSpec resolves a template by name: namespaced first, then cluster-scoped,
@@ -192,21 +264,43 @@ func (r *KomputerAgentReconciler) applyTTL(
 	agent *komputerv1alpha1.KomputerAgent,
 	pod *corev1.Pod,
 	pvcName string,
-	sleepTTL, deleteTTL *metav1.Duration,
+	sleepTTL, deleteTTL, taskTimeout *metav1.Duration,
 ) (ctrl.Result, bool, error) {
 	log := logf.FromContext(ctx)
 
-	if sleepTTL == nil && deleteTTL == nil {
+	if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 		// Clear stale expiry timestamps if the TTLs were removed from the spec.
-		if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil {
+		if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
+			agent.Status.TaskExpiresAt != nil {
 			if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 				s.SleepExpiresAt = nil
 				s.DeleteExpiresAt = nil
+				s.TaskExpiresAt = nil
 			}); err != nil {
 				return ctrl.Result{}, false, err
 			}
 		}
 		return ctrl.Result{}, false, nil
+	}
+
+	// The task deadline is evaluated before the TTLs because it is the one clock
+	// allowed to fire mid-task — evaluateTTL deliberately never sleeps a busy agent.
+	// Cancelling here means an over-running task is stopped rather than reported as
+	// merely running on its way out.
+	td := evaluateTaskDeadline(agent, taskTimeout, time.Now())
+	if td.Cancel {
+		log.Info("taskTimeout elapsed, cancelling task",
+			"agent", agent.Name, "taskTimeout", taskTimeout.Duration,
+			"taskStartedAt", agent.Status.TaskStartedAt)
+		// TODO: pass reason="timeout" once interruption reasons are supported —
+		// today this is indistinguishable from a user cancel in status.
+		if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
+			// Leave TaskExpiresAt set and retry on the next reconcile. The retry stops
+			// on its own once TaskStatus leaves the in-progress state.
+			log.Error(err, "Failed to cancel task on taskTimeout", "agent", agent.Name)
+			return ctrl.Result{RequeueAfter: taskCancelRetryInterval}, false, nil
+		}
+		// Fall through: the TTL clocks still need evaluating this reconcile.
 	}
 
 	// The issue calls for a warning when the ordering is nonsensical: a deleteTTL at
@@ -244,6 +338,8 @@ func (r *KomputerAgentReconciler) applyTTL(
 			// No pending sleep once asleep; the lifetime cap keeps its deadline.
 			s.SleepExpiresAt = nil
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			// A sleeping agent has no running task.
+			s.TaskExpiresAt = nil
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
@@ -252,15 +348,22 @@ func (r *KomputerAgentReconciler) applyTTL(
 
 	// Nothing fired — publish the projected deadlines so clients can show a countdown.
 	if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
-		!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) {
+		!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) ||
+		!timeEqual(agent.Status.TaskExpiresAt, td.ExpiresAt) {
 		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 			s.SleepExpiresAt = d.SleepExpiresAt
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			s.TaskExpiresAt = td.ExpiresAt
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
 	}
-	return ctrl.Result{RequeueAfter: d.RequeueAfter}, false, nil
+
+	requeue := d.RequeueAfter
+	if td.RequeueAfter > 0 && (requeue == 0 || td.RequeueAfter < requeue) {
+		requeue = td.RequeueAfter
+	}
+	return ctrl.Result{RequeueAfter: requeue}, false, nil
 }
 
 // timeEqual compares two optional timestamps at second granularity, matching how

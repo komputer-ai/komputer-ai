@@ -22,6 +22,7 @@ Name | Type
 `sleepTTL` | string
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
+`taskTimeout` | string
 `templateRef` | string
 
 ## Example
@@ -47,6 +48,7 @@ const example = {
   "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
+  "taskTimeout": null,
   "templateRef": null,
 } satisfies PatchAgentRequest
 

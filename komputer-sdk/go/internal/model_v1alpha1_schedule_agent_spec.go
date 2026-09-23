@@ -51,6 +51,8 @@ type V1alpha1ScheduleAgentSpec struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	// TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional
+	TaskTimeout *V1Duration `json:"taskTimeout,omitempty"`
 	// TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"
 	TemplateRef *string `json:"templateRef,omitempty"`
 }
@@ -584,6 +586,38 @@ func (o *V1alpha1ScheduleAgentSpec) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
+func (o *V1alpha1ScheduleAgentSpec) GetTaskTimeout() V1Duration {
+	if o == nil || IsNil(o.TaskTimeout) {
+		var ret V1Duration
+		return ret
+	}
+	return *o.TaskTimeout
+}
+
+// GetTaskTimeoutOk returns a tuple with the TaskTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1ScheduleAgentSpec) GetTaskTimeoutOk() (*V1Duration, bool) {
+	if o == nil || IsNil(o.TaskTimeout) {
+		return nil, false
+	}
+	return o.TaskTimeout, true
+}
+
+// HasTaskTimeout returns a boolean if a field has been set.
+func (o *V1alpha1ScheduleAgentSpec) HasTaskTimeout() bool {
+	if o != nil && !IsNil(o.TaskTimeout) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskTimeout gets a reference to the given V1Duration and assigns it to the TaskTimeout field.
+func (o *V1alpha1ScheduleAgentSpec) SetTaskTimeout(v V1Duration) {
+	o.TaskTimeout = &v
+}
+
 // GetTemplateRef returns the TemplateRef field value if set, zero value otherwise.
 func (o *V1alpha1ScheduleAgentSpec) GetTemplateRef() string {
 	if o == nil || IsNil(o.TemplateRef) {
@@ -673,6 +707,9 @@ func (o V1alpha1ScheduleAgentSpec) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskTimeout) {
+		toSerialize["taskTimeout"] = o.TaskTimeout
 	}
 	if !IsNil(o.TemplateRef) {
 		toSerialize["templateRef"] = o.TemplateRef

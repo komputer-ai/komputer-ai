@@ -49,8 +49,9 @@ class CreateAgentRequest(BaseModel):
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \"30m\", \"2h\"). Empty means never auto-sleep.", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="optional custom system prompt", alias="systemPrompt")
+    task_timeout: Optional[StrictStr] = Field(default=None, description="TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit.", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -129,6 +130,7 @@ class CreateAgentRequest(BaseModel):
             "sleepTTL": obj.get("sleepTTL"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskTimeout": obj.get("taskTimeout"),
             "templateRef": obj.get("templateRef")
         })
         return _obj

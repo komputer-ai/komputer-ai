@@ -45,6 +45,8 @@ export interface AgentFormValues {
   sleepTTL: string;
   /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */
   deleteTTL: string;
+  /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
+  taskTimeout: string;
   // UI-only state (preserved across tab switches)
   systemPromptOpen: boolean;
   advancedOpen: boolean;
@@ -71,6 +73,7 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     storageSize: "",
     sleepTTL: "",
     deleteTTL: "",
+    taskTimeout: "",
     image: "",
     systemPromptOpen: false,
     advancedOpen: false,
@@ -480,6 +483,16 @@ export function AgentFieldsForm({
                         autoComplete="off"
                       />
                     </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-task-timeout`}>Task Timeout</Label>
+                      <Input
+                        id={`${idPrefix}-task-timeout`}
+                        placeholder="e.g. 30m"
+                        value={values.taskTimeout}
+                        onChange={(e) => patch("taskTimeout", e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -538,6 +551,7 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     storage: values.storageSize.trim() ? { size: values.storageSize.trim() } : undefined,
     sleepTTL: values.sleepTTL.trim() || undefined,
     deleteTTL: values.deleteTTL.trim() || undefined,
+    taskTimeout: values.taskTimeout.trim() || undefined,
   };
 }
 
@@ -597,6 +611,7 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
   if (values.storageSize.trim()) spec.storage = { size: values.storageSize.trim() };
   if (values.sleepTTL.trim()) spec.sleepTTL = values.sleepTTL.trim();
   if (values.deleteTTL.trim()) spec.deleteTTL = values.deleteTTL.trim();
+  if (values.taskTimeout.trim()) spec.taskTimeout = values.taskTimeout.trim();
   return spec;
 }
 

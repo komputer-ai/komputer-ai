@@ -235,7 +235,26 @@ export interface AgentResponse {
      * @type {string}
      * @memberof AgentResponse
      */
+    taskExpiresAt?: string;
+    /**
+     * TaskStartedAt is when the current (or most recent) task started (RFC3339).
+     * TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    taskStartedAt?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof AgentResponse
+     */
     taskStatus?: string;
+    /**
+     * per-task wall-clock cap, e.g. "30m"
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    taskTimeout?: string;
     /**
      * 
      * @type {string}
@@ -299,7 +318,10 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'status': json['status'] == null ? undefined : json['status'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskExpiresAt': json['taskExpiresAt'] == null ? undefined : json['taskExpiresAt'],
+        'taskStartedAt': json['taskStartedAt'] == null ? undefined : json['taskStartedAt'],
         'taskStatus': json['taskStatus'] == null ? undefined : json['taskStatus'],
+        'taskTimeout': json['taskTimeout'] == null ? undefined : json['taskTimeout'],
         'totalCostUSD': json['totalCostUSD'] == null ? undefined : json['totalCostUSD'],
         'totalTokens': json['totalTokens'] == null ? undefined : json['totalTokens'],
     };
@@ -348,7 +370,10 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'status': value['status'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskExpiresAt': value['taskExpiresAt'],
+        'taskStartedAt': value['taskStartedAt'],
         'taskStatus': value['taskStatus'],
+        'taskTimeout': value['taskTimeout'],
         'totalCostUSD': value['totalCostUSD'],
         'totalTokens': value['totalTokens'],
     };

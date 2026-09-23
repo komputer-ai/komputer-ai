@@ -2083,7 +2083,9 @@ components:
           taskStatus: taskStatus
           deleteTTL: deleteTTL
           squadName: squadName
+          taskStartedAt: taskStartedAt
           queuePosition: 4
+          taskTimeout: taskTimeout
           podSpec:
             dnsPolicy: "{}"
             nodeName: nodeName
@@ -2716,6 +2718,7 @@ components:
           squad: true
           name: name
           namespace: namespace
+          taskExpiresAt: taskExpiresAt
           errors:
           - errors
           - errors
@@ -2754,7 +2757,9 @@ components:
           taskStatus: taskStatus
           deleteTTL: deleteTTL
           squadName: squadName
+          taskStartedAt: taskStartedAt
           queuePosition: 4
+          taskTimeout: taskTimeout
           podSpec:
             dnsPolicy: "{}"
             nodeName: nodeName
@@ -3387,6 +3392,7 @@ components:
           squad: true
           name: name
           namespace: namespace
+          taskExpiresAt: taskExpiresAt
           errors:
           - errors
           - errors
@@ -3433,7 +3439,9 @@ components:
         taskStatus: taskStatus
         deleteTTL: deleteTTL
         squadName: squadName
+        taskStartedAt: taskStartedAt
         queuePosition: 4
+        taskTimeout: taskTimeout
         podSpec:
           dnsPolicy: "{}"
           nodeName: nodeName
@@ -4066,6 +4074,7 @@ components:
         squad: true
         name: name
         namespace: namespace
+        taskExpiresAt: taskExpiresAt
         errors:
         - errors
         - errors
@@ -4176,7 +4185,17 @@ components:
         systemPrompt:
           description: Custom system prompt (spec.systemPrompt)
           type: string
+        taskExpiresAt:
+          type: string
+        taskStartedAt:
+          description: |-
+            TaskStartedAt is when the current (or most recent) task started (RFC3339).
+            TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
+          type: string
         taskStatus:
+          type: string
+        taskTimeout:
+          description: "per-task wall-clock cap, e.g. \"30m\""
           type: string
         totalCostUSD:
           type: string
@@ -4321,6 +4340,12 @@ components:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
           description: optional custom system prompt
+          type: string
+        taskTimeout:
+          description: |-
+            TaskTimeout cancels a running task once it has run this long, as a Go duration
+            string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
+            it. Empty means tasks run without a time limit.
           type: string
         templateRef:
           type: string
@@ -4649,6 +4674,8 @@ components:
         systemPrompt:
           description: custom system prompt
           type: string
+        taskTimeout:
+          type: string
         templateRef:
           type: string
       type: object
@@ -4705,6 +4732,7 @@ components:
             - connectors
             role: role
             templateRef: templateRef
+            taskTimeout: "{}"
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -4757,6 +4785,7 @@ components:
             - connectors
             role: role
             templateRef: templateRef
+            taskTimeout: "{}"
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -4817,6 +4846,7 @@ components:
           - connectors
           role: role
           templateRef: templateRef
+          taskTimeout: "{}"
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -11645,6 +11675,21 @@ components:
             SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
             +optional
           type: string
+        taskTimeout:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            TaskTimeout cancels the agent's running task once it has been running for this
+            long. The clock starts when a task starts (Status.TaskStartedAt) and never
+            resets — steering a task does not extend it — so this is a hard wall-clock cap
+            on a single task, not an idle timeout.
+
+            Only the task is cancelled; the agent itself stays alive and any configured
+            Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+            Unset (default) means tasks run without a time limit.
+            Overrides the template's taskTimeout when set.
+            +optional
+          type: object
         templateRef:
           description: |-
             TemplateRef is the name of the KomputerAgentTemplate to use.
@@ -11682,6 +11727,7 @@ components:
         - connectors
         role: role
         templateRef: templateRef
+        taskTimeout: "{}"
         storage: "{}"
         podSpec: "{}"
         priority: 0
@@ -11854,6 +11900,21 @@ components:
             SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
             +optional
           type: string
+        taskTimeout:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            TaskTimeout cancels the agent's running task once it has been running for this
+            long. The clock starts when a task starts (Status.TaskStartedAt) and never
+            resets — steering a task does not extend it — so this is a hard wall-clock cap
+            on a single task, not an idle timeout.
+
+            Only the task is cancelled; the agent itself stays alive and any configured
+            Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+            Unset (default) means tasks run without a time limit.
+            Overrides the template's taskTimeout when set.
+            +optional
+          type: object
         templateRef:
           description: |-
             TemplateRef is the name of the KomputerAgentTemplate to use.

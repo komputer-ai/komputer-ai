@@ -101,6 +101,17 @@ type AgentConfigSpec struct {
 	// Overrides the template's deleteTTL when set.
 	// +optional
 	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
+	// TaskTimeout cancels the agent's running task once it has been running for this
+	// long. The clock starts when a task starts (Status.TaskStartedAt) and never
+	// resets — steering a task does not extend it — so this is a hard wall-clock cap
+	// on a single task, not an idle timeout.
+	//
+	// Only the task is cancelled; the agent itself stays alive and any configured
+	// Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+	// Unset (default) means tasks run without a time limit.
+	// Overrides the template's taskTimeout when set.
+	// +optional
+	TaskTimeout *metav1.Duration `json:"taskTimeout,omitempty"`
 	// Priority controls admission order when the template's maxConcurrentAgents
 	// limit is reached. Higher number = admitted first (matches K8s PodPriority).
 	// Ties broken by creationTimestamp (older first). Defaults to 0.

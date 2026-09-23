@@ -44,6 +44,7 @@ type PatchAgentRequest struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	TaskTimeout *string `json:"taskTimeout,omitempty"`
 	TemplateRef *string `json:"templateRef,omitempty"`
 }
 
@@ -576,6 +577,38 @@ func (o *PatchAgentRequest) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetTaskTimeout() string {
+	if o == nil || IsNil(o.TaskTimeout) {
+		var ret string
+		return ret
+	}
+	return *o.TaskTimeout
+}
+
+// GetTaskTimeoutOk returns a tuple with the TaskTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetTaskTimeoutOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskTimeout) {
+		return nil, false
+	}
+	return o.TaskTimeout, true
+}
+
+// HasTaskTimeout returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasTaskTimeout() bool {
+	if o != nil && !IsNil(o.TaskTimeout) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskTimeout gets a reference to the given string and assigns it to the TaskTimeout field.
+func (o *PatchAgentRequest) SetTaskTimeout(v string) {
+	o.TaskTimeout = &v
+}
+
 // GetTemplateRef returns the TemplateRef field value if set, zero value otherwise.
 func (o *PatchAgentRequest) GetTemplateRef() string {
 	if o == nil || IsNil(o.TemplateRef) {
@@ -665,6 +698,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskTimeout) {
+		toSerialize["taskTimeout"] = o.TaskTimeout
 	}
 	if !IsNil(o.TemplateRef) {
 		toSerialize["templateRef"] = o.TemplateRef

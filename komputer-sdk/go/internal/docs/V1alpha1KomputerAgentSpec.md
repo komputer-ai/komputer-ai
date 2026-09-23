@@ -23,6 +23,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to [**V1Duration**](V1Duration.md) | SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template&#39;s sleepTTL when set. +optional | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) | Storage, when set, overrides the template&#39;s storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional | [optional] 
 **SystemPrompt** | Pointer to **string** | SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional | [optional] 
+**TaskTimeout** | Pointer to [**V1Duration**](V1Duration.md) | TaskTimeout cancels the agent&#39;s running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template&#39;s taskTimeout when set. +optional | [optional] 
 **TemplateRef** | Pointer to **string** | TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default&#x3D;\&quot;default\&quot; | [optional] 
 
 ## Methods
@@ -518,6 +519,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *V1alpha1KomputerAgentSpec) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskTimeout
+
+`func (o *V1alpha1KomputerAgentSpec) GetTaskTimeout() V1Duration`
+
+GetTaskTimeout returns the TaskTimeout field if non-nil, zero value otherwise.
+
+### GetTaskTimeoutOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetTaskTimeoutOk() (*V1Duration, bool)`
+
+GetTaskTimeoutOk returns a tuple with the TaskTimeout field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskTimeout
+
+`func (o *V1alpha1KomputerAgentSpec) SetTaskTimeout(v V1Duration)`
+
+SetTaskTimeout sets TaskTimeout field to given value.
+
+### HasTaskTimeout
+
+`func (o *V1alpha1KomputerAgentSpec) HasTaskTimeout() bool`
+
+HasTaskTimeout returns a boolean if a field has been set.
 
 ### GetTemplateRef
 

@@ -238,3 +238,88 @@ func TestDurationEqual(t *testing.T) {
 		t.Error("different durations compared equal")
 	}
 }
+
+func TestTaskStatusStartsTask(t *testing.T) {
+	tests := []struct {
+		name string
+		prev komputerv1alpha1.AgentTaskStatus
+		next komputerv1alpha1.AgentTaskStatus
+		want bool
+	}{
+		{name: "idle to in progress starts a task", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		{name: "empty to in progress starts a task", prev: "", next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		{name: "error to in progress starts a task", prev: komputerv1alpha1.AgentTaskError, next: komputerv1alpha1.AgentTaskInProgress, want: true},
+		// A steer keeps the agent in progress; re-stamping here would let a user
+		// extend taskTimeout indefinitely by steering.
+		{name: "in progress to in progress does not restart", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskInProgress, want: false},
+		{name: "compacting to in progress does not restart", prev: komputerv1alpha1.AgentTaskCompacting, next: komputerv1alpha1.AgentTaskInProgress, want: false},
+		{name: "in progress to compacting does not restart", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskCompacting, want: false},
+		{name: "idle to compacting starts a task", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskCompacting, want: true},
+		{name: "in progress to complete does not start", prev: komputerv1alpha1.AgentTaskInProgress, next: komputerv1alpha1.AgentTaskComplete, want: false},
+		{name: "complete to complete does not start", prev: komputerv1alpha1.AgentTaskComplete, next: komputerv1alpha1.AgentTaskComplete, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := taskStatusStartsTask(tc.prev, tc.next); got != tc.want {
+				t.Errorf("taskStatusStartsTask(%q, %q) = %v, want %v", tc.prev, tc.next, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFillAgentTaskTimeoutFields(t *testing.T) {
+	started := metav1.NewTime(time.Date(2026, 8, 12, 9, 0, 0, 0, time.UTC))
+	expires := metav1.NewTime(time.Date(2026, 8, 12, 9, 30, 0, 0, time.UTC))
+
+	agent := &komputerv1alpha1.KomputerAgent{
+		Spec: komputerv1alpha1.KomputerAgentSpec{
+			AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+				TaskTimeout: &metav1.Duration{Duration: 30 * time.Minute},
+			},
+		},
+		Status: komputerv1alpha1.KomputerAgentStatus{
+			TaskStartedAt: &started,
+			TaskExpiresAt: &expires,
+		},
+	}
+
+	var resp AgentResponse
+	fillAgentTTL(&resp, agent)
+
+	if resp.TaskTimeout != "30m0s" {
+		t.Errorf("TaskTimeout = %q, want %q", resp.TaskTimeout, "30m0s")
+	}
+	if resp.TaskStartedAt != "2026-08-12T09:00:00Z" {
+		t.Errorf("TaskStartedAt = %q, want RFC3339 start time", resp.TaskStartedAt)
+	}
+	if resp.TaskExpiresAt != "2026-08-12T09:30:00Z" {
+		t.Errorf("TaskExpiresAt = %q, want RFC3339 expiry", resp.TaskExpiresAt)
+	}
+}
+
+func TestFillAgentTaskTimeoutFieldsUnset(t *testing.T) {
+	var resp AgentResponse
+	fillAgentTTL(&resp, &komputerv1alpha1.KomputerAgent{})
+
+	if resp.TaskTimeout != "" || resp.TaskStartedAt != "" || resp.TaskExpiresAt != "" {
+		t.Errorf("expected all task fields empty, got %q / %q / %q",
+			resp.TaskTimeout, resp.TaskStartedAt, resp.TaskExpiresAt)
+	}
+}
+
+func TestParseTTLRejectsBadTaskTimeout(t *testing.T) {
+	// parseTTL is shared, but pin the taskTimeout field name in the error so a bad
+	// value tells the caller which field it came from.
+	if _, err := parseTTL("taskTimeout", "banana"); err == nil {
+		t.Fatal("expected an error for a non-duration taskTimeout")
+	} else if !strings.Contains(err.Error(), "taskTimeout") {
+		t.Errorf("error %q should name the taskTimeout field", err)
+	}
+	if _, err := parseTTL("taskTimeout", "0s"); err == nil {
+		t.Error("expected zero taskTimeout to be rejected")
+	}
+	if _, err := parseTTL("taskTimeout", "-5m"); err == nil {
+		t.Error("expected negative taskTimeout to be rejected")
+	}
+}

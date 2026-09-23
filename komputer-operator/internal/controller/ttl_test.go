@@ -406,7 +406,7 @@ func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -447,7 +447,7 @@ func TestApplyTTL_SleepStillWatchesPendingDelete(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour))
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour), nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestApplyTTL_SleepWithNoPodStillSleeps(t *testing.T) {
 	r := newTTLReconciler(t, agent)
 
 	// A nil pod (deleted out from under us) must not panic or error.
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil)
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil, nil)
 	if err != nil {
 		t.Fatalf("applyTTL with nil pod: %v", err)
 	}
@@ -490,7 +490,7 @@ func TestApplyTTL_DeleteRemovesAgent(t *testing.T) {
 	agent.CreationTimestamp = metav1.NewTime(time.Now().Add(-48 * time.Hour))
 	r := newTTLReconciler(t, agent)
 
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour))
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour), nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestApplyTTL_NoTTLsIsANoOp(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -530,7 +530,7 @@ func TestApplyTTL_PublishesExpiryTimestampsWhenPending(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour))
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour), nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -560,7 +560,7 @@ func TestApplyTTL_ClearsStaleExpiriesWhenTTLsRemoved(t *testing.T) {
 	agent.Status.DeleteExpiresAt = &stale
 	r := newTTLReconciler(t, agent)
 
-	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil); err != nil || handled {
+	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil, nil); err != nil || handled {
 		t.Fatalf("applyTTL: handled=%v err=%v", handled, err)
 	}
 
@@ -579,7 +579,7 @@ func TestApplyTTL_InProgressTaskIsNotSlept(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil)
+	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil, nil)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -614,7 +614,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
 			WithObjects(tplWithTTLs("default", "default")).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m", sleep.Duration)
 		}
@@ -630,7 +630,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
 			WithObjects(tplWithTTLs("default", "default")).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m", sleep.Duration)
 		}
@@ -650,7 +650,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		}
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(clusterTpl).Build()
 
-		sleep, _ := resolveAgentTTLs(ctx, c, agent)
+		sleep, _, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep == nil || sleep.Duration != 15*time.Minute {
 			t.Errorf("sleepTTL = %v, want the cluster template's 15m", sleep)
 		}
@@ -662,7 +662,7 @@ func TestResolveAgentTTLs(t *testing.T) {
 		agent.Spec.SleepTTL = dur(5 * time.Minute)
 		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).Build()
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
+		sleep, del, _ := resolveAgentTTLs(ctx, c, agent)
 		if sleep.Duration != 5*time.Minute {
 			t.Errorf("sleepTTL = %v, want the agent's 5m to survive", sleep.Duration)
 		}
@@ -671,16 +671,251 @@ func TestResolveAgentTTLs(t *testing.T) {
 		}
 	})
 
-	t.Run("skips the template lookup when both are set", func(t *testing.T) {
+	t.Run("skips the template lookup when all three are set", func(t *testing.T) {
 		agent := ttlAgent()
 		agent.Spec.SleepTTL = dur(time.Minute)
 		agent.Spec.DeleteTTL = dur(time.Hour)
-		// Empty client: a lookup would fail, proving none was attempted.
-		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).Build()
+		agent.Spec.TaskTimeout = dur(time.Hour)
+		// A nil client is the assertion: readTemplateSpec would dereference it and
+		// panic, so returning at all proves the short-circuit fired and no lookup
+		// was attempted. An empty fake client cannot prove this — its failed lookup
+		// takes the error path, which returns these same values anyway.
+		var c client.Client
 
-		sleep, del := resolveAgentTTLs(ctx, c, agent)
-		if sleep.Duration != time.Minute || del.Duration != time.Hour {
-			t.Errorf("got %v/%v, want the agent's own values", sleep, del)
+		sleep, del, task := resolveAgentTTLs(ctx, c, agent)
+		if sleep.Duration != time.Minute || del.Duration != time.Hour || task.Duration != time.Hour {
+			t.Errorf("got %v/%v/%v, want the agent's own values", sleep, del, task)
+		}
+	})
+}
+
+// ─── evaluateTaskDeadline (per-task wall-clock cap) ──────────────────────────
+
+// withTaskStartedAt sets the task clock to baseTime+offset.
+func withTaskStartedAt(offset time.Duration) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) {
+		t := metav1.NewTime(baseTime.Add(offset))
+		a.Status.TaskStartedAt = &t
+	}
+}
+
+func withPodName(name string) func(*komputerv1alpha1.KomputerAgent) {
+	return func(a *komputerv1alpha1.KomputerAgent) { a.Status.PodName = name }
+}
+
+// runningTask builds an agent mid-task on a live pod: the baseline every deadline
+// case starts from, so each case below varies exactly one thing.
+func runningTask(mutate ...func(*komputerv1alpha1.KomputerAgent)) *komputerv1alpha1.KomputerAgent {
+	base := []func(*komputerv1alpha1.KomputerAgent){
+		withPhase(komputerv1alpha1.AgentPhaseRunning),
+		withTaskStatus(komputerv1alpha1.AgentTaskInProgress),
+		withPodName("test-agent-pod"),
+		withTaskStartedAt(0),
+	}
+	return ttlAgent(append(base, mutate...)...)
+}
+
+func TestEvaluateTaskDeadline(t *testing.T) {
+	tests := []struct {
+		name        string
+		agent       *komputerv1alpha1.KomputerAgent
+		taskTimeout *metav1.Duration
+		now         time.Time
+		wantCancel  bool
+		wantExpiry  bool // whether ExpiresAt should be non-nil
+		// wantRequeue is checked only when non-zero.
+		wantRequeue time.Duration
+	}{
+		{
+			name:        "no timeout set does nothing",
+			agent:       runningTask(),
+			taskTimeout: nil,
+			now:         baseTime.Add(10 * time.Hour),
+		},
+		{
+			name:        "zero timeout is treated as unset",
+			agent:       runningTask(),
+			taskTimeout: dur(0),
+			now:         baseTime.Add(10 * time.Hour),
+		},
+		{
+			name:        "running task before the deadline publishes an expiry and requeues",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(10 * time.Minute),
+			wantExpiry:  true,
+			wantRequeue: 20 * time.Minute,
+		},
+		{
+			name:        "elapsed deadline cancels",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "deadline exactly reached cancels",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(30 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "compacting still counts as in progress",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskCompacting)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+			wantCancel:  true,
+		},
+		{
+			name:        "completed task has no clock",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskComplete)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "errored task has no clock",
+			agent:       runningTask(withTaskStatus(komputerv1alpha1.AgentTaskError)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name: "task with no start time has no clock",
+			agent: runningTask(func(a *komputerv1alpha1.KomputerAgent) {
+				a.Status.TaskStartedAt = nil
+			}),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			// A task stuck InProgress after its pod died must not produce an endless
+			// retry loop against a pod that is not there.
+			name:        "no pod name means no clock",
+			agent:       runningTask(withPodName("")),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "non-running phase means no clock",
+			agent:       runningTask(withPhase(komputerv1alpha1.AgentPhaseSleeping)),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(31 * time.Minute),
+		},
+		{
+			name:        "a deadline moments away is floored to minTTLRequeue",
+			agent:       runningTask(),
+			taskTimeout: dur(30 * time.Minute),
+			now:         baseTime.Add(30*time.Minute - 10*time.Millisecond),
+			wantExpiry:  true,
+			wantRequeue: minTTLRequeue,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := evaluateTaskDeadline(tc.agent, tc.taskTimeout, tc.now)
+			if got.Cancel != tc.wantCancel {
+				t.Errorf("Cancel = %v, want %v", got.Cancel, tc.wantCancel)
+			}
+			if (got.ExpiresAt != nil) != tc.wantExpiry {
+				t.Errorf("ExpiresAt non-nil = %v, want %v", got.ExpiresAt != nil, tc.wantExpiry)
+			}
+			if tc.wantRequeue != 0 && got.RequeueAfter != tc.wantRequeue {
+				t.Errorf("RequeueAfter = %v, want %v", got.RequeueAfter, tc.wantRequeue)
+			}
+		})
+	}
+}
+
+// TestEvaluateTaskDeadlineSteerDoesNotReset pins the decision that steering a task does
+// not extend its deadline. A steer emits user_message and leaves TaskStatus at
+// InProgress, so TaskStartedAt is untouched and the deadline stays where it was.
+func TestEvaluateTaskDeadlineSteerDoesNotReset(t *testing.T) {
+	agent := runningTask()
+	timeout := dur(30 * time.Minute)
+
+	before := evaluateTaskDeadline(agent, timeout, baseTime.Add(10*time.Minute))
+	if before.ExpiresAt == nil {
+		t.Fatal("expected an expiry before the steer")
+	}
+	// Simulate a steer: activity happens, but TaskStartedAt is not re-stamped.
+	activity := metav1.NewTime(baseTime.Add(10 * time.Minute))
+	agent.Status.LastActivityAt = &activity
+
+	after := evaluateTaskDeadline(agent, timeout, baseTime.Add(11*time.Minute))
+	if after.ExpiresAt == nil {
+		t.Fatal("expected an expiry after the steer")
+	}
+	if !before.ExpiresAt.Time.Equal(after.ExpiresAt.Time) {
+		t.Errorf("steer moved the deadline: %v -> %v", before.ExpiresAt, after.ExpiresAt)
+	}
+}
+
+// ─── resolveAgentTTLs: taskTimeout (agent spec over template defaults) ───────
+
+func TestResolveAgentTaskTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	newAgent := func(taskTimeout *metav1.Duration) *komputerv1alpha1.KomputerAgent {
+		return &komputerv1alpha1.KomputerAgent{
+			ObjectMeta: metav1.ObjectMeta{Name: "a", Namespace: "default"},
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					TemplateRef: "default",
+					TaskTimeout: taskTimeout,
+				},
+			},
+		}
+	}
+	// Local helper: TestResolveAgentTTLs has its own tplWithTTLs, but it is a closure
+	// scoped to that test, so this one needs its own.
+	tplWithTask := func(taskTimeout *metav1.Duration) *komputerv1alpha1.KomputerAgentTemplate {
+		return &komputerv1alpha1.KomputerAgentTemplate{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: taskTimeout},
+		}
+	}
+
+	t.Run("agent value wins over template", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(dur(2 * time.Hour))).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(dur(30*time.Minute)))
+		if task == nil || task.Duration != 30*time.Minute {
+			t.Errorf("taskTimeout = %v, want 30m", task)
+		}
+	})
+
+	t.Run("template supplies the default", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(dur(2 * time.Hour))).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task == nil || task.Duration != 2*time.Hour {
+			t.Errorf("taskTimeout = %v, want 2h", task)
+		}
+	})
+
+	t.Run("cluster template used when no namespaced template exists", func(t *testing.T) {
+		clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{
+			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Spec:       komputerv1alpha1.KomputerAgentTemplateSpec{TaskTimeout: dur(45 * time.Minute)},
+		}
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).WithObjects(clusterTpl).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task == nil || task.Duration != 45*time.Minute {
+			t.Errorf("taskTimeout = %v, want 45m", task)
+		}
+	})
+
+	t.Run("nil everywhere stays nil", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(newTestScheme(t)).
+			WithObjects(tplWithTask(nil)).Build()
+
+		_, _, task := resolveAgentTTLs(ctx, c, newAgent(nil))
+		if task != nil {
+			t.Errorf("taskTimeout = %v, want nil", task)
 		}
 	})
 }

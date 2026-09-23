@@ -55,6 +55,11 @@ type KomputerAgentTemplateSpec struct {
 	// Unset (default) means agents never auto-delete.
 	// +optional
 	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
+	// TaskTimeout is the default per-task wall-clock cap for agents using this
+	// template. Individual agents override it via their own spec.taskTimeout.
+	// Unset (default) means tasks run without a time limit.
+	// +optional
+	TaskTimeout *metav1.Duration `json:"taskTimeout,omitempty"`
 	// AnthropicKeySecretRef is the absolute reference to the Anthropic API
 	// key secret. The operator mirrors this secret into every agent namespace
 	// and injects the ANTHROPIC_API_KEY env var into the pod automatically —

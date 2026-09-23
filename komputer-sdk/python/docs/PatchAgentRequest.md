@@ -21,6 +21,7 @@ Name | Type | Description | Notes
 **sleep_ttl** | **str** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | custom system prompt | [optional] 
+**task_timeout** | **str** |  | [optional] 
 **template_ref** | **str** |  | [optional] 
 
 ## Example

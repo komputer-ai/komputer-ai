@@ -2782,7 +2782,18 @@ const docTemplate = `{
                     "description": "Custom system prompt (spec.systemPrompt)",
                     "type": "string"
                 },
+                "taskExpiresAt": {
+                    "type": "string"
+                },
+                "taskStartedAt": {
+                    "description": "TaskStartedAt is when the current (or most recent) task started (RFC3339).\nTaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.",
+                    "type": "string"
+                },
                 "taskStatus": {
+                    "type": "string"
+                },
+                "taskTimeout": {
+                    "description": "per-task wall-clock cap, e.g. \"30m\"",
                     "type": "string"
                 },
                 "totalCostUSD": {
@@ -2953,6 +2964,10 @@ const docTemplate = `{
                 },
                 "systemPrompt": {
                     "description": "optional custom system prompt",
+                    "type": "string"
+                },
+                "taskTimeout": {
+                    "description": "TaskTimeout cancels a running task once it has run this long, as a Go duration\nstring (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend\nit. Empty means tasks run without a time limit.",
                     "type": "string"
                 },
                 "templateRef": {
@@ -3313,6 +3328,9 @@ const docTemplate = `{
                 },
                 "systemPrompt": {
                     "description": "custom system prompt",
+                    "type": "string"
+                },
+                "taskTimeout": {
                     "type": "string"
                 },
                 "templateRef": {
@@ -7917,6 +7935,14 @@ const docTemplate = `{
                     "description": "SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.\n+optional",
                     "type": "string"
                 },
+                "taskTimeout": {
+                    "description": "TaskTimeout cancels the agent's running task once it has been running for this\nlong. The clock starts when a task starts (Status.TaskStartedAt) and never\nresets — steering a task does not extend it — so this is a hard wall-clock cap\non a single task, not an idle timeout.\n\nOnly the task is cancelled; the agent itself stays alive and any configured\nLifecycle (Sleep / AutoDelete) then applies as it would after any other task end.\nUnset (default) means tasks run without a time limit.\nOverrides the template's taskTimeout when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
+                },
                 "templateRef": {
                     "description": "TemplateRef is the name of the KomputerAgentTemplate to use.\n+kubebuilder:default=\"default\"",
                     "type": "string"
@@ -7971,6 +7997,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "deleteTTL": {
+                    "description": "DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since\nmetadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it\ndoes not reset on wake and applies in every phase, including Sleeping.\nUnset (default) means the agent never auto-deletes.\nOverrides the template's deleteTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
                 },
                 "disallowedTools": {
                     "description": "DisallowedTools removes these tools from the agent. Purely subtractive:\nthe default built-ins and all connector tools remain available except\nwhat is named here. Takes precedence over AllowedTools.\nSupports wildcards, e.g. \"mcp__figma__*\".\n+optional",
@@ -8035,6 +8069,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "sleepTTL": {
+                    "description": "SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been\nidle for this long. Idle is measured from Status.LastActivityAt, so the clock\nonly starts once a task has actually started, and any later task event or wake\nresets it. Never fires while a task is in progress, and an agent that has never\nrun a task is never auto-slept (use DeleteTTL to reclaim those).\nUnset (default) means the agent never auto-sleeps.\nOverrides the template's sleepTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
+                },
                 "storage": {
                     "description": "Storage, when set, overrides the template's storage settings for this agent.\nExisting PVCs are expanded in place when the storage class supports it.\n+optional",
                     "allOf": [
@@ -8046,6 +8088,14 @@ const docTemplate = `{
                 "systemPrompt": {
                     "description": "SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.\n+optional",
                     "type": "string"
+                },
+                "taskTimeout": {
+                    "description": "TaskTimeout cancels the agent's running task once it has been running for this\nlong. The clock starts when a task starts (Status.TaskStartedAt) and never\nresets — steering a task does not extend it — so this is a hard wall-clock cap\non a single task, not an idle timeout.\n\nOnly the task is cancelled; the agent itself stays alive and any configured\nLifecycle (Sleep / AutoDelete) then applies as it would after any other task end.\nUnset (default) means tasks run without a time limit.\nOverrides the template's taskTimeout when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
                 },
                 "templateRef": {
                     "description": "TemplateRef is the name of the KomputerAgentTemplate to use.\n+kubebuilder:default=\"default\"",

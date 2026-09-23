@@ -20,6 +20,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to **string** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | custom system prompt | [optional] 
+**TaskTimeout** | Pointer to **string** |  | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
 ## Methods
@@ -440,6 +441,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *PatchAgentRequest) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskTimeout
+
+`func (o *PatchAgentRequest) GetTaskTimeout() string`
+
+GetTaskTimeout returns the TaskTimeout field if non-nil, zero value otherwise.
+
+### GetTaskTimeoutOk
+
+`func (o *PatchAgentRequest) GetTaskTimeoutOk() (*string, bool)`
+
+GetTaskTimeoutOk returns a tuple with the TaskTimeout field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskTimeout
+
+`func (o *PatchAgentRequest) SetTaskTimeout(v string)`
+
+SetTaskTimeout sets TaskTimeout field to given value.
+
+### HasTaskTimeout
+
+`func (o *PatchAgentRequest) HasTaskTimeout() bool`
+
+HasTaskTimeout returns a boolean if a field has been set.
 
 ### GetTemplateRef
 

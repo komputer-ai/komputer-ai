@@ -22,12 +22,12 @@ type CreateAgentRequest struct {
 	Instructions string   `json:"instructions" binding:"required"`
 	Model        string   `json:"model"`
 	TemplateRef  string   `json:"templateRef"`
-	Role         string   `json:"role"`          // "manager" or "" (default manager)
-	Namespace    string   `json:"namespace"`     // optional, defaults to server default
-	SecretRefs   []string `json:"secretRefs"`   // names of existing K8s Secrets to attach
-	Memories     []string `json:"memories"`     // optional KomputerMemory names to attach
-	Skills       []string `json:"skills"`       // optional KomputerSkill names to attach
-	Connectors   []string `json:"connectors"`   // optional KomputerConnector names to attach
+	Role         string   `json:"role"`       // "manager" or "" (default manager)
+	Namespace    string   `json:"namespace"`  // optional, defaults to server default
+	SecretRefs   []string `json:"secretRefs"` // names of existing K8s Secrets to attach
+	Memories     []string `json:"memories"`   // optional KomputerMemory names to attach
+	Skills       []string `json:"skills"`     // optional KomputerSkill names to attach
+	Connectors   []string `json:"connectors"` // optional KomputerConnector names to attach
 	// AllowedTools restricts the agent to exactly these tools. REPLACES the default
 	// built-in set rather than extending it, and connector tools are not auto-added.
 	// Supports wildcards, e.g. "mcp__figma__*". Empty keeps default behavior.
@@ -35,16 +35,20 @@ type CreateAgentRequest struct {
 	// DisallowedTools removes these tools; everything else stays available.
 	// Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools"`
-	Lifecycle     string   `json:"lifecycle"`     // "", "Sleep", or "AutoDelete"
+	Lifecycle       string   `json:"lifecycle"` // "", "Sleep", or "AutoDelete"
 	// SleepTTL puts the agent to sleep after this long with no activity, as a Go
 	// duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
 	SleepTTL string `json:"sleepTTL,omitempty"`
 	// DeleteTTL deletes the agent this long after creation, as a Go duration string
 	// (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
-	DeleteTTL     string   `json:"deleteTTL,omitempty"`
-	OfficeManager string   `json:"officeManager"` // set by manager MCP tool
-	SystemPrompt  string   `json:"systemPrompt"`  // optional custom system prompt
-	Priority      int32    `json:"priority,omitempty"` // queue priority; higher = admitted first
+	DeleteTTL string `json:"deleteTTL,omitempty"`
+	// TaskTimeout cancels a running task once it has run this long, as a Go duration
+	// string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
+	// it. Empty means tasks run without a time limit.
+	TaskTimeout   string                        `json:"taskTimeout,omitempty"`
+	OfficeManager string                        `json:"officeManager"`      // set by manager MCP tool
+	SystemPrompt  string                        `json:"systemPrompt"`       // optional custom system prompt
+	Priority      int32                         `json:"priority,omitempty"` // queue priority; higher = admitted first
 	PodSpec       *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage       *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
 	// Labels are user-defined key=value labels passed through to the agent CR.
@@ -54,48 +58,53 @@ type CreateAgentRequest struct {
 }
 
 type AgentResponse struct {
-	Name            string   `json:"name"`
-	Namespace       string   `json:"namespace"`
-	Model           string   `json:"model"`
-	Status          string   `json:"status"`
-	TaskStatus      string   `json:"taskStatus,omitempty"`
-	LastTaskMessage string   `json:"lastTaskMessage,omitempty"`
-	Lifecycle       string   `json:"lifecycle,omitempty"`
-	SleepTTL        string   `json:"sleepTTL,omitempty"`  // idle timeout before auto-sleep, e.g. "30m"
-	DeleteTTL       string   `json:"deleteTTL,omitempty"` // absolute lifetime before auto-delete, e.g. "24h"
+	Name            string `json:"name"`
+	Namespace       string `json:"namespace"`
+	Model           string `json:"model"`
+	Status          string `json:"status"`
+	TaskStatus      string `json:"taskStatus,omitempty"`
+	LastTaskMessage string `json:"lastTaskMessage,omitempty"`
+	Lifecycle       string `json:"lifecycle,omitempty"`
+	SleepTTL        string `json:"sleepTTL,omitempty"`    // idle timeout before auto-sleep, e.g. "30m"
+	DeleteTTL       string `json:"deleteTTL,omitempty"`   // absolute lifetime before auto-delete, e.g. "24h"
+	TaskTimeout     string `json:"taskTimeout,omitempty"` // per-task wall-clock cap, e.g. "30m"
 	// LastActivityAt is when the agent last saw task activity (RFC3339). The idle
 	// clock sleepTTL is measured against.
 	LastActivityAt string `json:"lastActivityAt,omitempty"`
 	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
 	// when the matching TTL is unset or its countdown isn't currently running.
-	SleepExpiresAt  string   `json:"sleepExpiresAt,omitempty"`
-	DeleteExpiresAt string   `json:"deleteExpiresAt,omitempty"`
-	LastTaskCostUSD string   `json:"lastTaskCostUSD,omitempty"`
-	TotalCostUSD    string   `json:"totalCostUSD,omitempty"`
-	TotalTokens          int64    `json:"totalTokens,omitempty"`
-	ModelContextWindow   int64    `json:"modelContextWindow,omitempty"`
-	Secrets              []string `json:"secrets,omitempty"`      // Key names from K8s Secrets (not values)
-	Memories        []string `json:"memories,omitempty"`     // KomputerMemory names attached to this agent
-	Skills          []string `json:"skills,omitempty"`       // KomputerSkill names attached to this agent
-	Connectors      []string `json:"connectors,omitempty"`   // KomputerConnector names attached to this agent
-	AllowedTools    []string `json:"allowedTools,omitempty"`    // Tools this agent is restricted to (empty = defaults)
-	DisallowedTools []string `json:"disallowedTools,omitempty"` // Tools removed from this agent
-	Instructions    string   `json:"instructions,omitempty"` // User task (spec.instructions)
-	SystemPrompt    string   `json:"systemPrompt,omitempty"` // Custom system prompt (spec.systemPrompt)
-	CreatedAt       string   `json:"createdAt"`
-	Priority        int32    `json:"priority"`
-	QueuePosition   int32    `json:"queuePosition,omitempty"`
-	QueueReason     string   `json:"queueReason,omitempty"`
-	Squad           bool     `json:"squad,omitempty"`     // True when this agent is managed by a KomputerSquad
-	SquadName       string   `json:"squadName,omitempty"` // Name of the squad managing this agent (when Squad=true)
-	PodSpec         *corev1.PodSpec               `json:"podSpec,omitempty"`
-	Storage         *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
+	SleepExpiresAt  string `json:"sleepExpiresAt,omitempty"`
+	DeleteExpiresAt string `json:"deleteExpiresAt,omitempty"`
+	// TaskStartedAt is when the current (or most recent) task started (RFC3339).
+	// TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
+	TaskStartedAt      string                        `json:"taskStartedAt,omitempty"`
+	TaskExpiresAt      string                        `json:"taskExpiresAt,omitempty"`
+	LastTaskCostUSD    string                        `json:"lastTaskCostUSD,omitempty"`
+	TotalCostUSD       string                        `json:"totalCostUSD,omitempty"`
+	TotalTokens        int64                         `json:"totalTokens,omitempty"`
+	ModelContextWindow int64                         `json:"modelContextWindow,omitempty"`
+	Secrets            []string                      `json:"secrets,omitempty"`         // Key names from K8s Secrets (not values)
+	Memories           []string                      `json:"memories,omitempty"`        // KomputerMemory names attached to this agent
+	Skills             []string                      `json:"skills,omitempty"`          // KomputerSkill names attached to this agent
+	Connectors         []string                      `json:"connectors,omitempty"`      // KomputerConnector names attached to this agent
+	AllowedTools       []string                      `json:"allowedTools,omitempty"`    // Tools this agent is restricted to (empty = defaults)
+	DisallowedTools    []string                      `json:"disallowedTools,omitempty"` // Tools removed from this agent
+	Instructions       string                        `json:"instructions,omitempty"`    // User task (spec.instructions)
+	SystemPrompt       string                        `json:"systemPrompt,omitempty"`    // Custom system prompt (spec.systemPrompt)
+	CreatedAt          string                        `json:"createdAt"`
+	Priority           int32                         `json:"priority"`
+	QueuePosition      int32                         `json:"queuePosition,omitempty"`
+	QueueReason        string                        `json:"queueReason,omitempty"`
+	Squad              bool                          `json:"squad,omitempty"`     // True when this agent is managed by a KomputerSquad
+	SquadName          string                        `json:"squadName,omitempty"` // Name of the squad managing this agent (when Squad=true)
+	PodSpec            *corev1.PodSpec               `json:"podSpec,omitempty"`
+	Storage            *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
 	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched
 	// but live-pod sync failed). The CR change still took effect; the UI can surface these
 	// as toasts so the user knows something didn't fully apply.
-	Errors          []string                      `json:"errors,omitempty"`
-	Labels          map[string]string             `json:"labels,omitempty"`
-	CompletionTime  string                        `json:"completionTime,omitempty"`
+	Errors         []string          `json:"errors,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	CompletionTime string            `json:"completionTime,omitempty"`
 }
 
 // buildAgentInternalSystemPrompt assembles the internal system prompt for an
@@ -248,7 +257,7 @@ func withAgentTTL(resp AgentResponse, agent *komputerv1alpha1.KomputerAgent) Age
 }
 
 // fillAgentTTL copies an agent's TTL spec and status timestamps onto a response.
-// Kept as a helper because every response path needs all five fields.
+// Kept as a helper because every response path needs all eight fields.
 func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 	if agent.Spec.SleepTTL != nil {
 		resp.SleepTTL = agent.Spec.SleepTTL.Duration.String()
@@ -265,6 +274,15 @@ func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 	if agent.Status.DeleteExpiresAt != nil {
 		resp.DeleteExpiresAt = agent.Status.DeleteExpiresAt.Format(time.RFC3339)
 	}
+	if agent.Spec.TaskTimeout != nil {
+		resp.TaskTimeout = agent.Spec.TaskTimeout.Duration.String()
+	}
+	if agent.Status.TaskStartedAt != nil {
+		resp.TaskStartedAt = agent.Status.TaskStartedAt.Format(time.RFC3339)
+	}
+	if agent.Status.TaskExpiresAt != nil {
+		resp.TaskExpiresAt = agent.Status.TaskExpiresAt.Format(time.RFC3339)
+	}
 }
 
 type PatchAgentRequest struct {
@@ -272,24 +290,25 @@ type PatchAgentRequest struct {
 	Lifecycle    *string   `json:"lifecycle,omitempty"`
 	Instructions *string   `json:"instructions,omitempty"`
 	TemplateRef  *string   `json:"templateRef,omitempty"`
-	SecretRefs   *[]string `json:"secretRefs,omitempty"`  // full replacement list of K8s secret names
-	Memories     *[]string `json:"memories,omitempty"`    // memory names to attach
-	Skills       *[]string `json:"skills,omitempty"`      // skill names to attach
-	Connectors   *[]string `json:"connectors,omitempty"`  // connector names to attach
+	SecretRefs   *[]string `json:"secretRefs,omitempty"` // full replacement list of K8s secret names
+	Memories     *[]string `json:"memories,omitempty"`   // memory names to attach
+	Skills       *[]string `json:"skills,omitempty"`     // skill names to attach
+	Connectors   *[]string `json:"connectors,omitempty"` // connector names to attach
 	// AllowedTools restricts the agent to these tools; an explicit [] clears the
 	// restriction and restores the default tool set.
 	AllowedTools *[]string `json:"allowedTools,omitempty"`
 	// DisallowedTools removes these tools; an explicit [] clears the list.
 	DisallowedTools *[]string `json:"disallowedTools,omitempty"`
-	SystemPrompt *string   `json:"systemPrompt,omitempty"` // custom system prompt
+	SystemPrompt    *string   `json:"systemPrompt,omitempty"` // custom system prompt
 	// SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
 	// clears the TTL; omitting the field leaves it unchanged.
-	SleepTTL     *string   `json:"sleepTTL,omitempty"`
-	DeleteTTL    *string   `json:"deleteTTL,omitempty"`
-	Priority     *int32    `json:"priority,omitempty"`    // pointer so 0 vs unset is distinguishable
-	PodSpec      *corev1.PodSpec               `json:"podSpec,omitempty"`
-	Storage      *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
-	Labels       map[string]string             `json:"labels,omitempty"`
+	SleepTTL    *string                       `json:"sleepTTL,omitempty"`
+	DeleteTTL   *string                       `json:"deleteTTL,omitempty"`
+	TaskTimeout *string                       `json:"taskTimeout,omitempty"`
+	Priority    *int32                        `json:"priority,omitempty"` // pointer so 0 vs unset is distinguishable
+	PodSpec     *corev1.PodSpec               `json:"podSpec,omitempty"`
+	Storage     *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
+	Labels      map[string]string             `json:"labels,omitempty"`
 }
 
 // createOrTriggerAgent creates a new agent or sends a task to an existing one.
@@ -339,6 +358,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		deleteTTL, err := parseTTL("deleteTTL", req.DeleteTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		taskTimeout, err := parseTTL("taskTimeout", req.TaskTimeout)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -393,11 +417,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
 				// Use CR memories (may have been updated via PATCH since creation)
-			wakeMemories := existing.Spec.Memories
-			if len(req.Memories) > 0 {
-				wakeMemories = req.Memories
-			}
-			wakeSystemPrompt := req.SystemPrompt
+				wakeMemories := existing.Spec.Memories
+				if len(req.Memories) > 0 {
+					wakeMemories = req.Memories
+				}
+				wakeSystemPrompt := req.SystemPrompt
 				if wakeSystemPrompt == "" {
 					wakeSystemPrompt = existing.Spec.SystemPrompt
 				}
@@ -419,31 +443,31 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Logger.Infow("waking sleeping agent", "namespace", ns, "agent_name", req.Name)
 				agentActionsTotal.WithLabelValues("wake", "success").Inc()
 				c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
-					Name:            existing.Name,
-					Namespace:       existing.Namespace,
-					Model:           existing.Spec.Model,
-					Status:          "Pending",
-					Lifecycle:       string(existing.Spec.Lifecycle),
-					LastTaskCostUSD: existing.Status.LastTaskCostUSD,
-					TotalCostUSD:    existing.Status.TotalCostUSD,
-					TotalTokens:          existing.Status.TotalTokens,
-						ModelContextWindow:   existing.Status.ModelContextWindow,
-					Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
-					Memories:        existing.Spec.Memories,
-					Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
-					Connectors:      existing.Spec.Connectors,
-					AllowedTools:      existing.Spec.AllowedTools,
-					DisallowedTools:      existing.Spec.DisallowedTools,
-					Instructions:    existing.Spec.Instructions,
-					SystemPrompt:    existing.Spec.SystemPrompt,
-					CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
-					Priority:        existing.Spec.Priority,
-					QueuePosition:   existing.Status.QueuePosition,
-					QueueReason:     existing.Status.QueueReason,
-					PodSpec:         existing.Spec.PodSpec,
-					Storage:         existing.Spec.Storage,
-					Labels:          existing.Spec.Labels,
-					CompletionTime:  formatTime(existing.Status.CompletionTime),
+					Name:               existing.Name,
+					Namespace:          existing.Namespace,
+					Model:              existing.Spec.Model,
+					Status:             "Pending",
+					Lifecycle:          string(existing.Spec.Lifecycle),
+					LastTaskCostUSD:    existing.Status.LastTaskCostUSD,
+					TotalCostUSD:       existing.Status.TotalCostUSD,
+					TotalTokens:        existing.Status.TotalTokens,
+					ModelContextWindow: existing.Status.ModelContextWindow,
+					Secrets:            collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
+					Memories:           existing.Spec.Memories,
+					Skills:             mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
+					Connectors:         existing.Spec.Connectors,
+					AllowedTools:       existing.Spec.AllowedTools,
+					DisallowedTools:    existing.Spec.DisallowedTools,
+					Instructions:       existing.Spec.Instructions,
+					SystemPrompt:       existing.Spec.SystemPrompt,
+					CreatedAt:          existing.CreationTimestamp.UTC().Format(time.RFC3339),
+					Priority:           existing.Spec.Priority,
+					QueuePosition:      existing.Status.QueuePosition,
+					QueueReason:        existing.Status.QueueReason,
+					PodSpec:            existing.Spec.PodSpec,
+					Storage:            existing.Spec.Storage,
+					Labels:             existing.Spec.Labels,
+					CompletionTime:     formatTime(existing.Status.CompletionTime),
 				}, existing))
 				return
 			}
@@ -487,10 +511,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// Update TTLs if this request carried new ones. Only non-empty values are
 			// applied — an omitted TTL on a task request must not silently clear an
 			// existing one, since callers routinely send just name + instructions.
-			if sleepTTL != nil || deleteTTL != nil {
+			if sleepTTL != nil || deleteTTL != nil || taskTimeout != nil {
 				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil,
 					TTLUpdate{Set: sleepTTL != nil, Value: sleepTTL},
-					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL}); err != nil {
+					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL},
+					TTLUpdate{Set: taskTimeout != nil, Value: taskTimeout}); err != nil {
 					Logger.Warnw("failed to patch TTLs", "agent_name", req.Name, "error", err)
 				}
 			}
@@ -498,33 +523,33 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Logger.Infow("forwarded task to existing agent", "namespace", ns, "agent_name", req.Name)
 			agentActionsTotal.WithLabelValues("wake", "success").Inc()
 			c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
-				Name:            existing.Name,
-				Namespace:       existing.Namespace,
-				Model:           existing.Spec.Model,
-				Status:          string(existing.Status.Phase),
-				TaskStatus:      string(existing.Status.TaskStatus),
-				LastTaskMessage: existing.Status.LastTaskMessage,
-				Lifecycle:       string(existing.Spec.Lifecycle),
-				LastTaskCostUSD: existing.Status.LastTaskCostUSD,
-				TotalCostUSD:    existing.Status.TotalCostUSD,
-				TotalTokens:          existing.Status.TotalTokens,
-						ModelContextWindow:   existing.Status.ModelContextWindow,
-				Secrets:         collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
-				Memories:        existing.Spec.Memories,
-				Skills:          mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
-				Connectors:      existing.Spec.Connectors,
-				AllowedTools:      existing.Spec.AllowedTools,
-				DisallowedTools:      existing.Spec.DisallowedTools,
-				Instructions:    existing.Spec.Instructions,
-				SystemPrompt:    existing.Spec.SystemPrompt,
-				CreatedAt:       existing.CreationTimestamp.UTC().Format(time.RFC3339),
-				Priority:        existing.Spec.Priority,
-				QueuePosition:   existing.Status.QueuePosition,
-				QueueReason:     existing.Status.QueueReason,
-				PodSpec:         existing.Spec.PodSpec,
-				Storage:         existing.Spec.Storage,
-				Labels:          existing.Spec.Labels,
-				CompletionTime:  formatTime(existing.Status.CompletionTime),
+				Name:               existing.Name,
+				Namespace:          existing.Namespace,
+				Model:              existing.Spec.Model,
+				Status:             string(existing.Status.Phase),
+				TaskStatus:         string(existing.Status.TaskStatus),
+				LastTaskMessage:    existing.Status.LastTaskMessage,
+				Lifecycle:          string(existing.Spec.Lifecycle),
+				LastTaskCostUSD:    existing.Status.LastTaskCostUSD,
+				TotalCostUSD:       existing.Status.TotalCostUSD,
+				TotalTokens:        existing.Status.TotalTokens,
+				ModelContextWindow: existing.Status.ModelContextWindow,
+				Secrets:            collectSecretKeys(*c, k8s, ns, existing.Spec.Secrets),
+				Memories:           existing.Spec.Memories,
+				Skills:             mergeDefaultSkills(existing.Spec.Skills, defaultSkills),
+				Connectors:         existing.Spec.Connectors,
+				AllowedTools:       existing.Spec.AllowedTools,
+				DisallowedTools:    existing.Spec.DisallowedTools,
+				Instructions:       existing.Spec.Instructions,
+				SystemPrompt:       existing.Spec.SystemPrompt,
+				CreatedAt:          existing.CreationTimestamp.UTC().Format(time.RFC3339),
+				Priority:           existing.Spec.Priority,
+				QueuePosition:      existing.Status.QueuePosition,
+				QueueReason:        existing.Status.QueueReason,
+				PodSpec:            existing.Spec.PodSpec,
+				Storage:            existing.Spec.Storage,
+				Labels:             existing.Spec.Labels,
+				CompletionTime:     formatTime(existing.Status.CompletionTime),
 			}, existing))
 			return
 		}
@@ -568,6 +593,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       komputerv1alpha1.AgentLifecycle(req.Lifecycle),
 				SleepTTL:        sleepTTL,
 				DeleteTTL:       deleteTTL,
+				TaskTimeout:     taskTimeout,
 				Priority:        req.Priority,
 				PodSpec:         req.PodSpec,
 				Storage:         req.Storage,
@@ -586,27 +612,27 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		Logger.Infow("created new agent", "namespace", ns, "agent_name", req.Name)
 		agentActionsTotal.WithLabelValues("create", "success").Inc()
 		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
-			Name:         agent.Name,
-			Namespace:    agent.Namespace,
-			Model:        agent.Spec.Model,
-			Status:       "Pending",
-			Lifecycle:    string(agent.Spec.Lifecycle),
-			Secrets:      collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
-			Memories:     agent.Spec.Memories,
-			Skills:       mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
-			Connectors:   agent.Spec.Connectors,
-			AllowedTools:   agent.Spec.AllowedTools,
-			DisallowedTools:   agent.Spec.DisallowedTools,
-			Instructions: agent.Spec.Instructions,
-			SystemPrompt: agent.Spec.SystemPrompt,
-			CreatedAt:    agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Status:             "Pending",
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Memories:           agent.Spec.Memories,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
+			Instructions:       agent.Spec.Instructions,
+			SystemPrompt:       agent.Spec.SystemPrompt,
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
 			TotalTokens:        agent.Status.TotalTokens,
 			ModelContextWindow: agent.Status.ModelContextWindow,
-			Priority:     agent.Spec.Priority,
-			PodSpec:      agent.Spec.PodSpec,
-			Storage:      agent.Spec.Storage,
-			Labels:       agent.Spec.Labels,
-			CompletionTime: formatTime(agent.Status.CompletionTime),
+			Priority:           agent.Spec.Priority,
+			PodSpec:            agent.Spec.PodSpec,
+			Storage:            agent.Spec.Storage,
+			Labels:             agent.Spec.Labels,
+			CompletionTime:     formatTime(agent.Status.CompletionTime),
 		}, agent))
 	}
 }
@@ -804,23 +830,23 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
-			Name:            agent.Name,
-			Namespace:       agent.Namespace,
-			Model:           agent.Spec.Model,
-			Status:          string(agent.Status.Phase),
-			TaskStatus:      string(agent.Status.TaskStatus),
-			LastTaskMessage: agent.Status.LastTaskMessage,
-			Lifecycle:       string(agent.Spec.Lifecycle),
-			LastTaskCostUSD: agent.Status.LastTaskCostUSD,
-			TotalCostUSD:    agent.Status.TotalCostUSD,
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Status:             string(agent.Status.Phase),
+			TaskStatus:         string(agent.Status.TaskStatus),
+			LastTaskMessage:    agent.Status.LastTaskMessage,
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			LastTaskCostUSD:    agent.Status.LastTaskCostUSD,
+			TotalCostUSD:       agent.Status.TotalCostUSD,
 			TotalTokens:        agent.Status.TotalTokens,
 			ModelContextWindow: agent.Status.ModelContextWindow,
 			Secrets:            agent.Spec.Secrets,
 			Memories:           agent.Spec.Memories,
 			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
 			Connectors:         agent.Spec.Connectors,
-			AllowedTools:         agent.Spec.AllowedTools,
-			DisallowedTools:         agent.Spec.DisallowedTools,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -966,23 +992,23 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				continue
 			}
 			resp.Agents = append(resp.Agents, withAgentTTL(AgentResponse{
-				Name:            a.Name,
-				Namespace:       a.Namespace,
-				Model:           a.Spec.Model,
-				Status:          string(a.Status.Phase),
-				TaskStatus:      string(a.Status.TaskStatus),
-				LastTaskMessage: a.Status.LastTaskMessage,
-				Lifecycle:       string(a.Spec.Lifecycle),
-				LastTaskCostUSD: a.Status.LastTaskCostUSD,
-				TotalCostUSD:    a.Status.TotalCostUSD,
+				Name:               a.Name,
+				Namespace:          a.Namespace,
+				Model:              a.Spec.Model,
+				Status:             string(a.Status.Phase),
+				TaskStatus:         string(a.Status.TaskStatus),
+				LastTaskMessage:    a.Status.LastTaskMessage,
+				Lifecycle:          string(a.Spec.Lifecycle),
+				LastTaskCostUSD:    a.Status.LastTaskCostUSD,
+				TotalCostUSD:       a.Status.TotalCostUSD,
 				TotalTokens:        a.Status.TotalTokens,
 				ModelContextWindow: a.Status.ModelContextWindow,
 				Secrets:            collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
 				Memories:           a.Spec.Memories,
 				Skills:             mergeDefaultSkills(a.Spec.Skills, defaultSkills),
 				Connectors:         a.Spec.Connectors,
-				AllowedTools:         a.Spec.AllowedTools,
-				DisallowedTools:         a.Spec.DisallowedTools,
+				AllowedTools:       a.Spec.AllowedTools,
+				DisallowedTools:    a.Spec.DisallowedTools,
 				Instructions:       a.Spec.Instructions,
 				SystemPrompt:       a.Spec.SystemPrompt,
 				CreatedAt:          a.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1027,7 +1053,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1048,6 +1074,11 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		taskTimeout, err := parseTTLUpdate("taskTimeout", req.TaskTimeout)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
 		var nonFatalErrors []string
 
@@ -1058,7 +1089,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1. Patch CR spec first — this is the source of truth.
-		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL); err != nil {
+		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout); err != nil {
 			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
@@ -1215,15 +1246,15 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 		agentActionsTotal.WithLabelValues(patchAction, "success").Inc()
 		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
-			Name:            updated.Name,
-			Namespace:       updated.Namespace,
-			Model:           updated.Spec.Model,
-			Status:          string(updated.Status.Phase),
-			TaskStatus:      string(updated.Status.TaskStatus),
-			LastTaskMessage: updated.Status.LastTaskMessage,
-			Lifecycle:       string(updated.Spec.Lifecycle),
-			LastTaskCostUSD: updated.Status.LastTaskCostUSD,
-			TotalCostUSD:    updated.Status.TotalCostUSD,
+			Name:               updated.Name,
+			Namespace:          updated.Namespace,
+			Model:              updated.Spec.Model,
+			Status:             string(updated.Status.Phase),
+			TaskStatus:         string(updated.Status.TaskStatus),
+			LastTaskMessage:    updated.Status.LastTaskMessage,
+			Lifecycle:          string(updated.Spec.Lifecycle),
+			LastTaskCostUSD:    updated.Status.LastTaskCostUSD,
+			TotalCostUSD:       updated.Status.TotalCostUSD,
 			TotalTokens:        updated.Status.TotalTokens,
 			ModelContextWindow: modelContextWindow,
 			Secrets:            updated.Spec.Secrets,
@@ -1232,8 +1263,8 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Instructions:       updated.Spec.Instructions,
 			SystemPrompt:       updated.Spec.SystemPrompt,
 			Connectors:         updated.Spec.Connectors,
-			AllowedTools:         updated.Spec.AllowedTools,
-			DisallowedTools:         updated.Spec.DisallowedTools,
+			AllowedTools:       updated.Spec.AllowedTools,
+			DisallowedTools:    updated.Spec.DisallowedTools,
 			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 			Priority:           updated.Spec.Priority,
 			QueuePosition:      updated.Status.QueuePosition,

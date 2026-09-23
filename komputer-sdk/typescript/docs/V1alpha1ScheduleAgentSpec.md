@@ -22,6 +22,7 @@ Name | Type
 `sleepTTL` | [V1Duration](V1Duration.md)
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
+`taskTimeout` | [V1Duration](V1Duration.md)
 `templateRef` | string
 
 ## Example
@@ -47,6 +48,7 @@ const example = {
   "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
+  "taskTimeout": null,
   "templateRef": null,
 } satisfies V1alpha1ScheduleAgentSpec
 

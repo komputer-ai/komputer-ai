@@ -137,6 +137,12 @@ export interface PatchAgentRequest {
      * @type {string}
      * @memberof PatchAgentRequest
      */
+    taskTimeout?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
     templateRef?: string;
 }
 
@@ -173,6 +179,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskTimeout': json['taskTimeout'] == null ? undefined : json['taskTimeout'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
 }
@@ -204,6 +211,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskTimeout': value['taskTimeout'],
         'templateRef': value['templateRef'],
     };
 }

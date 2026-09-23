@@ -66,7 +66,12 @@ type AgentResponse struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// Custom system prompt (spec.systemPrompt)
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	TaskExpiresAt *string `json:"taskExpiresAt,omitempty"`
+	// TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
+	TaskStartedAt *string `json:"taskStartedAt,omitempty"`
 	TaskStatus *string `json:"taskStatus,omitempty"`
+	// per-task wall-clock cap, e.g. \"30m\"
+	TaskTimeout *string `json:"taskTimeout,omitempty"`
 	TotalCostUSD *string `json:"totalCostUSD,omitempty"`
 	TotalTokens *int32 `json:"totalTokens,omitempty"`
 }
@@ -1112,6 +1117,70 @@ func (o *AgentResponse) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskExpiresAt returns the TaskExpiresAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetTaskExpiresAt() string {
+	if o == nil || IsNil(o.TaskExpiresAt) {
+		var ret string
+		return ret
+	}
+	return *o.TaskExpiresAt
+}
+
+// GetTaskExpiresAtOk returns a tuple with the TaskExpiresAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetTaskExpiresAtOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskExpiresAt) {
+		return nil, false
+	}
+	return o.TaskExpiresAt, true
+}
+
+// HasTaskExpiresAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasTaskExpiresAt() bool {
+	if o != nil && !IsNil(o.TaskExpiresAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskExpiresAt gets a reference to the given string and assigns it to the TaskExpiresAt field.
+func (o *AgentResponse) SetTaskExpiresAt(v string) {
+	o.TaskExpiresAt = &v
+}
+
+// GetTaskStartedAt returns the TaskStartedAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetTaskStartedAt() string {
+	if o == nil || IsNil(o.TaskStartedAt) {
+		var ret string
+		return ret
+	}
+	return *o.TaskStartedAt
+}
+
+// GetTaskStartedAtOk returns a tuple with the TaskStartedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetTaskStartedAtOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskStartedAt) {
+		return nil, false
+	}
+	return o.TaskStartedAt, true
+}
+
+// HasTaskStartedAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasTaskStartedAt() bool {
+	if o != nil && !IsNil(o.TaskStartedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskStartedAt gets a reference to the given string and assigns it to the TaskStartedAt field.
+func (o *AgentResponse) SetTaskStartedAt(v string) {
+	o.TaskStartedAt = &v
+}
+
 // GetTaskStatus returns the TaskStatus field value if set, zero value otherwise.
 func (o *AgentResponse) GetTaskStatus() string {
 	if o == nil || IsNil(o.TaskStatus) {
@@ -1142,6 +1211,38 @@ func (o *AgentResponse) HasTaskStatus() bool {
 // SetTaskStatus gets a reference to the given string and assigns it to the TaskStatus field.
 func (o *AgentResponse) SetTaskStatus(v string) {
 	o.TaskStatus = &v
+}
+
+// GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
+func (o *AgentResponse) GetTaskTimeout() string {
+	if o == nil || IsNil(o.TaskTimeout) {
+		var ret string
+		return ret
+	}
+	return *o.TaskTimeout
+}
+
+// GetTaskTimeoutOk returns a tuple with the TaskTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetTaskTimeoutOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskTimeout) {
+		return nil, false
+	}
+	return o.TaskTimeout, true
+}
+
+// HasTaskTimeout returns a boolean if a field has been set.
+func (o *AgentResponse) HasTaskTimeout() bool {
+	if o != nil && !IsNil(o.TaskTimeout) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskTimeout gets a reference to the given string and assigns it to the TaskTimeout field.
+func (o *AgentResponse) SetTaskTimeout(v string) {
+	o.TaskTimeout = &v
 }
 
 // GetTotalCostUSD returns the TotalCostUSD field value if set, zero value otherwise.
@@ -1314,8 +1415,17 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
 	}
+	if !IsNil(o.TaskExpiresAt) {
+		toSerialize["taskExpiresAt"] = o.TaskExpiresAt
+	}
+	if !IsNil(o.TaskStartedAt) {
+		toSerialize["taskStartedAt"] = o.TaskStartedAt
+	}
 	if !IsNil(o.TaskStatus) {
 		toSerialize["taskStatus"] = o.TaskStatus
+	}
+	if !IsNil(o.TaskTimeout) {
+		toSerialize["taskTimeout"] = o.TaskTimeout
 	}
 	if !IsNil(o.TotalCostUSD) {
 		toSerialize["totalCostUSD"] = o.TotalCostUSD

@@ -150,6 +150,20 @@ type KomputerAgentStatus struct {
 	// Owned by operator.
 	// +optional
 	DeleteExpiresAt *metav1.Time `json:"deleteExpiresAt,omitempty"`
+	// TaskStartedAt is when the current (or most recent) task started. Stamped by the
+	// API worker when the agent transitions into an in-progress task status, and NOT
+	// refreshed while that task continues — a steer leaves it alone, which is what
+	// makes TaskTimeout a hard cap. It is never cleared, so on an idle agent it reads
+	// as "when the last task started".
+	// Managed by the API worker, not by the operator.
+	// +optional
+	TaskStartedAt *metav1.Time `json:"taskStartedAt,omitempty"`
+	// TaskExpiresAt is when the running task will be cancelled by TaskTimeout.
+	// nil when TaskTimeout is unset, no task is in progress, or the agent has no
+	// running pod.
+	// Owned by operator.
+	// +optional
+	TaskExpiresAt *metav1.Time `json:"taskExpiresAt,omitempty"`
 	// Squad indicates the agent is managed by a KomputerSquad. When true, the squad
 	// controller owns the agent's pod lifecycle; the agent controller skips reconciliation.
 	// Phase, PodName, etc. continue to reflect the real pod state (set by the squad controller).

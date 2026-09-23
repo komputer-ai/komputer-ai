@@ -45,8 +45,9 @@ class PatchAgentRequest(BaseModel):
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="SleepTTL / DeleteTTL are Go duration strings (e.g. \"30m\"). An explicit \"\" clears the TTL; omitting the field leaves it unchanged.", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="custom system prompt", alias="systemPrompt")
+    task_timeout: Optional[StrictStr] = Field(default=None, alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -121,6 +122,7 @@ class PatchAgentRequest(BaseModel):
             "sleepTTL": obj.get("sleepTTL"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskTimeout": obj.get("taskTimeout"),
             "templateRef": obj.get("templateRef")
         })
         return _obj

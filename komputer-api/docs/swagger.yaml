@@ -162,7 +162,17 @@ definitions:
       systemPrompt:
         description: Custom system prompt (spec.systemPrompt)
         type: string
+      taskExpiresAt:
+        type: string
+      taskStartedAt:
+        description: |-
+          TaskStartedAt is when the current (or most recent) task started (RFC3339).
+          TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
+        type: string
       taskStatus:
+        type: string
+      taskTimeout:
+        description: per-task wall-clock cap, e.g. "30m"
         type: string
       totalCostUSD:
         type: string
@@ -290,6 +300,12 @@ definitions:
         $ref: '#/definitions/v1alpha1.StorageSpec'
       systemPrompt:
         description: optional custom system prompt
+        type: string
+      taskTimeout:
+        description: |-
+          TaskTimeout cancels a running task once it has run this long, as a Go duration
+          string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
+          it. Empty means tasks run without a time limit.
         type: string
       templateRef:
         type: string
@@ -542,6 +558,8 @@ definitions:
         $ref: '#/definitions/v1alpha1.StorageSpec'
       systemPrompt:
         description: custom system prompt
+        type: string
+      taskTimeout:
         type: string
       templateRef:
         type: string
@@ -6235,6 +6253,20 @@ definitions:
           SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
           +optional
         type: string
+      taskTimeout:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          TaskTimeout cancels the agent's running task once it has been running for this
+          long. The clock starts when a task starts (Status.TaskStartedAt) and never
+          resets — steering a task does not extend it — so this is a hard wall-clock cap
+          on a single task, not an idle timeout.
+
+          Only the task is cancelled; the agent itself stays alive and any configured
+          Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+          Unset (default) means tasks run without a time limit.
+          Overrides the template's taskTimeout when set.
+          +optional
       templateRef:
         description: |-
           TemplateRef is the name of the KomputerAgentTemplate to use.
@@ -6289,6 +6321,16 @@ definitions:
         items:
           type: string
         type: array
+      deleteTTL:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since
+          metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it
+          does not reset on wake and applies in every phase, including Sleeping.
+          Unset (default) means the agent never auto-deletes.
+          Overrides the template's deleteTTL when set.
+          +optional
       disallowedTools:
         description: |-
           DisallowedTools removes these tools from the agent. Purely subtractive:
@@ -6373,6 +6415,18 @@ definitions:
         items:
           type: string
         type: array
+      sleepTTL:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been
+          idle for this long. Idle is measured from Status.LastActivityAt, so the clock
+          only starts once a task has actually started, and any later task event or wake
+          resets it. Never fires while a task is in progress, and an agent that has never
+          run a task is never auto-slept (use DeleteTTL to reclaim those).
+          Unset (default) means the agent never auto-sleeps.
+          Overrides the template's sleepTTL when set.
+          +optional
       storage:
         allOf:
         - $ref: '#/definitions/v1alpha1.StorageSpec'
@@ -6385,6 +6439,20 @@ definitions:
           SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
           +optional
         type: string
+      taskTimeout:
+        allOf:
+        - $ref: '#/definitions/v1.Duration'
+        description: |-
+          TaskTimeout cancels the agent's running task once it has been running for this
+          long. The clock starts when a task starts (Status.TaskStartedAt) and never
+          resets — steering a task does not extend it — so this is a hard wall-clock cap
+          on a single task, not an idle timeout.
+
+          Only the task is cancelled; the agent itself stays alive and any configured
+          Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end.
+          Unset (default) means tasks run without a time limit.
+          Overrides the template's taskTimeout when set.
+          +optional
       templateRef:
         description: |-
           TemplateRef is the name of the KomputerAgentTemplate to use.

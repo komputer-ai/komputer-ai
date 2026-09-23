@@ -79,6 +79,9 @@ func printAgent(a AgentResponse) {
 	if a.DeleteTTL != "" {
 		row("Delete TTL:", a.DeleteTTL+expiryHint("deletes", a.DeleteExpiresAt))
 	}
+	if a.TaskTimeout != "" {
+		row("Task Timeout:", a.TaskTimeout+expiryHint("cancels", a.TaskExpiresAt))
+	}
 	if a.LastTaskCostUSD != "" {
 		row("Last Task Cost:", "$"+a.LastTaskCostUSD)
 	}
