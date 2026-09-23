@@ -16,9 +16,14 @@ import { Label } from "@/components/kit/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/kit/select";
 import { getSchedule, deleteSchedule, patchSchedule, triggerSchedule, listAgents } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { cronToHuman, formatCost } from "@/lib/utils";
-import { LIFECYCLES, MODELS } from "@/lib/constants";
+import { cronToHuman, formatCost, fmtDuration } from "@/lib/utils";
 import type { ScheduleResponse, PatchScheduleRequest } from "@/lib/types";
+import {
+  AgentFieldsForm,
+  type AgentFormValues,
+  agentFormValuesFromScheduleSpec,
+  buildScheduleAgentSpec,
+} from "@/components/agents/agent-fields-form";
 
 function StatCard({
   label,
@@ -71,10 +76,8 @@ export default function ScheduleDetailPage() {
     autoDelete: boolean;
     keepAgents: boolean;
     suspended: boolean;
-    agentModel: string;
-    agentLifecycle: string;
-    agentRole: string;
-    agentTemplateRef: string;
+    /** Inline agent template, edited with the same form the create dialog uses. */
+    agent: AgentFormValues;
   } | null>(null);
   const [availableAgents, setAvailableAgents] = useState<{ name: string; namespace?: string }[]>([]);
 
@@ -120,10 +123,11 @@ export default function ScheduleDetailPage() {
       autoDelete: !!schedule.autoDelete,
       keepAgents: !!schedule.keepAgents,
       suspended: !!schedule.suspended,
-      agentModel: schedule.agent?.model ?? "",
-      agentLifecycle: schedule.agent?.lifecycle || "Sleep",
-      agentRole: schedule.agent?.role ?? "",
-      agentTemplateRef: schedule.agent?.templateRef ?? "",
+      // Mirror the create dialog's defaults (worker / Sleep) when the schedule
+      // has no inline template yet, so switching to "new agent" starts sane.
+      agent: schedule.agent
+        ? agentFormValuesFromScheduleSpec(schedule.agent, schedule.namespace)
+        : agentFormValuesFromScheduleSpec({ role: "worker", lifecycle: "Sleep" }, schedule.namespace),
     });
     setEditingDetails(true);
   }
@@ -142,25 +146,23 @@ export default function ScheduleDetailPage() {
       patch.keepAgents = detailsDraft.keepAgents;
     if (detailsDraft.suspended !== !!schedule.suspended)
       patch.suspended = detailsDraft.suspended;
-    // Inline agent template — only send when no agentName is set and at least one field differs.
+    // Inline agent template — only when no agentName is targeted. The API
+    // replaces spec.agent wholesale, so always send the full spec built from
+    // the form. Compare against the current spec normalised through the same
+    // builder so "30m0s" vs "30m" doesn't register as a change.
     if (!draftAgent) {
-      const cur = schedule.agent ?? {};
-      const next = {
-        model: detailsDraft.agentModel,
-        lifecycle: detailsDraft.agentLifecycle,
-        role: detailsDraft.agentRole,
-        templateRef: detailsDraft.agentTemplateRef,
-      };
-      if (
-        (cur.model ?? "") !== next.model ||
-        (cur.lifecycle ?? "") !== next.lifecycle ||
-        (cur.role ?? "") !== next.role ||
-        (cur.templateRef ?? "") !== next.templateRef
-      ) {
-        // The API replaces spec.agent wholesale, and this editor only exposes
-        // four of its fields — spread the current spec so skills, memories,
-        // secrets and the rest survive an edit here.
-        patch.agent = { ...cur, ...next };
+      const cur = schedule.agent;
+      const next = buildScheduleAgentSpec(detailsDraft.agent);
+      const before = cur ? buildScheduleAgentSpec(agentFormValuesFromScheduleSpec(cur, schedule.namespace)) : undefined;
+      // Labels have no form input: carry them over, and mirror onto `before` so
+      // they never count as a change on their own.
+      if (cur?.labels) {
+        next.labels = cur.labels;
+        if (before) before.labels = cur.labels;
+      }
+      const switchedToNewAgent = !!currentAgent;
+      if (switchedToNewAgent || JSON.stringify(before) !== JSON.stringify(next)) {
+        patch.agent = next;
       }
     }
     if (Object.keys(patch).length === 0) {
@@ -752,73 +754,14 @@ export default function ScheduleDetailPage() {
                       Agent template (used to create a new agent each run)
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Model</Label>
-                    <Select
-                      value={detailsDraft.agentModel || "__default__"}
-                      onValueChange={(v) =>
-                        setDetailsDraft({
-                          ...detailsDraft,
-                          agentModel: v === "__default__" ? "" : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__default__">Cluster default</SelectItem>
-                        {MODELS.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>
-                            {m.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Lifecycle</Label>
-                    <Select
-                      value={detailsDraft.agentLifecycle}
-                      onValueChange={(v) =>
-                        v && setDetailsDraft({ ...detailsDraft, agentLifecycle: v })
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LIFECYCLES.map((l) => (
-                          <SelectItem key={l.value} value={l.value}>
-                            {l.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Role</Label>
-                    <input
-                      value={detailsDraft.agentRole}
-                      onChange={(e) =>
-                        setDetailsDraft({ ...detailsDraft, agentRole: e.target.value })
-                      }
-                      placeholder="worker"
-                      className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)]"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Agent Template</Label>
-                    <input
-                      value={detailsDraft.agentTemplateRef}
-                      onChange={(e) =>
-                        setDetailsDraft({
-                          ...detailsDraft,
-                          agentTemplateRef: e.target.value,
-                        })
-                      }
-                      placeholder="default"
-                      className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand-blue)]"
+                  <div className="sm:col-span-2">
+                    <AgentFieldsForm
+                      values={detailsDraft.agent}
+                      onChange={(agent) => setDetailsDraft({ ...detailsDraft, agent })}
+                      active={editingDetails}
+                      hideNameAndNamespace
+                      hideInstructions
+                      idPrefix="sched-edit"
                     />
                   </div>
                 </>
@@ -845,6 +788,9 @@ export default function ScheduleDetailPage() {
                   ["Template", agentSpec.templateRef, true],
                   ["Priority", agentSpec.priority ? String(agentSpec.priority) : undefined, false],
                   ["Storage", agentSpec.storage?.size, false],
+                  ["Sleep TTL", agentSpec.sleepTTL ? fmtDuration(agentSpec.sleepTTL) : undefined, false],
+                  ["Delete TTL", agentSpec.deleteTTL ? fmtDuration(agentSpec.deleteTTL) : undefined, false],
+                  ["Task Timeout", agentSpec.taskTimeout ? fmtDuration(agentSpec.taskTimeout) : undefined, false],
                 ] as const
               )
                 .filter(([, value]) => value)
@@ -889,6 +835,17 @@ export default function ScheduleDetailPage() {
                     </div>
                   );
                 })}
+
+              {agentSpec.labels && Object.keys(agentSpec.labels).length > 0 && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-[var(--color-text-secondary)]">Labels</span>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {Object.entries(agentSpec.labels).map(([k, v]) => (
+                      <Badge key={k} variant="secondary" className="font-mono">{k}={v}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {agentSpec.systemPrompt && (
                 <div className="sm:col-span-2">

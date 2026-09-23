@@ -39,17 +39,12 @@ import {
 import { ModelSelector } from "@/components/shared/model-selector";
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent } from "@/lib/types";
+import { fmtDuration } from "@/lib/utils";
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
   if (n >= 1000) { const v = n / 1000; return `${Number.isInteger(v) ? v : v.toFixed(1)}k`; }
   return String(n);
-}
-
-// The API returns Go duration strings ("30m0s", "24h0m0s"). Drop the zero-valued
-// trailing units so a badge reads "30m" / "24h" instead.
-function fmtDuration(d: string): string {
-  return d.replace(/(\d+h)0m0s$/, "$1").replace(/(\d+m)0s$/, "$1") || d;
 }
 
 // Tooltip for a TTL badge: the absolute time the transition is due. An absent
