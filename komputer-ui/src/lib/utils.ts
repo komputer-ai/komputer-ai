@@ -32,6 +32,14 @@ export function formatRelativeTime(timestamp: string): string {
   return `${Math.floor(diff / 86_400_000)}d ago`;
 }
 
+/**
+ * The API returns Go duration strings ("30m0s", "24h0m0s"). Drop the zero-valued
+ * trailing units so a value reads "30m" / "24h" instead.
+ */
+export function fmtDuration(d: string): string {
+  return d.replace(/(\d+h)0m0s$/, "$1").replace(/(\d+m)0s$/, "$1") || d;
+}
+
 export function cronToHuman(cron: string): string {
   const parts = cron.split(' ');
   if (parts.length !== 5) return cron;

@@ -163,7 +163,7 @@ spec:
 
 ## Editing a schedule
 
-The cron expression, the instructions, and the agent configuration can all be updated after creation. In the UI, the schedule detail page has inline edit controls for the cron expression, the instructions, and the core agent fields (model, lifecycle, role, template), and the create dialog covers most of the rest. Three fields — `allowedTools`, `disallowedTools`, and `labels` — have no UI input at all and must be set through the API, CLI, or SDK; the detail page displays the two tool lists once they are set, but `labels` is not surfaced in the UI. From the CLI:
+The cron expression, the instructions, and the agent configuration can all be updated after creation. In the UI, the schedule detail page has inline edit controls for the cron expression and the instructions, and its **Edit details** panel opens the same agent form the create dialog uses — model, lifecycle, role, template, skills, memories, connectors, secrets, system prompt, priority, CPU/memory/image, storage, the three TTLs, and allowed/blocked tools. `labels` is the one field with no UI input: it is displayed on the detail page and preserved across UI edits, but must be set through the API, CLI, or SDK. From the CLI:
 
 ```bash
 komputer schedule update my-schedule --cron "0 9 * * 1-5"

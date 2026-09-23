@@ -22,6 +22,7 @@ import { ModelSelector } from "@/components/shared/model-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import type { ScheduleAgentSpec, TemplateResponse } from "@/lib/types";
 import { LIFECYCLES } from "@/lib/constants";
+import { fmtDuration } from "@/lib/utils";
 
 export interface AgentFormValues {
   name: string;
@@ -47,6 +48,10 @@ export interface AgentFormValues {
   deleteTTL: string;
   /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
   taskTimeout: string;
+  /** Tool patterns, one per line or comma-separated. Empty = no restriction. */
+  allowedTools: string;
+  /** Tool patterns, one per line or comma-separated. Empty = nothing blocked. */
+  disallowedTools: string;
   // UI-only state (preserved across tab switches)
   systemPromptOpen: boolean;
   advancedOpen: boolean;
@@ -74,6 +79,8 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     sleepTTL: "",
     deleteTTL: "",
     taskTimeout: "",
+    allowedTools: "",
+    disallowedTools: "",
     image: "",
     systemPromptOpen: false,
     advancedOpen: false,
@@ -507,6 +514,33 @@ export function AgentFieldsForm({
                     />
                     <p className="text-xs text-[var(--color-text-secondary)]">Higher priority agents are admitted first when the template capacity limit is reached. Default: 0.</p>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-allowed-tools`}>Allowed tools</Label>
+                      <Textarea
+                        id={`${idPrefix}-allowed-tools`}
+                        rows={3}
+                        placeholder={"Read\nmcp__github__*"}
+                        value={values.allowedTools}
+                        onChange={(e) => patch("allowedTools", e.target.value)}
+                        className="font-[family-name:var(--font-mono)] text-xs"
+                      />
+                      <p className="text-xs text-[var(--color-text-secondary)]">One per line. Replaces the default tool set, so re-list built-ins the agent still needs.</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-disallowed-tools`}>Blocked tools</Label>
+                      <Textarea
+                        id={`${idPrefix}-disallowed-tools`}
+                        rows={3}
+                        placeholder={"Bash\nmcp__figma__use_figma"}
+                        value={values.disallowedTools}
+                        onChange={(e) => patch("disallowedTools", e.target.value)}
+                        className="font-[family-name:var(--font-mono)] text-xs"
+                      />
+                      <p className="text-xs text-[var(--color-text-secondary)]">One per line. Removed from whatever is otherwise available; wins over allowed tools.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -515,6 +549,12 @@ export function AgentFieldsForm({
       </div>
     </div>
   );
+}
+
+/** Split a newline/comma separated tool list into patterns; undefined when empty. */
+export function parseToolList(text: string): string[] | undefined {
+  const items = text.split(/[\n,]/).map((t) => t.trim()).filter(Boolean);
+  return items.length > 0 ? items : undefined;
 }
 
 /** Build the CreateAgentRequest body from form values. */
@@ -552,6 +592,8 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     sleepTTL: values.sleepTTL.trim() || undefined,
     deleteTTL: values.deleteTTL.trim() || undefined,
     taskTimeout: values.taskTimeout.trim() || undefined,
+    allowedTools: parseToolList(values.allowedTools),
+    disallowedTools: parseToolList(values.disallowedTools),
   };
 }
 
@@ -573,11 +615,51 @@ export function buildScheduleAgentSpec(values: AgentFormValues): ScheduleAgentSp
     skills: base.skills,
     memories: base.memories,
     connectors: base.connectors,
+    allowedTools: base.allowedTools,
+    disallowedTools: base.disallowedTools,
     systemPrompt: base.systemPrompt,
     priority: base.priority,
     podSpec: base.podSpec,
     storage: base.storage,
+    sleepTTL: base.sleepTTL,
+    deleteTTL: base.deleteTTL,
+    taskTimeout: base.taskTimeout,
   };
+}
+
+/**
+ * Inverse of buildScheduleAgentSpec: load an existing schedule's inline agent
+ * template into the shared form so it can be edited in place. `labels` has no
+ * form input and is left for the caller to carry over.
+ */
+export function agentFormValuesFromScheduleSpec(spec: ScheduleAgentSpec, namespace: string): AgentFormValues {
+  const containers = (spec.podSpec?.containers as Array<Record<string, unknown>> | undefined) ?? [];
+  const container = containers.find((c) => c.name === "agent") ?? containers[0];
+  const resources = container?.resources as { limits?: Record<string, string>; requests?: Record<string, string> } | undefined;
+  const rl = resources?.limits ?? resources?.requests ?? {};
+  const role = spec.role === "manager" || spec.role === "worker" ? spec.role : undefined;
+  return makeDefaultAgentFormValues({
+    namespace,
+    model: spec.model ?? "",
+    lifecycle: spec.lifecycle || "default",
+    role,
+    templateRef: spec.templateRef || "default",
+    selectedSecretRefs: spec.secrets ?? [],
+    selectedSkills: spec.skills ?? [],
+    selectedMemories: spec.memories ?? [],
+    selectedConnectors: spec.connectors ?? [],
+    allowedTools: (spec.allowedTools ?? []).join("\n"),
+    disallowedTools: (spec.disallowedTools ?? []).join("\n"),
+    systemPrompt: spec.systemPrompt ?? "",
+    priority: spec.priority ?? 0,
+    cpu: rl.cpu ?? "",
+    memoryLimit: rl.memory ?? "",
+    image: (container?.image as string | undefined) ?? "",
+    storageSize: spec.storage?.size ?? "",
+    sleepTTL: fmtDuration(spec.sleepTTL ?? ""),
+    deleteTTL: fmtDuration(spec.deleteTTL ?? ""),
+    taskTimeout: fmtDuration(spec.taskTimeout ?? ""),
+  });
 }
 
 /** Build a KomputerAgentSpec (raw K8s field names) for embedding in a squad member.spec. */
@@ -612,6 +694,10 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
   if (values.sleepTTL.trim()) spec.sleepTTL = values.sleepTTL.trim();
   if (values.deleteTTL.trim()) spec.deleteTTL = values.deleteTTL.trim();
   if (values.taskTimeout.trim()) spec.taskTimeout = values.taskTimeout.trim();
+  const allowed = parseToolList(values.allowedTools);
+  const disallowed = parseToolList(values.disallowedTools);
+  if (allowed) spec.allowedTools = allowed;
+  if (disallowed) spec.disallowedTools = disallowed;
   return spec;
 }
 

@@ -103,6 +103,10 @@ export interface ScheduleAgentSpec {
   podSpec?: Record<string, unknown>;
   storage?: { size?: string };
   labels?: Record<string, string>;
+  /** Go duration strings; the API echoes them as e.g. "30m0s". */
+  sleepTTL?: string;
+  deleteTTL?: string;
+  taskTimeout?: string;
 }
 
 export interface ScheduleResponse {
