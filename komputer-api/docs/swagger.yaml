@@ -761,6 +761,16 @@ definitions:
       status:
         type: string
     type: object
+  main.UpdateConnectorRequest:
+    properties:
+      namespace:
+        type: string
+      token:
+        description: new auth token; replaces the value in the connector's secret
+        type: string
+    required:
+    - token
+    type: object
   main.UpdateSecretRequest:
     properties:
       data:
@@ -6955,6 +6965,58 @@ paths:
               type: string
             type: object
       summary: Get connector details
+      tags:
+      - connectors
+    patch:
+      consumes:
+      - application/json
+      description: Replaces the auth token of a token/header connector. Writes the
+        new value into the connector's existing secret, or creates a managed <name>-credentials
+        secret if the connector has none. OAuth connectors are rejected; reconnect
+        them via the OAuth flow instead.
+      operationId: updateConnector
+      parameters:
+      - description: Connector name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      - description: New token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.UpdateConnectorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Connector updated
+          schema:
+            $ref: '#/definitions/main.ConnectorResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Connector not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update connector token
       tags:
       - connectors
   /connectors/{name}/tools:

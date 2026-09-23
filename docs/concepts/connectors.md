@@ -161,6 +161,19 @@ komputer connector create amigo-mcp --service custom \
 
 In the UI, open the connector dialog's **Advanced** section and set the custom auth header — leave it blank to use the default `Authorization: Bearer` scheme.
 
+## Rotating a token
+
+When a token expires or is revoked, replace it in place — the connector, its attached agents, and any tool restrictions stay untouched. This works for `token` and `header` connectors; OAuth connectors must be reconnected through the OAuth flow instead.
+
+- **UI** — open the connector's detail dialog, paste the new value into the **Auth Token** field, and click **Update**. The tool list is re-fetched right away, so a rejected token shows up immediately.
+- **CLI** — `komputer connector update <name> --token <new-token>`
+- **API** — `PATCH /api/v1/connectors/<name>` with `{"token": "<new-token>"}` (see the [REST API reference](../integration/rest-api.md#update-a-connector-token))
+- **Manager agents** — the `update_connector_token` MCP tool
+
+The new value is written into the secret the connector already references (only that one key is touched, so a shared multi-key secret keeps its other entries). A connector that has no secret yet gets a managed `<name>-credentials` secret created and wired in, and switches from no auth to bearer-token auth.
+
+> **Note:** Agent pods receive the token as an env var at startup, so a **running** agent keeps using the old value until its pod restarts — put it to sleep and wake it, or wait for its next scheduled run. Sleeping agents pick up the new token automatically on wake.
+
 ## Restricting Which Connector Tools an Agent Can Use
 
 Attaching a connector gives the agent **all** of that connector's tools by default. To grant only some of them, or to block a few, use the agent's `allowedTools` / `disallowedTools` fields.

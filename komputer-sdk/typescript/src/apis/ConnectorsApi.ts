@@ -17,12 +17,15 @@ import * as runtime from '../runtime';
 import type {
   ConnectorResponse,
   CreateConnectorRequest,
+  UpdateConnectorRequest,
 } from '../models/index';
 import {
     ConnectorResponseFromJSON,
     ConnectorResponseToJSON,
     CreateConnectorRequestFromJSON,
     CreateConnectorRequestToJSON,
+    UpdateConnectorRequestFromJSON,
+    UpdateConnectorRequestToJSON,
 } from '../models/index';
 
 export interface CreateConnectorOperationRequest {
@@ -45,6 +48,12 @@ export interface ListConnectorToolsRequest {
 }
 
 export interface ListConnectorsRequest {
+    namespace?: string;
+}
+
+export interface UpdateConnectorOperationRequest {
+    name: string;
+    request: UpdateConnectorRequest;
     namespace?: string;
 }
 
@@ -295,6 +304,67 @@ export class ConnectorsApi extends runtime.BaseAPI {
      */
     async listConnectors(requestParameters: ListConnectorsRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: any; }> {
         const response = await this.listConnectorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for updateConnector without sending the request
+     */
+    async updateConnectorRequestOpts(requestParameters: UpdateConnectorOperationRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling updateConnector().'
+            );
+        }
+
+        if (requestParameters['request'] == null) {
+            throw new runtime.RequiredError(
+                'request',
+                'Required parameter "request" was null or undefined when calling updateConnector().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/connectors/{name}`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateConnectorRequestToJSON(requestParameters['request']),
+        };
+    }
+
+    /**
+     * Replaces the auth token of a token/header connector. Writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+     * Update connector token
+     */
+    async updateConnectorRaw(requestParameters: UpdateConnectorOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ConnectorResponse>> {
+        const requestOptions = await this.updateConnectorRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ConnectorResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Replaces the auth token of a token/header connector. Writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+     * Update connector token
+     */
+    async updateConnector(requestParameters: UpdateConnectorOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ConnectorResponse> {
+        const response = await this.updateConnectorRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

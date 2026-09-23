@@ -27,7 +27,7 @@ from komputer_ai.api.templates_api import TemplatesApi
 from komputer_ai.api.agents_ws import AgentEvent, AgentEventStream, Payload
 from komputer_ai.exceptions import ApiException
 from komputer_ai.models import (
-    AddSquadMemberRequest, CompactAgentRequest, CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, CreateSquadRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, PatchSquadRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec,
+    AddSquadMemberRequest, CompactAgentRequest, CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, CreateSquadRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, PatchSquadRequest, UpdateConnectorRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec,
 )
 
 
@@ -209,6 +209,10 @@ class KomputerClient:
 
     def get_connector(self, name: str):
         return self.connectors.get_connector(name)
+
+    def update_connector(self, name: str, token: str, *, namespace: Optional[str] = None):
+        """Replace the auth token of a token/header connector."""
+        return self.connectors.update_connector(name, UpdateConnectorRequest(token=token, namespace=namespace))
 
     def delete_connector(self, name: str):
         return self.connectors.delete_connector(name)

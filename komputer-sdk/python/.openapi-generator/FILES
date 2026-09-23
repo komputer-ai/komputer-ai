@@ -41,6 +41,7 @@ docs/SquadResponse.md
 docs/SquadsApi.md
 docs/TemplatesApi.md
 docs/TriggerScheduleResponse.md
+docs/UpdateConnectorRequest.md
 docs/UpdateSecretRequest.md
 docs/V1AWSElasticBlockStoreVolumeSource.md
 docs/V1Affinity.md
@@ -242,6 +243,7 @@ komputer_ai/models/squad_list_response.py
 komputer_ai/models/squad_member_response.py
 komputer_ai/models/squad_response.py
 komputer_ai/models/trigger_schedule_response.py
+komputer_ai/models/update_connector_request.py
 komputer_ai/models/update_secret_request.py
 komputer_ai/models/v1_affinity.py
 komputer_ai/models/v1_app_armor_profile.py

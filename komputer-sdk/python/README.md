@@ -119,6 +119,7 @@ client.create_connector(name="slack", service="slack", url="https://mcp.slack.co
 client.patch_agent("my-agent", connectors=["slack"])
 
 connectors = client.list_connectors()
+client.update_connector("slack", token="xoxp-new-token")  # rotate the token in place
 client.delete_connector("slack")
 ```
 

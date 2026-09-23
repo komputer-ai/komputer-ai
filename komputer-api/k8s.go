@@ -1409,18 +1409,40 @@ func (k *K8sClient) DeleteConnector(ctx context.Context, ns, name string) error 
 	return k.client.Delete(ctx, conn)
 }
 
-// UpdateConnectorAuth patches a connector CR to set authType=oauth and authSecretKeyRef.
-func (k *K8sClient) UpdateConnectorAuth(ctx context.Context, ns, name, secretName, secretKey string) error {
+// SetConnectorAuthSecret updates a connector CR to reference the given secret key
+// and, when authType is non-empty, switches the connector to that auth type.
+func (k *K8sClient) SetConnectorAuthSecret(ctx context.Context, ns, name, authType, secretName, secretKey string) (*komputerv1alpha1.KomputerConnector, error) {
 	conn, err := k.GetConnector(ctx, ns, name)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	conn.Spec.AuthType = "oauth"
+	if authType != "" {
+		conn.Spec.AuthType = authType
+	}
 	conn.Spec.AuthSecretKeyRef = &corev1.SecretKeySelector{
 		LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 		Key:                  secretKey,
 	}
-	return k.client.Update(ctx, conn)
+	if err := k.client.Update(ctx, conn); err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+// UpdateSecretKey sets a single key in an existing K8s Secret, leaving other keys untouched.
+func (k *K8sClient) UpdateSecretKey(ctx context.Context, ns, name, key, value string) error {
+	secret := &corev1.Secret{}
+	if err := k.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, secret); err != nil {
+		return fmt.Errorf("secret not found: %w", err)
+	}
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+	secret.Data[key] = []byte(value)
+	if err := k.client.Update(ctx, secret); err != nil {
+		return fmt.Errorf("failed to update secret: %w", err)
+	}
+	return nil
 }
 
 // SetSecretOwnerRef sets an owner reference on a secret so it is garbage-collected with the connector.

@@ -200,6 +200,24 @@ Content-Type: application/json
 GET /api/v1/connectors/:name?namespace=default
 ```
 
+### Update a Connector Token
+
+Replace the auth token of a `token` or `header` connector without recreating it:
+
+```
+PATCH /api/v1/connectors/:name?namespace=default
+```
+
+```json
+{
+  "token": "ghp_newtoken"
+}
+```
+
+The value is written into the secret key the connector already references; other keys in that secret are left alone. If the connector has no `authSecretKeyRef`, a managed `<name>-credentials` secret is created and the connector is switched to `token` auth. Returns the connector. OAuth connectors return `400` — reconnect them via `/api/v1/oauth/authorize` instead.
+
+Running agents pick up the new token on their next pod start (sleep + wake); sleeping agents get it automatically on wake.
+
 ### Delete a Connector
 
 ```

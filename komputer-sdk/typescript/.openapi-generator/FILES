@@ -41,6 +41,7 @@ docs/SquadResponse.md
 docs/SquadsApi.md
 docs/TemplatesApi.md
 docs/TriggerScheduleResponse.md
+docs/UpdateConnectorRequest.md
 docs/UpdateSecretRequest.md
 docs/V1AWSElasticBlockStoreVolumeSource.md
 docs/V1Affinity.md
@@ -236,6 +237,7 @@ src/models/SquadListResponse.ts
 src/models/SquadMemberResponse.ts
 src/models/SquadResponse.ts
 src/models/TriggerScheduleResponse.ts
+src/models/UpdateConnectorRequest.ts
 src/models/UpdateSecretRequest.ts
 src/models/V1AWSElasticBlockStoreVolumeSource.ts
 src/models/V1Affinity.ts

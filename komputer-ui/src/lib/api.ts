@@ -23,6 +23,7 @@ import type {
   ConnectorListResponse,
   ConnectorResponse,
   CreateConnectorRequest,
+  UpdateConnectorRequest,
   ConnectorTemplateListResponse,
   CostBreakdownResponse,
   Squad,
@@ -210,6 +211,9 @@ export const getConnector = (name: string, ns?: string) =>
 
 export const createConnector = (data: CreateConnectorRequest) =>
   request<ConnectorResponse>('/connectors', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateConnector = (name: string, data: UpdateConnectorRequest) =>
+  request<ConnectorResponse>(`/connectors/${name}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const deleteConnector = (name: string, ns?: string) =>
   request<void>(`/connectors/${name}${ns ? `?namespace=${ns}` : ''}`, { method: 'DELETE' });
