@@ -47,6 +47,19 @@ type KomputerConnectorSpec struct {
 	// (e.g. "X-API-Key"). The secret value is sent verbatim, with no "Bearer " prefix. Ignored for other auth types.
 	// +optional
 	HeaderName string `json:"headerName,omitempty"`
+	// Disabled marks the connector as unusable without deleting it. A disabled connector:
+	//   - cannot be newly attached to an agent, schedule, or squad member (the API rejects
+	//     the attach with a 400); agents that already reference it keep the reference and
+	//     are unaffected by further edits to unrelated fields.
+	//   - is skipped when resolving MCP server configs for agent pods, so its tools are not
+	//     available to agents. This takes effect the next time an agent's config is resolved
+	//     (new pod, wake, or live PATCH) — an already-running pod keeps what it was given
+	//     until it restarts.
+	// Re-enabling (clearing Disabled) restores both without needing to re-attach the
+	// connector anywhere. Zero value (false) means enabled, so existing connectors need no
+	// migration.
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // KomputerConnectorStatus defines the observed state of KomputerConnector.

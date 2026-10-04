@@ -89,6 +89,20 @@ spec:
                 - oauth
                 - header
                 type: string
+              disabled:
+                description: |-
+                  Disabled marks the connector as unusable without deleting it. A disabled connector:
+                    - cannot be newly attached to an agent, schedule, or squad member (the API rejects
+                      the attach with a 400); agents that already reference it keep the reference and
+                      are unaffected by further edits to unrelated fields.
+                    - is skipped when resolving MCP server configs for agent pods, so its tools are not
+                      available to agents. This takes effect the next time an agent's config is resolved
+                      (new pod, wake, or live PATCH) — an already-running pod keeps what it was given
+                      until it restarts.
+                  Re-enabling (clearing Disabled) restores both without needing to re-attach the
+                  connector anywhere. Zero value (false) means enabled, so existing connectors need no
+                  migration.
+                type: boolean
               displayName:
                 description: DisplayName is a human-readable name for this connector
                   instance.

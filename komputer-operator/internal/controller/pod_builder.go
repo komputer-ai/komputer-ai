@@ -238,6 +238,10 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 				log.Info("Connector not found, skipping", "connector", connRef)
 				continue
 			}
+			if conn.Spec.Disabled {
+				log.Info("Connector is disabled, skipping", "connector", connRef)
+				continue
+			}
 			sanitized := strings.ToUpper(strings.NewReplacer("-", "_", ".", "_").Replace(connName))
 			entry := mcpServerEntry{Type: "http", URL: conn.Spec.URL, AuthType: conn.Spec.AuthType, HeaderName: conn.Spec.HeaderName}
 			// Mount auth secret as env var and reference it.
