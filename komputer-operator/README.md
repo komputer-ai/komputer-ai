@@ -76,7 +76,7 @@ metadata:
 spec:
   templateRef: "default"          # optional, defaults to "default"
   instructions: "Research AI news"
-  model: "claude-sonnet-4-6"     # optional, has default
+  model: "claude-opus-5-5"        # optional, has default
   role: "manager"                 # "manager" or "worker"
   lifecycle: "Sleep"              # "", "Sleep", or "AutoDelete"
   priority: 0                     # higher = admitted first when template's maxConcurrentAgents is reached

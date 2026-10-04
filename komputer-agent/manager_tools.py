@@ -1333,7 +1333,7 @@ async def create_squad(args):
 
         spec: dict = {
             "instructions": instructions.strip(),
-            "model": m.get("model") or "claude-sonnet-4-6",
+            "model": m.get("model") or "claude-opus-5-5",
         }
         if m.get("role"):
             spec["role"] = m["role"]
