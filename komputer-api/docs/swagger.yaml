@@ -215,6 +215,8 @@ definitions:
         type: string
       type:
         type: string
+      updatedAt:
+        type: string
       url:
         type: string
     type: object
@@ -450,6 +452,8 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      updatedAt:
         type: string
     type: object
   main.OfficeListResponse:
@@ -709,6 +713,8 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      updatedAt:
         type: string
     type: object
   main.SquadListResponse:

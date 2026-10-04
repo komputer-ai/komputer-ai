@@ -13,6 +13,7 @@ Name | Type
 `description` | string
 `name` | string
 `namespace` | string
+`updatedAt` | string
 
 ## Example
 
@@ -28,6 +29,7 @@ const example = {
   "description": null,
   "name": null,
   "namespace": null,
+  "updatedAt": null,
 } satisfies MemoryResponse
 
 console.log(example)

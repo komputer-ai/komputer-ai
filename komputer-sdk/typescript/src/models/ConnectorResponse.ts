@@ -102,6 +102,12 @@ export interface ConnectorResponse {
      * @type {string}
      * @memberof ConnectorResponse
      */
+    updatedAt?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConnectorResponse
+     */
     url?: string;
 }
 
@@ -135,6 +141,7 @@ export function ConnectorResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'oauthStatus': json['oauthStatus'] == null ? undefined : json['oauthStatus'],
         'service': json['service'] == null ? undefined : json['service'],
         'type': json['type'] == null ? undefined : json['type'],
+        'updatedAt': json['updatedAt'] == null ? undefined : json['updatedAt'],
         'url': json['url'] == null ? undefined : json['url'],
     };
 }
@@ -163,6 +170,7 @@ export function ConnectorResponseToJSONTyped(value?: ConnectorResponse | null, i
         'oauthStatus': value['oauthStatus'],
         'service': value['service'],
         'type': value['type'],
+        'updatedAt': value['updatedAt'],
         'url': value['url'],
     };
 }

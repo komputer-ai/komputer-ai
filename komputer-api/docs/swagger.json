@@ -2925,6 +2925,9 @@
                 "type": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "string"
+                },
                 "url": {
                     "type": "string"
                 }
@@ -3243,6 +3246,9 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -3626,6 +3632,9 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }

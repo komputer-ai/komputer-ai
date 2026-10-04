@@ -2931,6 +2931,9 @@ const docTemplate = `{
                 "type": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "string"
+                },
                 "url": {
                     "type": "string"
                 }
@@ -3249,6 +3252,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -3632,6 +3638,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }

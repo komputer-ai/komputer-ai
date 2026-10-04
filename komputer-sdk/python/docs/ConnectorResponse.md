@@ -18,6 +18,7 @@ Name | Type | Description | Notes
 **oauth_status** | **str** | \&quot;pending\&quot;, \&quot;connected\&quot;, \&quot;\&quot; | [optional] 
 **service** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 **url** | **str** |  | [optional] 
 
 ## Example

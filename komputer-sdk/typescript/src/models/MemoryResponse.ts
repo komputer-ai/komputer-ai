@@ -61,6 +61,12 @@ export interface MemoryResponse {
      * @memberof MemoryResponse
      */
     namespace?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof MemoryResponse
+     */
+    updatedAt?: string;
 }
 
 /**
@@ -87,6 +93,7 @@ export function MemoryResponseFromJSONTyped(json: any, ignoreDiscriminator: bool
         'description': json['description'] == null ? undefined : json['description'],
         'name': json['name'] == null ? undefined : json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
+        'updatedAt': json['updatedAt'] == null ? undefined : json['updatedAt'],
     };
 }
 
@@ -108,6 +115,7 @@ export function MemoryResponseToJSONTyped(value?: MemoryResponse | null, ignoreD
         'description': value['description'],
         'name': value['name'],
         'namespace': value['namespace'],
+        'updatedAt': value['updatedAt'],
     };
 }
 
