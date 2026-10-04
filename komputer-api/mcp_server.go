@@ -322,6 +322,11 @@ func registerConnectorMCPTools(srv *mcp.Server, k8s *K8sClient) {
 		}
 		out := make([]map[string]any, 0, len(conns))
 		for _, c := range conns {
+			// Disabled connectors cannot be attached or used — don't surface them as
+			// an option for manager agents building out another agent's connector list.
+			if c.Spec.Disabled {
+				continue
+			}
 			out = append(out, map[string]any{
 				"name":      c.Name,
 				"namespace": c.Namespace,
