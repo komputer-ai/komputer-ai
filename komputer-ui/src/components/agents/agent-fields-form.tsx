@@ -64,7 +64,7 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     namespace: "default",
     instructions: "",
     systemPrompt: "",
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-5-5",
     lifecycle: "default",
     role: undefined,
     templateRef: "default",

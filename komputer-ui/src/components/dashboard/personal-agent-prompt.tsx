@@ -87,7 +87,7 @@ export function PersonalAgentPrompt({ onSessionActiveChange }: PersonalAgentProm
   // Namespace for the *new* agent (only relevant when isNew is true). Defaults to "default".
   const [newNamespace, setNewNamespace] = useState("default");
   // Model for the *new* agent (only relevant when isNew is true).
-  const [newModel, setNewModel] = useState("claude-sonnet-4-6");
+  const [newModel, setNewModel] = useState("claude-opus-5-5");
   const [prompt, setPrompt] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // submitting: Go was clicked, request in flight or first event not yet received.
