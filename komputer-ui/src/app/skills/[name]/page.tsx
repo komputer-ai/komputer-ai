@@ -113,7 +113,10 @@ export default function SkillDetailPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
+          <span className="text-sm text-[var(--color-text-muted)]">Created</span>
           <RelativeTime timestamp={skill.createdAt} />
+          <span className="text-sm text-[var(--color-text-muted)]">Updated</span>
+          <RelativeTime timestamp={skill.updatedAt} />
           <ConfirmDialog
             title="Delete Skill"
             description={`Are you sure you want to delete "${skill.name}"? This action cannot be undone.`}
