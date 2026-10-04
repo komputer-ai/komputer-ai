@@ -71,6 +71,28 @@ func TestLastSpecUpdate(t *testing.T) {
 			want: specEditOlder,
 		},
 		{
+			// Pins the Subresource check on its own. The fixtures above give
+			// status-subresource entries status-only fields, so the
+			// fieldsTouchOnlyStatus fallback would mask a regression here.
+			name: "status-subresource entry is ignored even when its fields are not status-only",
+			obj: &metav1.ObjectMeta{
+				CreationTimestamp: metav1.NewTime(created),
+				ManagedFields: []metav1.ManagedFieldsEntry{
+					{
+						Subresource: "",
+						Time:        timePtr(specEditOlder),
+						FieldsV1:    rawFields(`{"f:spec":{"f:content":{}}}`),
+					},
+					{
+						Subresource: "status",
+						Time:        timePtr(statusWriteNewest),
+						FieldsV1:    rawFields(`{"f:metadata":{"f:annotations":{}},"f:status":{"f:attachedAgents":{}}}`),
+					},
+				},
+			},
+			want: specEditOlder,
+		},
+		{
 			name: `subresource:"" entry touching only f:status is ignored`,
 			obj: &metav1.ObjectMeta{
 				CreationTimestamp: metav1.NewTime(created),
