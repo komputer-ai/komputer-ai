@@ -9,7 +9,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**getConnector**](ConnectorsApi.md#getconnector) | **GET** /connectors/{name} | Get connector details |
 | [**listConnectorTools**](ConnectorsApi.md#listconnectortools) | **GET** /connectors/{name}/tools | List connector tools |
 | [**listConnectors**](ConnectorsApi.md#listconnectors) | **GET** /connectors | List connectors |
-| [**updateConnector**](ConnectorsApi.md#updateconnectoroperation) | **PATCH** /connectors/{name} | Update connector token |
+| [**updateConnector**](ConnectorsApi.md#updateconnectoroperation) | **PATCH** /connectors/{name} | Update connector token or disabled state |
 
 
 
@@ -370,9 +370,9 @@ No authorization required
 
 > ConnectorResponse updateConnector(name, request, namespace)
 
-Update connector token
+Update connector token or disabled state
 
-Replaces the auth token of a token/header connector. Writes the new value into the connector\&#39;s existing secret, or creates a managed &lt;name&gt;-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector\&#39;s existing secret, or creates a managed &lt;name&gt;-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
 ### Example
 
@@ -390,7 +390,7 @@ async function example() {
   const body = {
     // string | Connector name
     name: name_example,
-    // UpdateConnectorRequest | New token
+    // UpdateConnectorRequest | New token and/or disabled flag
     request: ...,
     // string | Kubernetes namespace (optional)
     namespace: namespace_example,
@@ -414,7 +414,7 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **name** | `string` | Connector name | [Defaults to `undefined`] |
-| **request** | [UpdateConnectorRequest](UpdateConnectorRequest.md) | New token | |
+| **request** | [UpdateConnectorRequest](UpdateConnectorRequest.md) | New token and/or disabled flag | |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 
 ### Return type

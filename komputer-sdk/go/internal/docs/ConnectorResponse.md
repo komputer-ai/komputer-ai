@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **AuthSecretName** | Pointer to **string** |  | [optional] 
 **AuthType** | Pointer to **string** |  | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
+**Disabled** | Pointer to **bool** | true &#x3D; cannot be attached or used; UI/CLI present this as \&quot;Active\&quot; &#x3D; !Disabled | [optional] 
 **DisplayName** | Pointer to **string** |  | [optional] 
 **HeaderName** | Pointer to **string** |  | [optional] 
 **Name** | Pointer to **string** |  | [optional] 
@@ -187,6 +188,31 @@ SetCreatedAt sets CreatedAt field to given value.
 `func (o *ConnectorResponse) HasCreatedAt() bool`
 
 HasCreatedAt returns a boolean if a field has been set.
+
+### GetDisabled
+
+`func (o *ConnectorResponse) GetDisabled() bool`
+
+GetDisabled returns the Disabled field if non-nil, zero value otherwise.
+
+### GetDisabledOk
+
+`func (o *ConnectorResponse) GetDisabledOk() (*bool, bool)`
+
+GetDisabledOk returns a tuple with the Disabled field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisabled
+
+`func (o *ConnectorResponse) SetDisabled(v bool)`
+
+SetDisabled sets Disabled field to given value.
+
+### HasDisabled
+
+`func (o *ConnectorResponse) HasDisabled() bool`
+
+HasDisabled returns a boolean if a field has been set.
 
 ### GetDisplayName
 

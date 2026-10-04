@@ -12,6 +12,7 @@ Name | Type
 `authSecretName` | string
 `authType` | string
 `createdAt` | string
+`disabled` | boolean
 `displayName` | string
 `headerName` | string
 `name` | string
@@ -34,6 +35,7 @@ const example = {
   "authSecretName": null,
   "authType": null,
   "createdAt": null,
+  "disabled": null,
   "displayName": null,
   "headerName": null,
   "name": null,

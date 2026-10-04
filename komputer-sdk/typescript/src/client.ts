@@ -273,8 +273,10 @@ export class KomputerClient {
   }
 
   /** Replace the auth token of a token/header connector. */
-  async updateConnector(params: { name: string; token: string; namespace?: string }) {
-    const request: UpdateConnectorRequest = { token: params.token, namespace: params.namespace };
+  // At least one of token/disabled must be set, matching the API. Disabled works for
+  // OAuth connectors too; token does not.
+  async updateConnector(params: { name: string; token?: string; disabled?: boolean; namespace?: string }) {
+    const request: UpdateConnectorRequest = { token: params.token, disabled: params.disabled, namespace: params.namespace };
     return this._connectors.updateConnector({ name: params.name, request });
   }
 

@@ -25,6 +25,8 @@ type ConnectorResponse struct {
 	AuthSecretName *string `json:"authSecretName,omitempty"`
 	AuthType *string `json:"authType,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
+	// true = cannot be attached or used; UI/CLI present this as \"Active\" = !Disabled
+	Disabled *bool `json:"disabled,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
 	HeaderName *string `json:"headerName,omitempty"`
 	Name *string `json:"name,omitempty"`
@@ -243,6 +245,38 @@ func (o *ConnectorResponse) HasCreatedAt() bool {
 // SetCreatedAt gets a reference to the given string and assigns it to the CreatedAt field.
 func (o *ConnectorResponse) SetCreatedAt(v string) {
 	o.CreatedAt = &v
+}
+
+// GetDisabled returns the Disabled field value if set, zero value otherwise.
+func (o *ConnectorResponse) GetDisabled() bool {
+	if o == nil || IsNil(o.Disabled) {
+		var ret bool
+		return ret
+	}
+	return *o.Disabled
+}
+
+// GetDisabledOk returns a tuple with the Disabled field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectorResponse) GetDisabledOk() (*bool, bool) {
+	if o == nil || IsNil(o.Disabled) {
+		return nil, false
+	}
+	return o.Disabled, true
+}
+
+// HasDisabled returns a boolean if a field has been set.
+func (o *ConnectorResponse) HasDisabled() bool {
+	if o != nil && !IsNil(o.Disabled) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisabled gets a reference to the given bool and assigns it to the Disabled field.
+func (o *ConnectorResponse) SetDisabled(v bool) {
+	o.Disabled = &v
 }
 
 // GetDisplayName returns the DisplayName field value if set, zero value otherwise.
@@ -528,6 +562,9 @@ func (o ConnectorResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
+	}
+	if !IsNil(o.Disabled) {
+		toSerialize["disabled"] = o.Disabled
 	}
 	if !IsNil(o.DisplayName) {
 		toSerialize["displayName"] = o.DisplayName
