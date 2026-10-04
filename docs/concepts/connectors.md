@@ -174,6 +174,22 @@ The new value is written into the secret the connector already references (only 
 
 > **Note:** Agent pods receive the token as an env var at startup, so a **running** agent keeps using the old value until its pod restarts — put it to sleep and wake it, or wait for its next scheduled run. Sleeping agents pick up the new token automatically on wake.
 
+## Disabling a connector
+
+Disable a connector to stop it from being used without deleting it — its CR, auth secret, and every agent's reference to it are untouched, so re-enabling restores access with no re-attach step.
+
+A disabled connector:
+
+- **Cannot be newly attached.** Creating an agent, patching an agent's `connectors`, creating or patching a schedule's inline agent template, or adding/editing an inline squad member with that connector in its list fails with `400 connector "<name>" is disabled`. An agent that already has the connector keeps it — re-sending its existing connector list, or patching an unrelated field, is never blocked by a connector that was disabled after the fact.
+- **Stops being usable.** The connector is skipped when resolving MCP server configs for agent pods, so its tools disappear from `mcp__<name>__*`. This takes effect the next time an agent's config is resolved (new pod, wake, or a live PATCH to a running agent) — a pod that's already running keeps what it was given until it restarts.
+
+Any caller may re-enable a connector — there's no extra authorization check beyond whatever already gates connector updates.
+
+- **UI** — open the connector's detail dialog and use the **Active** toggle. Disabled connectors also show a red "Disabled" badge on the connectors list, and appear grayed out with "(disabled)" in the agent connector picker (an already-attached one stays removable).
+- **CLI** — `komputer connector disable <name>` / `komputer connector enable <name>`. `connector list` and `connector get` show an Active/ACTIVE column.
+- **API** — `PATCH /api/v1/connectors/<name>` with `{"disabled": true}` (or `false` to re-enable) — see the [REST API reference](../integration/rest-api.md#update-a-connector-token-or-disabled-state). This can be combined with a `token` update in the same request.
+- **Manager agents** — the `set_connector_enabled` MCP tool
+
 ## Restricting Which Connector Tools an Agent Can Use
 
 Attaching a connector gives the agent **all** of that connector's tools by default. To grant only some of them, or to block a few, use the agent's `allowedTools` / `disallowedTools` fields.
