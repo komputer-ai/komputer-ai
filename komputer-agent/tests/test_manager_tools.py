@@ -101,6 +101,23 @@ async def test_update_connector_token_patches_connector(mock_api):
 
 
 @pytest.mark.asyncio
+async def test_set_connector_enabled_disables(mock_api):
+    mock_api.set("PATCH", "/api/v1/connectors/slack", {"name": "slack", "disabled": True})
+    result = await manager_tools.set_connector_enabled.handler({"name": "slack", "enabled": False})
+    assert not result.get("isError")
+    assert mock_api.calls == [("PATCH", "/api/v1/connectors/slack")]
+    assert mock_api.last_json["disabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_set_connector_enabled_re_enables(mock_api):
+    mock_api.set("PATCH", "/api/v1/connectors/slack", {"name": "slack", "disabled": False})
+    result = await manager_tools.set_connector_enabled.handler({"name": "slack", "enabled": True})
+    assert not result.get("isError")
+    assert mock_api.last_json["disabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_attach_connector_appends_to_existing(mock_api):
     mock_api.set("GET", "/api/v1/agents/foo", {"name": "foo", "connectors": ["github"]})
     mock_api.set("PATCH", "/api/v1/agents/foo", {"name": "foo"})
