@@ -1429,6 +1429,20 @@ func (k *K8sClient) SetConnectorAuthSecret(ctx context.Context, ns, name, authTy
 	return conn, nil
 }
 
+// SetConnectorDisabled toggles a connector's Spec.Disabled flag. Any caller may
+// re-enable a connector — there is no additional authorization check here.
+func (k *K8sClient) SetConnectorDisabled(ctx context.Context, ns, name string, disabled bool) (*komputerv1alpha1.KomputerConnector, error) {
+	conn, err := k.GetConnector(ctx, ns, name)
+	if err != nil {
+		return nil, err
+	}
+	conn.Spec.Disabled = disabled
+	if err := k.client.Update(ctx, conn); err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
 // UpdateSecretKey sets a single key in an existing K8s Secret, leaving other keys untouched.
 func (k *K8sClient) UpdateSecretKey(ctx context.Context, ns, name, key, value string) error {
 	secret := &corev1.Secret{}
