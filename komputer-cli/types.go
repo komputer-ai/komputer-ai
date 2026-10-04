@@ -124,6 +124,7 @@ type MemoryResponse struct {
 	Content     string   `json:"content"`
 	Agents      []string `json:"agents"`
 	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
 }
 
 type MemoryListResponse struct {
@@ -137,6 +138,7 @@ type SkillResponse struct {
 	Content     string   `json:"content"`
 	Agents      []string `json:"agentNames"`
 	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
 }
 
 type SkillListResponse struct {
@@ -157,6 +159,7 @@ type ConnectorResponse struct {
 	AttachedAgents int      `json:"attachedAgents"`
 	AgentNames     []string `json:"agentNames,omitempty"`
 	CreatedAt      string   `json:"createdAt"`
+	UpdatedAt      string   `json:"updatedAt"`
 }
 
 type ConnectorListResponse struct {
