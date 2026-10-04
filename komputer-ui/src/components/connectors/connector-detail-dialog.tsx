@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plug, Users, ExternalLink, Wrench, Calendar, Loader2, AlertCircle, KeyRound, Check } from "lucide-react";
+import { Plug, Users, ExternalLink, Wrench, Calendar, Loader2, AlertCircle, KeyRound, Check, Power } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,9 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange, onUpdated
   const [savingToken, setSavingToken] = useState(false);
   const [tokenSaved, setTokenSaved] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  const [disabled, setDisabled] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [activeError, setActiveError] = useState<string | null>(null);
 
   const loadTools = useCallback(() => {
     if (!connector) return;
@@ -64,8 +67,26 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange, onUpdated
     setNewToken("");
     setTokenSaved(false);
     setTokenError(null);
+    setDisabled(connector?.disabled ?? false);
+    setActiveError(null);
     loadTools();
-  }, [open, loadTools]);
+  }, [open, connector, loadTools]);
+
+  async function handleToggleActive() {
+    if (!connector) return;
+    const nextDisabled = !disabled;
+    setTogglingActive(true);
+    setActiveError(null);
+    try {
+      await updateConnector(connector.name, { disabled: nextDisabled, namespace: connector.namespace });
+      setDisabled(nextDisabled);
+      onUpdated?.();
+    } catch (err: unknown) {
+      setActiveError(err instanceof Error ? err.message : "Failed to update connector.");
+    } finally {
+      setTogglingActive(false);
+    }
+  }
 
   async function handleUpdateToken(e: React.FormEvent) {
     e.preventDefault();
@@ -128,6 +149,35 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange, onUpdated
               <Calendar className="w-3 h-3 text-[var(--color-text-muted)]" />
               Created {formatRelativeTime(connector.createdAt)}
             </span>
+          </div>
+
+          {/* Active toggle */}
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)] flex items-center gap-1.5">
+                <Power className="w-3 h-3" />
+                Active
+              </p>
+              <button
+                type="button"
+                onClick={handleToggleActive}
+                disabled={togglingActive}
+                className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  disabled
+                    ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                    : "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                }`}
+              >
+                {togglingActive ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                {disabled ? "Disabled — click to enable" : "Enabled — click to disable"}
+              </button>
+            </div>
+            {disabled && (
+              <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">
+                This connector cannot be attached to new agents and its tools aren&apos;t available to any agent until re-enabled.
+              </p>
+            )}
+            {activeError && <p className="mt-1.5 text-[11px] text-red-400">{activeError}</p>}
           </div>
 
           {/* Attached agents */}

@@ -49,8 +49,13 @@ export function ConnectorCards({ connectors, onDelete, onUpdated }: ConnectorCar
                       {tpl && tpl.logoUrl ? <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="w-4 h-4" /> : <Plug className="w-3.5 h-3.5" style={{ color }} />}
                     </div>
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight">
-                        {conn.name}
+                      <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--color-text)] truncate leading-tight">
+                        <span className="truncate">{conn.name}</span>
+                        {conn.disabled && (
+                          <span className="shrink-0 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full border border-red-500/40 bg-red-500/10 text-red-400 leading-none">
+                            Disabled
+                          </span>
+                        )}
                       </span>
                       {tpl && (
                         <span className="text-[10px] text-[var(--color-text-muted)] truncate leading-tight">{tpl.displayName}</span>
