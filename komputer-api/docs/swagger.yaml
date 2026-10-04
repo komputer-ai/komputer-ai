@@ -6189,7 +6189,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       officeManager:
         description: |-
@@ -6381,7 +6381,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       podSpec:
         allOf:
