@@ -151,6 +151,7 @@ type ConnectorResponse struct {
 	URL            string   `json:"url"`
 	Type           string   `json:"type"`
 	AuthType       string   `json:"authType"`
+	Disabled       bool     `json:"disabled,omitempty"`
 	OAuthStatus    string   `json:"oauthStatus"`
 	AuthSecretName string   `json:"authSecretName,omitempty"`
 	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
