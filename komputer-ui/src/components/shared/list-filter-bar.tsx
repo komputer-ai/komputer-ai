@@ -18,6 +18,8 @@ type ListFilterBarProps = {
   onNamespaceChange: (value: string) => void;
   namespaces: string[];
   children?: React.ReactNode; // extra filter controls (e.g. status buttons)
+  /** Extra control rendered in the right-aligned group, before the namespace select (e.g. a sort dropdown). */
+  rightExtra?: React.ReactNode;
 };
 
 export function ListFilterBar({
@@ -28,12 +30,15 @@ export function ListFilterBar({
   onNamespaceChange,
   namespaces,
   children,
+  rightExtra,
 }: ListFilterBarProps) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3">
       {children}
 
       <div className="ml-auto flex items-center gap-2">
+        {rightExtra}
+
         {/* Namespace filter */}
         <Select value={namespace} onValueChange={onNamespaceChange}>
           <SelectTrigger className="h-7 w-40 text-xs">

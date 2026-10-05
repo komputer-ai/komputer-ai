@@ -122,7 +122,7 @@ export interface V1alpha1ScheduleAgentSpec {
     memories?: Array<string>;
     /**
      * Model is the Claude model to use.
-     * +kubebuilder:default="claude-sonnet-4-6"
+     * +kubebuilder:default="claude-opus-5-5"
      * @type {string}
      * @memberof V1alpha1ScheduleAgentSpec
      */

@@ -219,6 +219,8 @@ definitions:
         type: string
       type:
         type: string
+      updatedAt:
+        type: string
       url:
         type: string
     type: object
@@ -454,6 +456,8 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      updatedAt:
         type: string
     type: object
   main.OfficeListResponse:
@@ -713,6 +717,8 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      updatedAt:
         type: string
     type: object
   main.SquadListResponse:
@@ -6197,7 +6203,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       officeManager:
         description: |-
@@ -6389,7 +6395,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       podSpec:
         allOf:

@@ -20,6 +20,7 @@ Name | Type
 `oauthStatus` | string
 `service` | string
 `type` | string
+`updatedAt` | string
 `url` | string
 
 ## Example
@@ -43,6 +44,7 @@ const example = {
   "oauthStatus": null,
   "service": null,
   "type": null,
+  "updatedAt": null,
   "url": null,
 } satisfies ConnectorResponse
 

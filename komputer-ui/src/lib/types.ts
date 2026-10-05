@@ -237,6 +237,7 @@ export interface ConnectorResponse {
   attachedAgents: number;
   agentNames?: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface ConnectorListResponse {
@@ -284,6 +285,7 @@ export interface MemoryResponse {
   attachedAgents: number;
   agentNames?: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MemoryListResponse {
@@ -306,6 +308,7 @@ export interface SkillResponse {
   agentNames?: string[];
   isDefault?: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface SkillListResponse {

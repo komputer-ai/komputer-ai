@@ -2929,6 +2929,9 @@
                 "type": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "string"
+                },
                 "url": {
                     "type": "string"
                 }
@@ -3247,6 +3250,9 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -3630,6 +3636,9 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -7965,7 +7974,7 @@
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "officeManager": {
@@ -8123,7 +8132,7 @@
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "podSpec": {

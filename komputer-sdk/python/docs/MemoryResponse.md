@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **description** | **str** |  | [optional] 
 **name** | **str** |  | [optional] 
 **namespace** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 
 ## Example
 

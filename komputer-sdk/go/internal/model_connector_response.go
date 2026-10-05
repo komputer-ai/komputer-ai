@@ -35,6 +35,7 @@ type ConnectorResponse struct {
 	OauthStatus *string `json:"oauthStatus,omitempty"`
 	Service *string `json:"service,omitempty"`
 	Type *string `json:"type,omitempty"`
+	UpdatedAt *string `json:"updatedAt,omitempty"`
 	Url *string `json:"url,omitempty"`
 }
 
@@ -503,6 +504,38 @@ func (o *ConnectorResponse) SetType(v string) {
 	o.Type = &v
 }
 
+// GetUpdatedAt returns the UpdatedAt field value if set, zero value otherwise.
+func (o *ConnectorResponse) GetUpdatedAt() string {
+	if o == nil || IsNil(o.UpdatedAt) {
+		var ret string
+		return ret
+	}
+	return *o.UpdatedAt
+}
+
+// GetUpdatedAtOk returns a tuple with the UpdatedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectorResponse) GetUpdatedAtOk() (*string, bool) {
+	if o == nil || IsNil(o.UpdatedAt) {
+		return nil, false
+	}
+	return o.UpdatedAt, true
+}
+
+// HasUpdatedAt returns a boolean if a field has been set.
+func (o *ConnectorResponse) HasUpdatedAt() bool {
+	if o != nil && !IsNil(o.UpdatedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetUpdatedAt gets a reference to the given string and assigns it to the UpdatedAt field.
+func (o *ConnectorResponse) SetUpdatedAt(v string) {
+	o.UpdatedAt = &v
+}
+
 // GetUrl returns the Url field value if set, zero value otherwise.
 func (o *ConnectorResponse) GetUrl() string {
 	if o == nil || IsNil(o.Url) {
@@ -586,6 +619,9 @@ func (o ConnectorResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Type) {
 		toSerialize["type"] = o.Type
+	}
+	if !IsNil(o.UpdatedAt) {
+		toSerialize["updatedAt"] = o.UpdatedAt
 	}
 	if !IsNil(o.Url) {
 		toSerialize["url"] = o.Url

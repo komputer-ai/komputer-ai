@@ -81,8 +81,8 @@ func registerConnectorCommands(root *cobra.Command) {
 					authW = len(auth)
 				}
 			}
-			header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6s  %s",
-				nameW, "NAME", svcW, "SERVICE", urlW, "URL", authW, "AUTH", "ACTIVE", "AGENTS", "CREATED")
+			header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6s  %-10s  %s",
+				nameW, "NAME", svcW, "SERVICE", urlW, "URL", authW, "AUTH", "ACTIVE", "AGENTS", "CREATED", "UPDATED")
 			fmt.Println(dimStyle.Render(header))
 			for _, c := range resp.Connectors {
 				urlStr := c.URL
@@ -101,8 +101,12 @@ func registerConnectorCommands(root *cobra.Command) {
 				if len(created) > 10 {
 					created = created[:10]
 				}
-				fmt.Printf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6d  %s\n",
-					nameW, c.Name, svcW, c.Service, urlW, urlStr, authW, auth, active, c.AttachedAgents, created)
+				updated := c.UpdatedAt
+				if len(updated) > 10 {
+					updated = updated[:10]
+				}
+				fmt.Printf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6d  %-10s  %s\n",
+					nameW, c.Name, svcW, c.Service, urlW, urlStr, authW, auth, active, c.AttachedAgents, created, updated)
 			}
 		},
 	})
@@ -722,5 +726,6 @@ func printConnector(c ConnectorResponse) {
 		}
 	}
 	row("Created:", c.CreatedAt)
+	row("Updated:", c.UpdatedAt)
 	fmt.Println()
 }

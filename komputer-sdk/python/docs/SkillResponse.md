@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **is_default** | **bool** |  | [optional] 
 **name** | **str** |  | [optional] 
 **namespace** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 
 ## Example
 

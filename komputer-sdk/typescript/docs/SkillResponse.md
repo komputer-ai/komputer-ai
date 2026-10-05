@@ -14,6 +14,7 @@ Name | Type
 `isDefault` | boolean
 `name` | string
 `namespace` | string
+`updatedAt` | string
 
 ## Example
 
@@ -30,6 +31,7 @@ const example = {
   "isDefault": null,
   "name": null,
   "namespace": null,
+  "updatedAt": null,
 } satisfies SkillResponse
 
 console.log(example)

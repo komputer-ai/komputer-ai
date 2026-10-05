@@ -41,8 +41,9 @@ class ConnectorResponse(BaseModel):
     oauth_status: Optional[StrictStr] = Field(default=None, description="\"pending\", \"connected\", \"\"", alias="oauthStatus")
     service: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = Field(default=None, alias="updatedAt")
     url: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "disabled", "displayName", "headerName", "name", "namespace", "oauthStatus", "service", "type", "url"]
+    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "disabled", "displayName", "headerName", "name", "namespace", "oauthStatus", "service", "type", "updatedAt", "url"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -109,6 +110,7 @@ class ConnectorResponse(BaseModel):
             "oauthStatus": obj.get("oauthStatus"),
             "service": obj.get("service"),
             "type": obj.get("type"),
+            "updatedAt": obj.get("updatedAt"),
             "url": obj.get("url")
         })
         return _obj

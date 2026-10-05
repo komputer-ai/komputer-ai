@@ -4530,6 +4530,7 @@ components:
         attachedAgents: 0
         authType: authType
         authSecretName: authSecretName
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -4563,6 +4564,8 @@ components:
         service:
           type: string
         type:
+          type: string
+        updatedAt:
           type: string
         url:
           type: string
@@ -5598,6 +5601,7 @@ components:
         description: description
         attachedAgents: 0
         content: content
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -5614,6 +5618,8 @@ components:
         name:
           type: string
         namespace:
+          type: string
+        updatedAt:
           type: string
       type: object
     OfficeListResponse:
@@ -6908,6 +6914,7 @@ components:
         description: description
         attachedAgents: 0
         content: content
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -6926,6 +6933,8 @@ components:
         name:
           type: string
         namespace:
+          type: string
+        updatedAt:
           type: string
       type: object
     SquadListResponse:
@@ -13545,7 +13554,7 @@ components:
         model:
           description: |-
             Model is the Claude model to use.
-            +kubebuilder:default="claude-sonnet-4-6"
+            +kubebuilder:default="claude-opus-5-5"
           type: string
         officeManager:
           description: |-
@@ -13817,7 +13826,7 @@ components:
         model:
           description: |-
             Model is the Claude model to use.
-            +kubebuilder:default="claude-sonnet-4-6"
+            +kubebuilder:default="claude-opus-5-5"
           type: string
         podSpec:
           allOf:

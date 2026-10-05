@@ -56,6 +56,7 @@ type ConnectorResponse struct {
 	AttachedAgents int      `json:"attachedAgents"`
 	AgentNames     []string `json:"agentNames,omitempty"`
 	CreatedAt      string   `json:"createdAt"`
+	UpdatedAt      string   `json:"updatedAt"`
 }
 
 type mcpTool struct {
@@ -494,6 +495,7 @@ func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []
 		AttachedAgents: len(agentNames),
 		AgentNames:     agentNames,
 		CreatedAt:      conn.CreationTimestamp.UTC().Format(time.RFC3339),
+		UpdatedAt:      lastSpecUpdate(conn).UTC().Format(time.RFC3339),
 	}
 	if conn.Spec.AuthSecretKeyRef != nil {
 		resp.AuthSecretName = conn.Spec.AuthSecretKeyRef.Name
