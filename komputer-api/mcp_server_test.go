@@ -38,6 +38,14 @@ func newTestMCPSession(t *testing.T) (*mcp.ClientSession, *[]capturedRequest) {
 	})
 
 	basePath, ops := parseTestSwagger(t)
+	return connectMCPSession(t, r, basePath, ops), &seen
+}
+
+// connectMCPSession wires ops onto r and returns a connected client session.
+// Shared by newTestMCPSession and tests that need a custom router (e.g. one
+// without gin.Recovery, to exercise callRESTOperation's own panic recovery).
+func connectMCPSession(t *testing.T, r *gin.Engine, basePath string, ops []mcpOperation) *mcp.ClientSession {
+	t.Helper()
 	ctx := context.Background()
 	clientT, serverT := mcp.NewInMemoryTransports()
 	if _, err := newMCPServer(r, basePath, ops).Connect(ctx, serverT, nil); err != nil {
@@ -48,7 +56,7 @@ func newTestMCPSession(t *testing.T) (*mcp.ClientSession, *[]capturedRequest) {
 		t.Fatalf("client connect: %v", err)
 	}
 	t.Cleanup(func() { cs.Close() })
-	return cs, &seen
+	return cs
 }
 
 func callTool(t *testing.T, cs *mcp.ClientSession, args map[string]any) (*mcp.CallToolResult, string) {
@@ -71,6 +79,38 @@ func TestMCPListTools(t *testing.T) {
 	}
 	if res.Tools[0].Description != "Patch widget\n\nUpdates a widget." {
 		t.Errorf("description = %q", res.Tools[0].Description)
+	}
+	// PATCH is neither read-only nor (by convention here) destructive.
+	ann := res.Tools[0].Annotations
+	if ann == nil || ann.ReadOnlyHint {
+		t.Errorf("Annotations = %+v, want non-nil with ReadOnlyHint false", ann)
+	}
+	if ann != nil && ann.DestructiveHint != nil {
+		t.Errorf("DestructiveHint = %v, want nil for a non-DELETE operation", *ann.DestructiveHint)
+	}
+}
+
+func TestToolAnnotations(t *testing.T) {
+	cases := []struct {
+		method          string
+		wantReadOnly    bool
+		wantDestructive bool // only checked when non-nil DestructiveHint is expected
+	}{
+		{"GET", true, false},
+		{"POST", false, false},
+		{"PATCH", false, false},
+		{"PUT", false, false},
+		{"DELETE", false, true},
+	}
+	for _, tc := range cases {
+		ann := toolAnnotations(tc.method)
+		if ann.ReadOnlyHint != tc.wantReadOnly {
+			t.Errorf("toolAnnotations(%q).ReadOnlyHint = %v, want %v", tc.method, ann.ReadOnlyHint, tc.wantReadOnly)
+		}
+		gotDestructive := ann.DestructiveHint != nil && *ann.DestructiveHint
+		if gotDestructive != tc.wantDestructive {
+			t.Errorf("toolAnnotations(%q).DestructiveHint = %v, want %v", tc.method, ann.DestructiveHint, tc.wantDestructive)
+		}
 	}
 }
 
@@ -105,6 +145,29 @@ func TestMCPCall_HandlerErrorIsToolError(t *testing.T) {
 	}
 	if !strings.Contains(text, "HTTP 404") || !strings.Contains(text, "widget not found") {
 		t.Errorf("text = %q", text)
+	}
+}
+
+// TestMCPCall_HandlerPanicRecovered uses a router WITHOUT gin.Recovery to
+// prove callRESTOperation recovers from a handler panic itself. In
+// production, main.go installs gin.Recovery before SetupRoutes, but the MCP
+// tool handler runs in a go-sdk goroutine where an unrecovered panic would
+// kill the process regardless of gin's own middleware.
+func TestMCPCall_HandlerPanicRecovered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New() // deliberately no gin.Recovery()
+	r.PATCH("/api/v1/widgets/:name", func(c *gin.Context) {
+		panic("boom")
+	})
+	basePath, ops := parseTestSwagger(t)
+	cs := connectMCPSession(t, r, basePath, ops)
+
+	res, text := callTool(t, cs, map[string]any{"name": "w1"})
+	if !res.IsError {
+		t.Fatal("IsError = false, want true")
+	}
+	if !strings.Contains(text, "internal error") || !strings.Contains(text, "boom") {
+		t.Errorf("text = %q, want it to contain %q and %q", text, "internal error", "boom")
 	}
 }
 

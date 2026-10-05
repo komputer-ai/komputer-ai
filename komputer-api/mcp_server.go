@@ -32,11 +32,24 @@ func newMCPServer(h http.Handler, basePath string, ops []mcpOperation) *mcp.Serv
 			Name:        op.ToolName,
 			Description: op.Description,
 			InputSchema: op.InputSchema,
+			Annotations: toolAnnotations(op.Method),
 		}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			return callRESTOperation(ctx, h, basePath, op, req.Params.Arguments), nil
 		})
 	}
 	return srv
+}
+
+// toolAnnotations derives MCP tool hints from the REST operation's HTTP
+// method: GET is read-only, DELETE is destructive. Other methods get no
+// extra hint (ReadOnlyHint's zero value, false, already applies).
+func toolAnnotations(method string) *mcp.ToolAnnotations {
+	ann := &mcp.ToolAnnotations{ReadOnlyHint: method == http.MethodGet}
+	if method == http.MethodDelete {
+		destructive := true
+		ann.DestructiveHint = &destructive
+	}
+	return ann
 }
 
 // mountMCPHandler installs the MCP streamable HTTP endpoint on the Gin router.
@@ -58,7 +71,15 @@ func mountMCPHandler(r *gin.Engine) {
 // callRESTOperation runs one tool call through the REST handler and maps the
 // HTTP response to a tool result. Handler errors become IsError results so the
 // calling model sees the real status and message.
-func callRESTOperation(ctx context.Context, h http.Handler, basePath string, op mcpOperation, rawArgs json.RawMessage) *mcp.CallToolResult {
+func callRESTOperation(ctx context.Context, h http.Handler, basePath string, op mcpOperation, rawArgs json.RawMessage) (result *mcp.CallToolResult) {
+	// The MCP tool handler runs in a go-sdk goroutine, separate from the
+	// gin.Recovery middleware's call stack — an unrecovered panic here would
+	// kill the process. Recover and surface it as a tool error instead.
+	defer func() {
+		if p := recover(); p != nil {
+			result = toolError(fmt.Sprintf("internal error: %v", p))
+		}
+	}()
 	req, err := op.buildRequest(ctx, basePath, rawArgs)
 	if err != nil {
 		return toolError(err.Error())

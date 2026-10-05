@@ -43,16 +43,27 @@ func TestMCPToolsCoverEveryAPIRoute(t *testing.T) {
 
 	r := gin.New()
 	SetupRoutes(r, nil, nil, nil)
+	realRoutes := map[string]bool{}
 	for _, rt := range r.Routes() {
 		if !strings.HasPrefix(rt.Path, "/api/v1/") {
 			continue
 		}
+		realRoutes[rt.Method+" "+rt.Path] = true
 		key := rt.Method + " " + rt.Path
 		if _, excluded := mcpExcludedRoutes[key]; excluded {
 			continue
 		}
 		if !exposed[key] {
 			t.Errorf("%s has no MCP tool: add @ID/@Router swagger annotations to its handler and run swag init, or add it to mcpExcludedRoutes", key)
+		}
+	}
+
+	// Reverse direction: every exposed tool must map to a real route, or a
+	// stale/typo'd @Router annotation would produce a tool that always 404s.
+	for _, op := range ops {
+		key := op.Method + " " + basePath + swaggerPathParamRe.ReplaceAllString(op.Path, ":$1")
+		if !realRoutes[key] {
+			t.Errorf("tool %q maps to %q which is not a real route: fix its @Router annotation / re-run swag", op.ToolName, key)
 		}
 	}
 }
