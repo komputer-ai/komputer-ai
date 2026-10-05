@@ -107,7 +107,10 @@ export default function MemoryDetailPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
+          <span className="text-sm text-[var(--color-text-muted)]">Created</span>
           <RelativeTime timestamp={memory.createdAt} />
+          <span className="text-sm text-[var(--color-text-muted)]">Updated</span>
+          <RelativeTime timestamp={memory.updatedAt} />
           <ConfirmDialog
             title="Delete Memory"
             description={`Are you sure you want to delete "${memory.name}"? This action cannot be undone.`}

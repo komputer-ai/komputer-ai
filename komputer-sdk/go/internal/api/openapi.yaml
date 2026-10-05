@@ -4525,6 +4525,7 @@ components:
         attachedAgents: 0
         authType: authType
         authSecretName: authSecretName
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -4554,6 +4555,8 @@ components:
         service:
           type: string
         type:
+          type: string
+        updatedAt:
           type: string
         url:
           type: string
@@ -5589,6 +5592,7 @@ components:
         description: description
         attachedAgents: 0
         content: content
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -5605,6 +5609,8 @@ components:
         name:
           type: string
         namespace:
+          type: string
+        updatedAt:
           type: string
       type: object
     OfficeListResponse:
@@ -6899,6 +6905,7 @@ components:
         description: description
         attachedAgents: 0
         content: content
+        updatedAt: updatedAt
       properties:
         agentNames:
           items:
@@ -6917,6 +6924,8 @@ components:
         name:
           type: string
         namespace:
+          type: string
+        updatedAt:
           type: string
       type: object
     SquadListResponse:

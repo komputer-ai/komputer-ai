@@ -113,6 +113,7 @@ func registerMemoryCommands(root *cobra.Command) {
 			fmt.Printf("  Namespace:   %s\n", m.Namespace)
 			fmt.Printf("  Agents:      %d\n", len(m.Agents))
 			fmt.Printf("  Created:     %s\n", m.CreatedAt)
+			fmt.Printf("  Updated:     %s\n", m.UpdatedAt)
 			fmt.Println()
 			fmt.Println(dimStyle.Render("  ── Content ──"))
 			fmt.Println()

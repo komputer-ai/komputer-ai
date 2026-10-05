@@ -35,7 +35,8 @@ class SkillResponse(BaseModel):
     is_default: Optional[StrictBool] = Field(default=None, alias="isDefault")
     name: Optional[StrictStr] = None
     namespace: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "content", "createdAt", "description", "isDefault", "name", "namespace"]
+    updated_at: Optional[StrictStr] = Field(default=None, alias="updatedAt")
+    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "content", "createdAt", "description", "isDefault", "name", "namespace", "updatedAt"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -95,7 +96,8 @@ class SkillResponse(BaseModel):
             "description": obj.get("description"),
             "isDefault": obj.get("isDefault"),
             "name": obj.get("name"),
-            "namespace": obj.get("namespace")
+            "namespace": obj.get("namespace"),
+            "updatedAt": obj.get("updatedAt")
         })
         return _obj
 

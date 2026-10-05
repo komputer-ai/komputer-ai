@@ -74,6 +74,12 @@ export function MemoryCards({ memories, onDelete }: MemoryCardsProps) {
                         {formatRelativeTime(memory.createdAt)}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">updated</span>
+                      <span className="text-[11px] text-[var(--color-text-secondary)]">
+                        {formatRelativeTime(memory.updatedAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -17,6 +17,7 @@ Name | Type | Description | Notes
 **OauthStatus** | Pointer to **string** | \&quot;pending\&quot;, \&quot;connected\&quot;, \&quot;\&quot; | [optional] 
 **Service** | Pointer to **string** |  | [optional] 
 **Type** | Pointer to **string** |  | [optional] 
+**UpdatedAt** | Pointer to **string** |  | [optional] 
 **Url** | Pointer to **string** |  | [optional] 
 
 ## Methods
@@ -362,6 +363,31 @@ SetType sets Type field to given value.
 `func (o *ConnectorResponse) HasType() bool`
 
 HasType returns a boolean if a field has been set.
+
+### GetUpdatedAt
+
+`func (o *ConnectorResponse) GetUpdatedAt() string`
+
+GetUpdatedAt returns the UpdatedAt field if non-nil, zero value otherwise.
+
+### GetUpdatedAtOk
+
+`func (o *ConnectorResponse) GetUpdatedAtOk() (*string, bool)`
+
+GetUpdatedAtOk returns a tuple with the UpdatedAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetUpdatedAt
+
+`func (o *ConnectorResponse) SetUpdatedAt(v string)`
+
+SetUpdatedAt sets UpdatedAt field to given value.
+
+### HasUpdatedAt
+
+`func (o *ConnectorResponse) HasUpdatedAt() bool`
+
+HasUpdatedAt returns a boolean if a field has been set.
 
 ### GetUrl
 

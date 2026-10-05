@@ -128,6 +128,10 @@ export function ConnectorDetailDialog({ connector, open, onOpenChange, onUpdated
               <Calendar className="w-3 h-3 text-[var(--color-text-muted)]" />
               Created {formatRelativeTime(connector.createdAt)}
             </span>
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-[var(--color-text-muted)]" />
+              Updated {formatRelativeTime(connector.updatedAt)}
+            </span>
           </div>
 
           {/* Attached agents */}
