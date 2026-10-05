@@ -60,6 +60,7 @@ export interface CreateAgentOperationRequest {
 export interface DeleteAgentRequest {
     name: string;
     namespace?: string;
+    recreatePod?: boolean;
 }
 
 export interface GetAgentRequest {
@@ -76,10 +77,15 @@ export interface GetAgentEventsRequest {
     name: string;
     namespace?: string;
     limit?: number;
+    before?: string;
+    after?: string;
+    around?: string;
 }
 
 export interface ListAgentsRequest {
     namespace?: string;
+    status?: string;
+    label?: Array<string>;
 }
 
 export interface PatchAgentOperationRequest {
@@ -314,6 +320,10 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['namespace'] = requestParameters['namespace'];
         }
 
+        if (requestParameters['recreatePod'] != null) {
+            queryParameters['recreatePod'] = requestParameters['recreatePod'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -471,6 +481,18 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['limit'] = requestParameters['limit'];
         }
 
+        if (requestParameters['before'] != null) {
+            queryParameters['before'] = requestParameters['before'];
+        }
+
+        if (requestParameters['after'] != null) {
+            queryParameters['after'] = requestParameters['after'];
+        }
+
+        if (requestParameters['around'] != null) {
+            queryParameters['around'] = requestParameters['around'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -513,6 +535,14 @@ export class AgentsApi extends runtime.BaseAPI {
 
         if (requestParameters['namespace'] != null) {
             queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        if (requestParameters['status'] != null) {
+            queryParameters['status'] = requestParameters['status'];
+        }
+
+        if (requestParameters['label'] != null) {
+            queryParameters['label'] = requestParameters['label'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};

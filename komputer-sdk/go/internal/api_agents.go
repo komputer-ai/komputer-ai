@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"reflect"
 )
 
 
@@ -573,11 +574,18 @@ type ApiDeleteAgentRequest struct {
 	ApiService *AgentsAPIService
 	name string
 	namespace *string
+	recreatePod *bool
 }
 
 // Kubernetes namespace
 func (r ApiDeleteAgentRequest) Namespace(namespace string) ApiDeleteAgentRequest {
 	r.namespace = &namespace
+	return r
+}
+
+// If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
+func (r ApiDeleteAgentRequest) RecreatePod(recreatePod bool) ApiDeleteAgentRequest {
+	r.recreatePod = &recreatePod
 	return r
 }
 
@@ -626,6 +634,9 @@ func (a *AgentsAPIService) DeleteAgentExecute(r ApiDeleteAgentRequest) (map[stri
 
 	if r.namespace != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "namespace", r.namespace, "form", "")
+	}
+	if r.recreatePod != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "recreatePod", r.recreatePod, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -965,6 +976,9 @@ type ApiGetAgentEventsRequest struct {
 	name string
 	namespace *string
 	limit *int32
+	before *string
+	after *string
+	around *string
 }
 
 // Kubernetes namespace
@@ -976,6 +990,24 @@ func (r ApiGetAgentEventsRequest) Namespace(namespace string) ApiGetAgentEventsR
 // Max events to return (1-200)
 func (r ApiGetAgentEventsRequest) Limit(limit int32) ApiGetAgentEventsRequest {
 	r.limit = &limit
+	return r
+}
+
+// RFC-3339 cursor: return events strictly before this timestamp (pagination)
+func (r ApiGetAgentEventsRequest) Before(before string) ApiGetAgentEventsRequest {
+	r.before = &before
+	return r
+}
+
+// RFC-3339 cursor: return events strictly after this timestamp (polling for new events)
+func (r ApiGetAgentEventsRequest) After(after string) ApiGetAgentEventsRequest {
+	r.after = &after
+	return r
+}
+
+// RFC-3339 timestamp to center results on
+func (r ApiGetAgentEventsRequest) Around(around string) ApiGetAgentEventsRequest {
+	r.around = &around
 	return r
 }
 
@@ -1031,6 +1063,15 @@ func (a *AgentsAPIService) GetAgentEventsExecute(r ApiGetAgentEventsRequest) (ma
 		var defaultValue int32 = 50
 		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", defaultValue, "form", "")
 		r.limit = &defaultValue
+	}
+	if r.before != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "before", r.before, "form", "")
+	}
+	if r.after != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "after", r.after, "form", "")
+	}
+	if r.around != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "around", r.around, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1111,11 +1152,25 @@ type ApiListAgentsRequest struct {
 	ctx context.Context
 	ApiService *AgentsAPIService
 	namespace *string
+	status *string
+	label *[]string
 }
 
 // Kubernetes namespace
 func (r ApiListAgentsRequest) Namespace(namespace string) ApiListAgentsRequest {
 	r.namespace = &namespace
+	return r
+}
+
+// Filter by agent phase (case-insensitive), e.g. Running, Sleeping
+func (r ApiListAgentsRequest) Status(status string) ApiListAgentsRequest {
+	r.status = &status
+	return r
+}
+
+// Label filter key&#x3D;value; repeat for multiple (AND)
+func (r ApiListAgentsRequest) Label(label []string) ApiListAgentsRequest {
+	r.label = &label
 	return r
 }
 
@@ -1161,6 +1216,20 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 
 	if r.namespace != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "namespace", r.namespace, "form", "")
+	}
+	if r.status != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "status", r.status, "form", "")
+	}
+	if r.label != nil {
+		t := *r.label
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				parameterAddToHeaderOrQuery(localVarQueryParams, "label", s.Index(i).Interface(), "form", "multi")
+			}
+		} else {
+			parameterAddToHeaderOrQuery(localVarQueryParams, "label", t, "form", "multi")
+		}
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

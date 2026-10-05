@@ -32,6 +32,22 @@ const docTemplate = `{
                         "description": "Kubernetes namespace",
                         "name": "namespace",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent phase (case-insensitive), e.g. Running, Sleeping",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "Label filter key=value; repeat for multiple (AND)",
+                        "name": "label",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -188,6 +204,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Kubernetes namespace",
                         "name": "namespace",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member",
+                        "name": "recreatePod",
                         "in": "query"
                     }
                 ],
@@ -504,6 +526,24 @@ const docTemplate = `{
                         "default": 50,
                         "description": "Max events to return (1-200)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC-3339 cursor: return events strictly before this timestamp (pagination)",
+                        "name": "before",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC-3339 cursor: return events strictly after this timestamp (polling for new events)",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC-3339 timestamp to center results on",
+                        "name": "around",
                         "in": "query"
                     }
                 ],

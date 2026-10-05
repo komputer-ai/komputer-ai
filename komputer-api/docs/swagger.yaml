@@ -6560,6 +6560,17 @@ paths:
         in: query
         name: namespace
         type: string
+      - description: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
+        in: query
+        name: status
+        type: string
+      - collectionFormat: multi
+        description: Label filter key=value; repeat for multiple (AND)
+        in: query
+        items:
+          type: string
+        name: label
+        type: array
       produces:
       - application/json
       responses:
@@ -6632,6 +6643,11 @@ paths:
         in: query
         name: namespace
         type: string
+      - description: If the agent is a squad member, also delete the squad pod so
+          it is rebuilt without this member
+        in: query
+        name: recreatePod
+        type: boolean
       produces:
       - application/json
       responses:
@@ -6884,6 +6900,20 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: 'RFC-3339 cursor: return events strictly before this timestamp
+          (pagination)'
+        in: query
+        name: before
+        type: string
+      - description: 'RFC-3339 cursor: return events strictly after this timestamp
+          (polling for new events)'
+        in: query
+        name: after
+        type: string
+      - description: RFC-3339 timestamp to center results on
+        in: query
+        name: around
+        type: string
       produces:
       - application/json
       responses:

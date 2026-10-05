@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 from pydantic import Field, StrictBool, StrictInt, StrictStr
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from typing_extensions import Annotated
 from komputer_ai.models.agent_list_response import AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse
@@ -1197,6 +1197,7 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1218,6 +1219,8 @@ class AgentsApi:
         :type name: str
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
+        :type recreate_pod: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1243,6 +1246,7 @@ class AgentsApi:
         _param = self._delete_agent_serialize(
             name=name,
             namespace=namespace,
+            recreate_pod=recreate_pod,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1270,6 +1274,7 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1291,6 +1296,8 @@ class AgentsApi:
         :type name: str
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
+        :type recreate_pod: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1316,6 +1323,7 @@ class AgentsApi:
         _param = self._delete_agent_serialize(
             name=name,
             namespace=namespace,
+            recreate_pod=recreate_pod,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1343,6 +1351,7 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1364,6 +1373,8 @@ class AgentsApi:
         :type name: str
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
+        :type recreate_pod: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1389,6 +1400,7 @@ class AgentsApi:
         _param = self._delete_agent_serialize(
             name=name,
             namespace=namespace,
+            recreate_pod=recreate_pod,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1411,6 +1423,7 @@ class AgentsApi:
         self,
         name,
         namespace,
+        recreate_pod,
         _request_auth,
         _content_type,
         _headers,
@@ -1438,6 +1451,10 @@ class AgentsApi:
         if namespace is not None:
             
             _query_params.append(('namespace', namespace))
+            
+        if recreate_pod is not None:
+            
+            _query_params.append(('recreatePod', recreate_pod))
             
         # process the header parameters
         # process the form parameters
@@ -2044,6 +2061,9 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max events to return (1-200)")] = None,
+        before: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly before this timestamp (pagination)")] = None,
+        after: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly after this timestamp (polling for new events)")] = None,
+        around: Annotated[Optional[StrictStr], Field(description="RFC-3339 timestamp to center results on")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2067,6 +2087,12 @@ class AgentsApi:
         :type namespace: str
         :param limit: Max events to return (1-200)
         :type limit: int
+        :param before: RFC-3339 cursor: return events strictly before this timestamp (pagination)
+        :type before: str
+        :param after: RFC-3339 cursor: return events strictly after this timestamp (polling for new events)
+        :type after: str
+        :param around: RFC-3339 timestamp to center results on
+        :type around: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2093,6 +2119,9 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             limit=limit,
+            before=before,
+            after=after,
+            around=around,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2121,6 +2150,9 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max events to return (1-200)")] = None,
+        before: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly before this timestamp (pagination)")] = None,
+        after: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly after this timestamp (polling for new events)")] = None,
+        around: Annotated[Optional[StrictStr], Field(description="RFC-3339 timestamp to center results on")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2144,6 +2176,12 @@ class AgentsApi:
         :type namespace: str
         :param limit: Max events to return (1-200)
         :type limit: int
+        :param before: RFC-3339 cursor: return events strictly before this timestamp (pagination)
+        :type before: str
+        :param after: RFC-3339 cursor: return events strictly after this timestamp (polling for new events)
+        :type after: str
+        :param around: RFC-3339 timestamp to center results on
+        :type around: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2170,6 +2208,9 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             limit=limit,
+            before=before,
+            after=after,
+            around=around,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2198,6 +2239,9 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max events to return (1-200)")] = None,
+        before: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly before this timestamp (pagination)")] = None,
+        after: Annotated[Optional[StrictStr], Field(description="RFC-3339 cursor: return events strictly after this timestamp (polling for new events)")] = None,
+        around: Annotated[Optional[StrictStr], Field(description="RFC-3339 timestamp to center results on")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2221,6 +2265,12 @@ class AgentsApi:
         :type namespace: str
         :param limit: Max events to return (1-200)
         :type limit: int
+        :param before: RFC-3339 cursor: return events strictly before this timestamp (pagination)
+        :type before: str
+        :param after: RFC-3339 cursor: return events strictly after this timestamp (polling for new events)
+        :type after: str
+        :param around: RFC-3339 timestamp to center results on
+        :type around: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2247,6 +2297,9 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             limit=limit,
+            before=before,
+            after=after,
+            around=around,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2270,6 +2323,9 @@ class AgentsApi:
         name,
         namespace,
         limit,
+        before,
+        after,
+        around,
         _request_auth,
         _content_type,
         _headers,
@@ -2301,6 +2357,18 @@ class AgentsApi:
         if limit is not None:
             
             _query_params.append(('limit', limit))
+            
+        if before is not None:
+            
+            _query_params.append(('before', before))
+            
+        if after is not None:
+            
+            _query_params.append(('after', after))
+            
+        if around is not None:
+            
+            _query_params.append(('around', around))
             
         # process the header parameters
         # process the form parameters
@@ -2342,6 +2410,8 @@ class AgentsApi:
     def list_agents(
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2361,6 +2431,10 @@ class AgentsApi:
 
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
+        :type status: str
+        :param label: Label filter key=value; repeat for multiple (AND)
+        :type label: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2385,6 +2459,8 @@ class AgentsApi:
 
         _param = self._list_agents_serialize(
             namespace=namespace,
+            status=status,
+            label=label,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2410,6 +2486,8 @@ class AgentsApi:
     def list_agents_with_http_info(
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2429,6 +2507,10 @@ class AgentsApi:
 
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
+        :type status: str
+        :param label: Label filter key=value; repeat for multiple (AND)
+        :type label: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2453,6 +2535,8 @@ class AgentsApi:
 
         _param = self._list_agents_serialize(
             namespace=namespace,
+            status=status,
+            label=label,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2478,6 +2562,8 @@ class AgentsApi:
     def list_agents_without_preload_content(
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2497,6 +2583,10 @@ class AgentsApi:
 
         :param namespace: Kubernetes namespace
         :type namespace: str
+        :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
+        :type status: str
+        :param label: Label filter key=value; repeat for multiple (AND)
+        :type label: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2521,6 +2611,8 @@ class AgentsApi:
 
         _param = self._list_agents_serialize(
             namespace=namespace,
+            status=status,
+            label=label,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2541,6 +2633,8 @@ class AgentsApi:
     def _list_agents_serialize(
         self,
         namespace,
+        status,
+        label,
         _request_auth,
         _content_type,
         _headers,
@@ -2550,6 +2644,7 @@ class AgentsApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
+            'label': 'multi',
         }
 
         _path_params: Dict[str, str] = {}
@@ -2566,6 +2661,14 @@ class AgentsApi:
         if namespace is not None:
             
             _query_params.append(('namespace', namespace))
+            
+        if status is not None:
+            
+            _query_params.append(('status', status))
+            
+        if label is not None:
+            
+            _query_params.append(('label', label))
             
         # process the header parameters
         # process the form parameters

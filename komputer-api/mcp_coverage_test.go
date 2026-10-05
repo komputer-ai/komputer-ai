@@ -75,6 +75,46 @@ func TestMCPRealSpec_CoreToolsPresent(t *testing.T) {
 	}
 }
 
+// TestMCPRealSpec_QueryParamsExposed guards against a handler reading a query
+// param that its swagger annotations don't declare: such a param is invisible
+// to MCP clients and would be rejected as an unknown argument.
+func TestMCPRealSpec_QueryParamsExposed(t *testing.T) {
+	_, ops := realMCPOperations(t)
+	byName := map[string]mcpOperation{}
+	for _, op := range ops {
+		byName[op.ToolName] = op
+	}
+
+	hasParam := func(params []string, want string) bool {
+		for _, p := range params {
+			if p == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	cases := []struct {
+		tool   string
+		params []string
+	}{
+		{"get_agent_events", []string{"before", "after", "around"}},
+		{"delete_agent", []string{"recreatePod"}},
+		{"list_agents", []string{"status", "label"}},
+	}
+	for _, tc := range cases {
+		op, ok := byName[tc.tool]
+		if !ok {
+			t.Fatalf("tool %q not found", tc.tool)
+		}
+		for _, want := range tc.params {
+			if !hasParam(op.QueryParams, want) {
+				t.Errorf("%s: missing query param %q (QueryParams=%v)", tc.tool, want, op.QueryParams)
+			}
+		}
+	}
+}
+
 // TestMCPRealSpec_SchemaSizeBudget guards against a request type pulling the
 // full Kubernetes type tree into tool schemas (~190KB per tool if expanded).
 func TestMCPRealSpec_SchemaSizeBudget(t *testing.T) {

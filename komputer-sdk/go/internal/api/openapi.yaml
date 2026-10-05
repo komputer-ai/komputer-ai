@@ -22,6 +22,24 @@ paths:
         schema:
           type: string
         style: form
+      - description: "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Label filter key=value; repeat for multiple (AND)
+        explode: true
+        in: query
+        name: label
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
       responses:
         "200":
           content:
@@ -107,6 +125,15 @@ paths:
         required: false
         schema:
           type: string
+        style: form
+      - description: "If the agent is a squad member, also delete the squad pod so\
+          \ it is rebuilt without this member"
+        explode: true
+        in: query
+        name: recreatePod
+        required: false
+        schema:
+          type: boolean
         style: form
       responses:
         "200":
@@ -432,6 +459,32 @@ paths:
         schema:
           default: 50
           type: integer
+        style: form
+      - description: "RFC-3339 cursor: return events strictly before this timestamp\
+          \ (pagination)"
+        explode: true
+        in: query
+        name: before
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: "RFC-3339 cursor: return events strictly after this timestamp\
+          \ (polling for new events)"
+        explode: true
+        in: query
+        name: after
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: RFC-3339 timestamp to center results on
+        explode: true
+        in: query
+        name: around
+        required: false
+        schema:
+          type: string
         style: form
       responses:
         "200":

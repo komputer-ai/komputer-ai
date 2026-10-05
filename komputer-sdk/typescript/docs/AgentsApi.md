@@ -303,7 +303,7 @@ No authorization required
 
 ## deleteAgent
 
-> { [key: string]: string; } deleteAgent(name, namespace)
+> { [key: string]: string; } deleteAgent(name, namespace, recreatePod)
 
 Delete agent
 
@@ -327,6 +327,8 @@ async function example() {
     name: name_example,
     // string | Kubernetes namespace (optional)
     namespace: namespace_example,
+    // boolean | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
+    recreatePod: true,
   } satisfies DeleteAgentRequest;
 
   try {
@@ -348,6 +350,7 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+| **recreatePod** | `boolean` | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -518,7 +521,7 @@ No authorization required
 
 ## getAgentEvents
 
-> { [key: string]: any; } getAgentEvents(name, namespace, limit)
+> { [key: string]: any; } getAgentEvents(name, namespace, limit, before, after, around)
 
 Get agent events
 
@@ -544,6 +547,12 @@ async function example() {
     namespace: namespace_example,
     // number | Max events to return (1-200) (optional)
     limit: 56,
+    // string | RFC-3339 cursor: return events strictly before this timestamp (pagination) (optional)
+    before: before_example,
+    // string | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) (optional)
+    after: after_example,
+    // string | RFC-3339 timestamp to center results on (optional)
+    around: around_example,
   } satisfies GetAgentEventsRequest;
 
   try {
@@ -566,6 +575,9 @@ example().catch(console.error);
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **limit** | `number` | Max events to return (1-200) | [Optional] [Defaults to `50`] |
+| **before** | `string` | RFC-3339 cursor: return events strictly before this timestamp (pagination) | [Optional] [Defaults to `undefined`] |
+| **after** | `string` | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) | [Optional] [Defaults to `undefined`] |
+| **around** | `string` | RFC-3339 timestamp to center results on | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -593,7 +605,7 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace)
+> AgentListResponse listAgents(namespace, status, label)
 
 List agents
 
@@ -615,6 +627,10 @@ async function example() {
   const body = {
     // string | Kubernetes namespace (optional)
     namespace: namespace_example,
+    // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    status: status_example,
+    // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
+    label: ...,
   } satisfies ListAgentsRequest;
 
   try {
@@ -635,6 +651,8 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+| **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
+| **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
 
 ### Return type
 

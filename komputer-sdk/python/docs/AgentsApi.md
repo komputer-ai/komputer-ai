@@ -299,7 +299,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_agent**
-> Dict[str, str] delete_agent(name, namespace=namespace)
+> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
 
 Delete agent
 
@@ -326,10 +326,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     api_instance = komputer_ai.AgentsApi(api_client)
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+    recreate_pod = True # bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
 
     try:
         # Delete agent
-        api_response = api_instance.delete_agent(name, namespace=namespace)
+        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
         print("The response of AgentsApi->delete_agent:\n")
         pprint(api_response)
     except Exception as e:
@@ -345,6 +346,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
+ **recreate_pod** | **bool**| If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [optional] 
 
 ### Return type
 
@@ -513,7 +515,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_agent_events**
-> Dict[str, object] get_agent_events(name, namespace=namespace, limit=limit)
+> Dict[str, object] get_agent_events(name, namespace=namespace, limit=limit, before=before, after=after, around=around)
 
 Get agent events
 
@@ -541,10 +543,13 @@ with komputer_ai.ApiClient(configuration) as api_client:
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     limit = 50 # int | Max events to return (1-200) (optional) (default to 50)
+    before = 'before_example' # str | RFC-3339 cursor: return events strictly before this timestamp (pagination) (optional)
+    after = 'after_example' # str | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) (optional)
+    around = 'around_example' # str | RFC-3339 timestamp to center results on (optional)
 
     try:
         # Get agent events
-        api_response = api_instance.get_agent_events(name, namespace=namespace, limit=limit)
+        api_response = api_instance.get_agent_events(name, namespace=namespace, limit=limit, before=before, after=after, around=around)
         print("The response of AgentsApi->get_agent_events:\n")
         pprint(api_response)
     except Exception as e:
@@ -561,6 +566,9 @@ Name | Type | Description  | Notes
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **limit** | **int**| Max events to return (1-200) | [optional] [default to 50]
+ **before** | **str**| RFC-3339 cursor: return events strictly before this timestamp (pagination) | [optional] 
+ **after** | **str**| RFC-3339 cursor: return events strictly after this timestamp (polling for new events) | [optional] 
+ **around** | **str**| RFC-3339 timestamp to center results on | [optional] 
 
 ### Return type
 
@@ -586,7 +594,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace)
+> AgentListResponse list_agents(namespace=namespace, status=status, label=label)
 
 List agents
 
@@ -613,10 +621,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.AgentsApi(api_client)
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+    status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -631,6 +641,8 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **str**| Kubernetes namespace | [optional] 
+ **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
+ **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
 
 ### Return type
 

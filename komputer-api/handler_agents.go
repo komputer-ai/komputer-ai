@@ -645,6 +645,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Produce json
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
+// @Param recreatePod query bool false "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member"
 // @Success 200 {object} map[string]string "Agent deleted"
 // @Failure 404 {object} map[string]string "Agent not found"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -872,6 +873,9 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
 // @Param limit query int false "Max events to return (1-200)" default(50)
+// @Param before query string false "RFC-3339 cursor: return events strictly before this timestamp (pagination)"
+// @Param after query string false "RFC-3339 cursor: return events strictly after this timestamp (polling for new events)"
+// @Param around query string false "RFC-3339 timestamp to center results on"
 // @Success 200 {object} map[string]interface{} "Agent events"
 // @Failure 400 {object} map[string]string "Invalid limit parameter"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -947,6 +951,8 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 // @Tags agents
 // @Produce json
 // @Param namespace query string false "Kubernetes namespace"
+// @Param status query string false "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
+// @Param label query []string false "Label filter key=value; repeat for multiple (AND)" collectionFormat(multi)
 // @Success 200 {object} AgentListResponse "List of agents"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents [get]
