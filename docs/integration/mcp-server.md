@@ -21,7 +21,7 @@ The server uses the standard MCP streamable HTTP transport.
 
 ## Authentication
 
-> **Warning:** there is **no auth** on `/mcp`, matching the rest of the API. The tools have **full write access**: anyone who can reach the endpoint can create and delete agents, read and change secrets, and spend your model budget. Keep komputer-api off the public internet and restrict access at the network or ingress layer (VPN, internal-only ingress, NetworkPolicy).
+> **Warning:** there is **no auth** on `/mcp`, matching the rest of the API. The tools have **full write access**: anyone who can reach the endpoint can create and delete agents, create, overwrite and delete secrets, and spend your model budget. Keep komputer-api off the public internet and restrict access at the network or ingress layer (VPN, internal-only ingress, NetworkPolicy).
 
 ## Connecting a client
 
@@ -64,7 +64,7 @@ spec:
   url: https://komputer.example.com/mcp
 ```
 
-Then attach `remote-komputer` to any agent that should be able to drive the remote cluster.
+Then attach `remote-komputer` to any agent that should be able to drive the remote cluster. This gives that agent full write access to the remote cluster — it can create and delete agents and manage secrets there — so restrict it with the agent's `disallowedTools` (e.g. `mcp__remote-komputer__delete_*`, `mcp__remote-komputer__*_secret`) unless it genuinely needs full control.
 
 ### Generic MCP client
 
@@ -72,7 +72,7 @@ Point any streamable-HTTP MCP client at `<api-url>/mcp`. The server reports `ser
 
 ## Tools
 
-Tool names are the API's operation IDs in snake_case. Arguments are the endpoint's path and query parameters (for example `name`, `namespace`, `limit`), plus a `body` object for endpoints that take a JSON request body. A non-2xx response comes back as a tool error that contains the HTTP status and the API's error message.
+Tool names are the API's operation IDs in snake_case. Arguments are the endpoint's path and query parameters (for example `name`, `namespace`, `limit`), plus a `body` object for endpoints that take a JSON request body. `create_*` tools take `namespace` inside `body`; read, list and delete tools take it as a top-level argument. A non-2xx response comes back as a tool error that contains the HTTP status and the API's error message.
 
 | Resource | Tools |
 |---|---|
@@ -86,9 +86,9 @@ Tool names are the API's operation IDs in snake_case. Arguments are the endpoint
 | Secrets | `list_secrets`, `create_secret`, `update_secret`, `delete_secret` (values are never returned) |
 | Infra | `list_namespaces`, `list_templates` |
 
-A typical run: `create_agent`, then poll `get_agent_events` with `after` set to the last event's timestamp until a `task_completed` event arrives. The live WebSocket stream and file downloads are not available over MCP.
+A typical run: `create_agent`, then poll `get_agent_events` with `after` set to the last event's timestamp until a `task_completed` event arrives — pass a small `limit` (e.g. `20`) while polling, since text events can be large. The live WebSocket stream, file downloads and the OAuth authorization flow are not available over MCP.
 
-**Note:** if you used the earlier MCP server, `compact_agent` is now `compact_agent_task`. All other existing tool names are unchanged.
+**Note:** if you used the earlier MCP server, `compact_agent` is now `compact_agent_task`; other tool names are unchanged, but outputs now mirror the REST API responses (e.g. `get_skill` returns `content`, `list_agents` returns full agent objects), and on list tools an omitted `namespace` now means all namespaces, as in REST.
 
 ## Quick smoke test
 
