@@ -5,6 +5,15 @@ import { motion } from "framer-motion";
 import { Trash2, X, CheckSquare, Users } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
+import { Badge } from "@/components/kit/badge";
+import { MultiSelect } from "@/components/kit/multi-select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/kit/select";
 import { AgentCards, agentKey } from "@/components/agents/agent-cards";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
@@ -15,9 +24,16 @@ import { usePageRefresh, usePageHeaderSlot } from "@/components/layout/app-shell
 import { deleteAgent, deleteSquad } from "@/lib/api";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { cn } from "@/lib/utils";
+import { filterAndSortAgents, labelSuggestions, type AgentSort } from "@/lib/agent-list";
 
 const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+const SORT_OPTIONS: { value: AgentSort; label: string }[] = [
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "recent-active", label: "Recently active" },
+];
 
 export default function AgentsPage() {
   const { agents, loading, error, refresh } = useAgents();
@@ -26,26 +42,31 @@ export default function AgentsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
+  const [labelFilters, setLabelFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<AgentSort>("newest");
 
   const namespaces = useMemo(
     () => [...new Set(agents.map((a) => a.namespace))].sort(),
     [agents]
   );
 
-  const filtered = useMemo(() => {
-    let result = agents;
-    if (namespace) {
-      result = result.filter((a) => a.namespace === namespace);
-    }
-    if (statusFilter !== "All") {
-      result = result.filter((a) => a.status === statusFilter);
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter((a) => a.name.toLowerCase().includes(q));
-    }
-    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [agents, statusFilter, search, namespace]);
+  // Existing "key=value" label pairs across loaded agents, offered as filter suggestions.
+  const labelOptions = useMemo(
+    () => labelSuggestions(agents).map((l) => ({ value: l, label: l })),
+    [agents]
+  );
+
+  const filtered = useMemo(
+    () =>
+      filterAndSortAgents(agents, {
+        namespace,
+        status: statusFilter,
+        search,
+        labels: labelFilters,
+        sort,
+      }),
+    [agents, statusFilter, search, namespace, labelFilters, sort]
+  );
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -169,6 +190,20 @@ export default function AgentsPage() {
           namespace={namespace}
           onNamespaceChange={setNamespace}
           namespaces={namespaces}
+          rightExtra={
+            <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
+              <SelectTrigger className="h-7 w-36 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
         >
           <div className="flex gap-1">
             {STATUS_FILTERS.map((f) => (
@@ -188,7 +223,35 @@ export default function AgentsPage() {
               </Button>
             ))}
           </div>
+          <MultiSelect
+            options={labelOptions}
+            value={labelFilters}
+            onChange={setLabelFilters}
+            placeholder="Filter by label..."
+            noun="labels"
+            searchPlaceholder="Search labels..."
+            emptyText="No labels on loaded agents"
+            className="w-44"
+          />
         </ListFilterBar>
+
+        {labelFilters.length > 0 && (
+          <div className="-mt-2 mb-4 flex flex-wrap gap-1.5">
+            {labelFilters.map((l) => (
+              <Badge key={l} variant="outline" className="py-0.5 pl-2 pr-1 gap-1">
+                {l}
+                <button
+                  type="button"
+                  onClick={() => setLabelFilters((prev) => prev.filter((x) => x !== l))}
+                  aria-label={`Remove label filter ${l}`}
+                  className="rounded-full p-0.5 hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                >
+                  <X className="size-2.5" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
 
 
         {/* Content */}
