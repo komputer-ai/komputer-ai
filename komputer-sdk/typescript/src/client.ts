@@ -82,6 +82,10 @@ export class KomputerClient {
     return this._agents.getAgentEvents({ name });
   }
 
+  async getAgentCostBreakdown(name: string) {
+    return this._agents.getAgentCostBreakdown({ name });
+  }
+
   async compactAgentTask(params: { name: string; instructions?: string }) {
     return this._agents.compactAgentTask({ name: params.name, request: { instructions: params.instructions } });
   }
@@ -286,6 +290,10 @@ export class KomputerClient {
     return this._connectors.listConnectorTools({ name });
   }
 
+  async listConnectorTemplates() {
+    return this._connectors.listConnectorTemplates({});
+  }
+
   // --- Offices ---
 
   async listOffices() {
@@ -308,6 +316,10 @@ export class KomputerClient {
 
   async listTemplates() {
     return this._templates.listTemplates({});
+  }
+
+  async listNamespaces() {
+    return this._templates.listNamespaces({});
   }
 
 

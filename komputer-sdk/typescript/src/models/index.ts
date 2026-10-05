@@ -1,10 +1,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export * from './AddSquadMemberRequest';
+export * from './AgentEvent';
 export * from './AgentListResponse';
 export * from './AgentResponse';
 export * from './CompactAgentRequest';
 export * from './ConnectorResponse';
+export * from './CostBreakdownResponse';
 export * from './CreateAgentRequest';
 export * from './CreateConnectorRequest';
 export * from './CreateMemoryRequest';
@@ -32,6 +34,7 @@ export * from './SkillResponse';
 export * from './SquadListResponse';
 export * from './SquadMemberResponse';
 export * from './SquadResponse';
+export * from './TaskBreakdown';
 export * from './TriggerScheduleResponse';
 export * from './UpdateConnectorRequest';
 export * from './UpdateSecretRequest';

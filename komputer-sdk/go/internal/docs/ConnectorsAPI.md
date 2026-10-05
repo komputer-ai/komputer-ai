@@ -7,6 +7,7 @@ Method | HTTP request | Description
 [**CreateConnector**](ConnectorsAPI.md#CreateConnector) | **Post** /connectors | Create connector
 [**DeleteConnector**](ConnectorsAPI.md#DeleteConnector) | **Delete** /connectors/{name} | Delete connector
 [**GetConnector**](ConnectorsAPI.md#GetConnector) | **Get** /connectors/{name} | Get connector details
+[**ListConnectorTemplates**](ConnectorsAPI.md#ListConnectorTemplates) | **Get** /connector-templates | List connector templates
 [**ListConnectorTools**](ConnectorsAPI.md#ListConnectorTools) | **Get** /connectors/{name}/tools | List connector tools
 [**ListConnectors**](ConnectorsAPI.md#ListConnectors) | **Get** /connectors | List connectors
 [**UpdateConnector**](ConnectorsAPI.md#UpdateConnector) | **Patch** /connectors/{name} | Update connector token
@@ -208,6 +209,67 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**ConnectorResponse**](ConnectorResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## ListConnectorTemplates
+
+> map[string]interface{} ListConnectorTemplates(ctx).Execute()
+
+List connector templates
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.ConnectorsAPI.ListConnectorTemplates(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ConnectorsAPI.ListConnectorTemplates``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `ListConnectorTemplates`: map[string]interface{}
+	fmt.Fprintf(os.Stdout, "Response from `ConnectorsAPI.ListConnectorTemplates`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiListConnectorTemplatesRequest struct via the builder pattern
+
+
+### Return type
+
+**map[string]interface{}**
 
 ### Authorization
 

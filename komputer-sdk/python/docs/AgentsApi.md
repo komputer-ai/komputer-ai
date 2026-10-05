@@ -10,6 +10,7 @@ Method | HTTP request | Description
 [**create_agent**](AgentsApi.md#create_agent) | **POST** /agents | Create agent or send task
 [**delete_agent**](AgentsApi.md#delete_agent) | **DELETE** /agents/{name} | Delete agent
 [**get_agent**](AgentsApi.md#get_agent) | **GET** /agents/{name} | Get agent details
+[**get_agent_cost_breakdown**](AgentsApi.md#get_agent_cost_breakdown) | **GET** /agents/{name}/cost | Get agent cost breakdown
 [**get_agent_events**](AgentsApi.md#get_agent_events) | **GET** /agents/{name}/events | Get agent events
 [**list_agents**](AgentsApi.md#list_agents) | **GET** /agents | List agents
 [**patch_agent**](AgentsApi.md#patch_agent) | **PATCH** /agents/{name} | Patch agent
@@ -436,6 +437,77 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Agent details |  -  |
 **404** | Agent not found |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **get_agent_cost_breakdown**
+> CostBreakdownResponse get_agent_cost_breakdown(name, refresh=refresh)
+
+Get agent cost breakdown
+
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.cost_breakdown_response import CostBreakdownResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.AgentsApi(api_client)
+    name = 'name_example' # str | Agent name
+    refresh = True # bool | Bypass the 5-minute cache (optional)
+
+    try:
+        # Get agent cost breakdown
+        api_response = api_instance.get_agent_cost_breakdown(name, refresh=refresh)
+        print("The response of AgentsApi->get_agent_cost_breakdown:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling AgentsApi->get_agent_cost_breakdown: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Agent name | 
+ **refresh** | **bool**| Bypass the 5-minute cache | [optional] 
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Cost breakdown |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

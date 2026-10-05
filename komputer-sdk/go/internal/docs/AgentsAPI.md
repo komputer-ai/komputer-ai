@@ -10,6 +10,7 @@ Method | HTTP request | Description
 [**CreateAgent**](AgentsAPI.md#CreateAgent) | **Post** /agents | Create agent or send task
 [**DeleteAgent**](AgentsAPI.md#DeleteAgent) | **Delete** /agents/{name} | Delete agent
 [**GetAgent**](AgentsAPI.md#GetAgent) | **Get** /agents/{name} | Get agent details
+[**GetAgentCostBreakdown**](AgentsAPI.md#GetAgentCostBreakdown) | **Get** /agents/{name}/cost | Get agent cost breakdown
 [**GetAgentEvents**](AgentsAPI.md#GetAgentEvents) | **Get** /agents/{name}/events | Get agent events
 [**ListAgents**](AgentsAPI.md#ListAgents) | **Get** /agents | List agents
 [**PatchAgent**](AgentsAPI.md#PatchAgent) | **Patch** /agents/{name} | Patch agent
@@ -427,6 +428,78 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## GetAgentCostBreakdown
+
+> CostBreakdownResponse GetAgentCostBreakdown(ctx, name).Refresh(refresh).Execute()
+
+Get agent cost breakdown
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Agent name
+	refresh := true // bool | Bypass the 5-minute cache (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.AgentsAPI.GetAgentCostBreakdown(context.Background(), name).Refresh(refresh).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.GetAgentCostBreakdown``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetAgentCostBreakdown`: CostBreakdownResponse
+	fmt.Fprintf(os.Stdout, "Response from `AgentsAPI.GetAgentCostBreakdown`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Agent name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetAgentCostBreakdownRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **refresh** | **bool** | Bypass the 5-minute cache | 
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
 
 ### Authorization
 

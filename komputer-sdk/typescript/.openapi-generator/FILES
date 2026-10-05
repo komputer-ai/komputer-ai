@@ -1,11 +1,13 @@
 .gitignore
 docs/AddSquadMemberRequest.md
+docs/AgentEvent.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
 docs/CompactAgentRequest.md
 docs/ConnectorResponse.md
 docs/ConnectorsApi.md
+docs/CostBreakdownResponse.md
 docs/CreateAgentRequest.md
 docs/CreateConnectorRequest.md
 docs/CreateMemoryRequest.md
@@ -39,6 +41,7 @@ docs/SquadListResponse.md
 docs/SquadMemberResponse.md
 docs/SquadResponse.md
 docs/SquadsApi.md
+docs/TaskBreakdown.md
 docs/TemplatesApi.md
 docs/TriggerScheduleResponse.md
 docs/UpdateConnectorRequest.md
@@ -205,10 +208,12 @@ src/apis/SquadsApi.ts
 src/apis/TemplatesApi.ts
 src/apis/index.ts
 src/models/AddSquadMemberRequest.ts
+src/models/AgentEvent.ts
 src/models/AgentListResponse.ts
 src/models/AgentResponse.ts
 src/models/CompactAgentRequest.ts
 src/models/ConnectorResponse.ts
+src/models/CostBreakdownResponse.ts
 src/models/CreateAgentRequest.ts
 src/models/CreateConnectorRequest.ts
 src/models/CreateMemoryRequest.ts
@@ -236,6 +241,7 @@ src/models/SkillResponse.ts
 src/models/SquadListResponse.ts
 src/models/SquadMemberResponse.ts
 src/models/SquadResponse.ts
+src/models/TaskBreakdown.ts
 src/models/TriggerScheduleResponse.ts
 src/models/UpdateConnectorRequest.ts
 src/models/UpdateSecretRequest.ts

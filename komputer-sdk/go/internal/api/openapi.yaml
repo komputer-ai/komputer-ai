@@ -362,6 +362,46 @@ paths:
       tags:
       - agents
       x-codegen-request-body-name: request
+  /agents/{name}/cost:
+    get:
+      description: "Returns per-task costs for an agent, computed from its event history.\
+        \ Cached for 5 minutes unless refresh=true."
+      operationId: getAgentCostBreakdown
+      parameters:
+      - description: Agent name
+        explode: false
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Bypass the 5-minute cache
+        explode: true
+        in: query
+        name: refresh
+        required: false
+        schema:
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostBreakdownResponse"
+          description: Cost breakdown
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Get agent cost breakdown
+      tags:
+      - agents
   /agents/{name}/events:
     get:
       description: Returns recent events from the agent's Redis stream in chronological
@@ -448,6 +488,22 @@ paths:
       summary: Stream agent events (WebSocket)
       tags:
       - agents
+  /connector-templates:
+    get:
+      description: "Returns the built-in connector templates (GitHub, Slack, Linear,\
+        \ Notion, ...) with their MCP URL, auth type and setup guide."
+      operationId: listConnectorTemplates
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: List of connector templates
+      summary: List connector templates
+      tags:
+      - connectors
   /connectors:
     get:
       description: Returns all connectors with attached agent counts in the specified
@@ -943,6 +999,7 @@ paths:
   /namespaces:
     get:
       description: Returns all Kubernetes namespaces the API has access to.
+      operationId: listNamespaces
       responses:
         "200":
           content:
@@ -2346,6 +2403,27 @@ components:
           $ref: "#/components/schemas/v1alpha1.KomputerSquadMemberRef"
         spec:
           $ref: "#/components/schemas/v1alpha1.KomputerAgentSpec"
+      type: object
+    AgentEvent:
+      example:
+        payload:
+          key: ""
+        namespace: namespace
+        agentName: agentName
+        type: type
+        timestamp: timestamp
+      properties:
+        agentName:
+          type: string
+        namespace:
+          type: string
+        payload:
+          additionalProperties: true
+          type: object
+        timestamp:
+          type: string
+        type:
+          type: string
       type: object
     AgentListResponse:
       example:
@@ -4557,6 +4635,77 @@ components:
           type: string
         url:
           type: string
+      type: object
+    CostBreakdownResponse:
+      example:
+        taskCount: 0
+        agent: agent
+        cachedAt: cachedAt
+        tasks:
+        - completedAt: completedAt
+          cacheCreateTokens: 6
+          costUSD: 5.962133916683182
+          index: 2
+          startedAt: startedAt
+          inputTokens: 7
+          turns: 3
+          cacheReadTokens: 1
+          instruction: instruction
+          steer: true
+          durationMs: 5
+          outputTokens: 9
+          events:
+          - payload:
+              key: ""
+            namespace: namespace
+            agentName: agentName
+            type: type
+            timestamp: timestamp
+          - payload:
+              key: ""
+            namespace: namespace
+            agentName: agentName
+            type: type
+            timestamp: timestamp
+        - completedAt: completedAt
+          cacheCreateTokens: 6
+          costUSD: 5.962133916683182
+          index: 2
+          startedAt: startedAt
+          inputTokens: 7
+          turns: 3
+          cacheReadTokens: 1
+          instruction: instruction
+          steer: true
+          durationMs: 5
+          outputTokens: 9
+          events:
+          - payload:
+              key: ""
+            namespace: namespace
+            agentName: agentName
+            type: type
+            timestamp: timestamp
+          - payload:
+              key: ""
+            namespace: namespace
+            agentName: agentName
+            type: type
+            timestamp: timestamp
+        totalCost: 2.027123023002322
+      properties:
+        agent:
+          type: string
+        cachedAt:
+          type: string
+        taskCount:
+          type: integer
+        tasks:
+          items:
+            $ref: "#/components/schemas/TaskBreakdown"
+          type: array
+        totalCost:
+          type: number
       type: object
     CreateAgentRequest:
       example:
@@ -7014,6 +7163,63 @@ components:
           type: string
         podName:
           type: string
+      type: object
+    TaskBreakdown:
+      example:
+        completedAt: completedAt
+        cacheCreateTokens: 6
+        costUSD: 5.962133916683182
+        index: 2
+        startedAt: startedAt
+        inputTokens: 7
+        turns: 3
+        cacheReadTokens: 1
+        instruction: instruction
+        steer: true
+        durationMs: 5
+        outputTokens: 9
+        events:
+        - payload:
+            key: ""
+          namespace: namespace
+          agentName: agentName
+          type: type
+          timestamp: timestamp
+        - payload:
+            key: ""
+          namespace: namespace
+          agentName: agentName
+          type: type
+          timestamp: timestamp
+      properties:
+        cacheCreateTokens:
+          type: integer
+        cacheReadTokens:
+          type: integer
+        completedAt:
+          type: string
+        costUSD:
+          type: number
+        durationMs:
+          type: integer
+        events:
+          items:
+            $ref: "#/components/schemas/AgentEvent"
+          type: array
+        index:
+          type: integer
+        inputTokens:
+          type: integer
+        instruction:
+          type: string
+        outputTokens:
+          type: integer
+        startedAt:
+          type: string
+        steer:
+          type: boolean
+        turns:
+          type: integer
       type: object
     TriggerScheduleResponse:
       example:

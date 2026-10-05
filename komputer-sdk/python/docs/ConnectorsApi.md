@@ -7,6 +7,7 @@ Method | HTTP request | Description
 [**create_connector**](ConnectorsApi.md#create_connector) | **POST** /connectors | Create connector
 [**delete_connector**](ConnectorsApi.md#delete_connector) | **DELETE** /connectors/{name} | Delete connector
 [**get_connector**](ConnectorsApi.md#get_connector) | **GET** /connectors/{name} | Get connector details
+[**list_connector_templates**](ConnectorsApi.md#list_connector_templates) | **GET** /connector-templates | List connector templates
 [**list_connector_tools**](ConnectorsApi.md#list_connector_tools) | **GET** /connectors/{name}/tools | List connector tools
 [**list_connectors**](ConnectorsApi.md#list_connectors) | **GET** /connectors | List connectors
 [**update_connector**](ConnectorsApi.md#update_connector) | **PATCH** /connectors/{name} | Update connector token
@@ -222,6 +223,69 @@ No authorization required
 **200** | Connector details |  -  |
 **404** | Connector not found |  -  |
 **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **list_connector_templates**
+> Dict[str, object] list_connector_templates()
+
+List connector templates
+
+Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.ConnectorsApi(api_client)
+
+    try:
+        # List connector templates
+        api_response = api_instance.list_connector_templates()
+        print("The response of ConnectorsApi->list_connector_templates:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling ConnectorsApi->list_connector_templates: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+**Dict[str, object]**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | List of connector templates |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

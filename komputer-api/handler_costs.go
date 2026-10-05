@@ -133,6 +133,17 @@ func buildCostBreakdown(events []AgentEvent) CostBreakdownResponse {
 
 const costBreakdownTTL = 5 * time.Minute
 
+// getAgentCostBreakdown returns the per-task cost breakdown for an agent.
+// @ID getAgentCostBreakdown
+// @Summary Get agent cost breakdown
+// @Description Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param refresh query bool false "Bypass the 5-minute cache"
+// @Success 200 {object} CostBreakdownResponse "Cost breakdown"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/cost [get]
 func getAgentCostBreakdown(worker *RedisWorker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")

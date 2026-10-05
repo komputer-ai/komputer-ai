@@ -10,6 +10,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**createAgent**](AgentsApi.md#createagentoperation) | **POST** /agents | Create agent or send task |
 | [**deleteAgent**](AgentsApi.md#deleteagent) | **DELETE** /agents/{name} | Delete agent |
 | [**getAgent**](AgentsApi.md#getagent) | **GET** /agents/{name} | Get agent details |
+| [**getAgentCostBreakdown**](AgentsApi.md#getagentcostbreakdown) | **GET** /agents/{name}/cost | Get agent cost breakdown |
 | [**getAgentEvents**](AgentsApi.md#getagentevents) | **GET** /agents/{name}/events | Get agent events |
 | [**listAgents**](AgentsApi.md#listagents) | **GET** /agents | List agents |
 | [**patchAgent**](AgentsApi.md#patchagentoperation) | **PATCH** /agents/{name} | Patch agent |
@@ -439,6 +440,77 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Agent details |  -  |
 | **404** | Agent not found |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## getAgentCostBreakdown
+
+> CostBreakdownResponse getAgentCostBreakdown(name, refresh)
+
+Get agent cost breakdown
+
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh&#x3D;true.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { GetAgentCostBreakdownRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // boolean | Bypass the 5-minute cache (optional)
+    refresh: true,
+  } satisfies GetAgentCostBreakdownRequest;
+
+  try {
+    const data = await api.getAgentCostBreakdown(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **refresh** | `boolean` | Bypass the 5-minute cache | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Cost breakdown |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

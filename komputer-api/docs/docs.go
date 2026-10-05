@@ -429,6 +429,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/{name}/cost": {
+            "get": {
+                "description": "Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Get agent cost breakdown",
+                "operationId": "getAgentCostBreakdown",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Bypass the 5-minute cache",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cost breakdown",
+                        "schema": {
+                            "$ref": "#/definitions/main.CostBreakdownResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/agents/{name}/events": {
             "get": {
                 "description": "Returns recent events from the agent's Redis stream in chronological order.",
@@ -514,6 +559,28 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {}
+            }
+        },
+        "/connector-templates": {
+            "get": {
+                "description": "Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "connectors"
+                ],
+                "summary": "List connector templates",
+                "operationId": "listConnectorTemplates",
+                "responses": {
+                    "200": {
+                        "description": "List of connector templates",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             }
         },
         "/connectors": {
@@ -1107,6 +1174,7 @@ const docTemplate = `{
                     "templates"
                 ],
                 "summary": "List namespaces",
+                "operationId": "listNamespaces",
                 "responses": {
                     "200": {
                         "description": "List of namespaces",
@@ -2706,6 +2774,27 @@ const docTemplate = `{
                 }
             }
         },
+        "main.AgentEvent": {
+            "type": "object",
+            "properties": {
+                "agentName": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "main.AgentListResponse": {
             "type": "object",
             "properties": {
@@ -2933,6 +3022,29 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string"
+                }
+            }
+        },
+        "main.CostBreakdownResponse": {
+            "type": "object",
+            "properties": {
+                "agent": {
+                    "type": "string"
+                },
+                "cachedAt": {
+                    "type": "string"
+                },
+                "taskCount": {
+                    "type": "integer"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.TaskBreakdown"
+                    }
+                },
+                "totalCost": {
+                    "type": "number"
                 }
             }
         },
@@ -3696,6 +3808,53 @@ const docTemplate = `{
                 },
                 "podName": {
                     "type": "string"
+                }
+            }
+        },
+        "main.TaskBreakdown": {
+            "type": "object",
+            "properties": {
+                "cacheCreateTokens": {
+                    "type": "integer"
+                },
+                "cacheReadTokens": {
+                    "type": "integer"
+                },
+                "completedAt": {
+                    "type": "string"
+                },
+                "costUSD": {
+                    "type": "number"
+                },
+                "durationMs": {
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.AgentEvent"
+                    }
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "inputTokens": {
+                    "type": "integer"
+                },
+                "instruction": {
+                    "type": "string"
+                },
+                "outputTokens": {
+                    "type": "integer"
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "steer": {
+                    "type": "boolean"
+                },
+                "turns": {
+                    "type": "integer"
                 }
             }
         },

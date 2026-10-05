@@ -22,32 +22,25 @@ import (
 // TemplatesAPIService TemplatesAPI service
 type TemplatesAPIService service
 
-type ApiListTemplatesRequest struct {
+type ApiListNamespacesRequest struct {
 	ctx context.Context
 	ApiService *TemplatesAPIService
-	namespace *string
 }
 
-// Kubernetes namespace
-func (r ApiListTemplatesRequest) Namespace(namespace string) ApiListTemplatesRequest {
-	r.namespace = &namespace
-	return r
-}
-
-func (r ApiListTemplatesRequest) Execute() (map[string]interface{}, *http.Response, error) {
-	return r.ApiService.ListTemplatesExecute(r)
+func (r ApiListNamespacesRequest) Execute() (map[string]interface{}, *http.Response, error) {
+	return r.ApiService.ListNamespacesExecute(r)
 }
 
 /*
-ListTemplates List agent templates
+ListNamespaces List namespaces
 
-Returns all agent templates (both namespace-scoped and cluster-scoped) available in the specified namespace.
+Returns all Kubernetes namespaces the API has access to.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiListTemplatesRequest
+ @return ApiListNamespacesRequest
 */
-func (a *TemplatesAPIService) ListTemplates(ctx context.Context) ApiListTemplatesRequest {
-	return ApiListTemplatesRequest{
+func (a *TemplatesAPIService) ListNamespaces(ctx context.Context) ApiListNamespacesRequest {
+	return ApiListNamespacesRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -55,7 +48,7 @@ func (a *TemplatesAPIService) ListTemplates(ctx context.Context) ApiListTemplate
 
 // Execute executes the request
 //  @return map[string]interface{}
-func (a *TemplatesAPIService) ListTemplatesExecute(r ApiListTemplatesRequest) (map[string]interface{}, *http.Response, error) {
+func (a *TemplatesAPIService) ListNamespacesExecute(r ApiListNamespacesRequest) (map[string]interface{}, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
@@ -63,20 +56,17 @@ func (a *TemplatesAPIService) ListTemplatesExecute(r ApiListTemplatesRequest) (m
 		localVarReturnValue  map[string]interface{}
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TemplatesAPIService.ListTemplates")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TemplatesAPIService.ListNamespaces")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/templates"
+	localVarPath := localBasePath + "/namespaces"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.namespace != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "namespace", r.namespace, "form", "")
-	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -141,25 +131,32 @@ func (a *TemplatesAPIService) ListTemplatesExecute(r ApiListTemplatesRequest) (m
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiNamespacesGetRequest struct {
+type ApiListTemplatesRequest struct {
 	ctx context.Context
 	ApiService *TemplatesAPIService
+	namespace *string
 }
 
-func (r ApiNamespacesGetRequest) Execute() (map[string]interface{}, *http.Response, error) {
-	return r.ApiService.NamespacesGetExecute(r)
+// Kubernetes namespace
+func (r ApiListTemplatesRequest) Namespace(namespace string) ApiListTemplatesRequest {
+	r.namespace = &namespace
+	return r
+}
+
+func (r ApiListTemplatesRequest) Execute() (map[string]interface{}, *http.Response, error) {
+	return r.ApiService.ListTemplatesExecute(r)
 }
 
 /*
-NamespacesGet List namespaces
+ListTemplates List agent templates
 
-Returns all Kubernetes namespaces the API has access to.
+Returns all agent templates (both namespace-scoped and cluster-scoped) available in the specified namespace.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiNamespacesGetRequest
+ @return ApiListTemplatesRequest
 */
-func (a *TemplatesAPIService) NamespacesGet(ctx context.Context) ApiNamespacesGetRequest {
-	return ApiNamespacesGetRequest{
+func (a *TemplatesAPIService) ListTemplates(ctx context.Context) ApiListTemplatesRequest {
+	return ApiListTemplatesRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -167,7 +164,7 @@ func (a *TemplatesAPIService) NamespacesGet(ctx context.Context) ApiNamespacesGe
 
 // Execute executes the request
 //  @return map[string]interface{}
-func (a *TemplatesAPIService) NamespacesGetExecute(r ApiNamespacesGetRequest) (map[string]interface{}, *http.Response, error) {
+func (a *TemplatesAPIService) ListTemplatesExecute(r ApiListTemplatesRequest) (map[string]interface{}, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
@@ -175,17 +172,20 @@ func (a *TemplatesAPIService) NamespacesGetExecute(r ApiNamespacesGetRequest) (m
 		localVarReturnValue  map[string]interface{}
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TemplatesAPIService.NamespacesGet")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TemplatesAPIService.ListTemplates")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/namespaces"
+	localVarPath := localBasePath + "/templates"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.namespace != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "namespace", r.namespace, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
