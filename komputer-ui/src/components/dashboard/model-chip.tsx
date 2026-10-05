@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Cpu, Plus, X } from "lucide-react";
 import { MODELS } from "@/lib/constants";
 import { loadCustomModels, addCustomModel } from "@/lib/custom-models";
-import { isBedrockModelId } from "@/lib/model-utils";
+import { isBedrockModelId, shortModelLabel } from "@/lib/model-utils";
 import { ChipSelect, type ChipSelectOption } from "@/components/kit/chip-select";
 import { BedrockBadge } from "@/components/shared/bedrock-badge";
 
@@ -142,11 +142,4 @@ export function ModelChip({ value, onChange }: ModelChipProps) {
   ), [adding, draft, onChange]);
 
   return <ChipSelect value={value} options={options} onChange={onChange} trigger={trigger} footer={renderFooter} />;
-}
-
-export function shortModelLabel(model: string): string {
-  // claude-sonnet-4-6 → sonnet 4.6
-  const m = model.match(/claude-(opus|sonnet|haiku)-(\d+)-(\d+)/);
-  if (!m) return model;
-  return `${m[1]} ${m[2]}.${m[3]}`;
 }

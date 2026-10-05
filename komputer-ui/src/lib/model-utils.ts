@@ -24,3 +24,15 @@ export function isBedrockModelId(value: string): boolean {
   if (value.startsWith("arn:")) return true;
   return /^(us|eu|apac|global)\.anthropic\./.test(value);
 }
+
+/**
+ * Short display label for a Claude model id, e.g. `claude-sonnet-4-6` →
+ * `sonnet 4.6`, `claude-opus-5` → `opus 5` (current-generation ids can omit
+ * the minor version). Falls back to the raw id for anything that doesn't
+ * match (custom/unrecognized models).
+ */
+export function shortModelLabel(model: string): string {
+  const m = model.match(/claude-(opus|sonnet|haiku|fable)-(\d+)(?:-(\d+))?/);
+  if (!m) return model;
+  return m[3] ? `${m[1]} ${m[2]}.${m[3]}` : `${m[1]} ${m[2]}`;
+}

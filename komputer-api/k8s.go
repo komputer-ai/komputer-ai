@@ -280,7 +280,7 @@ func durationEqual(a, b *metav1.Duration) bool {
 
 func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, internalSystemPrompt, officeManager string, cfg komputerv1alpha1.AgentConfigSpec) (*komputerv1alpha1.KomputerAgent, error) {
 	if cfg.Model == "" {
-		cfg.Model = "claude-sonnet-4-6"
+		cfg.Model = "claude-opus-5-5"
 	}
 	if cfg.TemplateRef == "" {
 		cfg.TemplateRef = "default"

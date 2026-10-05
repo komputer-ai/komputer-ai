@@ -7966,7 +7966,7 @@ const docTemplate = `{
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "officeManager": {
@@ -8124,7 +8124,7 @@ const docTemplate = `{
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "podSpec": {
