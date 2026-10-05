@@ -56,6 +56,12 @@ export interface ConnectorResponse {
      */
     createdAt?: string;
     /**
+     * true = cannot be attached or used; UI/CLI present this as "Active" = !Disabled
+     * @type {boolean}
+     * @memberof ConnectorResponse
+     */
+    disabled?: boolean;
+    /**
      * 
      * @type {string}
      * @memberof ConnectorResponse
@@ -134,6 +140,7 @@ export function ConnectorResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'authSecretName': json['authSecretName'] == null ? undefined : json['authSecretName'],
         'authType': json['authType'] == null ? undefined : json['authType'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
+        'disabled': json['disabled'] == null ? undefined : json['disabled'],
         'displayName': json['displayName'] == null ? undefined : json['displayName'],
         'headerName': json['headerName'] == null ? undefined : json['headerName'],
         'name': json['name'] == null ? undefined : json['name'],
@@ -163,6 +170,7 @@ export function ConnectorResponseToJSONTyped(value?: ConnectorResponse | null, i
         'authSecretName': value['authSecretName'],
         'authType': value['authType'],
         'createdAt': value['createdAt'],
+        'disabled': value['disabled'],
         'displayName': value['displayName'],
         'headerName': value['headerName'],
         'name': value['name'],

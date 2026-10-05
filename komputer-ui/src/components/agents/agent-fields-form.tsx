@@ -125,7 +125,7 @@ export function AgentFieldsForm({
   const [templates, setTemplates] = useState<TemplateResponse[]>([]);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
   const [availableSkills, setAvailableSkills] = useState<{ name: string; namespace: string; ref: string }[]>([]);
-  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string; service: string }[]>([]);
+  const [availableConnectors, setAvailableConnectors] = useState<{ name: string; namespace: string; ref: string; service: string; disabled?: boolean }[]>([]);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [createSecretOpen, setCreateSecretOpen] = useState(false);
 
@@ -159,6 +159,7 @@ export function AgentFieldsForm({
         namespace: c.namespace,
         ref: c.namespace === (namespace || "default") ? c.name : `${c.namespace}/${c.name}`,
         service: c.service,
+        disabled: c.disabled,
       }))))
       .catch(() => setAvailableConnectors([]));
   }, [active, namespace, showAllSecrets]);
@@ -372,6 +373,7 @@ export function AgentFieldsForm({
                           icon: tpl?.logoUrl ? (
                             <ConnectorLogo src={tpl.logoUrl} alt={tpl.displayName} className="h-4 w-4" />
                           ) : undefined,
+                          disabled: c.disabled,
                         };
                       })}
                       value={values.selectedConnectors}

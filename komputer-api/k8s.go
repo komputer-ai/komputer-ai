@@ -1429,6 +1429,20 @@ func (k *K8sClient) SetConnectorAuthSecret(ctx context.Context, ns, name, authTy
 	return conn, nil
 }
 
+// SetConnectorDisabled toggles a connector's Spec.Disabled flag. Any caller may
+// re-enable a connector — there is no additional authorization check here.
+func (k *K8sClient) SetConnectorDisabled(ctx context.Context, ns, name string, disabled bool) (*komputerv1alpha1.KomputerConnector, error) {
+	conn, err := k.GetConnector(ctx, ns, name)
+	if err != nil {
+		return nil, err
+	}
+	conn.Spec.Disabled = disabled
+	if err := k.client.Update(ctx, conn); err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
 // UpdateSecretKey sets a single key in an existing K8s Secret, leaving other keys untouched.
 func (k *K8sClient) UpdateSecretKey(ctx context.Context, ns, name, key, value string) error {
 	secret := &corev1.Secret{}
@@ -1501,6 +1515,39 @@ func (k *K8sClient) PatchAgentConnectorsList(ctx context.Context, ns, agentName 
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// ValidateConnectorsAttachable rejects connectors in newRefs that are disabled, unless
+// they are already present in existingRefs — attaching a disabled connector is blocked,
+// but a connector that was attached before being disabled must not break a patch that
+// merely re-sends the existing list or edits an unrelated field. Connector refs may be
+// "name" (resolved in defaultNs) or "namespace/name", matching ResolveConnectorMCPConfigs.
+// A missing connector is left for existing resolution logic to skip elsewhere; it is not
+// treated as an attach error here.
+func (k *K8sClient) ValidateConnectorsAttachable(ctx context.Context, defaultNs string, newRefs, existingRefs []string) error {
+	existing := make(map[string]bool, len(existingRefs))
+	for _, ref := range existingRefs {
+		existing[ref] = true
+	}
+	for _, ref := range newRefs {
+		if existing[ref] {
+			continue
+		}
+		connNs := defaultNs
+		connName := ref
+		if parts := strings.SplitN(ref, "/", 2); len(parts) == 2 {
+			connNs = parts[0]
+			connName = parts[1]
+		}
+		conn, err := k.GetConnector(ctx, connNs, connName)
+		if err != nil {
+			continue
+		}
+		if conn.Spec.Disabled {
+			return fmt.Errorf("connector %q is disabled", connName)
+		}
+	}
+	return nil
+}
+
 // ResolveConnectorMCPConfigs resolves connector names to MCP server configs with auth headers.
 // Returns {"connName": {"type": "http", "url": "...", "headers": {"Authorization": "Bearer ..."}}}
 func (k *K8sClient) ResolveConnectorMCPConfigs(ctx context.Context, agentNs string, connectorNames []string) map[string]interface{} {
@@ -1514,6 +1561,10 @@ func (k *K8sClient) ResolveConnectorMCPConfigs(ctx context.Context, agentNs stri
 		}
 		conn := &komputerv1alpha1.KomputerConnector{}
 		if err := k.client.Get(ctx, types.NamespacedName{Name: connName, Namespace: connNs}, conn); err != nil {
+			continue
+		}
+		if conn.Spec.Disabled {
+			Logger.Infow("skipping disabled connector", "namespace", connNs, "name", connName)
 			continue
 		}
 		entry := map[string]interface{}{"type": "http", "url": conn.Spec.URL}

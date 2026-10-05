@@ -1437,7 +1437,7 @@ class ConnectorsApi:
     def update_connector(
         self,
         name: Annotated[StrictStr, Field(description="Connector name")],
-        request: Annotated[UpdateConnectorRequest, Field(description="New token")],
+        request: Annotated[UpdateConnectorRequest, Field(description="New token and/or disabled flag")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1452,13 +1452,13 @@ class ConnectorsApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ConnectorResponse:
-        """Update connector token
+        """Update connector token or disabled state
 
-        Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+        Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
         :param name: Connector name (required)
         :type name: str
-        :param request: New token (required)
+        :param request: New token and/or disabled flag (required)
         :type request: UpdateConnectorRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -1515,7 +1515,7 @@ class ConnectorsApi:
     def update_connector_with_http_info(
         self,
         name: Annotated[StrictStr, Field(description="Connector name")],
-        request: Annotated[UpdateConnectorRequest, Field(description="New token")],
+        request: Annotated[UpdateConnectorRequest, Field(description="New token and/or disabled flag")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1530,13 +1530,13 @@ class ConnectorsApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[ConnectorResponse]:
-        """Update connector token
+        """Update connector token or disabled state
 
-        Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+        Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
         :param name: Connector name (required)
         :type name: str
-        :param request: New token (required)
+        :param request: New token and/or disabled flag (required)
         :type request: UpdateConnectorRequest
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -1593,7 +1593,7 @@ class ConnectorsApi:
     def update_connector_without_preload_content(
         self,
         name: Annotated[StrictStr, Field(description="Connector name")],
-        request: Annotated[UpdateConnectorRequest, Field(description="New token")],
+        request: Annotated[UpdateConnectorRequest, Field(description="New token and/or disabled flag")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         _request_timeout: Union[
             None,
@@ -1608,13 +1608,13 @@ class ConnectorsApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Update connector token
+        """Update connector token or disabled state
 
-        Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+        Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
         :param name: Connector name (required)
         :type name: str
-        :param request: New token (required)
+        :param request: New token and/or disabled flag (required)
         :type request: UpdateConnectorRequest
         :param namespace: Kubernetes namespace
         :type namespace: str

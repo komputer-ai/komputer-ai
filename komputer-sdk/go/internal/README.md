@@ -86,7 +86,7 @@ Class | Method | HTTP request | Description
 *ConnectorsAPI* | [**GetConnector**](docs/ConnectorsAPI.md#getconnector) | **Get** /connectors/{name} | Get connector details
 *ConnectorsAPI* | [**ListConnectorTools**](docs/ConnectorsAPI.md#listconnectortools) | **Get** /connectors/{name}/tools | List connector tools
 *ConnectorsAPI* | [**ListConnectors**](docs/ConnectorsAPI.md#listconnectors) | **Get** /connectors | List connectors
-*ConnectorsAPI* | [**UpdateConnector**](docs/ConnectorsAPI.md#updateconnector) | **Patch** /connectors/{name} | Update connector token
+*ConnectorsAPI* | [**UpdateConnector**](docs/ConnectorsAPI.md#updateconnector) | **Patch** /connectors/{name} | Update connector token or disabled state
 *MemoriesAPI* | [**CreateMemory**](docs/MemoriesAPI.md#creatememory) | **Post** /memories | Create memory
 *MemoriesAPI* | [**DeleteMemory**](docs/MemoriesAPI.md#deletememory) | **Delete** /memories/{name} | Delete memory
 *MemoriesAPI* | [**GetMemory**](docs/MemoriesAPI.md#getmemory) | **Get** /memories/{name} | Get memory details

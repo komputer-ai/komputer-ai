@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`disabled` | boolean
 `namespace` | string
 `token` | string
 
@@ -16,6 +17,7 @@ import type { UpdateConnectorRequest } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "disabled": null,
   "namespace": null,
   "token": null,
 } satisfies UpdateConnectorRequest

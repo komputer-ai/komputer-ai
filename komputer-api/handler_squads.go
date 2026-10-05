@@ -217,6 +217,18 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
+		// Every inline member spec is a brand-new agent, so any connector it names is a
+		// fresh attach — reject if disabled.
+		for _, m := range req.Members {
+			if m.Spec == nil {
+				continue
+			}
+			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, m.Spec.Connectors, nil); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// Block team-up of running agents — the existing solo pod must be removed first.
 		// Sleeping the agent stops its pod (PVC kept) so the squad pod can adopt it cleanly.
 		for _, m := range req.Members {
@@ -351,6 +363,48 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
+			}
+		}
+
+		// Reject a disabled connector only if it's newly attached to a member. Members
+		// are matched against the squad's current spec by explicit Name (set) or by
+		// position among anonymous spec members (Name unset) — the same key order a
+		// re-sent, unmodified member list would preserve. An unmatched member (new,
+		// renamed, or reordered) has no existing connectors to compare against, so
+		// every connector it names is treated as a fresh attach.
+		if req.Members != nil {
+			if currentSquad, getErr := k8s.GetSquad(c.Request.Context(), ns, name); getErr == nil {
+				namedExisting := make(map[string][]string)
+				var anonExisting [][]string
+				for _, m := range currentSquad.Spec.Members {
+					if m.Spec == nil {
+						continue
+					}
+					if m.Name != "" {
+						namedExisting[m.Name] = m.Spec.Connectors
+					} else {
+						anonExisting = append(anonExisting, m.Spec.Connectors)
+					}
+				}
+				anonIdx := 0
+				for _, m := range req.Members {
+					if m.Spec == nil {
+						continue
+					}
+					var existingConnectors []string
+					if m.Name != "" {
+						existingConnectors = namedExisting[m.Name]
+					} else if anonIdx < len(anonExisting) {
+						existingConnectors = anonExisting[anonIdx]
+						anonIdx++
+					} else {
+						anonIdx++
+					}
+					if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, m.Spec.Connectors, existingConnectors); err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+						return
+					}
+				}
 			}
 		}
 
@@ -517,6 +571,15 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		// On Bedrock, reject a friendly model name on an inline member spec.
 		if req.Spec != nil {
 			if err := validateBedrockModel(req.Spec.Model, true); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		// An inline spec here is always a brand-new member, so every connector it
+		// names is a fresh attach — reject if disabled.
+		if req.Spec != nil {
+			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Spec.Connectors, nil); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

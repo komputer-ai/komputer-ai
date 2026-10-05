@@ -12,8 +12,6 @@ package komputer
 
 import (
 	"encoding/json"
-	"bytes"
-	"fmt"
 )
 
 // checks if the UpdateConnectorRequest type satisfies the MappedNullable interface at compile time
@@ -21,20 +19,19 @@ var _ MappedNullable = &UpdateConnectorRequest{}
 
 // UpdateConnectorRequest struct for UpdateConnectorRequest
 type UpdateConnectorRequest struct {
+	// Disabled toggles whether the connector can be newly attached to agents and whether its tools are resolved for agent pods. true disables, false re-enables. Any caller may toggle this — there is no additional authorization check.
+	Disabled *bool `json:"disabled,omitempty"`
 	Namespace *string `json:"namespace,omitempty"`
 	// new auth token; replaces the value in the connector's secret
-	Token string `json:"token"`
+	Token *string `json:"token,omitempty"`
 }
-
-type _UpdateConnectorRequest UpdateConnectorRequest
 
 // NewUpdateConnectorRequest instantiates a new UpdateConnectorRequest object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUpdateConnectorRequest(token string) *UpdateConnectorRequest {
+func NewUpdateConnectorRequest() *UpdateConnectorRequest {
 	this := UpdateConnectorRequest{}
-	this.Token = token
 	return &this
 }
 
@@ -44,6 +41,38 @@ func NewUpdateConnectorRequest(token string) *UpdateConnectorRequest {
 func NewUpdateConnectorRequestWithDefaults() *UpdateConnectorRequest {
 	this := UpdateConnectorRequest{}
 	return &this
+}
+
+// GetDisabled returns the Disabled field value if set, zero value otherwise.
+func (o *UpdateConnectorRequest) GetDisabled() bool {
+	if o == nil || IsNil(o.Disabled) {
+		var ret bool
+		return ret
+	}
+	return *o.Disabled
+}
+
+// GetDisabledOk returns a tuple with the Disabled field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *UpdateConnectorRequest) GetDisabledOk() (*bool, bool) {
+	if o == nil || IsNil(o.Disabled) {
+		return nil, false
+	}
+	return o.Disabled, true
+}
+
+// HasDisabled returns a boolean if a field has been set.
+func (o *UpdateConnectorRequest) HasDisabled() bool {
+	if o != nil && !IsNil(o.Disabled) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisabled gets a reference to the given bool and assigns it to the Disabled field.
+func (o *UpdateConnectorRequest) SetDisabled(v bool) {
+	o.Disabled = &v
 }
 
 // GetNamespace returns the Namespace field value if set, zero value otherwise.
@@ -78,28 +107,36 @@ func (o *UpdateConnectorRequest) SetNamespace(v string) {
 	o.Namespace = &v
 }
 
-// GetToken returns the Token field value
+// GetToken returns the Token field value if set, zero value otherwise.
 func (o *UpdateConnectorRequest) GetToken() string {
-	if o == nil {
+	if o == nil || IsNil(o.Token) {
 		var ret string
 		return ret
 	}
-
-	return o.Token
+	return *o.Token
 }
 
-// GetTokenOk returns a tuple with the Token field value
+// GetTokenOk returns a tuple with the Token field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *UpdateConnectorRequest) GetTokenOk() (*string, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.Token) {
 		return nil, false
 	}
-	return &o.Token, true
+	return o.Token, true
 }
 
-// SetToken sets field value
+// HasToken returns a boolean if a field has been set.
+func (o *UpdateConnectorRequest) HasToken() bool {
+	if o != nil && !IsNil(o.Token) {
+		return true
+	}
+
+	return false
+}
+
+// SetToken gets a reference to the given string and assigns it to the Token field.
 func (o *UpdateConnectorRequest) SetToken(v string) {
-	o.Token = v
+	o.Token = &v
 }
 
 func (o UpdateConnectorRequest) MarshalJSON() ([]byte, error) {
@@ -112,48 +149,16 @@ func (o UpdateConnectorRequest) MarshalJSON() ([]byte, error) {
 
 func (o UpdateConnectorRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Disabled) {
+		toSerialize["disabled"] = o.Disabled
+	}
 	if !IsNil(o.Namespace) {
 		toSerialize["namespace"] = o.Namespace
 	}
-	toSerialize["token"] = o.Token
+	if !IsNil(o.Token) {
+		toSerialize["token"] = o.Token
+	}
 	return toSerialize, nil
-}
-
-func (o *UpdateConnectorRequest) UnmarshalJSON(data []byte) (err error) {
-	// This validates that all required properties are included in the JSON object
-	// by unmarshalling the object into a generic map with string keys and checking
-	// that every required field exists as a key in the generic map.
-	requiredProperties := []string{
-		"token",
-	}
-
-	allProperties := make(map[string]interface{})
-
-	err = json.Unmarshal(data, &allProperties)
-
-	if err != nil {
-		return err;
-	}
-
-	for _, requiredProperty := range(requiredProperties) {
-		if _, exists := allProperties[requiredProperty]; !exists {
-			return fmt.Errorf("no value given for required property %v", requiredProperty)
-		}
-	}
-
-	varUpdateConnectorRequest := _UpdateConnectorRequest{}
-
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varUpdateConnectorRequest)
-
-	if err != nil {
-		return err
-	}
-
-	*o = UpdateConnectorRequest(varUpdateConnectorRequest)
-
-	return err
 }
 
 type NullableUpdateConnectorRequest struct {

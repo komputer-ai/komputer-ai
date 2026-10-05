@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,9 +27,10 @@ class UpdateConnectorRequest(BaseModel):
     """
     UpdateConnectorRequest
     """ # noqa: E501
+    disabled: Optional[StrictBool] = Field(default=None, description="Disabled toggles whether the connector can be newly attached to agents and whether its tools are resolved for agent pods. true disables, false re-enables. Any caller may toggle this — there is no additional authorization check.")
     namespace: Optional[StrictStr] = None
-    token: StrictStr = Field(description="new auth token; replaces the value in the connector's secret")
-    __properties: ClassVar[List[str]] = ["namespace", "token"]
+    token: Optional[StrictStr] = Field(default=None, description="new auth token; replaces the value in the connector's secret")
+    __properties: ClassVar[List[str]] = ["disabled", "namespace", "token"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -82,6 +83,7 @@ class UpdateConnectorRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "disabled": obj.get("disabled"),
             "namespace": obj.get("namespace"),
             "token": obj.get("token")
         })

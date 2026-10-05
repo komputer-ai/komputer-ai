@@ -349,8 +349,8 @@ export class ConnectorsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Replaces the auth token of a token/header connector. Writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
-     * Update connector token
+     * Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
+     * Update connector token or disabled state
      */
     async updateConnectorRaw(requestParameters: UpdateConnectorOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ConnectorResponse>> {
         const requestOptions = await this.updateConnectorRequestOpts(requestParameters);
@@ -360,8 +360,8 @@ export class ConnectorsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Replaces the auth token of a token/header connector. Writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
-     * Update connector token
+     * Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector\'s existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
+     * Update connector token or disabled state
      */
     async updateConnector(requestParameters: UpdateConnectorOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ConnectorResponse> {
         const response = await this.updateConnectorRaw(requestParameters, initOverrides);

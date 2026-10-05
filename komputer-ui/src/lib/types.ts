@@ -231,6 +231,8 @@ export interface ConnectorResponse {
   authSecretKey?: string;
   authType?: string;
   headerName?: string;
+  // true = cannot be attached to or used by agents. Surfaced in the UI as "Active" = !disabled.
+  disabled?: boolean;
   oauthStatus?: string; // "pending" | "connected"
   attachedAgents: number;
   agentNames?: string[];
@@ -258,7 +260,9 @@ export interface CreateConnectorRequest {
 }
 
 export interface UpdateConnectorRequest {
-  token: string;
+  // At least one of token/disabled is required.
+  token?: string;
+  disabled?: boolean;
   namespace?: string;
 }
 

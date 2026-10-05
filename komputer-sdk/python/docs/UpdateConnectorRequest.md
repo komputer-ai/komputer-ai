@@ -5,8 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**disabled** | **bool** | Disabled toggles whether the connector can be newly attached to agents and whether its tools are resolved for agent pods. true disables, false re-enables. Any caller may toggle this — there is no additional authorization check. | [optional] 
 **namespace** | **str** |  | [optional] 
-**token** | **str** | new auth token; replaces the value in the connector&#39;s secret | 
+**token** | **str** | new auth token; replaces the value in the connector&#39;s secret | [optional] 
 
 ## Example
 

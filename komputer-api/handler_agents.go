@@ -554,6 +554,13 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// A new agent has no existing connectors to compare against — every connector in
+		// the request is a fresh attach, so a disabled one is always rejected here.
+		if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Connectors, nil); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		// Inherit connectors from office manager so sub-agents get the same MCP tools.
 		connectors := req.Connectors
 		if req.OfficeManager != "" {
@@ -1078,6 +1085,19 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		// Reject a disabled connector only if it's being newly attached — a connector
+		// already on the agent (now disabled) must survive a re-sent list or an
+		// unrelated-field edit. Fetched and checked before any mutation below.
+		if req.Connectors != nil {
+			existingForGuard, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
+			if getErr == nil {
+				if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, *req.Connectors, existingForGuard.Spec.Connectors); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+			}
 		}
 
 		var nonFatalErrors []string
