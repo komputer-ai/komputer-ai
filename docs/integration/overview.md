@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Two integration surfaces — HTTP REST for control, WebSocket for real-time event streaming.
+description: Three integration surfaces — HTTP REST for control, WebSocket for real-time events, MCP for external agents.
 ---
 
 komputer.ai is designed from the ground up to be plugged into external systems. The platform itself provides a simple HTTP + WebSocket API that serves as the control plane for AI agents on Kubernetes. Your systems are the ones that create agents, assign tasks, and consume results.
@@ -11,10 +11,11 @@ Whether it's a vibecoding platform running coding agents on Kubernetes, a debugg
 
 ![komputer.ai integration architecture](/integration.png)
 
-Two integration surfaces:
+Three integration surfaces:
 
 - **HTTP REST** — create agents, send tasks, check status, get results, delete agents. See [REST API](./rest-api).
 - **WebSocket** — stream real-time events as agents work (thinking, tool calls, text output, completion). See [WebSocket events](./websocket).
+- **MCP** — fully control komputer from Claude Code, Claude Desktop, or any MCP-aware agent. Every REST operation is exposed as a tool at `<api-url>/mcp`. See [MCP server](./mcp-server).
 
 ## Important: komputer.ai is an Internal Backend
 

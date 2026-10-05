@@ -1,0 +1,1 @@
+../../../../docs/integration/mcp-server.md

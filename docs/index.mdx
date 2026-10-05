@@ -4,7 +4,7 @@ description: Distributed Claude AI agents on Kubernetes — first-class cluster 
 ---
 
 import { Card, Cards } from 'fumadocs-ui/components/card';
-import { Rocket, Code2, Boxes, Users, Plug, FileText, BookOpen, BarChart3, Calendar, DollarSign, Network, Radio, Container, Activity, ScrollText, Layers, Sparkles, Brain } from 'lucide-react';
+import { Rocket, Code2, Boxes, Users, Plug, FileText, BookOpen, BarChart3, Calendar, DollarSign, Network, Radio, Container, Activity, ScrollText, Layers, Sparkles, Brain, Bot } from 'lucide-react';
 
 **komputer.ai** is a Kubernetes-native platform for running persistent Claude AI agents as first-class cluster resources. No external database — `KomputerAgent` CRs live in etcd, the operator reconciles them into Pods, and the API streams every event back over WebSocket.
 
@@ -33,7 +33,7 @@ That deploys the operator, API, UI, Redis, and a default agent template. From th
 <Cards>
   <Card icon={<Rocket />} title="Installation" href="/docs/getting-started/installation" description="Helm install on any Kubernetes cluster — five minutes from zero to running agent." />
   <Card icon={<Network />} title="Architecture" href="/docs/architecture" description="Components, data flow, protocols, tech stack, and the design choices behind the platform." />
-  <Card icon={<Code2 />} title="Integration overview" href="/docs/integration/overview" description="Drive komputer.ai from your own services via REST + WebSocket." />
+  <Card icon={<Code2 />} title="Integration overview" href="/docs/integration/overview" description="Drive komputer.ai from your own services via REST, WebSocket, or MCP." />
 </Cards>
 
 ## Core concepts
@@ -58,6 +58,7 @@ That deploys the operator, API, UI, Redis, and a default agent template. From th
 
 <Cards>
   <Card icon={<Code2 />} title="REST API" href="/docs/integration/rest-api" description="Create agents, send tasks, list status, fetch results — full control plane in HTTP." />
+  <Card icon={<Bot />} title="MCP server" href="/docs/integration/mcp-server" description="Fully control komputer from Claude Code, Claude Desktop, or any MCP agent — every API operation as a tool." />
   <Card icon={<Radio />} title="WebSocket events" href="/docs/integration/websocket" description="Stream tokens, tool calls, costs, and lifecycle transitions in real time as agents work." />
   <Card icon={<Container />} title="Custom agent images" href="/docs/integration/custom-agent-image" description="Bake your own packages, CLIs, or runtimes into the agent image." />
 </Cards>

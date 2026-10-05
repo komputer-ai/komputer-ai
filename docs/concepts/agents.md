@@ -139,7 +139,7 @@ You can trigger compaction yourself while an agent is actively running a task. T
 - **CLI**: `komputer agent compact <name>` (optionally `--instructions "preserve all code blocks"`)
 - **REST**: `POST /api/v1/agents/<name>/compact` with optional `{"instructions": "..."}`
 - **Manager MCP tool**: `compact_agent` (one of the manager tools a manager agent has access to)
-- **External MCP**: the API's `/mcp` endpoint exposes `compact_agent` to external Claude / MCP-aware clients
+- **External MCP**: the API's `/mcp` endpoint exposes `compact_agent_task` (and every other API operation) to external Claude / MCP-aware clients
 
 Manual compaction only works while the agent is **actively running a task** — there's no conversation to compact otherwise. The endpoint returns 409 if the agent is idle.
 
