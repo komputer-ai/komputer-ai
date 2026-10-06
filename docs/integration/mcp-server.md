@@ -25,6 +25,8 @@ The server uses the standard MCP streamable HTTP transport.
 
 ## Connecting a client
 
+The UI's **Integrations** page (System → Integrations) shows your endpoint URL and ready-to-copy commands for each client.
+
 ### Claude Code
 
 ```bash
@@ -64,7 +66,7 @@ spec:
   url: https://komputer.example.com/mcp
 ```
 
-Then attach `remote-komputer` to any agent that should be able to drive the remote cluster. This gives that agent full write access to the remote cluster — it can create and delete agents and manage secrets there — so restrict it with the agent's `disallowedTools` (e.g. `mcp__remote-komputer__delete_*`, `mcp__remote-komputer__*_secret`) unless it genuinely needs full control.
+Then attach `remote-komputer` to any agent that should be able to drive the remote cluster. This gives that agent full write access to the remote cluster — it can create and delete agents and manage secrets there — so restrict it with the agent's `disallowedTools` (e.g. `mcp__remote-komputer__delete_*`, `mcp__remote-komputer__create_secret`, `mcp__remote-komputer__update_secret`, `mcp__remote-komputer__delete_secret`) unless it genuinely needs full control.
 
 ### Generic MCP client
 
