@@ -109,7 +109,7 @@ templates/
 | `api.ingress.tls` | Ingress TLS configuration | `[]` |
 | `agent.image.repository` | Agent image used in the default cluster template | `ghcr.io/komputer-ai/komputer-agent` |
 | `agent.image.tag` | Agent image tag | `latest` |
-| `agent.defaultModel` | Default Claude model for new agents | `claude-sonnet-4-6` |
+| `agent.defaultModel` | Default Claude model for new agents | `claude-opus-5-5` |
 | `agent.serviceAccount.create` | Create a ServiceAccount, Role, and RoleBinding for agent pods | `false` |
 | `agent.serviceAccount.rules` | RBAC rules granted to the agent service account | `[]` |
 | `clusterTemplate.storageSize` | PVC size for agent workspaces | `5Gi` |

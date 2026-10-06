@@ -213,9 +213,11 @@ class KomputerClient:
     def get_connector(self, name: str):
         return self.connectors.get_connector(name)
 
-    def update_connector(self, name: str, token: str, *, namespace: Optional[str] = None):
-        """Replace the auth token of a token/header connector."""
-        return self.connectors.update_connector(name, UpdateConnectorRequest(token=token, namespace=namespace))
+    def update_connector(self, name: str, token: Optional[str] = None, *, disabled: Optional[bool] = None, namespace: Optional[str] = None):
+        """Replace the auth token of a token/header connector and/or toggle whether it is
+        disabled. At least one of token/disabled must be set. Disabled works for OAuth
+        connectors too; token does not."""
+        return self.connectors.update_connector(name, UpdateConnectorRequest(token=token, disabled=disabled, namespace=namespace))
 
     def delete_connector(self, name: str):
         return self.connectors.delete_connector(name)

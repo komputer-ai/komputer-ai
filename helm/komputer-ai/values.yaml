@@ -99,7 +99,7 @@ agent:
     tag: latest
     pullPolicy: IfNotPresent
   # -- Default Claude model for new agents
-  defaultModel: claude-sonnet-4-6
+  defaultModel: claude-opus-5-5
   # -- Pod-level securityContext for agent pods. fsGroup makes the mounted
   # /workspace PVC writable by the agent's group (the bundled komputer image
   # pins UID/GID 1000). Without this, root-owned PVCs (the default on most

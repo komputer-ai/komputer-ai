@@ -151,6 +151,15 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		// A new schedule's inline agent template has no existing connectors to compare
+		// against — every connector it names is a fresh attach.
+		if req.Agent != nil {
+			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Agent.Connectors, nil); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		if err := k8s.EnsureNamespaceExists(c.Request.Context(), ns); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ensure namespace: " + err.Error()})
 			return
@@ -390,6 +399,21 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
+
+		// Reject a disabled connector only if it's newly attached — a connector already
+		// on the schedule's agent template (now disabled) must survive a re-sent template
+		// or an edit to an unrelated field.
+		if req.Agent != nil {
+			var existingConnectors []string
+			if existing, getErr := k8s.GetSchedule(c.Request.Context(), ns, name); getErr == nil && existing.Spec.Agent != nil {
+				existingConnectors = existing.Spec.Agent.Connectors
+			}
+			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Agent.Connectors, existingConnectors); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		if err := k8s.PatchScheduleSpec(c.Request.Context(), ns, name, req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch schedule: " + err.Error()})
 			return

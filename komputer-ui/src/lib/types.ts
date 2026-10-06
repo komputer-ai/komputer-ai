@@ -231,10 +231,13 @@ export interface ConnectorResponse {
   authSecretKey?: string;
   authType?: string;
   headerName?: string;
+  // true = cannot be attached to or used by agents. Surfaced in the UI as "Active" = !disabled.
+  disabled?: boolean;
   oauthStatus?: string; // "pending" | "connected"
   attachedAgents: number;
   agentNames?: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface ConnectorListResponse {
@@ -257,7 +260,9 @@ export interface CreateConnectorRequest {
 }
 
 export interface UpdateConnectorRequest {
-  token: string;
+  // At least one of token/disabled is required.
+  token?: string;
+  disabled?: boolean;
   namespace?: string;
 }
 
@@ -280,6 +285,7 @@ export interface MemoryResponse {
   attachedAgents: number;
   agentNames?: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface MemoryListResponse {
@@ -302,6 +308,7 @@ export interface SkillResponse {
   agentNames?: string[];
   isDefault?: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface SkillListResponse {

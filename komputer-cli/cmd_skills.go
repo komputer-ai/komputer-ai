@@ -113,6 +113,7 @@ func registerSkillCommands(root *cobra.Command) {
 			fmt.Printf("  Namespace:   %s\n", s.Namespace)
 			fmt.Printf("  Agents:      %d\n", len(s.Agents))
 			fmt.Printf("  Created:     %s\n", s.CreatedAt)
+			fmt.Printf("  Updated:     %s\n", s.UpdatedAt)
 			fmt.Println()
 			fmt.Println(dimStyle.Render("  ── Content ──"))
 			fmt.Println()

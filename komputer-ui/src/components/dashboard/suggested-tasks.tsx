@@ -38,7 +38,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "review-pr",
       instructions:
         "Review the pull request at <PASTE_PR_LINK_HERE>. Focus on:\n- Security vulnerabilities and input validation\n- Logic errors and edge cases\n- Code quality and maintainability\n\nProvide a structured summary of your findings with severity levels.",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       lifecycle: "AutoDelete",
     },
   },
@@ -52,7 +52,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "debug-pods",
       instructions:
         "Use kubectl to investigate pods that are failing in the cluster. Check for:\n- CrashLoopBackOff, Pending, or Evicted states\n- Recent events and container logs (including previous container logs)\n- Resource limits, OOMKilled signals, and scheduling issues\n\nDiagnose root causes and suggest specific fixes.",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       lifecycle: "AutoDelete",
     },
   },
@@ -66,7 +66,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "scan-emails",
       instructions:
         "Review my recent emails and extract:\n- Action items assigned to me\n- Upcoming deadlines and due dates\n- Follow-ups I need to send\n- Meeting requests that need a response\n\nOrganize the results by priority (urgent, this week, later) and present as a checklist.",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       lifecycle: "AutoDelete",
     },
   },
@@ -80,7 +80,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "test-coverage",
       instructions:
         "Clone the repository at <PASTE_REPO_URL_HERE> and analyze its test coverage:\n1. Install dependencies and run the test suite with coverage reporting\n2. Identify the modules and functions with the lowest coverage\n3. Flag critical code paths (error handling, auth, data mutations) that lack tests\n4. Suggest the highest-impact tests to write next\n\nProvide a summary table with coverage percentages per module.",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       lifecycle: "AutoDelete",
     },
   },
@@ -94,7 +94,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "install-skill",
       instructions:
         "Install the skill from this link: <PASTE_SKILLS_SH_LINK_HERE>\n\nFetch the skill content, create it as a KomputerSkill, and attach it to this agent so it's available immediately.",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       lifecycle: "AutoDelete",
     },
   },
@@ -108,7 +108,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "competitive-research",
       instructions:
         "Research the competitive landscape for <DESCRIBE_YOUR_PRODUCT_OR_MARKET>.\n\nSpin up a worker agent for each of the top 5 competitors to research in parallel:\n- Product features and capabilities\n- Pricing model and tiers\n- Target audience and market positioning\n- Strengths and weaknesses\n\nOnce all workers complete, compile a comparison matrix and strategic summary with recommendations.",
-      model: "claude-opus-4-6",
+      model: "claude-opus-5-5",
       lifecycle: "default",
       role: "manager",
     },
@@ -123,7 +123,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "audit-services",
       instructions:
         "Audit the health of all microservices in the cluster.\n\nFor each service/deployment, spin up a worker agent to check:\n- Pod status, restart counts, and recent events\n- CPU and memory usage vs. configured limits\n- Error rates in recent logs (last 1 hour)\n- Pending or stuck rollouts\n\nCompile a health dashboard summary with a traffic-light status (green/yellow/red) per service and actionable recommendations for any issues found.",
-      model: "claude-opus-4-6",
+      model: "claude-opus-5-5",
       lifecycle: "default",
       role: "manager",
     },
@@ -138,7 +138,7 @@ const SUGGESTED_TASKS: SuggestedTask[] = [
       name: "parallel-refactor",
       instructions:
         "Clone the repository at <PASTE_REPO_URL_HERE> and refactor all usage of the deprecated <DESCRIBE_OLD_API> to the new <DESCRIBE_NEW_API>.\n\n1. Scan the codebase and identify all modules that use the deprecated API\n2. Spin up a worker agent for each module to perform the migration independently\n3. Each worker should update the code, run relevant tests, and report results\n4. Once all workers complete, verify overall test suite passes and create a summary of all changes made.",
-      model: "claude-opus-4-6",
+      model: "claude-opus-5-5",
       lifecycle: "default",
       role: "manager",
     },

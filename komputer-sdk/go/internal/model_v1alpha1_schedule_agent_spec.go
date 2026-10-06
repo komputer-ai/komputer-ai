@@ -33,7 +33,7 @@ type V1alpha1ScheduleAgentSpec struct {
 	Lifecycle *V1alpha1AgentLifecycle `json:"lifecycle,omitempty"`
 	// Memories is a list of KomputerMemory names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Memories []string `json:"memories,omitempty"`
-	// Model is the Claude model to use. +kubebuilder:default=\"claude-sonnet-4-6\"
+	// Model is the Claude model to use. +kubebuilder:default=\"claude-opus-5-5\"
 	Model *string `json:"model,omitempty"`
 	// PodSpec, when set, overrides the template's PodSpec for this agent. Container fields are merged by name; non-zero fields from this PodSpec override the template's container fields. Takes effect on next pod start (existing pods are not mutated). +optional
 	PodSpec *V1PodSpec `json:"podSpec,omitempty"`

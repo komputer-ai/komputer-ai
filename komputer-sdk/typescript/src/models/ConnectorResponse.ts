@@ -56,6 +56,12 @@ export interface ConnectorResponse {
      */
     createdAt?: string;
     /**
+     * true = cannot be attached or used; UI/CLI present this as "Active" = !Disabled
+     * @type {boolean}
+     * @memberof ConnectorResponse
+     */
+    disabled?: boolean;
+    /**
      * 
      * @type {string}
      * @memberof ConnectorResponse
@@ -102,6 +108,12 @@ export interface ConnectorResponse {
      * @type {string}
      * @memberof ConnectorResponse
      */
+    updatedAt?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConnectorResponse
+     */
     url?: string;
 }
 
@@ -128,6 +140,7 @@ export function ConnectorResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'authSecretName': json['authSecretName'] == null ? undefined : json['authSecretName'],
         'authType': json['authType'] == null ? undefined : json['authType'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
+        'disabled': json['disabled'] == null ? undefined : json['disabled'],
         'displayName': json['displayName'] == null ? undefined : json['displayName'],
         'headerName': json['headerName'] == null ? undefined : json['headerName'],
         'name': json['name'] == null ? undefined : json['name'],
@@ -135,6 +148,7 @@ export function ConnectorResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'oauthStatus': json['oauthStatus'] == null ? undefined : json['oauthStatus'],
         'service': json['service'] == null ? undefined : json['service'],
         'type': json['type'] == null ? undefined : json['type'],
+        'updatedAt': json['updatedAt'] == null ? undefined : json['updatedAt'],
         'url': json['url'] == null ? undefined : json['url'],
     };
 }
@@ -156,6 +170,7 @@ export function ConnectorResponseToJSONTyped(value?: ConnectorResponse | null, i
         'authSecretName': value['authSecretName'],
         'authType': value['authType'],
         'createdAt': value['createdAt'],
+        'disabled': value['disabled'],
         'displayName': value['displayName'],
         'headerName': value['headerName'],
         'name': value['name'],
@@ -163,6 +178,7 @@ export function ConnectorResponseToJSONTyped(value?: ConnectorResponse | null, i
         'oauthStatus': value['oauthStatus'],
         'service': value['service'],
         'type': value['type'],
+        'updatedAt': value['updatedAt'],
         'url': value['url'],
     };
 }

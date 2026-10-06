@@ -109,32 +109,90 @@ func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEve
 //   - Background task notifications ("*(Background task completed") → skipped
 //   - System prompt prefix stripped from first user message per turn
 // ---------------------------------------------------------------------------
+// modelRates holds per-1M-token pricing (USD) for one model.
+type modelRates struct {
+	inputPerM      float64
+	outputPerM     float64
+	cacheReadPerM  float64
+	cacheWritePerM float64 // 5-minute cache write
+}
+
+// modelPricing maps a substring found in a model id to its rates. It is
+// matched most-specific-first: a longer, more specific suffix (e.g.
+// "opus-4-5") is listed — and therefore tried — before a shorter one it would
+// otherwise also match (e.g. "opus-4"), so a retired model never silently
+// picks up a newer sibling's price. strings.Contains lets each entry match
+// both an Anthropic API friendly name ("claude-opus-4-5") and a Bedrock
+// inference-profile id or ARN ("us.anthropic.claude-opus-4-5-20251101-v1:0").
+//
+// Pricing per 1M tokens, official rates as of 2026-10.
+var modelPricing = []struct {
+	suffix string
+	rates  modelRates
+}{
+	// Fable / Mythos — Mythos (invitation-only) shares Fable's pricing.
+	{"fable-5-1", modelRates{10, 50, 0.25, 12.50}},
+	{"mythos-5-1", modelRates{10, 50, 0.25, 12.50}},
+	{"fable-5", modelRates{10, 50, 1, 12.50}},
+	{"mythos-5", modelRates{10, 50, 1, 12.50}},
+
+	// Opus.
+	{"opus-5-5", modelRates{4, 20, 0.20, 5}},
+	{"opus-5", modelRates{5, 25, 0.50, 6.25}},
+	{"opus-4-8", modelRates{5, 25, 0.50, 6.25}},
+	{"opus-4-7", modelRates{5, 25, 0.50, 6.25}},
+	{"opus-4-6", modelRates{5, 25, 0.50, 6.25}},
+	{"opus-4-5", modelRates{5, 25, 0.50, 6.25}},
+	{"opus-4-1", modelRates{15, 75, 1.50, 18.75}},
+	{"opus-4", modelRates{15, 75, 1.50, 18.75}},
+
+	// Sonnet.
+	{"sonnet-5-5", modelRates{2, 10, 0.20, 2.50}},
+	{"sonnet-5", modelRates{2, 10, 0.20, 2.50}},
+	{"sonnet-4-6", modelRates{3, 15, 0.30, 3.75}},
+	{"sonnet-4-5", modelRates{3, 15, 0.30, 3.75}},
+	{"sonnet-4", modelRates{3, 15, 0.30, 3.75}},
+
+	// Haiku. 3.5 Haiku's real id puts the version before the family name
+	// ("claude-3-5-haiku-20241022"), unlike every 4.x+ id, so match both
+	// orderings.
+	{"haiku-4-5", modelRates{1, 5, 0.10, 1.25}},
+	{"haiku-3-5", modelRates{0.80, 4, 0.08, 1}},
+	{"3-5-haiku", modelRates{0.80, 4, 0.08, 1}},
+}
+
+// ratesForModel resolves pricing for a model id, trying the specific table
+// above first and falling back to a family-level approximation — the latest
+// generation's rate for that family — when the id is unrecognized (most
+// likely a release newer than this table).
+func ratesForModel(model string) modelRates {
+	for _, p := range modelPricing {
+		if strings.Contains(model, p.suffix) {
+			return p.rates
+		}
+	}
+	switch {
+	case strings.Contains(model, "fable"), strings.Contains(model, "mythos"):
+		return modelRates{10, 50, 0.25, 12.50}
+	case strings.Contains(model, "opus"):
+		return modelRates{4, 20, 0.20, 5}
+	case strings.Contains(model, "haiku"):
+		return modelRates{1, 5, 0.10, 1.25}
+	default: // sonnet, or a family we don't recognize at all
+		return modelRates{2, 10, 0.20, 2.50}
+	}
+}
+
 // outputRatePerM returns the output token price per 1M tokens for a model.
 func outputRatePerM(model string) float64 {
-	switch {
-	case strings.Contains(model, "opus"):
-		return 75.0
-	case strings.Contains(model, "haiku"):
-		return 4.0
-	default:
-		return 15.0
-	}
+	return ratesForModel(model).outputPerM
 }
 
 // estimateCostUSD calculates dollar cost from token counts and model pricing.
 func estimateCostUSD(model string, inputTokens, outputTokens, cacheRead, cacheCreate float64) float64 {
-	// Pricing per 1M tokens (as of 2026-04)
-	var inputRate, outputRate, cacheReadRate, cacheCreateRate float64
-	switch {
-	case strings.Contains(model, "opus"):
-		inputRate, outputRate, cacheReadRate, cacheCreateRate = 15.0, 75.0, 1.50, 18.75
-	case strings.Contains(model, "haiku"):
-		inputRate, outputRate, cacheReadRate, cacheCreateRate = 0.80, 4.0, 0.08, 1.0
-	default: // sonnet
-		inputRate, outputRate, cacheReadRate, cacheCreateRate = 3.0, 15.0, 0.30, 3.75
-	}
-	return (inputTokens*inputRate + outputTokens*outputRate +
-		cacheRead*cacheReadRate + cacheCreate*cacheCreateRate) / 1_000_000
+	r := ratesForModel(model)
+	return (inputTokens*r.inputPerM + outputTokens*r.outputPerM +
+		cacheRead*r.cacheReadPerM + cacheCreate*r.cacheWritePerM) / 1_000_000
 }
 
 func convertSessionJSONL(raw []byte, agentName string, limit int64, model string, totalCostUSD float64) []AgentEvent {

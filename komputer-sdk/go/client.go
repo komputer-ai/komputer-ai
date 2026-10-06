@@ -681,14 +681,26 @@ func (c *Client) GetConnector(ctx context.Context, name string) (*komputer.Conne
 }
 
 type UpdateConnectorOpts struct {
+	// Token replaces the auth token; nil leaves it unchanged. Rejected for OAuth connectors.
+	Token *string
+	// Disabled toggles whether the connector can be attached to or used by agents;
+	// nil leaves it unchanged. Works for OAuth connectors too.
+	Disabled  *bool
 	Namespace *string
 }
 
-// UpdateConnector replaces the auth token of a token/header connector.
-func (c *Client) UpdateConnector(ctx context.Context, name string, token string, opts ...UpdateConnectorOpts) (*komputer.ConnectorResponse, *http.Response, error) {
-	req := komputer.UpdateConnectorRequest{Token: token}
-	if len(opts) > 0 && opts[0].Namespace != nil {
-		req.Namespace = opts[0].Namespace
+// UpdateConnector replaces a connector's auth token and/or toggles whether it is
+// disabled. At least one of opts.Token / opts.Disabled must be set, matching the API.
+func (c *Client) UpdateConnector(ctx context.Context, name string, opts UpdateConnectorOpts) (*komputer.ConnectorResponse, *http.Response, error) {
+	req := komputer.UpdateConnectorRequest{}
+	if opts.Token != nil {
+		req.Token = opts.Token
+	}
+	if opts.Disabled != nil {
+		req.Disabled = opts.Disabled
+	}
+	if opts.Namespace != nil {
+		req.Namespace = opts.Namespace
 	}
 	return c.api.ConnectorsAPI.UpdateConnector(ctx, name).Request(req).Execute()
 }

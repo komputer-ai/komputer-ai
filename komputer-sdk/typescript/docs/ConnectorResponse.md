@@ -12,6 +12,7 @@ Name | Type
 `authSecretName` | string
 `authType` | string
 `createdAt` | string
+`disabled` | boolean
 `displayName` | string
 `headerName` | string
 `name` | string
@@ -19,6 +20,7 @@ Name | Type
 `oauthStatus` | string
 `service` | string
 `type` | string
+`updatedAt` | string
 `url` | string
 
 ## Example
@@ -34,6 +36,7 @@ const example = {
   "authSecretName": null,
   "authType": null,
   "createdAt": null,
+  "disabled": null,
   "displayName": null,
   "headerName": null,
   "name": null,
@@ -41,6 +44,7 @@ const example = {
   "oauthStatus": null,
   "service": null,
   "type": null,
+  "updatedAt": null,
   "url": null,
 } satisfies ConnectorResponse
 

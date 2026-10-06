@@ -23,6 +23,7 @@ type MemoryResponse struct {
 	AttachedAgents int      `json:"attachedAgents"`
 	AgentNames     []string `json:"agentNames,omitempty"`
 	CreatedAt      string   `json:"createdAt"`
+	UpdatedAt      string   `json:"updatedAt"`
 }
 
 type PatchMemoryRequest struct {
@@ -67,11 +68,12 @@ func createMemory(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusCreated, MemoryResponse{
-			Name:      memory.Name,
-			Namespace: memory.Namespace,
-			Content:   memory.Spec.Content,
+			Name:        memory.Name,
+			Namespace:   memory.Namespace,
+			Content:     memory.Spec.Content,
 			Description: memory.Spec.Description,
-			CreatedAt: memory.CreationTimestamp.UTC().Format(time.RFC3339),
+			CreatedAt:   memory.CreationTimestamp.UTC().Format(time.RFC3339),
+			UpdatedAt:   lastSpecUpdate(memory).UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -105,6 +107,7 @@ func getMemory(k8s *K8sClient) gin.HandlerFunc {
 			AttachedAgents: memory.Status.AttachedAgents,
 			AgentNames:     memory.Status.AgentNames,
 			CreatedAt:      memory.CreationTimestamp.UTC().Format(time.RFC3339),
+			UpdatedAt:      lastSpecUpdate(memory).UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -137,6 +140,7 @@ func listMemories(k8s *K8sClient) gin.HandlerFunc {
 				AttachedAgents: m.Status.AttachedAgents,
 				AgentNames:     m.Status.AgentNames,
 				CreatedAt:      m.CreationTimestamp.UTC().Format(time.RFC3339),
+				UpdatedAt:      lastSpecUpdate(&m).UTC().Format(time.RFC3339),
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"memories": resp})
@@ -187,6 +191,7 @@ func patchMemory(k8s *K8sClient) gin.HandlerFunc {
 			AttachedAgents: memory.Status.AttachedAgents,
 			AgentNames:     memory.Status.AgentNames,
 			CreatedAt:      memory.CreationTimestamp.UTC().Format(time.RFC3339),
+			UpdatedAt:      lastSpecUpdate(memory).UTC().Format(time.RFC3339),
 		})
 	}
 }

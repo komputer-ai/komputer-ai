@@ -147,7 +147,7 @@ spec:
                             type: string
                           type: array
                         model:
-                          default: claude-sonnet-4-6
+                          default: claude-opus-5-5
                           description: Model is the Claude model to use.
                           type: string
                         officeManager:

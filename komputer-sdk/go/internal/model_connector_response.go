@@ -25,6 +25,8 @@ type ConnectorResponse struct {
 	AuthSecretName *string `json:"authSecretName,omitempty"`
 	AuthType *string `json:"authType,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
+	// true = cannot be attached or used; UI/CLI present this as \"Active\" = !Disabled
+	Disabled *bool `json:"disabled,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
 	HeaderName *string `json:"headerName,omitempty"`
 	Name *string `json:"name,omitempty"`
@@ -33,6 +35,7 @@ type ConnectorResponse struct {
 	OauthStatus *string `json:"oauthStatus,omitempty"`
 	Service *string `json:"service,omitempty"`
 	Type *string `json:"type,omitempty"`
+	UpdatedAt *string `json:"updatedAt,omitempty"`
 	Url *string `json:"url,omitempty"`
 }
 
@@ -243,6 +246,38 @@ func (o *ConnectorResponse) HasCreatedAt() bool {
 // SetCreatedAt gets a reference to the given string and assigns it to the CreatedAt field.
 func (o *ConnectorResponse) SetCreatedAt(v string) {
 	o.CreatedAt = &v
+}
+
+// GetDisabled returns the Disabled field value if set, zero value otherwise.
+func (o *ConnectorResponse) GetDisabled() bool {
+	if o == nil || IsNil(o.Disabled) {
+		var ret bool
+		return ret
+	}
+	return *o.Disabled
+}
+
+// GetDisabledOk returns a tuple with the Disabled field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectorResponse) GetDisabledOk() (*bool, bool) {
+	if o == nil || IsNil(o.Disabled) {
+		return nil, false
+	}
+	return o.Disabled, true
+}
+
+// HasDisabled returns a boolean if a field has been set.
+func (o *ConnectorResponse) HasDisabled() bool {
+	if o != nil && !IsNil(o.Disabled) {
+		return true
+	}
+
+	return false
+}
+
+// SetDisabled gets a reference to the given bool and assigns it to the Disabled field.
+func (o *ConnectorResponse) SetDisabled(v bool) {
+	o.Disabled = &v
 }
 
 // GetDisplayName returns the DisplayName field value if set, zero value otherwise.
@@ -469,6 +504,38 @@ func (o *ConnectorResponse) SetType(v string) {
 	o.Type = &v
 }
 
+// GetUpdatedAt returns the UpdatedAt field value if set, zero value otherwise.
+func (o *ConnectorResponse) GetUpdatedAt() string {
+	if o == nil || IsNil(o.UpdatedAt) {
+		var ret string
+		return ret
+	}
+	return *o.UpdatedAt
+}
+
+// GetUpdatedAtOk returns a tuple with the UpdatedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ConnectorResponse) GetUpdatedAtOk() (*string, bool) {
+	if o == nil || IsNil(o.UpdatedAt) {
+		return nil, false
+	}
+	return o.UpdatedAt, true
+}
+
+// HasUpdatedAt returns a boolean if a field has been set.
+func (o *ConnectorResponse) HasUpdatedAt() bool {
+	if o != nil && !IsNil(o.UpdatedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetUpdatedAt gets a reference to the given string and assigns it to the UpdatedAt field.
+func (o *ConnectorResponse) SetUpdatedAt(v string) {
+	o.UpdatedAt = &v
+}
+
 // GetUrl returns the Url field value if set, zero value otherwise.
 func (o *ConnectorResponse) GetUrl() string {
 	if o == nil || IsNil(o.Url) {
@@ -529,6 +596,9 @@ func (o ConnectorResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.CreatedAt) {
 		toSerialize["createdAt"] = o.CreatedAt
 	}
+	if !IsNil(o.Disabled) {
+		toSerialize["disabled"] = o.Disabled
+	}
 	if !IsNil(o.DisplayName) {
 		toSerialize["displayName"] = o.DisplayName
 	}
@@ -549,6 +619,9 @@ func (o ConnectorResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Type) {
 		toSerialize["type"] = o.Type
+	}
+	if !IsNil(o.UpdatedAt) {
+		toSerialize["updatedAt"] = o.UpdatedAt
 	}
 	if !IsNil(o.Url) {
 		toSerialize["url"] = o.Url

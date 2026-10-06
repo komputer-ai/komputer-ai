@@ -37,7 +37,7 @@ type AgentConfigSpec struct {
 	// +optional
 	SystemPrompt string `json:"systemPrompt,omitempty"`
 	// Model is the Claude model to use.
-	// +kubebuilder:default="claude-sonnet-4-6"
+	// +kubebuilder:default="claude-opus-5-5"
 	Model string `json:"model,omitempty"`
 	// Role is "manager" or "worker". Managers get orchestration tools.
 	// Role is "manager" or "worker". Defaults to "manager" for top-level agents.

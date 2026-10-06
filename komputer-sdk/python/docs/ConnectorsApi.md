@@ -10,7 +10,7 @@ Method | HTTP request | Description
 [**list_connector_templates**](ConnectorsApi.md#list_connector_templates) | **GET** /connector-templates | List connector templates
 [**list_connector_tools**](ConnectorsApi.md#list_connector_tools) | **GET** /connectors/{name}/tools | List connector tools
 [**list_connectors**](ConnectorsApi.md#list_connectors) | **GET** /connectors | List connectors
-[**update_connector**](ConnectorsApi.md#update_connector) | **PATCH** /connectors/{name} | Update connector token
+[**update_connector**](ConnectorsApi.md#update_connector) | **PATCH** /connectors/{name} | Update connector token or disabled state
 
 
 # **create_connector**
@@ -432,9 +432,9 @@ No authorization required
 # **update_connector**
 > ConnectorResponse update_connector(name, request, namespace=namespace)
 
-Update connector token
+Update connector token or disabled state
 
-Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
 ### Example
 
@@ -458,11 +458,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.ConnectorsApi(api_client)
     name = 'name_example' # str | Connector name
-    request = komputer_ai.UpdateConnectorRequest() # UpdateConnectorRequest | New token
+    request = komputer_ai.UpdateConnectorRequest() # UpdateConnectorRequest | New token and/or disabled flag
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
 
     try:
-        # Update connector token
+        # Update connector token or disabled state
         api_response = api_instance.update_connector(name, request, namespace=namespace)
         print("The response of ConnectorsApi->update_connector:\n")
         pprint(api_response)
@@ -478,7 +478,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Connector name | 
- **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md)| New token | 
+ **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md)| New token and/or disabled flag | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
 
 ### Return type

@@ -24,6 +24,12 @@ export interface MultiSelectOption {
   searchTerms?: string[];
   /** Optional leading icon rendered in the dropdown row (e.g. provider logo) */
   icon?: React.ReactNode;
+  /**
+   * Marks this option unselectable (e.g. a disabled connector). An already-selected
+   * value stays togglable off even when disabled, so removing a stale selection
+   * never gets stuck.
+   */
+  disabled?: boolean;
 }
 
 export interface MultiSelectProps {
@@ -155,7 +161,10 @@ export function MultiSelect({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
-        toggle(filtered[highlightedIndex].value);
+        const opt = filtered[highlightedIndex];
+        if (!opt.disabled || value.includes(opt.value)) {
+          toggle(opt.value);
+        }
       }
     }
   };
@@ -261,20 +270,24 @@ export function MultiSelect({
                 filtered.map((opt, idx) => {
                   const selected = value.includes(opt.value);
                   const highlighted = idx === highlightedIndex;
+                  // An already-selected value stays clickable (so it can be removed)
+                  // even if the option has since become disabled.
+                  const blocked = opt.disabled && !selected;
                   return (
                     <div
                       key={opt.value}
                       role="option"
                       aria-selected={selected}
+                      aria-disabled={blocked}
                       className={cn(
-                        "flex items-center justify-between gap-2 px-3 py-2 text-sm cursor-pointer transition-colors",
-                        "hover:bg-[var(--color-surface-hover)]",
-                        highlighted && "bg-[var(--color-surface-hover)]",
+                        "flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors",
+                        blocked ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[var(--color-surface-hover)]",
+                        highlighted && !blocked && "bg-[var(--color-surface-hover)]",
                         selected
                           ? "text-[var(--color-brand-blue)]"
                           : "text-[var(--color-text)]"
                       )}
-                      onClick={() => toggle(opt.value)}
+                      onClick={() => !blocked && toggle(opt.value)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <span className="flex items-center gap-2 min-w-0 flex-1">
@@ -284,6 +297,9 @@ export function MultiSelect({
                           </span>
                         )}
                         <span className="truncate">{opt.label}</span>
+                        {opt.disabled && (
+                          <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">(disabled)</span>
+                        )}
                         {opt.secondary && (
                           <span className="text-[10px] text-[var(--color-brand-blue-light)] shrink-0">
                             {opt.secondary}

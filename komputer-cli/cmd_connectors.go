@@ -81,8 +81,8 @@ func registerConnectorCommands(root *cobra.Command) {
 					authW = len(auth)
 				}
 			}
-			header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-6s  %s",
-				nameW, "NAME", svcW, "SERVICE", urlW, "URL", authW, "AUTH", "AGENTS", "CREATED")
+			header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6s  %-10s  %s",
+				nameW, "NAME", svcW, "SERVICE", urlW, "URL", authW, "AUTH", "ACTIVE", "AGENTS", "CREATED", "UPDATED")
 			fmt.Println(dimStyle.Render(header))
 			for _, c := range resp.Connectors {
 				urlStr := c.URL
@@ -93,12 +93,20 @@ func registerConnectorCommands(root *cobra.Command) {
 				if auth == "" {
 					auth = "none"
 				}
+				active := "yes"
+				if c.Disabled {
+					active = "no"
+				}
 				created := c.CreatedAt
 				if len(created) > 10 {
 					created = created[:10]
 				}
-				fmt.Printf("  %-*s  %-*s  %-*s  %-*s  %-6d  %s\n",
-					nameW, c.Name, svcW, c.Service, urlW, urlStr, authW, auth, c.AttachedAgents, created)
+				updated := c.UpdatedAt
+				if len(updated) > 10 {
+					updated = updated[:10]
+				}
+				fmt.Printf("  %-*s  %-*s  %-*s  %-*s  %-6s  %-6d  %-10s  %s\n",
+					nameW, c.Name, svcW, c.Service, urlW, urlStr, authW, auth, active, c.AttachedAgents, created, updated)
 			}
 		},
 	})
@@ -454,6 +462,66 @@ func registerConnectorCommands(root *cobra.Command) {
 	connUpdateCmd.Flags().String("token", "", "New auth token (required)")
 	connCmd.AddCommand(connUpdateCmd)
 
+	// ── connector enable / disable ──────────────────────────────────────
+	setConnectorDisabled := func(disabled bool) func(cmd *cobra.Command, args []string) {
+		return func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			ns, _ := cmd.Flags().GetString("namespace")
+
+			body := map[string]interface{}{"disabled": disabled}
+			if ns != "" {
+				body["namespace"] = ns
+			}
+			data, status, err := apiRequest("PATCH", fmt.Sprintf("%s/api/v1/connectors/%s", ep, url.PathEscape(args[0])), body)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Connector %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Connector %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+			var c ConnectorResponse
+			json.Unmarshal(data, &c)
+			if jsonMode {
+				printJSON(c)
+				return
+			}
+			if disabled {
+				fmt.Println(successStyle.Render(fmt.Sprintf("✔ Connector %q disabled", args[0])))
+				fmt.Println(dimStyle.Render("  It can no longer be attached to agents, and its tools stop being resolved for new tasks."))
+			} else {
+				fmt.Println(successStyle.Render(fmt.Sprintf("✔ Connector %q enabled", args[0])))
+			}
+		}
+	}
+	connCmd.AddCommand(&cobra.Command{
+		Use:   "disable <name>",
+		Short: "Disable a connector without deleting it",
+		Args:  cobra.ExactArgs(1),
+		Run:   setConnectorDisabled(true),
+	})
+	connCmd.AddCommand(&cobra.Command{
+		Use:   "enable <name>",
+		Short: "Re-enable a previously disabled connector",
+		Args:  cobra.ExactArgs(1),
+		Run:   setConnectorDisabled(false),
+	})
+
 	// ── connector delete ────────────────────────────────────────────────
 	connCmd.AddCommand(&cobra.Command{
 		Use:     "delete <name>",
@@ -633,6 +701,11 @@ func printConnector(c ConnectorResponse) {
 	row("Namespace:", c.Namespace)
 	row("URL:", c.URL)
 	row("Type:", c.Type)
+	if c.Disabled {
+		row("Active:", errorStyle.Render("no (disabled)"))
+	} else {
+		row("Active:", "yes")
+	}
 	if c.AuthType != "" {
 		row("Auth Type:", c.AuthType)
 	}
@@ -653,5 +726,6 @@ func printConnector(c ConnectorResponse) {
 		}
 	}
 	row("Created:", c.CreatedAt)
+	row("Updated:", c.UpdatedAt)
 	fmt.Println()
 }

@@ -4,14 +4,15 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**Disabled** | Pointer to **bool** | Disabled toggles whether the connector can be newly attached to agents and whether its tools are resolved for agent pods. true disables, false re-enables. Any caller may toggle this — there is no additional authorization check. | [optional] 
 **Namespace** | Pointer to **string** |  | [optional] 
-**Token** | **string** | new auth token; replaces the value in the connector&#39;s secret | 
+**Token** | Pointer to **string** | new auth token; replaces the value in the connector&#39;s secret | [optional] 
 
 ## Methods
 
 ### NewUpdateConnectorRequest
 
-`func NewUpdateConnectorRequest(token string, ) *UpdateConnectorRequest`
+`func NewUpdateConnectorRequest() *UpdateConnectorRequest`
 
 NewUpdateConnectorRequest instantiates a new UpdateConnectorRequest object
 This constructor will assign default values to properties that have it defined,
@@ -25,6 +26,31 @@ will change when the set of required properties is changed
 NewUpdateConnectorRequestWithDefaults instantiates a new UpdateConnectorRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetDisabled
+
+`func (o *UpdateConnectorRequest) GetDisabled() bool`
+
+GetDisabled returns the Disabled field if non-nil, zero value otherwise.
+
+### GetDisabledOk
+
+`func (o *UpdateConnectorRequest) GetDisabledOk() (*bool, bool)`
+
+GetDisabledOk returns a tuple with the Disabled field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDisabled
+
+`func (o *UpdateConnectorRequest) SetDisabled(v bool)`
+
+SetDisabled sets Disabled field to given value.
+
+### HasDisabled
+
+`func (o *UpdateConnectorRequest) HasDisabled() bool`
+
+HasDisabled returns a boolean if a field has been set.
 
 ### GetNamespace
 
@@ -70,6 +96,11 @@ and a boolean to check if the value has been set.
 
 SetToken sets Token field to given value.
 
+### HasToken
+
+`func (o *UpdateConnectorRequest) HasToken() bool`
+
+HasToken returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

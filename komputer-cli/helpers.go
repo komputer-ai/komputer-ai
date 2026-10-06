@@ -280,6 +280,50 @@ func parseLabelFlags(labelFlags []string) map[string]string {
 	return labelMap
 }
 
+// validAgentSorts are the accepted values for `agents list --sort`.
+var validAgentSorts = map[string]bool{"created": true, "last-active": true}
+
+// sortAgentResponses orders agents for `agents list --sort`, in place:
+//   - "created": newest first by CreatedAt (the default)
+//   - "last-active": most recently active first by LastActivityAt; agents
+//     that have never run a task (empty LastActivityAt) sort last, tie-broken
+//     by CreatedAt descending
+//
+// An unparseable timestamp is treated as the zero time, so it loses ties
+// instead of panicking or reordering unpredictably.
+func sortAgentResponses(agents []AgentResponse, sortBy string) []AgentResponse {
+	parse := func(ts string) time.Time {
+		t, err := time.Parse(time.RFC3339, ts)
+		if err != nil {
+			return time.Time{}
+		}
+		return t
+	}
+
+	if sortBy == "last-active" {
+		sort.SliceStable(agents, func(i, j int) bool {
+			a, b := agents[i], agents[j]
+			aActive, bActive := a.LastActivityAt != "", b.LastActivityAt != ""
+			if aActive != bActive {
+				return aActive // active agents sort before never-active ones
+			}
+			if aActive && bActive {
+				at, bt := parse(a.LastActivityAt), parse(b.LastActivityAt)
+				if !at.Equal(bt) {
+					return at.After(bt)
+				}
+			}
+			return parse(a.CreatedAt).After(parse(b.CreatedAt))
+		})
+		return agents
+	}
+
+	sort.SliceStable(agents, func(i, j int) bool {
+		return parse(agents[i].CreatedAt).After(parse(agents[j].CreatedAt))
+	})
+	return agents
+}
+
 func truncate(s string, max int) string {
 	if len(s) > max {
 		return s[:max] + "..."

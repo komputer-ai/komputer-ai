@@ -24,7 +24,7 @@ Content-Type: application/json
 | `name` | yes | Agent identifier (lowercase, hyphens, max 63 chars) |
 | `instructions` | yes | The task prompt for Claude |
 | `systemPrompt` | no | Custom system prompt prepended before the built-in role prompt |
-| `model` | no | Claude model (default: `claude-sonnet-4-6`) |
+| `model` | no | Claude model (default: `claude-opus-5-5`) |
 | `templateRef` | no | Pod template to use (default: `default`) |
 | `role` | no | `manager` (can orchestrate sub-agents) or `worker` (default: `manager`) |
 | `connectors` | no | List of `KomputerConnector` names to attach |
@@ -200,9 +200,9 @@ Content-Type: application/json
 GET /api/v1/connectors/:name?namespace=default
 ```
 
-### Update a Connector Token
+### Update a Connector Token or Disabled State
 
-Replace the auth token of a `token` or `header` connector without recreating it:
+Replace the auth token of a `token` or `header` connector, toggle whether it's disabled, or both — without recreating it:
 
 ```
 PATCH /api/v1/connectors/:name?namespace=default
@@ -214,9 +214,15 @@ PATCH /api/v1/connectors/:name?namespace=default
 }
 ```
 
-The value is written into the secret key the connector already references; other keys in that secret are left alone. If the connector has no `authSecretKeyRef`, a managed `<name>-credentials` secret is created and the connector is switched to `token` auth. Returns the connector. OAuth connectors return `400` — reconnect them via `/api/v1/oauth/authorize` instead.
+```json
+{
+  "disabled": true
+}
+```
 
-Running agents pick up the new token on their next pod start (sleep + wake); sleeping agents get it automatically on wake.
+At least one of `token` / `disabled` is required. A `token` is written into the secret key the connector already references; other keys in that secret are left alone. If the connector has no `authSecretKeyRef`, a managed `<name>-credentials` secret is created and the connector is switched to `token` auth. OAuth connectors return `400` for a `token` update — reconnect them via `/api/v1/oauth/authorize` instead — but `disabled` can still be toggled on them. Returns the connector, which now includes `"disabled": true|false`.
+
+Running agents pick up a new token on their next pod start (sleep + wake); sleeping agents get it automatically on wake. A `disabled` connector is excluded from MCP server resolution the next time an agent's config is resolved (new pod, wake, or a live PATCH to a running agent); an already-running pod keeps what it was given until it restarts. A disabled connector also can't be newly attached to an agent, schedule, or squad member — see [Disabling a connector](../concepts/connectors.md#disabling-a-connector).
 
 ### Delete a Connector
 

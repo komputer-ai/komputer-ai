@@ -783,7 +783,7 @@ type ApiUpdateConnectorRequest struct {
 	namespace *string
 }
 
-// New token
+// New token and/or disabled flag
 func (r ApiUpdateConnectorRequest) Request(request UpdateConnectorRequest) ApiUpdateConnectorRequest {
 	r.request = &request
 	return r
@@ -800,9 +800,9 @@ func (r ApiUpdateConnectorRequest) Execute() (*ConnectorResponse, *http.Response
 }
 
 /*
-UpdateConnector Update connector token
+UpdateConnector Update connector token or disabled state
 
-Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param name Connector name

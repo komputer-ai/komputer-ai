@@ -67,6 +67,12 @@ export interface SkillResponse {
      * @memberof SkillResponse
      */
     namespace?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof SkillResponse
+     */
+    updatedAt?: string;
 }
 
 /**
@@ -94,6 +100,7 @@ export function SkillResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'isDefault': json['isDefault'] == null ? undefined : json['isDefault'],
         'name': json['name'] == null ? undefined : json['name'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
+        'updatedAt': json['updatedAt'] == null ? undefined : json['updatedAt'],
     };
 }
 
@@ -116,6 +123,7 @@ export function SkillResponseToJSONTyped(value?: SkillResponse | null, ignoreDis
         'isDefault': value['isDefault'],
         'name': value['name'],
         'namespace': value['namespace'],
+        'updatedAt': value['updatedAt'],
     };
 }
 

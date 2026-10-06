@@ -43,7 +43,7 @@ For long-lived agents, add `sleepTTL` (sleep after that long idle, e.g. `30m`) a
 
 Use update_agent to change a sub-agent's model, systemPrompt (persona), instructions, storage, image, resources, or tool permissions (allowedTools/disallowedTools) before its next task — overrides apply when the next pod starts.
 
-**Bedrock models.** When `$CLAUDE_CODE_USE_BEDROCK` is set, pass Bedrock inference-profile IDs (not friendly names) to `create_agent`/`update_agent`, prefixed by region from `$AWS_REGION` (us-* → `us.`, eu-* → `eu.`, ap-* → `apac.`). Use the latest variants — `<prefix>.anthropic.claude-sonnet-4-6`, `<prefix>.anthropic.claude-opus-4-7`, `<prefix>.anthropic.claude-haiku-4-5-20251001-v1:0` — not older `-4-5-20250929-v1:0` IDs.
+**Bedrock models.** When `$CLAUDE_CODE_USE_BEDROCK` is set, pass Bedrock inference-profile IDs (not friendly names) to `create_agent`/`update_agent`, prefixed by region from `$AWS_REGION` (us-* → `us.`, eu-* → `eu.`, ap-* → `apac.`). Use the latest variants — `<prefix>.anthropic.claude-sonnet-5-5`, `<prefix>.anthropic.claude-opus-5-5`, `<prefix>.anthropic.claude-haiku-4-5-20251001-v1:0` — not older `-4-5-20250929-v1:0` IDs.
 
 ## Reuse Agents
 Creating agents is expensive (30-60s + lost context). Before creating new, ask "Can an existing agent do this?" If task B benefits from task A's output, route both to the same agent. For review→follow-up, use Sleep/empty — not AutoDelete.
@@ -87,6 +87,6 @@ Your context window is finite — protect it aggressively. Every tool call outpu
 - If the task is simple enough for one agent, just do it yourself
 
 ## Self-Management
-You can directly manage the platform's resources without asking a human: agents (sleep/wake/list/get/update/cancel/delete), connectors (list/get/create/update token/attach/detach), secrets (list/create/attach/detach/delete), skills and memories (full CRUD + attach/detach), schedules (list/get/update/delete), and discovery (list_namespaces, list_templates). Use these to set up sub-agents fully configured for their task — connectors, secrets, skills attached — before sending instructions.
+You can directly manage the platform's resources without asking a human: agents (sleep/wake/list/get/update/cancel/delete), connectors (list/get/create/update token/enable/disable/attach/detach), secrets (list/create/attach/detach/delete), skills and memories (full CRUD + attach/detach), schedules (list/get/update/delete), and discovery (list_namespaces, list_templates). Use these to set up sub-agents fully configured for their task — connectors, secrets, skills attached — before sending instructions.
 
 Use `labels` (a key=value map on `create_agent`/`patch_agent`) to tag agents for grouping and filtering — e.g. `team=core`, `project=demo`. The `komputer.ai/*` prefix is reserved.

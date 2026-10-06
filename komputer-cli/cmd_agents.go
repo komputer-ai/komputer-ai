@@ -49,6 +49,15 @@ func registerAgentCommands(root *cobra.Command) {
 		Short:   "List all agents",
 		Run: func(cmd *cobra.Command, args []string) {
 			jsonMode, _ := cmd.Flags().GetBool("json")
+			sortBy, _ := cmd.Flags().GetString("sort")
+			if !validAgentSorts[sortBy] {
+				msg := fmt.Sprintf("invalid --sort %q: expected \"created\" or \"last-active\"", sortBy)
+				if jsonMode {
+					dieJSON(msg, 400)
+				}
+				fmt.Println(errorStyle.Render(msg))
+				os.Exit(1)
+			}
 			ep := resolveEndpoint(cmd)
 			listURL := ep + "/api/v1/agents" + nsQuery(cmd)
 			if statusFilter, _ := cmd.Flags().GetString("status"); statusFilter != "" {
@@ -85,6 +94,7 @@ func registerAgentCommands(root *cobra.Command) {
 
 			var resp AgentListResponse
 			json.Unmarshal(data, &resp)
+			resp.Agents = sortAgentResponses(resp.Agents, sortBy)
 
 			if jsonMode {
 				printJSON(resp)
@@ -168,6 +178,7 @@ func registerAgentCommands(root *cobra.Command) {
 	}
 	listCmd.Flags().String("status", "", "Filter by status (e.g. queued, running, pending)")
 	listCmd.Flags().StringArray("label", nil, "Label filter key=value (repeatable, AND'd, e.g. --label team=core)")
+	listCmd.Flags().String("sort", "created", `Sort order: "created" (newest first, default) or "last-active" (most recently active first, never-active last)`)
 	root.AddCommand(listCmd)
 
 	// ── create ───────────────────────────────────────────────────────────

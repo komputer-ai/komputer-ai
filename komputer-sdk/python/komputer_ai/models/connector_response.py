@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,6 +33,7 @@ class ConnectorResponse(BaseModel):
     auth_secret_name: Optional[StrictStr] = Field(default=None, alias="authSecretName")
     auth_type: Optional[StrictStr] = Field(default=None, alias="authType")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
+    disabled: Optional[StrictBool] = Field(default=None, description="true = cannot be attached or used; UI/CLI present this as \"Active\" = !Disabled")
     display_name: Optional[StrictStr] = Field(default=None, alias="displayName")
     header_name: Optional[StrictStr] = Field(default=None, alias="headerName")
     name: Optional[StrictStr] = None
@@ -40,8 +41,9 @@ class ConnectorResponse(BaseModel):
     oauth_status: Optional[StrictStr] = Field(default=None, description="\"pending\", \"connected\", \"\"", alias="oauthStatus")
     service: Optional[StrictStr] = None
     type: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = Field(default=None, alias="updatedAt")
     url: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "displayName", "headerName", "name", "namespace", "oauthStatus", "service", "type", "url"]
+    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "authSecretKey", "authSecretName", "authType", "createdAt", "disabled", "displayName", "headerName", "name", "namespace", "oauthStatus", "service", "type", "updatedAt", "url"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -100,6 +102,7 @@ class ConnectorResponse(BaseModel):
             "authSecretName": obj.get("authSecretName"),
             "authType": obj.get("authType"),
             "createdAt": obj.get("createdAt"),
+            "disabled": obj.get("disabled"),
             "displayName": obj.get("displayName"),
             "headerName": obj.get("headerName"),
             "name": obj.get("name"),
@@ -107,6 +110,7 @@ class ConnectorResponse(BaseModel):
             "oauthStatus": obj.get("oauthStatus"),
             "service": obj.get("service"),
             "type": obj.get("type"),
+            "updatedAt": obj.get("updatedAt"),
             "url": obj.get("url")
         })
         return _obj

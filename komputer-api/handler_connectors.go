@@ -28,9 +28,15 @@ type CreateConnectorRequest struct {
 	Namespace         string  `json:"namespace"`
 }
 
-// UpdateConnectorRequest rotates the auth token of a token/header connector.
+// UpdateConnectorRequest rotates the auth token of a token/header connector and/or
+// toggles whether the connector is disabled. At least one of Token or Disabled must
+// be set.
 type UpdateConnectorRequest struct {
-	Token     string `json:"token" binding:"required"` // new auth token; replaces the value in the connector's secret
+	Token *string `json:"token,omitempty"` // new auth token; replaces the value in the connector's secret
+	// Disabled toggles whether the connector can be newly attached to agents and
+	// whether its tools are resolved for agent pods. true disables, false re-enables.
+	// Any caller may toggle this — there is no additional authorization check.
+	Disabled  *bool  `json:"disabled,omitempty"`
 	Namespace string `json:"namespace"`
 }
 
@@ -43,12 +49,14 @@ type ConnectorResponse struct {
 	Type           string   `json:"type"`
 	AuthType       string   `json:"authType,omitempty"`
 	HeaderName     string   `json:"headerName,omitempty"`
+	Disabled       bool     `json:"disabled,omitempty"`    // true = cannot be attached or used; UI/CLI present this as "Active" = !Disabled
 	OAuthStatus    string   `json:"oauthStatus,omitempty"` // "pending", "connected", ""
 	AuthSecretName string   `json:"authSecretName,omitempty"`
 	AuthSecretKey  string   `json:"authSecretKey,omitempty"`
 	AttachedAgents int      `json:"attachedAgents"`
 	AgentNames     []string `json:"agentNames,omitempty"`
 	CreatedAt      string   `json:"createdAt"`
+	UpdatedAt      string   `json:"updatedAt"`
 }
 
 type mcpTool struct {
@@ -158,14 +166,14 @@ func getConnector(k8s *K8sClient) gin.HandlerFunc {
 
 // updateConnector rotates the auth token of an existing connector.
 // @ID updateConnector
-// @Summary Update connector token
-// @Description Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.
+// @Summary Update connector token or disabled state
+// @Description Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed <name>-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.
 // @Tags connectors
 // @Accept json
 // @Produce json
 // @Param name path string true "Connector name"
 // @Param namespace query string false "Kubernetes namespace"
-// @Param request body UpdateConnectorRequest true "New token"
+// @Param request body UpdateConnectorRequest true "New token and/or disabled flag"
 // @Success 200 {object} ConnectorResponse "Connector updated"
 // @Failure 400 {object} map[string]string "Bad request"
 // @Failure 404 {object} map[string]string "Connector not found"
@@ -179,6 +187,10 @@ func updateConnector(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
+		if req.Token == nil && req.Disabled == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "at least one of token or disabled is required"})
+			return
+		}
 		ns := req.Namespace
 		if ns == "" {
 			ns = resolveNamespace(c, k8s)
@@ -189,14 +201,31 @@ func updateConnector(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "connector not found"})
 			return
 		}
-		if conn.Spec.AuthType == "oauth" {
+		if req.Token != nil && conn.Spec.AuthType == "oauth" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "OAuth connectors cannot take a static token; reconnect via the OAuth flow instead"})
 			return
 		}
 
+		// Disabled toggles independently of the token — an OAuth connector can still be
+		// disabled/re-enabled even though its token can't be set here.
+		if req.Disabled != nil {
+			updated, err := k8s.SetConnectorDisabled(ctx, conn.Namespace, conn.Name, *req.Disabled)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update connector: " + err.Error()})
+				return
+			}
+			conn = updated
+		}
+
+		if req.Token == nil {
+			c.JSON(http.StatusOK, connectorToResponse(conn, nil))
+			return
+		}
+		token := *req.Token
+
 		// Existing secret: overwrite only the referenced key so shared secrets keep their other keys.
 		if ref := conn.Spec.AuthSecretKeyRef; ref != nil {
-			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, ref.Name, ref.Key, req.Token); err != nil {
+			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, ref.Name, ref.Key, token); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update token: " + err.Error()})
 				return
 			}
@@ -207,12 +236,12 @@ func updateConnector(k8s *K8sClient) gin.HandlerFunc {
 		// No secret yet: create one the same way the create flow does, then point the CR at it.
 		secretName := conn.Name + "-credentials"
 		secretKey := "token"
-		if _, err := k8s.CreateManagedSecret(ctx, conn.Namespace, secretName, map[string]string{secretKey: req.Token}); err != nil {
+		if _, err := k8s.CreateManagedSecret(ctx, conn.Namespace, secretName, map[string]string{secretKey: token}); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create secret: " + err.Error()})
 				return
 			}
-			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, secretName, secretKey, req.Token); err != nil {
+			if err := k8s.UpdateSecretKey(ctx, conn.Namespace, secretName, secretKey, token); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update token: " + err.Error()})
 				return
 			}
@@ -462,9 +491,11 @@ func connectorToResponse(conn *komputerv1alpha1.KomputerConnector, agentNames []
 		Type:           conn.Spec.Type,
 		AuthType:       conn.Spec.AuthType,
 		HeaderName:     conn.Spec.HeaderName,
+		Disabled:       conn.Spec.Disabled,
 		AttachedAgents: len(agentNames),
 		AgentNames:     agentNames,
 		CreatedAt:      conn.CreationTimestamp.UTC().Format(time.RFC3339),
+		UpdatedAt:      lastSpecUpdate(conn).UTC().Format(time.RFC3339),
 	}
 	if conn.Spec.AuthSecretKeyRef != nil {
 		resp.AuthSecretName = conn.Spec.AuthSecretKeyRef.Name

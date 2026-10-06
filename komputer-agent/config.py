@@ -16,7 +16,7 @@ _lock = Lock()
 def _defaults_from_env() -> dict:
     """Build initial config from environment variables."""
     return {
-        "model": os.getenv("KOMPUTER_MODEL", "claude-sonnet-4-6"),
+        "model": os.getenv("KOMPUTER_MODEL", "claude-opus-5-5"),
         "lifecycle": os.getenv("KOMPUTER_LIFECYCLE", ""),
         "role": os.getenv("KOMPUTER_ROLE", "manager"),
         "instructions": os.getenv("KOMPUTER_INSTRUCTIONS", ""),

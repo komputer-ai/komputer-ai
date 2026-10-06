@@ -34,7 +34,8 @@ class MemoryResponse(BaseModel):
     description: Optional[StrictStr] = None
     name: Optional[StrictStr] = None
     namespace: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "content", "createdAt", "description", "name", "namespace"]
+    updated_at: Optional[StrictStr] = Field(default=None, alias="updatedAt")
+    __properties: ClassVar[List[str]] = ["agentNames", "attachedAgents", "content", "createdAt", "description", "name", "namespace", "updatedAt"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -93,7 +94,8 @@ class MemoryResponse(BaseModel):
             "createdAt": obj.get("createdAt"),
             "description": obj.get("description"),
             "name": obj.get("name"),
-            "namespace": obj.get("namespace")
+            "namespace": obj.get("namespace"),
+            "updatedAt": obj.get("updatedAt")
         })
         return _obj
 

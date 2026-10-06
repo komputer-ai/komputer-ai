@@ -110,7 +110,7 @@ A scheduled agent is a self-contained job, so two fields default differently tha
 
 Neither value comes from the CRD. `spec.agent` inlines the same shared config block the agent spec uses, so the CRD necessarily carries the *agent's* defaults — `role: manager`, and no `lifecycle` at all. The schedule's two defaults are applied by the API on top of that, and because the CLI, UI, SDK, and manager MCP tools all go through the API, every one of those clients gets the same behavior. The operator applies the `lifecycle` default a second time when it renders the agent, so a schedule written straight to the cluster with `kubectl` gets that one too.
 
-Every other field falls back to the agent CRD's own default (`model: claude-sonnet-4-6`, `templateRef: default`, `priority: 0`) or is simply unset.
+Every other field falls back to the agent CRD's own default (`model: claude-opus-5-5`, `templateRef: default`, `priority: 0`) or is simply unset.
 
 > **⚠ Raw `kubectl apply` gets `role: manager`, not `worker`.**
 >

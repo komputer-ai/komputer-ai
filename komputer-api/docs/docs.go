@@ -813,7 +813,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Replaces the auth token of a token/header connector. Writes the new value into the connector's existing secret, or creates a managed \u003cname\u003e-credentials secret if the connector has none. OAuth connectors are rejected; reconnect them via the OAuth flow instead.",
+                "description": "Replaces the auth token of a token/header connector and/or toggles whether it is disabled. At least one of token/disabled is required. A token writes the new value into the connector's existing secret, or creates a managed \u003cname\u003e-credentials secret if the connector has none; OAuth connectors reject a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled. A disabled connector cannot be newly attached to an agent and its tools are not resolved for agent pods; agents that already reference it keep the reference.",
                 "consumes": [
                     "application/json"
                 ],
@@ -823,7 +823,7 @@ const docTemplate = `{
                 "tags": [
                     "connectors"
                 ],
-                "summary": "Update connector token",
+                "summary": "Update connector token or disabled state",
                 "operationId": "updateConnector",
                 "parameters": [
                     {
@@ -840,7 +840,7 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "description": "New token",
+                        "description": "New token and/or disabled flag",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -3038,6 +3038,10 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "disabled": {
+                    "description": "true = cannot be attached or used; UI/CLI present this as \"Active\" = !Disabled",
+                    "type": "boolean"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -3058,6 +3062,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 },
                 "url": {
@@ -3401,6 +3408,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
@@ -3785,6 +3795,9 @@ const docTemplate = `{
                 },
                 "namespace": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -3914,10 +3927,11 @@ const docTemplate = `{
         },
         "main.UpdateConnectorRequest": {
             "type": "object",
-            "required": [
-                "token"
-            ],
             "properties": {
+                "disabled": {
+                    "description": "Disabled toggles whether the connector can be newly attached to agents and\nwhether its tools are resolved for agent pods. true disables, false re-enables.\nAny caller may toggle this — there is no additional authorization check.",
+                    "type": "boolean"
+                },
                 "namespace": {
                     "type": "string"
                 },
@@ -8165,7 +8179,7 @@ const docTemplate = `{
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "officeManager": {
@@ -8323,7 +8337,7 @@ const docTemplate = `{
                     }
                 },
                 "model": {
-                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-sonnet-4-6\"",
+                    "description": "Model is the Claude model to use.\n+kubebuilder:default=\"claude-opus-5-5\"",
                     "type": "string"
                 },
                 "podSpec": {

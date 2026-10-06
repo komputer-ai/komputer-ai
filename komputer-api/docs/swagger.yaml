@@ -214,6 +214,10 @@ definitions:
         type: string
       createdAt:
         type: string
+      disabled:
+        description: true = cannot be attached or used; UI/CLI present this as "Active"
+          = !Disabled
+        type: boolean
       displayName:
         type: string
       headerName:
@@ -228,6 +232,8 @@ definitions:
       service:
         type: string
       type:
+        type: string
+      updatedAt:
         type: string
       url:
         type: string
@@ -479,6 +485,8 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+      updatedAt:
         type: string
     type: object
   main.OfficeListResponse:
@@ -739,6 +747,8 @@ definitions:
         type: string
       namespace:
         type: string
+      updatedAt:
+        type: string
     type: object
   main.SquadListResponse:
     properties:
@@ -823,13 +833,17 @@ definitions:
     type: object
   main.UpdateConnectorRequest:
     properties:
+      disabled:
+        description: |-
+          Disabled toggles whether the connector can be newly attached to agents and
+          whether its tools are resolved for agent pods. true disables, false re-enables.
+          Any caller may toggle this — there is no additional authorization check.
+        type: boolean
       namespace:
         type: string
       token:
         description: new auth token; replaces the value in the connector's secret
         type: string
-    required:
-    - token
     type: object
   main.UpdateSecretRequest:
     properties:
@@ -6249,7 +6263,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       officeManager:
         description: |-
@@ -6441,7 +6455,7 @@ definitions:
       model:
         description: |-
           Model is the Claude model to use.
-          +kubebuilder:default="claude-sonnet-4-6"
+          +kubebuilder:default="claude-opus-5-5"
         type: string
       podSpec:
         allOf:
@@ -7107,10 +7121,13 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Replaces the auth token of a token/header connector. Writes the
-        new value into the connector's existing secret, or creates a managed <name>-credentials
-        secret if the connector has none. OAuth connectors are rejected; reconnect
-        them via the OAuth flow instead.
+      description: Replaces the auth token of a token/header connector and/or toggles
+        whether it is disabled. At least one of token/disabled is required. A token
+        writes the new value into the connector's existing secret, or creates a managed
+        <name>-credentials secret if the connector has none; OAuth connectors reject
+        a token (reconnect via the OAuth flow instead) but can still be disabled/re-enabled.
+        A disabled connector cannot be newly attached to an agent and its tools are
+        not resolved for agent pods; agents that already reference it keep the reference.
       operationId: updateConnector
       parameters:
       - description: Connector name
@@ -7122,7 +7139,7 @@ paths:
         in: query
         name: namespace
         type: string
-      - description: New token
+      - description: New token and/or disabled flag
         in: body
         name: request
         required: true
@@ -7153,7 +7170,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Update connector token
+      summary: Update connector token or disabled state
       tags:
       - connectors
   /connectors/{name}/tools:

@@ -20,6 +20,14 @@ import { mapValues } from '../runtime';
  */
 export interface UpdateConnectorRequest {
     /**
+     * Disabled toggles whether the connector can be newly attached to agents and
+     * whether its tools are resolved for agent pods. true disables, false re-enables.
+     * Any caller may toggle this — there is no additional authorization check.
+     * @type {boolean}
+     * @memberof UpdateConnectorRequest
+     */
+    disabled?: boolean;
+    /**
      * 
      * @type {string}
      * @memberof UpdateConnectorRequest
@@ -30,14 +38,13 @@ export interface UpdateConnectorRequest {
      * @type {string}
      * @memberof UpdateConnectorRequest
      */
-    token: string;
+    token?: string;
 }
 
 /**
  * Check if a given object implements the UpdateConnectorRequest interface.
  */
 export function instanceOfUpdateConnectorRequest(value: object): value is UpdateConnectorRequest {
-    if (!('token' in value) || value['token'] === undefined) return false;
     return true;
 }
 
@@ -51,8 +58,9 @@ export function UpdateConnectorRequestFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
         
+        'disabled': json['disabled'] == null ? undefined : json['disabled'],
         'namespace': json['namespace'] == null ? undefined : json['namespace'],
-        'token': json['token'],
+        'token': json['token'] == null ? undefined : json['token'],
     };
 }
 
@@ -67,6 +75,7 @@ export function UpdateConnectorRequestToJSONTyped(value?: UpdateConnectorRequest
 
     return {
         
+        'disabled': value['disabled'],
         'namespace': value['namespace'],
         'token': value['token'],
     };

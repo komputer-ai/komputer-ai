@@ -10,7 +10,7 @@ Method | HTTP request | Description
 [**ListConnectorTemplates**](ConnectorsAPI.md#ListConnectorTemplates) | **Get** /connector-templates | List connector templates
 [**ListConnectorTools**](ConnectorsAPI.md#ListConnectorTools) | **Get** /connectors/{name}/tools | List connector tools
 [**ListConnectors**](ConnectorsAPI.md#ListConnectors) | **Get** /connectors | List connectors
-[**UpdateConnector**](ConnectorsAPI.md#UpdateConnector) | **Patch** /connectors/{name} | Update connector token
+[**UpdateConnector**](ConnectorsAPI.md#UpdateConnector) | **Patch** /connectors/{name} | Update connector token or disabled state
 
 
 
@@ -427,7 +427,7 @@ No authorization required
 
 > ConnectorResponse UpdateConnector(ctx, name).Request(request).Namespace(namespace).Execute()
 
-Update connector token
+Update connector token or disabled state
 
 
 
@@ -445,7 +445,7 @@ import (
 
 func main() {
 	name := "name_example" // string | Connector name
-	request := *openapiclient.NewUpdateConnectorRequest("Token_example") // UpdateConnectorRequest | New token
+	request := *openapiclient.NewUpdateConnectorRequest() // UpdateConnectorRequest | New token and/or disabled flag
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 
 	configuration := openapiclient.NewConfiguration()
@@ -476,7 +476,7 @@ Other parameters are passed through a pointer to a apiUpdateConnectorRequest str
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md) | New token | 
+ **request** | [**UpdateConnectorRequest**](UpdateConnectorRequest.md) | New token and/or disabled flag | 
  **namespace** | **string** | Kubernetes namespace | 
 
 ### Return type

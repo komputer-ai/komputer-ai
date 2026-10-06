@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **auth_secret_name** | **str** |  | [optional] 
 **auth_type** | **str** |  | [optional] 
 **created_at** | **str** |  | [optional] 
+**disabled** | **bool** | true &#x3D; cannot be attached or used; UI/CLI present this as \&quot;Active\&quot; &#x3D; !Disabled | [optional] 
 **display_name** | **str** |  | [optional] 
 **header_name** | **str** |  | [optional] 
 **name** | **str** |  | [optional] 
@@ -18,6 +19,7 @@ Name | Type | Description | Notes
 **oauth_status** | **str** | \&quot;pending\&quot;, \&quot;connected\&quot;, \&quot;\&quot; | [optional] 
 **service** | **str** |  | [optional] 
 **type** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 **url** | **str** |  | [optional] 
 
 ## Example
