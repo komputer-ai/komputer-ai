@@ -76,7 +76,7 @@ Tool names are the API's operation IDs in snake_case. Arguments are the endpoint
 
 | Resource | Tools |
 |---|---|
-| Agents | `list_agents`, `create_agent` (also sends a task to an existing agent), `get_agent`, `patch_agent`, `delete_agent`, `cancel_agent_task`, `compact_agent_task`, `get_agent_events`, `get_agent_cost_breakdown` |
+| Agents | `list_agents`, `create_agent` (also sends a task to an existing agent), `get_agent`, `patch_agent`, `delete_agent`, `cancel_agent_task`, `compact_agent`, `get_agent_events`, `get_agent_cost_breakdown` |
 | Squads | `list_squads`, `create_squad`, `get_squad`, `patch_squad`, `delete_squad`, `add_squad_member`, `remove_squad_member`, `break_up_squad` |
 | Offices | `list_offices`, `get_office`, `delete_office`, `get_office_events` |
 | Schedules | `list_schedules`, `create_schedule`, `get_schedule`, `patch_schedule`, `delete_schedule`, `trigger_schedule` |
@@ -88,7 +88,7 @@ Tool names are the API's operation IDs in snake_case. Arguments are the endpoint
 
 A typical run: `create_agent`, then poll `get_agent_events` with `after` set to the last event's timestamp until a `task_completed` event arrives — pass a small `limit` (e.g. `20`) while polling, since text events can be large. The live WebSocket stream, file downloads and the OAuth authorization flow are not available over MCP.
 
-**Note:** if you used the earlier MCP server, `compact_agent` is now `compact_agent_task`; other tool names are unchanged, but outputs now mirror the REST API responses (e.g. `get_skill` returns `content`, `list_agents` returns full agent objects), and on list tools an omitted `namespace` now means all namespaces, as in REST.
+**Note:** if you used the earlier MCP server, tool names are unchanged; outputs now mirror the REST API responses (e.g. `get_agent`/`list_agents` report `status` instead of `phase`, `get_skill` returns `content` instead of `body`), and on list tools an omitted `namespace` now means all namespaces, as in REST.
 
 ## Quick smoke test
 
