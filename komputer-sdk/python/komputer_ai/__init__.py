@@ -37,10 +37,12 @@ __all__ = [
     "ApiAttributeError",
     "ApiException",
     "AddSquadMemberRequest",
+    "AgentEvent",
     "AgentListResponse",
     "AgentResponse",
     "CompactAgentRequest",
     "ConnectorResponse",
+    "CostBreakdownResponse",
     "CreateAgentRequest",
     "CreateConnectorRequest",
     "CreateMemoryRequest",
@@ -68,6 +70,7 @@ __all__ = [
     "SquadListResponse",
     "SquadMemberResponse",
     "SquadResponse",
+    "TaskBreakdown",
     "TriggerScheduleResponse",
     "UpdateConnectorRequest",
     "UpdateSecretRequest",
@@ -248,10 +251,12 @@ from komputer_ai.exceptions import ApiException as ApiException
 
 # import models into sdk package
 from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest as AddSquadMemberRequest
+from komputer_ai.models.agent_event import AgentEvent as AgentEvent
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse as AgentResponse
 from komputer_ai.models.compact_agent_request import CompactAgentRequest as CompactAgentRequest
 from komputer_ai.models.connector_response import ConnectorResponse as ConnectorResponse
+from komputer_ai.models.cost_breakdown_response import CostBreakdownResponse as CostBreakdownResponse
 from komputer_ai.models.create_agent_request import CreateAgentRequest as CreateAgentRequest
 from komputer_ai.models.create_connector_request import CreateConnectorRequest as CreateConnectorRequest
 from komputer_ai.models.create_memory_request import CreateMemoryRequest as CreateMemoryRequest
@@ -279,6 +284,7 @@ from komputer_ai.models.skill_response import SkillResponse as SkillResponse
 from komputer_ai.models.squad_list_response import SquadListResponse as SquadListResponse
 from komputer_ai.models.squad_member_response import SquadMemberResponse as SquadMemberResponse
 from komputer_ai.models.squad_response import SquadResponse as SquadResponse
+from komputer_ai.models.task_breakdown import TaskBreakdown as TaskBreakdown
 from komputer_ai.models.trigger_schedule_response import TriggerScheduleResponse as TriggerScheduleResponse
 from komputer_ai.models.update_connector_request import UpdateConnectorRequest as UpdateConnectorRequest
 from komputer_ai.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest

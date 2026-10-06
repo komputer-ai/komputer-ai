@@ -250,7 +250,14 @@ var connectorTemplates = []ConnectorTemplateResponse{
 	},
 }
 
-// listConnectorTemplates handles GET /api/v1/connector-templates.
+// listConnectorTemplates returns the built-in connector templates.
+// @ID listConnectorTemplates
+// @Summary List connector templates
+// @Description Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.
+// @Tags connectors
+// @Produce json
+// @Success 200 {object} map[string]interface{} "List of connector templates"
+// @Router /connector-templates [get]
 func listConnectorTemplates() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"templates": connectorTemplates})

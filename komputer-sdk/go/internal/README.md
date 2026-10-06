@@ -78,12 +78,14 @@ Class | Method | HTTP request | Description
 *AgentsAPI* | [**CreateAgent**](docs/AgentsAPI.md#createagent) | **Post** /agents | Create agent or send task
 *AgentsAPI* | [**DeleteAgent**](docs/AgentsAPI.md#deleteagent) | **Delete** /agents/{name} | Delete agent
 *AgentsAPI* | [**GetAgent**](docs/AgentsAPI.md#getagent) | **Get** /agents/{name} | Get agent details
+*AgentsAPI* | [**GetAgentCostBreakdown**](docs/AgentsAPI.md#getagentcostbreakdown) | **Get** /agents/{name}/cost | Get agent cost breakdown
 *AgentsAPI* | [**GetAgentEvents**](docs/AgentsAPI.md#getagentevents) | **Get** /agents/{name}/events | Get agent events
 *AgentsAPI* | [**ListAgents**](docs/AgentsAPI.md#listagents) | **Get** /agents | List agents
 *AgentsAPI* | [**PatchAgent**](docs/AgentsAPI.md#patchagent) | **Patch** /agents/{name} | Patch agent
 *ConnectorsAPI* | [**CreateConnector**](docs/ConnectorsAPI.md#createconnector) | **Post** /connectors | Create connector
 *ConnectorsAPI* | [**DeleteConnector**](docs/ConnectorsAPI.md#deleteconnector) | **Delete** /connectors/{name} | Delete connector
 *ConnectorsAPI* | [**GetConnector**](docs/ConnectorsAPI.md#getconnector) | **Get** /connectors/{name} | Get connector details
+*ConnectorsAPI* | [**ListConnectorTemplates**](docs/ConnectorsAPI.md#listconnectortemplates) | **Get** /connector-templates | List connector templates
 *ConnectorsAPI* | [**ListConnectorTools**](docs/ConnectorsAPI.md#listconnectortools) | **Get** /connectors/{name}/tools | List connector tools
 *ConnectorsAPI* | [**ListConnectors**](docs/ConnectorsAPI.md#listconnectors) | **Get** /connectors | List connectors
 *ConnectorsAPI* | [**UpdateConnector**](docs/ConnectorsAPI.md#updateconnector) | **Patch** /connectors/{name} | Update connector token or disabled state
@@ -126,10 +128,12 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [AddSquadMemberRequest](docs/AddSquadMemberRequest.md)
+ - [AgentEvent](docs/AgentEvent.md)
  - [AgentListResponse](docs/AgentListResponse.md)
  - [AgentResponse](docs/AgentResponse.md)
  - [CompactAgentRequest](docs/CompactAgentRequest.md)
  - [ConnectorResponse](docs/ConnectorResponse.md)
+ - [CostBreakdownResponse](docs/CostBreakdownResponse.md)
  - [CreateAgentRequest](docs/CreateAgentRequest.md)
  - [CreateConnectorRequest](docs/CreateConnectorRequest.md)
  - [CreateMemoryRequest](docs/CreateMemoryRequest.md)
@@ -157,6 +161,7 @@ Class | Method | HTTP request | Description
  - [SquadListResponse](docs/SquadListResponse.md)
  - [SquadMemberResponse](docs/SquadMemberResponse.md)
  - [SquadResponse](docs/SquadResponse.md)
+ - [TaskBreakdown](docs/TaskBreakdown.md)
  - [TriggerScheduleResponse](docs/TriggerScheduleResponse.md)
  - [UpdateConnectorRequest](docs/UpdateConnectorRequest.md)
  - [UpdateSecretRequest](docs/UpdateSecretRequest.md)

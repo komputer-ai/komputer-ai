@@ -652,6 +652,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Produce json
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
+// @Param recreatePod query bool false "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member"
 // @Success 200 {object} map[string]string "Agent deleted"
 // @Failure 404 {object} map[string]string "Agent not found"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -870,6 +871,16 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// shouldBackfillEvents reports whether an empty Redis result for
+// getAgentEvents should trigger the JSONL session backfill. Only uncursored
+// requests qualify: a cursored poll (after) or seek (before/around) that
+// comes back empty means "no events there", not "Redis was wiped" — and
+// backfilling anyway would re-RPush the whole session (no dedupe) and
+// return stale events, ignoring the cursor the caller asked for.
+func shouldBackfillEvents(before, after, around string) bool {
+	return before == "" && after == "" && around == ""
+}
+
 // getAgentEvents returns the event history for an agent from Redis.
 // @ID getAgentEvents
 // @Summary Get agent events
@@ -879,6 +890,9 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
 // @Param limit query int false "Max events to return (1-200)" default(50)
+// @Param before query string false "RFC-3339 cursor: return events strictly before this timestamp (pagination)"
+// @Param after query string false "RFC-3339 cursor: return events strictly after this timestamp (polling for new events)"
+// @Param around query string false "RFC-3339 timestamp to center results on"
 // @Success 200 {object} map[string]interface{} "Agent events"
 // @Failure 400 {object} map[string]string "Invalid limit parameter"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -917,7 +931,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// Hybrid: if Redis is empty (wiped) and agent has a session, backfill from JSONL.
-		if len(events) == 0 && before == "" {
+		if len(events) == 0 && shouldBackfillEvents(before, after, around) {
 			ns := resolveNamespace(c, k8s)
 			agent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
 			if getErr == nil && agent.Status.PodName != "" && agent.Status.SessionID != "" {
@@ -954,6 +968,8 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 // @Tags agents
 // @Produce json
 // @Param namespace query string false "Kubernetes namespace"
+// @Param status query string false "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
+// @Param label query []string false "Label filter key=value; repeat for multiple (AND)" collectionFormat(multi)
 // @Success 200 {object} AgentListResponse "List of agents"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents [get]

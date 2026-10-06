@@ -10,6 +10,7 @@ Method | HTTP request | Description
 [**CreateAgent**](AgentsAPI.md#CreateAgent) | **Post** /agents | Create agent or send task
 [**DeleteAgent**](AgentsAPI.md#DeleteAgent) | **Delete** /agents/{name} | Delete agent
 [**GetAgent**](AgentsAPI.md#GetAgent) | **Get** /agents/{name} | Get agent details
+[**GetAgentCostBreakdown**](AgentsAPI.md#GetAgentCostBreakdown) | **Get** /agents/{name}/cost | Get agent cost breakdown
 [**GetAgentEvents**](AgentsAPI.md#GetAgentEvents) | **Get** /agents/{name}/events | Get agent events
 [**ListAgents**](AgentsAPI.md#ListAgents) | **Get** /agents | List agents
 [**PatchAgent**](AgentsAPI.md#PatchAgent) | **Patch** /agents/{name} | Patch agent
@@ -300,7 +301,7 @@ No authorization required
 
 ## DeleteAgent
 
-> map[string]string DeleteAgent(ctx, name).Namespace(namespace).Execute()
+> map[string]string DeleteAgent(ctx, name).Namespace(namespace).RecreatePod(recreatePod).Execute()
 
 Delete agent
 
@@ -321,10 +322,11 @@ import (
 func main() {
 	name := "name_example" // string | Agent name
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+	recreatePod := true // bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.DeleteAgent(context.Background(), name).Namespace(namespace).Execute()
+	resp, r, err := apiClient.AgentsAPI.DeleteAgent(context.Background(), name).Namespace(namespace).RecreatePod(recreatePod).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.DeleteAgent``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -351,6 +353,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **namespace** | **string** | Kubernetes namespace | 
+ **recreatePod** | **bool** | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | 
 
 ### Return type
 
@@ -442,9 +445,81 @@ No authorization required
 [[Back to README]](../README.md)
 
 
+## GetAgentCostBreakdown
+
+> CostBreakdownResponse GetAgentCostBreakdown(ctx, name).Refresh(refresh).Execute()
+
+Get agent cost breakdown
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Agent name
+	refresh := true // bool | Bypass the 5-minute cache (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.AgentsAPI.GetAgentCostBreakdown(context.Background(), name).Refresh(refresh).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.GetAgentCostBreakdown``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetAgentCostBreakdown`: CostBreakdownResponse
+	fmt.Fprintf(os.Stdout, "Response from `AgentsAPI.GetAgentCostBreakdown`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Agent name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetAgentCostBreakdownRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **refresh** | **bool** | Bypass the 5-minute cache | 
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
 ## GetAgentEvents
 
-> map[string]interface{} GetAgentEvents(ctx, name).Namespace(namespace).Limit(limit).Execute()
+> map[string]interface{} GetAgentEvents(ctx, name).Namespace(namespace).Limit(limit).Before(before).After(after).Around(around).Execute()
 
 Get agent events
 
@@ -466,10 +541,13 @@ func main() {
 	name := "name_example" // string | Agent name
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 	limit := int32(56) // int32 | Max events to return (1-200) (optional) (default to 50)
+	before := "before_example" // string | RFC-3339 cursor: return events strictly before this timestamp (pagination) (optional)
+	after := "after_example" // string | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) (optional)
+	around := "around_example" // string | RFC-3339 timestamp to center results on (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.GetAgentEvents(context.Background(), name).Namespace(namespace).Limit(limit).Execute()
+	resp, r, err := apiClient.AgentsAPI.GetAgentEvents(context.Background(), name).Namespace(namespace).Limit(limit).Before(before).After(after).Around(around).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.GetAgentEvents``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -497,6 +575,9 @@ Name | Type | Description  | Notes
 
  **namespace** | **string** | Kubernetes namespace | 
  **limit** | **int32** | Max events to return (1-200) | [default to 50]
+ **before** | **string** | RFC-3339 cursor: return events strictly before this timestamp (pagination) | 
+ **after** | **string** | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) | 
+ **around** | **string** | RFC-3339 timestamp to center results on | 
 
 ### Return type
 
@@ -518,7 +599,7 @@ No authorization required
 
 ## ListAgents
 
-> AgentListResponse ListAgents(ctx).Namespace(namespace).Execute()
+> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).Label(label).Execute()
 
 List agents
 
@@ -538,10 +619,12 @@ import (
 
 func main() {
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+	status := "status_example" // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+	label := []string{"Inner_example"} // []string | Label filter key=value; repeat for multiple (AND) (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Execute()
+	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).Label(label).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.ListAgents``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -563,6 +646,8 @@ Other parameters are passed through a pointer to a apiListAgentsRequest struct v
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **string** | Kubernetes namespace | 
+ **status** | **string** | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | 
+ **label** | **[]string** | Label filter key&#x3D;value; repeat for multiple (AND) | 
 
 ### Return type
 

@@ -84,6 +84,7 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 - **Scheduling** — cron-based recurring tasks with timezone support and auto-cleanup
 - **Cost tracking and analysis** — real-time cost per task, context window monitoring, per-agent cost breakdown with task-level drill-down
 - **SDKs for Python, Go, and TypeScript** — create agents, send tasks, and stream results with a few lines of code
+- **Built-in MCP server** — fully control komputer from Claude Code, Claude Desktop, or any MCP-aware agent; every API operation is exposed as a tool at `<api-url>/mcp`
 - **CLI, UI, and API** — manage everything from the terminal, browser, or programmatically
 
 ---
@@ -94,7 +95,7 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 
 1. [Concepts](docs/concepts/) — Agents, templates, config, secrets, namespaces — how the system fits together
 2. [Installation](#installation) — Deploy to any Kubernetes cluster in minutes
-3. [Integration Guide](docs/integration/) — How to connect external systems via HTTP API and WebSocket events
+3. [Integration Guide](docs/integration/) — How to connect external systems via HTTP API, WebSocket events, and the [MCP server](docs/integration/mcp-server.md)
 4. [Custom Agent Images](docs/integration/custom-agent-image.md) — Build custom agent images with your own packages and tools
 5. [Monitoring & Metrics](docs/observability/monitoring/) — Prometheus endpoints, ServiceMonitor setup, agent remote-write, sample Grafana dashboard
 6. [Examples](examples/) — 10 end-to-end examples: hello world, secrets, managers, schedules, CI/CD, Slack, and more

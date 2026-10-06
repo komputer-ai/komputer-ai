@@ -248,6 +248,10 @@ func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]in
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }
 
+func (c *Client) GetAgentCostBreakdown(ctx context.Context, name string) (*komputer.CostBreakdownResponse, *http.Response, error) {
+	return c.api.AgentsAPI.GetAgentCostBreakdown(ctx, name).Execute()
+}
+
 type CompactAgentTaskOpts struct {
 	Instructions *string
 }
@@ -621,6 +625,10 @@ func (c *Client) ListConnectors(ctx context.Context) (map[string]interface{}, *h
 	return c.api.ConnectorsAPI.ListConnectors(ctx).Execute()
 }
 
+func (c *Client) ListConnectorTemplates(ctx context.Context) (map[string]interface{}, *http.Response, error) {
+	return c.api.ConnectorsAPI.ListConnectorTemplates(ctx).Execute()
+}
+
 type CreateConnectorOpts struct {
 	AuthSecretKey     *string
 	AuthSecretName    *string
@@ -727,4 +735,8 @@ func (c *Client) GetOfficeEvents(ctx context.Context, name string) (map[string]i
 
 func (c *Client) ListTemplates(ctx context.Context) (map[string]interface{}, *http.Response, error) {
 	return c.api.TemplatesAPI.ListTemplates(ctx).Execute()
+}
+
+func (c *Client) ListNamespaces(ctx context.Context) (map[string]interface{}, *http.Response, error) {
+	return c.api.TemplatesAPI.NamespacesGet(ctx).Execute()
 }

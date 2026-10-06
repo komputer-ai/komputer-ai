@@ -10,6 +10,7 @@ Method | HTTP request | Description
 [**create_agent**](AgentsApi.md#create_agent) | **POST** /agents | Create agent or send task
 [**delete_agent**](AgentsApi.md#delete_agent) | **DELETE** /agents/{name} | Delete agent
 [**get_agent**](AgentsApi.md#get_agent) | **GET** /agents/{name} | Get agent details
+[**get_agent_cost_breakdown**](AgentsApi.md#get_agent_cost_breakdown) | **GET** /agents/{name}/cost | Get agent cost breakdown
 [**get_agent_events**](AgentsApi.md#get_agent_events) | **GET** /agents/{name}/events | Get agent events
 [**list_agents**](AgentsApi.md#list_agents) | **GET** /agents | List agents
 [**patch_agent**](AgentsApi.md#patch_agent) | **PATCH** /agents/{name} | Patch agent
@@ -298,7 +299,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_agent**
-> Dict[str, str] delete_agent(name, namespace=namespace)
+> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
 
 Delete agent
 
@@ -325,10 +326,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     api_instance = komputer_ai.AgentsApi(api_client)
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+    recreate_pod = True # bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
 
     try:
         # Delete agent
-        api_response = api_instance.delete_agent(name, namespace=namespace)
+        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
         print("The response of AgentsApi->delete_agent:\n")
         pprint(api_response)
     except Exception as e:
@@ -344,6 +346,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
+ **recreate_pod** | **bool**| If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [optional] 
 
 ### Return type
 
@@ -440,8 +443,79 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **get_agent_cost_breakdown**
+> CostBreakdownResponse get_agent_cost_breakdown(name, refresh=refresh)
+
+Get agent cost breakdown
+
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.cost_breakdown_response import CostBreakdownResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.AgentsApi(api_client)
+    name = 'name_example' # str | Agent name
+    refresh = True # bool | Bypass the 5-minute cache (optional)
+
+    try:
+        # Get agent cost breakdown
+        api_response = api_instance.get_agent_cost_breakdown(name, refresh=refresh)
+        print("The response of AgentsApi->get_agent_cost_breakdown:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling AgentsApi->get_agent_cost_breakdown: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Agent name | 
+ **refresh** | **bool**| Bypass the 5-minute cache | [optional] 
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Cost breakdown |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **get_agent_events**
-> Dict[str, object] get_agent_events(name, namespace=namespace, limit=limit)
+> Dict[str, object] get_agent_events(name, namespace=namespace, limit=limit, before=before, after=after, around=around)
 
 Get agent events
 
@@ -469,10 +543,13 @@ with komputer_ai.ApiClient(configuration) as api_client:
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     limit = 50 # int | Max events to return (1-200) (optional) (default to 50)
+    before = 'before_example' # str | RFC-3339 cursor: return events strictly before this timestamp (pagination) (optional)
+    after = 'after_example' # str | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) (optional)
+    around = 'around_example' # str | RFC-3339 timestamp to center results on (optional)
 
     try:
         # Get agent events
-        api_response = api_instance.get_agent_events(name, namespace=namespace, limit=limit)
+        api_response = api_instance.get_agent_events(name, namespace=namespace, limit=limit, before=before, after=after, around=around)
         print("The response of AgentsApi->get_agent_events:\n")
         pprint(api_response)
     except Exception as e:
@@ -489,6 +566,9 @@ Name | Type | Description  | Notes
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **limit** | **int**| Max events to return (1-200) | [optional] [default to 50]
+ **before** | **str**| RFC-3339 cursor: return events strictly before this timestamp (pagination) | [optional] 
+ **after** | **str**| RFC-3339 cursor: return events strictly after this timestamp (polling for new events) | [optional] 
+ **around** | **str**| RFC-3339 timestamp to center results on | [optional] 
 
 ### Return type
 
@@ -514,7 +594,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace)
+> AgentListResponse list_agents(namespace=namespace, status=status, label=label)
 
 List agents
 
@@ -541,10 +621,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = komputer_ai.AgentsApi(api_client)
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+    status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -559,6 +641,8 @@ with komputer_ai.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **str**| Kubernetes namespace | [optional] 
+ **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
+ **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
 
 ### Return type
 

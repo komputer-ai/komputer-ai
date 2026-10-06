@@ -1,44 +1,56 @@
 ---
 title: MCP Server
-description: Drive komputer-ai from other Claude agents via the built-in MCP server.
+description: Fully control komputer-ai from Claude Code, Claude Desktop, or any MCP-aware agent via the built-in MCP server.
 ---
 
-`komputer-api` exposes its capabilities over the [Model Context Protocol](https://modelcontextprotocol.io/) so external Claude agents (Claude Code, custom Claude SDK clients, anything MCP-aware) can list, create, and trigger komputer-ai resources as tools.
+`komputer-api` has a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server. **Every REST API operation is available as an MCP tool**: create agents and send them tasks, read their events, cancel or delete them, and manage squads, schedules, memories, skills, secrets and connectors. External agents (Claude Code, Claude Desktop, custom Claude SDK agents, another komputer-ai cluster) can drive komputer the same way your services do over REST.
+
+The tools are generated from the API's OpenAPI spec, and each tool call runs the same handler as the REST endpoint. Validation, defaults and error messages are therefore identical, and new API endpoints show up as tools automatically.
 
 ## Endpoint
 
 All MCP traffic goes to a single path on the API server:
 
 ```
-POST <komputer-api-base-url>/mcp
+<komputer-api-base-url>/mcp
 ```
 
-**You must configure your client with this exact path** — it's not the API root, it's `/mcp`. For example, if your API is reachable at `https://komputer.example.com`, the MCP endpoint is `https://komputer.example.com/mcp`.
+**You must configure your client with this exact path.** It's `/mcp`, not the API root. For example, if your API is reachable at `https://komputer.example.com`, the MCP endpoint is `https://komputer.example.com/mcp`. Locally, run `kubectl port-forward svc/komputer-api 8080:8080` and use `http://localhost:8080/mcp`.
 
-The server uses the standard MCP streamable HTTP transport. No special headers required beyond the MCP protocol handshake.
+The server uses the standard MCP streamable HTTP transport.
 
 ## Authentication
 
-There is **no auth** on the `/mcp` endpoint today — it matches the rest of the API's posture. Anyone who can reach the endpoint can drive your cluster's komputer-ai resources. Lock down access at the network or ingress layer (e.g. behind a VPN, internal-only ingress, network policy).
+> **Warning:** there is **no auth** on `/mcp`, matching the rest of the API. The tools have **full write access**: anyone who can reach the endpoint can create and delete agents, create, overwrite and delete secrets, and spend your model budget. Keep komputer-api off the public internet and restrict access at the network or ingress layer (VPN, internal-only ingress, NetworkPolicy).
 
-## Configuring a client
+## Connecting a client
+
+The UI's **Integrations** page (System → Integrations) shows your endpoint URL and ready-to-copy commands for each client.
 
 ### Claude Code
 
-Add a custom MCP server in `~/.claude/settings.json` (or your project's `.claude/settings.json`):
+```bash
+claude mcp add --transport http komputer https://komputer.example.com/mcp
+```
+
+Add `--scope project` to share it with your team through `.mcp.json`, or `--scope user` to use it across all your projects. Run `claude mcp list` to confirm the connection; the tools appear as `mcp__komputer__<tool>`.
+
+### Claude Desktop
+
+Claude Desktop connects to local MCP servers through its config file. Use the `mcp-remote` bridge so the connection runs from your machine (this works with internal or port-forwarded URLs). Open **Settings → Developer → Edit Config** and add:
 
 ```json
 {
   "mcpServers": {
-    "komputer-ai": {
-      "type": "http",
-      "url": "https://komputer.example.com/mcp"
+    "komputer": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://komputer.example.com/mcp", "--allow-http"]
     }
   }
 }
 ```
 
-Restart Claude Code; the tools below appear under the `komputer-ai` server.
+Restart Claude Desktop. `--allow-http` is only needed for plain `http://` URLs such as `http://localhost:8080/mcp`.
 
 ### Another komputer-ai cluster
 
@@ -54,7 +66,7 @@ spec:
   url: https://komputer.example.com/mcp
 ```
 
-Then attach `remote-komputer` to any agent that should be able to drive the remote cluster.
+Then attach `remote-komputer` to any agent that should be able to drive the remote cluster. This gives that agent full write access to the remote cluster — it can create and delete agents and manage secrets there — so restrict it with the agent's `disallowedTools` (e.g. `mcp__remote-komputer__delete_*`, `mcp__remote-komputer__create_secret`, `mcp__remote-komputer__update_secret`, `mcp__remote-komputer__delete_secret`) unless it genuinely needs full control.
 
 ### Generic MCP client
 
@@ -62,26 +74,23 @@ Point any streamable-HTTP MCP client at `<api-url>/mcp`. The server reports `ser
 
 ## Tools
 
-The current tool set is focused on the most useful remote-control surface. All tools accept an optional `namespace` argument; when omitted, the API's default namespace is used.
+Tool names are the API's operation IDs in snake_case. Arguments are the endpoint's path and query parameters (for example `name`, `namespace`, `limit`), plus a `body` object for endpoints that take a JSON request body. `create_*` tools take `namespace` inside `body`; read, list and delete tools take it as a top-level argument. A non-2xx response comes back as a tool error that contains the HTTP status and the API's error message.
 
-| Tool | Purpose |
-|------|---------|
-| `list_agents` | List agents in a namespace (or all namespaces) |
-| `get_agent` | Full spec + status + costs for one agent |
-| `compact_agent` | Trigger manual conversation compaction on an agent's active task |
-| `list_schedules` | List schedules in a namespace |
-| `get_schedule` | Full schedule including current `instructions` |
-| `trigger_schedule` | Fire a schedule immediately, outside its cron cadence |
-| `list_memories` | List `KomputerMemory` resources |
-| `get_memory` | Get a memory's content and description |
-| `list_skills` | List `KomputerSkill` resources |
-| `get_skill` | Get a skill's full body |
-| `list_connectors` | List configured MCP connectors |
-| `list_secrets` | List secret names (values are never returned) |
-| `list_namespaces` | List Kubernetes namespaces visible to the API |
-| `list_templates` | List `KomputerAgentTemplate` / `KomputerAgentClusterTemplate` resources |
+| Resource | Tools |
+|---|---|
+| Agents | `list_agents`, `create_agent` (also sends a task to an existing agent), `get_agent`, `patch_agent`, `delete_agent`, `cancel_agent_task`, `compact_agent`, `get_agent_events`, `get_agent_cost_breakdown` |
+| Squads | `list_squads`, `create_squad`, `get_squad`, `patch_squad`, `delete_squad`, `add_squad_member`, `remove_squad_member`, `break_up_squad` |
+| Offices | `list_offices`, `get_office`, `delete_office`, `get_office_events` |
+| Schedules | `list_schedules`, `create_schedule`, `get_schedule`, `patch_schedule`, `delete_schedule`, `trigger_schedule` |
+| Memories | `list_memories`, `create_memory`, `get_memory`, `patch_memory`, `delete_memory` |
+| Skills | `list_skills`, `create_skill`, `get_skill`, `patch_skill`, `delete_skill` |
+| Connectors | `list_connectors`, `create_connector`, `get_connector`, `update_connector`, `delete_connector`, `list_connector_tools`, `list_connector_templates` |
+| Secrets | `list_secrets`, `create_secret`, `update_secret`, `delete_secret` (values are never returned) |
+| Infra | `list_namespaces`, `list_templates` |
 
-More write-side tools (create agent, attach memory, etc.) are likely to be added — open an issue if there's a specific one you need.
+A typical run: `create_agent`, then poll `get_agent_events` with `after` set to the last event's timestamp until a `task_completed` event arrives — pass a small `limit` (e.g. `20`) while polling, since text events can be large. The live WebSocket stream, file downloads and the OAuth authorization flow are not available over MCP.
+
+**Note:** if you used the earlier MCP server, tool names are unchanged; outputs now mirror the REST API responses (e.g. `get_agent`/`list_agents` report `status` instead of `phase`, `get_skill` returns `content` instead of `body`), and on list tools an omitted `namespace` now means all namespaces, as in REST.
 
 ## Quick smoke test
 

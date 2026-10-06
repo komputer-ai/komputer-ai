@@ -34,6 +34,7 @@ func TestMethodsExist(t *testing.T) {
 		c.PatchAgent,
 		c.CancelAgentTask,
 		c.GetAgentEvents,
+		c.GetAgentCostBreakdown,
 		c.WatchAgent,
 		// Memories
 		c.CreateMemory,
@@ -65,11 +66,13 @@ func TestMethodsExist(t *testing.T) {
 		c.UpdateConnector,
 		c.DeleteConnector,
 		c.ListConnectorTools,
+		c.ListConnectorTemplates,
 		// Offices
 		c.ListOffices,
 		c.GetOffice,
 		c.DeleteOffice,
 		c.GetOfficeEvents,
+		c.ListNamespaces,
 	}
 
 	for i, m := range methods {

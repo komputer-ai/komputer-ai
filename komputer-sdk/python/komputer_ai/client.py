@@ -82,6 +82,9 @@ class KomputerClient:
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
 
+    def get_agent_cost_breakdown(self, name: str):
+        return self.agents.get_agent_cost_breakdown(name)
+
     def compact_agent_task(self, name: str, *, instructions: Optional[str] = None):
         return self.agents.compact_agent_task(name, request=CompactAgentRequest(instructions=instructions))
 
@@ -222,6 +225,9 @@ class KomputerClient:
     def list_connector_tools(self, name: str):
         return self.connectors.list_connector_tools(name)
 
+    def list_connector_templates(self):
+        return self.connectors.list_connector_templates()
+
     # --- Offices ---
 
     def list_offices(self):
@@ -240,6 +246,9 @@ class KomputerClient:
 
     def list_templates(self):
         return self.templates.list_templates()
+
+    def list_namespaces(self):
+        return self.templates.namespaces_get()
 
 
     # --- WebSocket ---

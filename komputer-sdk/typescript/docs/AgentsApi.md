@@ -10,6 +10,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**createAgent**](AgentsApi.md#createagentoperation) | **POST** /agents | Create agent or send task |
 | [**deleteAgent**](AgentsApi.md#deleteagent) | **DELETE** /agents/{name} | Delete agent |
 | [**getAgent**](AgentsApi.md#getagent) | **GET** /agents/{name} | Get agent details |
+| [**getAgentCostBreakdown**](AgentsApi.md#getagentcostbreakdown) | **GET** /agents/{name}/cost | Get agent cost breakdown |
 | [**getAgentEvents**](AgentsApi.md#getagentevents) | **GET** /agents/{name}/events | Get agent events |
 | [**listAgents**](AgentsApi.md#listagents) | **GET** /agents | List agents |
 | [**patchAgent**](AgentsApi.md#patchagentoperation) | **PATCH** /agents/{name} | Patch agent |
@@ -302,7 +303,7 @@ No authorization required
 
 ## deleteAgent
 
-> { [key: string]: string; } deleteAgent(name, namespace)
+> { [key: string]: string; } deleteAgent(name, namespace, recreatePod)
 
 Delete agent
 
@@ -326,6 +327,8 @@ async function example() {
     name: name_example,
     // string | Kubernetes namespace (optional)
     namespace: namespace_example,
+    // boolean | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
+    recreatePod: true,
   } satisfies DeleteAgentRequest;
 
   try {
@@ -347,6 +350,7 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+| **recreatePod** | `boolean` | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -444,9 +448,80 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+## getAgentCostBreakdown
+
+> CostBreakdownResponse getAgentCostBreakdown(name, refresh)
+
+Get agent cost breakdown
+
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh&#x3D;true.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { GetAgentCostBreakdownRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // boolean | Bypass the 5-minute cache (optional)
+    refresh: true,
+  } satisfies GetAgentCostBreakdownRequest;
+
+  try {
+    const data = await api.getAgentCostBreakdown(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **refresh** | `boolean` | Bypass the 5-minute cache | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**CostBreakdownResponse**](CostBreakdownResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Cost breakdown |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
 ## getAgentEvents
 
-> { [key: string]: any; } getAgentEvents(name, namespace, limit)
+> { [key: string]: any; } getAgentEvents(name, namespace, limit, before, after, around)
 
 Get agent events
 
@@ -472,6 +547,12 @@ async function example() {
     namespace: namespace_example,
     // number | Max events to return (1-200) (optional)
     limit: 56,
+    // string | RFC-3339 cursor: return events strictly before this timestamp (pagination) (optional)
+    before: before_example,
+    // string | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) (optional)
+    after: after_example,
+    // string | RFC-3339 timestamp to center results on (optional)
+    around: around_example,
   } satisfies GetAgentEventsRequest;
 
   try {
@@ -494,6 +575,9 @@ example().catch(console.error);
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **limit** | `number` | Max events to return (1-200) | [Optional] [Defaults to `50`] |
+| **before** | `string` | RFC-3339 cursor: return events strictly before this timestamp (pagination) | [Optional] [Defaults to `undefined`] |
+| **after** | `string` | RFC-3339 cursor: return events strictly after this timestamp (polling for new events) | [Optional] [Defaults to `undefined`] |
+| **around** | `string` | RFC-3339 timestamp to center results on | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -521,7 +605,7 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace)
+> AgentListResponse listAgents(namespace, status, label)
 
 List agents
 
@@ -543,6 +627,10 @@ async function example() {
   const body = {
     // string | Kubernetes namespace (optional)
     namespace: namespace_example,
+    // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    status: status_example,
+    // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
+    label: ...,
   } satisfies ListAgentsRequest;
 
   try {
@@ -563,6 +651,8 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+| **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
+| **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
 
 ### Return type
 

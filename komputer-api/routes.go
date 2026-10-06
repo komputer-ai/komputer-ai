@@ -62,7 +62,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 	})
 
 	// MCP server — exposes capabilities to external Claude/MCP-aware agents at /mcp.
-	mountMCPHandler(r, k8s)
+	mountMCPHandler(r)
 
 	v1 := r.Group("/api/v1")
 	{

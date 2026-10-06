@@ -7,6 +7,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**createConnector**](ConnectorsApi.md#createconnectoroperation) | **POST** /connectors | Create connector |
 | [**deleteConnector**](ConnectorsApi.md#deleteconnector) | **DELETE** /connectors/{name} | Delete connector |
 | [**getConnector**](ConnectorsApi.md#getconnector) | **GET** /connectors/{name} | Get connector details |
+| [**listConnectorTemplates**](ConnectorsApi.md#listconnectortemplates) | **GET** /connector-templates | List connector templates |
 | [**listConnectorTools**](ConnectorsApi.md#listconnectortools) | **GET** /connectors/{name}/tools | List connector tools |
 | [**listConnectors**](ConnectorsApi.md#listconnectors) | **GET** /connectors | List connectors |
 | [**updateConnector**](ConnectorsApi.md#updateconnectoroperation) | **PATCH** /connectors/{name} | Update connector token or disabled state |
@@ -221,6 +222,65 @@ No authorization required
 | **200** | Connector details |  -  |
 | **404** | Connector not found |  -  |
 | **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## listConnectorTemplates
+
+> { [key: string]: any; } listConnectorTemplates()
+
+List connector templates
+
+Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ConnectorsApi,
+} from '@komputer-ai/sdk';
+import type { ListConnectorTemplatesRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new ConnectorsApi();
+
+  try {
+    const data = await api.listConnectorTemplates();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+**{ [key: string]: any; }**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | List of connector templates |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

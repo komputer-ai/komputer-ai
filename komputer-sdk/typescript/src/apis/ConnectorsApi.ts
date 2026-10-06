@@ -214,6 +214,45 @@ export class ConnectorsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Creates request options for listConnectorTemplates without sending the request
+     */
+    async listConnectorTemplatesRequestOpts(): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/connector-templates`;
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.
+     * List connector templates
+     */
+    async listConnectorTemplatesRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{ [key: string]: any; }>> {
+        const requestOptions = await this.listConnectorTemplatesRequestOpts();
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.
+     * List connector templates
+     */
+    async listConnectorTemplates(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: any; }> {
+        const response = await this.listConnectorTemplatesRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Creates request options for listConnectorTools without sending the request
      */
     async listConnectorToolsRequestOpts(requestParameters: ListConnectorToolsRequest): Promise<runtime.RequestOpts> {

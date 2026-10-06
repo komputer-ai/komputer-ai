@@ -17,6 +17,7 @@ import {
   Wand2,
   KeyRound,
   Plug,
+  Cable,
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
@@ -53,7 +54,10 @@ const navSections: NavSection[] = [
   },
   {
     title: "System",
-    items: [{ label: "Cost", icon: DollarSign, href: "/costs" }],
+    items: [
+      { label: "Cost", icon: DollarSign, href: "/costs" },
+      { label: "Integrations", icon: Cable, href: "/integrations" },
+    ],
   },
 ];
 

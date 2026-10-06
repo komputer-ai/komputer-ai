@@ -18,6 +18,7 @@ import type {
   AgentListResponse,
   AgentResponse,
   CompactAgentRequest,
+  CostBreakdownResponse,
   CreateAgentRequest,
   PatchAgentRequest,
 } from '../models/index';
@@ -28,6 +29,8 @@ import {
     AgentResponseToJSON,
     CompactAgentRequestFromJSON,
     CompactAgentRequestToJSON,
+    CostBreakdownResponseFromJSON,
+    CostBreakdownResponseToJSON,
     CreateAgentRequestFromJSON,
     CreateAgentRequestToJSON,
     PatchAgentRequestFromJSON,
@@ -57,6 +60,7 @@ export interface CreateAgentOperationRequest {
 export interface DeleteAgentRequest {
     name: string;
     namespace?: string;
+    recreatePod?: boolean;
 }
 
 export interface GetAgentRequest {
@@ -64,14 +68,24 @@ export interface GetAgentRequest {
     namespace?: string;
 }
 
+export interface GetAgentCostBreakdownRequest {
+    name: string;
+    refresh?: boolean;
+}
+
 export interface GetAgentEventsRequest {
     name: string;
     namespace?: string;
     limit?: number;
+    before?: string;
+    after?: string;
+    around?: string;
 }
 
 export interface ListAgentsRequest {
     namespace?: string;
+    status?: string;
+    label?: Array<string>;
 }
 
 export interface PatchAgentOperationRequest {
@@ -306,6 +320,10 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['namespace'] = requestParameters['namespace'];
         }
 
+        if (requestParameters['recreatePod'] != null) {
+            queryParameters['recreatePod'] = requestParameters['recreatePod'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -392,6 +410,57 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Creates request options for getAgentCostBreakdown without sending the request
+     */
+    async getAgentCostBreakdownRequestOpts(requestParameters: GetAgentCostBreakdownRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling getAgentCostBreakdown().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['refresh'] != null) {
+            queryParameters['refresh'] = requestParameters['refresh'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/agents/{name}/cost`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+     * Get agent cost breakdown
+     */
+    async getAgentCostBreakdownRaw(requestParameters: GetAgentCostBreakdownRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CostBreakdownResponse>> {
+        const requestOptions = await this.getAgentCostBreakdownRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CostBreakdownResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+     * Get agent cost breakdown
+     */
+    async getAgentCostBreakdown(requestParameters: GetAgentCostBreakdownRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CostBreakdownResponse> {
+        const response = await this.getAgentCostBreakdownRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Creates request options for getAgentEvents without sending the request
      */
     async getAgentEventsRequestOpts(requestParameters: GetAgentEventsRequest): Promise<runtime.RequestOpts> {
@@ -410,6 +479,18 @@ export class AgentsApi extends runtime.BaseAPI {
 
         if (requestParameters['limit'] != null) {
             queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['before'] != null) {
+            queryParameters['before'] = requestParameters['before'];
+        }
+
+        if (requestParameters['after'] != null) {
+            queryParameters['after'] = requestParameters['after'];
+        }
+
+        if (requestParameters['around'] != null) {
+            queryParameters['around'] = requestParameters['around'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
@@ -454,6 +535,14 @@ export class AgentsApi extends runtime.BaseAPI {
 
         if (requestParameters['namespace'] != null) {
             queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        if (requestParameters['status'] != null) {
+            queryParameters['status'] = requestParameters['status'];
+        }
+
+        if (requestParameters['label'] != null) {
+            queryParameters['label'] = requestParameters['label'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
