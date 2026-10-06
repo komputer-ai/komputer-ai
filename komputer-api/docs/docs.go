@@ -1214,7 +1214,7 @@ const docTemplate = `{
                     "templates"
                 ],
                 "summary": "List namespaces",
-                "operationId": "listNamespaces",
+                "operationId": "namespacesGet",
                 "responses": {
                     "200": {
                         "description": "List of namespaces",

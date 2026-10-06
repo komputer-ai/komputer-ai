@@ -86,6 +86,30 @@ func TestMCPRealSpec_CoreToolsPresent(t *testing.T) {
 	}
 }
 
+// TestMCPRealSpec_LegacyToolNamesStable guards the 14 MCP tool names that
+// existed before this branch's REST-API-wide MCP expansion: none of them may
+// be renamed by operationId churn, and no renamed duplicate (e.g.
+// compact_agent_task) may appear alongside the original.
+func TestMCPRealSpec_LegacyToolNamesStable(t *testing.T) {
+	_, ops := realMCPOperations(t)
+	names := map[string]bool{}
+	for _, op := range ops {
+		names[op.ToolName] = true
+	}
+	for _, want := range []string{
+		"list_agents", "get_agent", "compact_agent", "list_schedules", "get_schedule",
+		"trigger_schedule", "list_memories", "get_memory", "list_skills", "get_skill",
+		"list_connectors", "list_secrets", "list_namespaces", "list_templates",
+	} {
+		if !names[want] {
+			t.Errorf("missing legacy MCP tool %q", want)
+		}
+	}
+	if names["compact_agent_task"] {
+		t.Error("tool \"compact_agent_task\" should not exist: it is a rename of the legacy compact_agent tool")
+	}
+}
+
 // TestMCPRealSpec_QueryParamsExposed guards against a handler reading a query
 // param that its swagger annotations don't declare: such a param is invisible
 // to MCP clients and would be rejected as an unknown argument.

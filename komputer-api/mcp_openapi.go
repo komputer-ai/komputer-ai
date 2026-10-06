@@ -50,6 +50,13 @@ type swaggerParameter struct {
 
 var swaggerRefRe = regexp.MustCompile(`"#/definitions/([^"]+)"`)
 
+// mcpToolNameOverrides keeps tool names from the original hand-written MCP
+// server stable where they differ from snake_case(operationId).
+var mcpToolNameOverrides = map[string]string{
+	"compactAgentTask": "compact_agent",
+	"namespacesGet":    "list_namespaces",
+}
+
 // parseMCPOperations turns a swagger 2.0 spec into one mcpOperation per
 // operation that has an operationId. Operations without one are skipped.
 func parseMCPOperations(specJSON []byte) (string, []mcpOperation, error) {
@@ -75,8 +82,12 @@ func parseMCPOperations(specJSON []byte) (string, []mcpOperation, error) {
 }
 
 func buildMCPOperation(path, method string, op swaggerOperation, defs map[string]json.RawMessage) (mcpOperation, error) {
+	toolName := mcpToolNameOverrides[op.OperationID]
+	if toolName == "" {
+		toolName = toSnakeCase(op.OperationID)
+	}
 	m := mcpOperation{
-		ToolName:    toSnakeCase(op.OperationID),
+		ToolName:    toolName,
 		Method:      strings.ToUpper(method),
 		Path:        path,
 		Description: strings.TrimSpace(op.Summary + "\n\n" + op.Description),

@@ -40,7 +40,7 @@ func listTemplates(k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listNamespaces returns all Kubernetes namespaces accessible to the API.
-// @ID listNamespaces
+// @ID namespacesGet
 // @Summary List namespaces
 // @Description Returns all Kubernetes namespaces the API has access to.
 // @Tags templates

@@ -141,6 +141,20 @@ func TestParseMCPOperations_UnsupportedParamLocation(t *testing.T) {
 	}
 }
 
+// TestBuildMCPOperation_ToolNameOverride guards legacy MCP tool names: a few
+// operationIds would snake_case to a different name than the original
+// hand-written MCP server used, so mcpToolNameOverrides keeps them stable.
+func TestBuildMCPOperation_ToolNameOverride(t *testing.T) {
+	op := swaggerOperation{OperationID: "compactAgentTask", Summary: "Compact agent conversation"}
+	m, err := buildMCPOperation("/agents/{name}/compact", "post", op, nil)
+	if err != nil {
+		t.Fatalf("buildMCPOperation: %v", err)
+	}
+	if m.ToolName != "compact_agent" {
+		t.Errorf("ToolName = %q, want %q (override for compactAgentTask)", m.ToolName, "compact_agent")
+	}
+}
+
 func TestToSnakeCase(t *testing.T) {
 	for in, want := range map[string]string{
 		"createAgent":           "create_agent",
