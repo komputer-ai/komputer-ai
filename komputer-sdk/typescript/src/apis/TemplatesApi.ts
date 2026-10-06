@@ -25,45 +25,6 @@ export interface ListTemplatesRequest {
 export class TemplatesApi extends runtime.BaseAPI {
 
     /**
-     * Creates request options for listNamespaces without sending the request
-     */
-    async listNamespacesRequestOpts(): Promise<runtime.RequestOpts> {
-        const queryParameters: any = {};
-
-        const headerParameters: runtime.HTTPHeaders = {};
-
-
-        let urlPath = `/namespaces`;
-
-        return {
-            path: urlPath,
-            method: 'GET',
-            headers: headerParameters,
-            query: queryParameters,
-        };
-    }
-
-    /**
-     * Returns all Kubernetes namespaces the API has access to.
-     * List namespaces
-     */
-    async listNamespacesRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{ [key: string]: any; }>> {
-        const requestOptions = await this.listNamespacesRequestOpts();
-        const response = await this.request(requestOptions, initOverrides);
-
-        return new runtime.JSONApiResponse<any>(response);
-    }
-
-    /**
-     * Returns all Kubernetes namespaces the API has access to.
-     * List namespaces
-     */
-    async listNamespaces(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: any; }> {
-        const response = await this.listNamespacesRaw(initOverrides);
-        return await response.value();
-    }
-
-    /**
      * Creates request options for listTemplates without sending the request
      */
     async listTemplatesRequestOpts(requestParameters: ListTemplatesRequest): Promise<runtime.RequestOpts> {
@@ -103,6 +64,45 @@ export class TemplatesApi extends runtime.BaseAPI {
      */
     async listTemplates(requestParameters: ListTemplatesRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: any; }> {
         const response = await this.listTemplatesRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for namespacesGet without sending the request
+     */
+    async namespacesGetRequestOpts(): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/namespaces`;
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Returns all Kubernetes namespaces the API has access to.
+     * List namespaces
+     */
+    async namespacesGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{ [key: string]: any; }>> {
+        const requestOptions = await this.namespacesGetRequestOpts();
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Returns all Kubernetes namespaces the API has access to.
+     * List namespaces
+     */
+    async namespacesGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{ [key: string]: any; }> {
+        const response = await this.namespacesGetRaw(initOverrides);
         return await response.value();
     }
 

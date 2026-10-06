@@ -34,7 +34,7 @@ TAG_MAP = {
 
 TAG_ORDER = ["agents", "squads", "memories", "skills", "schedules", "secrets", "connectors", "offices", "templates"]
 
-SKIP_OPERATIONS = {"agentsNameWsGet"}
+SKIP_OPERATIONS = {"agentsNameWsGet", "namespacesGet"}
 
 
 # --- Shared helpers ---

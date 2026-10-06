@@ -246,7 +246,7 @@ class KomputerClient:
         return self.templates.list_templates()
 
     def list_namespaces(self):
-        return self.templates.list_namespaces()
+        return self.templates.namespaces_get()
 
 
     # --- WebSocket ---

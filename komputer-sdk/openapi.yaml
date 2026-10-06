@@ -949,7 +949,7 @@ paths:
   /namespaces:
     get:
       description: Returns all Kubernetes namespaces the API has access to.
-      operationId: listNamespaces
+      operationId: namespacesGet
       responses:
         "200":
           content:

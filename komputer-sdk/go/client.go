@@ -726,5 +726,5 @@ func (c *Client) ListTemplates(ctx context.Context) (map[string]interface{}, *ht
 }
 
 func (c *Client) ListNamespaces(ctx context.Context) (map[string]interface{}, *http.Response, error) {
-	return c.api.TemplatesAPI.ListNamespaces(ctx).Execute()
+	return c.api.TemplatesAPI.NamespacesGet(ctx).Execute()
 }

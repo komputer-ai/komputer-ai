@@ -319,7 +319,7 @@ export class KomputerClient {
   }
 
   async listNamespaces() {
-    return this._templates.listNamespaces({});
+    return this._templates.namespacesGet({});
   }
 
 

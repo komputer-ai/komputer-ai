@@ -121,8 +121,8 @@ Class | Method | HTTP request | Description
 *SquadsAPI* | [**ListSquads**](docs/SquadsAPI.md#listsquads) | **Get** /squads | List squads
 *SquadsAPI* | [**PatchSquad**](docs/SquadsAPI.md#patchsquad) | **Patch** /squads/{name} | Patch squad
 *SquadsAPI* | [**RemoveSquadMember**](docs/SquadsAPI.md#removesquadmember) | **Delete** /squads/{name}/members/{agent} | Remove squad member
-*TemplatesAPI* | [**ListNamespaces**](docs/TemplatesAPI.md#listnamespaces) | **Get** /namespaces | List namespaces
 *TemplatesAPI* | [**ListTemplates**](docs/TemplatesAPI.md#listtemplates) | **Get** /templates | List agent templates
+*TemplatesAPI* | [**NamespacesGet**](docs/TemplatesAPI.md#namespacesget) | **Get** /namespaces | List namespaces
 
 
 ## Documentation For Models
