@@ -46,6 +46,8 @@ export interface MultiSelectProps {
   /** Trigger label noun used in the count display, e.g. "secrets" -> "3 secrets selected" */
   noun?: string;
   className?: string;
+  /** Extra classes for the trigger button, e.g. to match a compact toolbar's height and text size */
+  triggerClassName?: string;
   disabled?: boolean;
 }
 
@@ -60,6 +62,7 @@ export function MultiSelect({
   footerExtra,
   noun,
   className,
+  triggerClassName,
   disabled,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
@@ -203,7 +206,8 @@ export function MultiSelect({
           "focus:outline-none focus:border-[var(--color-brand-blue)]/60 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_2px_var(--color-brand-blue-glow)]",
           "disabled:opacity-40 disabled:cursor-not-allowed",
           open &&
-            "border-[var(--color-brand-blue)]/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_2px_var(--color-brand-blue-glow)]"
+            "border-[var(--color-brand-blue)]/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_2px_var(--color-brand-blue-glow)]",
+          triggerClassName
         )}
         onClick={() => !disabled && setOpen((o) => !o)}
       >

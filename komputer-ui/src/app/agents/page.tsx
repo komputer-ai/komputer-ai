@@ -191,18 +191,31 @@ export default function AgentsPage() {
           onNamespaceChange={setNamespace}
           namespaces={namespaces}
           rightExtra={
-            <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
-              <SelectTrigger className="h-7 w-36 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <MultiSelect
+                options={labelOptions}
+                value={labelFilters}
+                onChange={setLabelFilters}
+                placeholder="Filter by label..."
+                noun="labels"
+                searchPlaceholder="Search labels..."
+                emptyText="No labels on loaded agents"
+                className="w-60"
+                triggerClassName="h-7 text-xs"
+              />
+              <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
+                <SelectTrigger className="h-7 w-36 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           }
         >
           <div className="flex gap-1">
@@ -223,30 +236,20 @@ export default function AgentsPage() {
               </Button>
             ))}
           </div>
-          <MultiSelect
-            options={labelOptions}
-            value={labelFilters}
-            onChange={setLabelFilters}
-            placeholder="Filter by label..."
-            noun="labels"
-            searchPlaceholder="Search labels..."
-            emptyText="No labels on loaded agents"
-            className="w-44"
-          />
         </ListFilterBar>
 
         {labelFilters.length > 0 && (
           <div className="-mt-2 mb-4 flex flex-wrap gap-1.5">
             {labelFilters.map((l) => (
-              <Badge key={l} variant="outline" className="py-0.5 pl-2 pr-1 gap-1">
+              <Badge key={l} className="py-1 pl-2.5 pr-1.5 gap-1.5 text-xs">
                 {l}
                 <button
                   type="button"
                   onClick={() => setLabelFilters((prev) => prev.filter((x) => x !== l))}
                   aria-label={`Remove label filter ${l}`}
-                  className="rounded-full p-0.5 hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                  className="rounded-full p-0.5 hover:bg-[var(--color-brand-blue)]/20 cursor-pointer"
                 >
-                  <X className="size-2.5" />
+                  <X className="size-3" />
                 </button>
               </Badge>
             ))}
