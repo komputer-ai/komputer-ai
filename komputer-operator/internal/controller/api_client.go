@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"time"
 
@@ -41,15 +42,16 @@ func getKomputerAPIURL(ctx context.Context, c client.Client) (string, error) {
 // Routing through the API rather than the pod directly is deliberate: the API's
 // CancelAgentTask has a kubectl-exec fallback that also works in LOCAL=true mode.
 //
-// namespace is accepted for call-site clarity but not sent: the API resolves the
-// agent's namespace itself.
+// namespace must be sent: the API does not resolve it from the agent name, and
+// looks in its default namespace when none is given, so an agent anywhere else
+// 404s and its taskTimeout is never enforced.
 func cancelAgentTaskViaAPI(ctx context.Context, c client.Client, namespace, agentName string) error {
-	_ = namespace
 	apiURL, err := getKomputerAPIURL(ctx, c)
 	if err != nil {
 		return err
 	}
-	cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel", apiURL, agentName)
+	cancelURL := fmt.Sprintf("%s/api/v1/agents/%s/cancel?namespace=%s",
+		apiURL, neturl.PathEscape(agentName), neturl.QueryEscape(namespace))
 	httpClient := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cancelURL, nil)
 	if err != nil {
