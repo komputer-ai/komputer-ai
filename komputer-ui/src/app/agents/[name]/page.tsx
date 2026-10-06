@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -54,6 +54,37 @@ function ttlTitle(verb: string, expiresAt?: string): string {
   const t = new Date(expiresAt);
   if (Number.isNaN(t.getTime())) return `${verb} once idle past this TTL`;
   return `${verb} at ${t.toLocaleString()}`;
+}
+
+// A lifecycle-timer badge (sleep / delete TTL, task timeout) with an icon and a
+// kit tooltip naming the timer and when it fires.
+function TtlBadge({
+  icon: Icon,
+  label,
+  detail,
+  value,
+}: {
+  icon: typeof Moon;
+  label: string;
+  detail: string;
+  value: string;
+}) {
+  return (
+    <Tooltip
+      side="bottom"
+      content={
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[var(--color-text)]">{label}</span>
+          <span className="font-normal text-[var(--color-text-secondary)]">{detail}</span>
+        </span>
+      }
+    >
+      <Badge variant="secondary" className="text-xs gap-1.5 cursor-default" aria-label={`${label}: ${value}. ${detail}`}>
+        <Icon className="size-3 text-[var(--color-text-muted)]" aria-hidden />
+        {value}
+      </Badge>
+    </Tooltip>
+  );
 }
 
 export default function AgentDetailPage() {
@@ -414,27 +445,32 @@ export default function AgentDetailPage() {
                   </Badge>
                 )}
                 {agent.sleepTTL && (
-                  <Badge variant="secondary" className="text-xs" title={ttlTitle("Sleeps", agent.sleepExpiresAt)}>
-                    💤 {fmtDuration(agent.sleepTTL)}
-                  </Badge>
+                  <TtlBadge
+                    icon={Moon}
+                    label="Sleep TTL"
+                    detail={ttlTitle("Sleeps", agent.sleepExpiresAt)}
+                    value={fmtDuration(agent.sleepTTL)}
+                  />
                 )}
                 {agent.deleteTTL && (
-                  <Badge variant="secondary" className="text-xs" title={ttlTitle("Deletes", agent.deleteExpiresAt)}>
-                    ⏳ {fmtDuration(agent.deleteTTL)}
-                  </Badge>
+                  <TtlBadge
+                    icon={Hourglass}
+                    label="Delete TTL"
+                    detail={ttlTitle("Deletes", agent.deleteExpiresAt)}
+                    value={fmtDuration(agent.deleteTTL)}
+                  />
                 )}
                 {agent.taskTimeout && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs"
-                    title={
+                  <TtlBadge
+                    icon={Timer}
+                    label="Task timeout"
+                    detail={
                       agent.taskExpiresAt
                         ? ttlTitle("Cancels", agent.taskExpiresAt)
                         : "Cancels a task that runs longer than this"
                     }
-                  >
-                    ⏱ {fmtDuration(agent.taskTimeout)}
-                  </Badge>
+                    value={fmtDuration(agent.taskTimeout)}
+                  />
                 )}
               </div>
             )}
