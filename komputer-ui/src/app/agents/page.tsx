@@ -241,15 +241,15 @@ export default function AgentsPage() {
         {labelFilters.length > 0 && (
           <div className="-mt-2 mb-4 flex flex-wrap gap-1.5">
             {labelFilters.map((l) => (
-              <Badge key={l} variant="outline" className="py-0.5 pl-2 pr-1 gap-1">
+              <Badge key={l} className="py-1 pl-2.5 pr-1.5 gap-1.5 text-xs">
                 {l}
                 <button
                   type="button"
                   onClick={() => setLabelFilters((prev) => prev.filter((x) => x !== l))}
                   aria-label={`Remove label filter ${l}`}
-                  className="rounded-full p-0.5 hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                  className="rounded-full p-0.5 hover:bg-[var(--color-brand-blue)]/20 cursor-pointer"
                 >
-                  <X className="size-2.5" />
+                  <X className="size-3" />
                 </button>
               </Badge>
             ))}
