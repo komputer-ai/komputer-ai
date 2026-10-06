@@ -191,18 +191,31 @@ export default function AgentsPage() {
           onNamespaceChange={setNamespace}
           namespaces={namespaces}
           rightExtra={
-            <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
-              <SelectTrigger className="h-7 w-36 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <MultiSelect
+                options={labelOptions}
+                value={labelFilters}
+                onChange={setLabelFilters}
+                placeholder="Filter by label..."
+                noun="labels"
+                searchPlaceholder="Search labels..."
+                emptyText="No labels on loaded agents"
+                className="w-60"
+                triggerClassName="h-7 text-xs"
+              />
+              <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
+                <SelectTrigger className="h-7 w-36 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           }
         >
           <div className="flex gap-1">
@@ -223,16 +236,6 @@ export default function AgentsPage() {
               </Button>
             ))}
           </div>
-          <MultiSelect
-            options={labelOptions}
-            value={labelFilters}
-            onChange={setLabelFilters}
-            placeholder="Filter by label..."
-            noun="labels"
-            searchPlaceholder="Search labels..."
-            emptyText="No labels on loaded agents"
-            className="w-44"
-          />
         </ListFilterBar>
 
         {labelFilters.length > 0 && (
