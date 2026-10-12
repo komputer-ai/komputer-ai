@@ -1,6 +1,7 @@
 """Tool allow/deny policy for agents.
 
-Enforcement notes (verified against claude-agent-sdk 0.2.83 / CLI 2.1.146):
+Enforcement notes (verified against claude-agent-sdk 0.2.83 / CLI 2.1.146, and
+re-verified by tests/test_tool_policy_e2e.py on 0.2.165 / CLI 2.1.294):
   - ``disallowed_tools`` genuinely removes tools, including MCP tools.
   - ``allowed_tools`` only auto-approves permission prompts; narrowing it does
     NOT deny, even under ``permission_mode="dontAsk"``. An allowlist therefore
