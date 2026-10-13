@@ -479,6 +479,21 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 
 			// If the agent is busy, the message is queued as a steer (follow-up).
 			// The agent's /task endpoint handles both new tasks and steers.
+			//
+			// A NEW task (agent not currently mid-task) must update spec.Instructions
+			// before it is forwarded, so that if the pod is later rescheduled the
+			// operator re-runs THIS task rather than the stale one from agent
+			// creation (see shouldStartIdle in the operator). A steer must NOT do
+			// this: overwriting Instructions with just the steer text would make an
+			// interrupted original task resume as only the follow-up message.
+			// If the forward below fails after this patch, that's harmless — the
+			// task never reaches InProgress, so a reschedule won't auto-run it
+			// either; the next real task request will patch Instructions again.
+			if !agentTaskInProgress(existing.Status.TaskStatus) {
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}); err != nil {
+					Logger.Warnw("failed to patch instructions before forwarding new task", "agent_name", req.Name, "error", err)
+				}
+			}
 
 			// Use CR memories for existing agents (may have been updated via PATCH)
 			forwardMemories := existing.Spec.Memories
