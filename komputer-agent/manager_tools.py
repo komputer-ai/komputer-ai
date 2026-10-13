@@ -627,7 +627,7 @@ async def list_agents(args):
     name="patch_agent",
     description=(
         "Patch an existing agent's mutable settings: labels, tool permissions, and TTLs. "
-        "Existing labels are merged additively; this never removes labels. Tool "
+        "Existing labels are merged additively; use remove_labels to delete labels. Tool "
         "lists are full replacements — pass an empty array to clear one. Tool "
         "changes apply the next time the agent starts. Pass an empty string for a TTL "
         "to remove it."
@@ -639,7 +639,12 @@ async def list_agents(args):
             "labels": {
                 "type": "object",
                 "additionalProperties": {"type": "string"},
-                "description": "Labels to add or update. Existing keys are overwritten; no keys are removed.",
+                "description": "Labels to add or update. Existing keys are overwritten.",
+            },
+            "remove_labels": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Label keys to remove. A key in both labels and remove_labels is rejected.",
             },
             "allowedTools": {
                 "type": "array",
@@ -665,6 +670,8 @@ async def patch_agent(args):
     body = {}
     if args.get("labels"):
         body["labels"] = args["labels"]
+    if args.get("remove_labels"):
+        body["removeLabels"] = args["remove_labels"]
     # `is not None` so an explicit [] reaches the API and clears the list.
     if args.get("allowedTools") is not None:
         body["allowedTools"] = args["allowedTools"]

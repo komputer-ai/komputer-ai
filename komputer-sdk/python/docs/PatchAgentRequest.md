@@ -17,6 +17,7 @@ Name | Type | Description | Notes
 **model** | **str** |  | [optional] 
 **pod_spec** | [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **priority** | **int** | pointer so 0 vs unset is distinguishable | [optional] 
+**remove_labels** | **List[str]** | RemoveLabels are user label keys to remove. A key present in both Labels and RemoveLabels is rejected as ambiguous. | [optional] 
 **secret_refs** | **List[str]** | full replacement list of K8s secret names | [optional] 
 **skills** | **List[str]** | skill names to attach | [optional] 
 **sleep_ttl** | **str** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 

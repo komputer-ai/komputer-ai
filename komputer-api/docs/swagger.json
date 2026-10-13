@@ -3751,6 +3751,13 @@
                     "description": "pointer so 0 vs unset is distinguishable",
                     "type": "integer"
                 },
+                "removeLabels": {
+                    "description": "RemoveLabels are user label keys to remove. A key present in both Labels\nand RemoveLabels is rejected as ambiguous.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "secretRefs": {
                     "description": "full replacement list of K8s secret names",
                     "type": "array",

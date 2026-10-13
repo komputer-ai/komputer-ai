@@ -37,6 +37,8 @@ type PatchAgentRequest struct {
 	PodSpec *V1PodSpec `json:"podSpec,omitempty"`
 	// pointer so 0 vs unset is distinguishable
 	Priority *int32 `json:"priority,omitempty"`
+	// RemoveLabels are user label keys to remove. A key present in both Labels and RemoveLabels is rejected as ambiguous.
+	RemoveLabels []string `json:"removeLabels,omitempty"`
 	// full replacement list of K8s secret names
 	SecretRefs []string `json:"secretRefs,omitempty"`
 	// skill names to attach
@@ -452,6 +454,38 @@ func (o *PatchAgentRequest) SetPriority(v int32) {
 	o.Priority = &v
 }
 
+// GetRemoveLabels returns the RemoveLabels field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetRemoveLabels() []string {
+	if o == nil || IsNil(o.RemoveLabels) {
+		var ret []string
+		return ret
+	}
+	return o.RemoveLabels
+}
+
+// GetRemoveLabelsOk returns a tuple with the RemoveLabels field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetRemoveLabelsOk() ([]string, bool) {
+	if o == nil || IsNil(o.RemoveLabels) {
+		return nil, false
+	}
+	return o.RemoveLabels, true
+}
+
+// HasRemoveLabels returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasRemoveLabels() bool {
+	if o != nil && !IsNil(o.RemoveLabels) {
+		return true
+	}
+
+	return false
+}
+
+// SetRemoveLabels gets a reference to the given []string and assigns it to the RemoveLabels field.
+func (o *PatchAgentRequest) SetRemoveLabels(v []string) {
+	o.RemoveLabels = v
+}
+
 // GetSecretRefs returns the SecretRefs field value if set, zero value otherwise.
 func (o *PatchAgentRequest) GetSecretRefs() []string {
 	if o == nil || IsNil(o.SecretRefs) {
@@ -753,6 +787,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Priority) {
 		toSerialize["priority"] = o.Priority
+	}
+	if !IsNil(o.RemoveLabels) {
+		toSerialize["removeLabels"] = o.RemoveLabels
 	}
 	if !IsNil(o.SecretRefs) {
 		toSerialize["secretRefs"] = o.SecretRefs

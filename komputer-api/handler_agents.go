@@ -198,19 +198,41 @@ func buildSquadNameMap(ctx context.Context, k8s *K8sClient, ns string) map[strin
 
 const personalAgentLabel = "komputer.ai/personal-agent"
 
+// validateLabelKey rejects keys with the komputer.ai/ reserved prefix (except
+// the personal-agent allow-listed key) and enforces K8s qualified-name rules.
+// Shared by validateUserLabels (labels to set) and validateRemoveLabelKeys
+// (labels to remove), which don't carry a value to additionally validate.
+func validateLabelKey(k string) error {
+	if strings.HasPrefix(k, "komputer.ai/") && k != personalAgentLabel {
+		return fmt.Errorf("label key %q is reserved", k)
+	}
+	if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+		return fmt.Errorf("invalid label key %q: %s", k, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
 // validateUserLabels rejects keys with the komputer.ai/ reserved prefix
 // (except the personal-agent allow-listed key) and validates that every
 // key/value conforms to K8s label rules.
 func validateUserLabels(labels map[string]string) error {
 	for k, v := range labels {
-		if strings.HasPrefix(k, "komputer.ai/") && k != personalAgentLabel {
-			return fmt.Errorf("label key %q is reserved", k)
-		}
-		if errs := validation.IsQualifiedName(k); len(errs) > 0 {
-			return fmt.Errorf("invalid label key %q: %s", k, strings.Join(errs, ", "))
+		if err := validateLabelKey(k); err != nil {
+			return err
 		}
 		if errs := validation.IsValidLabelValue(v); len(errs) > 0 {
 			return fmt.Errorf("invalid label value for key %q: %s", k, strings.Join(errs, ", "))
+		}
+	}
+	return nil
+}
+
+// validateRemoveLabelKeys applies the same reserved-prefix / qualified-name
+// rule to label keys requested for removal via PatchAgentRequest.RemoveLabels.
+func validateRemoveLabelKeys(keys []string) error {
+	for _, k := range keys {
+		if err := validateLabelKey(k); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -354,6 +376,9 @@ type PatchAgentRequest struct {
 	PodSpec     *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage     *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
 	Labels      map[string]string             `json:"labels,omitempty"`
+	// RemoveLabels are user label keys to remove. A key present in both Labels
+	// and RemoveLabels is rejected as ambiguous.
+	RemoveLabels []string `json:"removeLabels,omitempty"`
 }
 
 // createOrTriggerAgent creates a new agent or sends a task to an existing one.
@@ -1399,7 +1424,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1512,13 +1537,25 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
-		// 1a-labels. Merge user labels additively (existing keys overwritten, nothing removed).
-		if len(req.Labels) > 0 {
+		// 1a-labels. Merge user labels additively (existing keys overwritten) and/or
+		// remove the keys in RemoveLabels, in a single patch. A key in both Labels
+		// and RemoveLabels is rejected as ambiguous.
+		if len(req.Labels) > 0 || len(req.RemoveLabels) > 0 {
 			if err := validateUserLabels(req.Labels); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := k8s.MergeAgentLabels(c.Request.Context(), ns, name, req.Labels); err != nil {
+			if err := validateRemoveLabelKeys(req.RemoveLabels); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			for _, rk := range req.RemoveLabels {
+				if _, ok := req.Labels[rk]; ok {
+					c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("label key %q cannot be in both labels and removeLabels", rk)})
+					return
+				}
+			}
+			if err := k8s.UpdateAgentLabels(c.Request.Context(), ns, name, req.Labels, req.RemoveLabels); err != nil {
 				agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent labels: " + err.Error()})
 				return

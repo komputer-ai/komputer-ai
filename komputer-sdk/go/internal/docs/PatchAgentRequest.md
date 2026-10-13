@@ -16,6 +16,7 @@ Name | Type | Description | Notes
 **Model** | Pointer to **string** |  | [optional] 
 **PodSpec** | Pointer to [**V1PodSpec**](V1PodSpec.md) |  | [optional] 
 **Priority** | Pointer to **int32** | pointer so 0 vs unset is distinguishable | [optional] 
+**RemoveLabels** | Pointer to **[]string** | RemoveLabels are user label keys to remove. A key present in both Labels and RemoveLabels is rejected as ambiguous. | [optional] 
 **SecretRefs** | Pointer to **[]string** | full replacement list of K8s secret names | [optional] 
 **Skills** | Pointer to **[]string** | skill names to attach | [optional] 
 **SleepTTL** | Pointer to **string** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
@@ -343,6 +344,31 @@ SetPriority sets Priority field to given value.
 `func (o *PatchAgentRequest) HasPriority() bool`
 
 HasPriority returns a boolean if a field has been set.
+
+### GetRemoveLabels
+
+`func (o *PatchAgentRequest) GetRemoveLabels() []string`
+
+GetRemoveLabels returns the RemoveLabels field if non-nil, zero value otherwise.
+
+### GetRemoveLabelsOk
+
+`func (o *PatchAgentRequest) GetRemoveLabelsOk() (*[]string, bool)`
+
+GetRemoveLabelsOk returns a tuple with the RemoveLabels field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetRemoveLabels
+
+`func (o *PatchAgentRequest) SetRemoveLabels(v []string)`
+
+SetRemoveLabels sets RemoveLabels field to given value.
+
+### HasRemoveLabels
+
+`func (o *PatchAgentRequest) HasRemoveLabels() bool`
+
+HasRemoveLabels returns a boolean if a field has been set.
 
 ### GetSecretRefs
 

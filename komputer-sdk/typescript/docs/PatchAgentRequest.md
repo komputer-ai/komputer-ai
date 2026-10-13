@@ -18,6 +18,7 @@ Name | Type
 `model` | string
 `podSpec` | [V1PodSpec](V1PodSpec.md)
 `priority` | number
+`removeLabels` | Array&lt;string&gt;
 `secretRefs` | Array&lt;string&gt;
 `skills` | Array&lt;string&gt;
 `sleepTTL` | string
@@ -46,6 +47,7 @@ const example = {
   "model": null,
   "podSpec": null,
   "priority": null,
+  "removeLabels": null,
   "secretRefs": null,
   "skills": null,
   "sleepTTL": null,
