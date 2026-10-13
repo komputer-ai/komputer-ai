@@ -257,7 +257,10 @@ export interface PatchAgentRequest {
   priority?: number;
   podSpec?: Record<string, unknown>;
   storage?: StorageOverride;
+  /** Labels to add or overwrite (merged into existing labels). */
   labels?: Record<string, string>;
+  /** Label keys to remove. */
+  removeLabels?: string[];
 }
 
 export interface ConnectorResponse {
