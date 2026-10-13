@@ -16,19 +16,23 @@ async def test_request_helper_uses_mock(mock_api):
 # --- sleep_agent ---
 
 @pytest.mark.asyncio
-async def test_sleep_agent_patches_lifecycle(mock_api):
-    mock_api.set("PATCH", "/api/v1/agents/foo", {"name": "foo", "lifecycle": "Sleep"})
+async def test_sleep_agent_calls_sleep_endpoint(mock_api):
+    # Must hit the dedicated sleep-now endpoint (not PATCH .../agents/{name}
+    # {lifecycle:"Sleep"}, which only sets a policy the operator applies later
+    # and which a prior idle wake or a sleepTTL can silently block) so the
+    # agent actually sleeps right away.
+    mock_api.set("POST", "/api/v1/agents/foo/sleep", {"name": "foo", "status": "Sleeping"})
     result = await manager_tools.sleep_agent.handler({"name": "foo"})
     assert not result.get("isError")
-    assert mock_api.last_json == {"lifecycle": "Sleep"}
+    assert mock_api.calls == [("POST", "/api/v1/agents/foo/sleep")]
 
 
 @pytest.mark.asyncio
 async def test_sleep_agent_defaults_to_self(mock_api):
-    mock_api.set("PATCH", "/api/v1/agents/self", {"name": "self", "lifecycle": "Sleep"})
+    mock_api.set("POST", "/api/v1/agents/self/sleep", {"name": "self", "status": "Sleeping"})
     result = await manager_tools.sleep_agent.handler({})
     assert not result.get("isError")
-    assert mock_api.calls == [("PATCH", "/api/v1/agents/self")]
+    assert mock_api.calls == [("POST", "/api/v1/agents/self/sleep")]
 
 
 # --- wake_agent ---
