@@ -331,6 +331,12 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 		if agentTaskInProgress(agent.Status.TaskStatus) {
 			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
 		}
+		// Confirmed not busy above, so this manual trigger would start a brand new
+		// task — the one place the lifetime budget gates it, same as a scheduled
+		// (cron) run and createOrTriggerAgent's forward/wake-with-task paths.
+		if err := checkBudgetExhausted(ctx, k8s, agent); err != nil {
+			return "", http.StatusConflict, err
+		}
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
 			if err := k8s.WakeAgent(ctx, ns, agentName, instructions, "", "", "", string(agent.Spec.Lifecycle)); err != nil {
 				return "", http.StatusInternalServerError, fmt.Errorf("failed to wake agent: %w", err)
@@ -339,10 +345,11 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			// Confirmed not busy above (TaskStatus != InProgress), so this is a new
 			// task — patch spec.Instructions first so a pod reschedule re-runs this
 			// scheduled run instead of stale creation-time instructions.
-			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}); err != nil {
+			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 				Logger.Warnw("manual trigger: failed to patch instructions before forwarding", "agent", agentName, "error", err)
 			}
-			if _, err := k8s.ForwardTaskToAgent(ctx, ns, agent.Status.PodName, agentName, instructions, "", "", ""); err != nil {
+			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(ctx, ns, agent.Spec.AgentConfigSpec)
+			if _, err := k8s.ForwardTaskToAgent(ctx, ns, agent.Status.PodName, agentName, instructions, "", "", "", effectiveTaskBudget); err != nil {
 				return "", http.StatusInternalServerError, fmt.Errorf("failed to forward task: %w", err)
 			}
 		} else {

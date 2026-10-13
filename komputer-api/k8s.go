@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -301,6 +302,15 @@ type TTLUpdate struct {
 	Value *metav1.Duration
 }
 
+// StringUpdate is a tri-state string change used by patch paths (budgetUSD,
+// taskBudgetUSD): Set=false leaves the field untouched, Set=true with Value=""
+// clears it, and Set=true with a non-empty Value assigns it. Mirrors TTLUpdate's
+// tri-state shape for a plain string field rather than a *metav1.Duration.
+type StringUpdate struct {
+	Set   bool
+	Value string
+}
+
 // TouchAgentActivity stamps Status.LastActivityAt to now, resetting the idle clock
 // the operator's sleepTTL measures against. Used on paths where the API knows work is
 // arriving before the agent's own events can say so (wake, task forward).
@@ -391,6 +401,62 @@ func (k *K8sClient) ResolveEffectiveEphemeral(ctx context.Context, ns string, cf
 		return clusterTpl.Spec.Storage.Ephemeral != nil && *clusterTpl.Spec.Storage.Ephemeral
 	}
 	return false
+}
+
+// ResolveEffectiveBudgetUSD resolves an agent config's effective lifetime budget
+// (budgetUSD): its own value if set, else its template's default, else "" (no cap).
+// Mirrors ResolveEffectiveEphemeral's agent-over-template resolution and the
+// operator's resolveAgentLifetimeBudget. A template that can't be read (not found,
+// RBAC, transient error) resolves to "" — this must never fail an otherwise-valid
+// request.
+func (k *K8sClient) ResolveEffectiveBudgetUSD(ctx context.Context, ns string, cfg komputerv1alpha1.AgentConfigSpec) string {
+	if cfg.BudgetUSD != "" {
+		return cfg.BudgetUSD
+	}
+	templateRef := cfg.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	tpl := &komputerv1alpha1.KomputerAgentTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: ns}, tpl); err == nil {
+		return tpl.Spec.BudgetUSD
+	}
+	clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef}, clusterTpl); err == nil {
+		return clusterTpl.Spec.BudgetUSD
+	}
+	return ""
+}
+
+// ResolveEffectiveTaskBudgetUSD resolves an agent config's effective per-task budget
+// (taskBudgetUSD): its own value if set, else its template's default, else "" (no
+// cap). Mirrors ResolveEffectiveBudgetUSD / the operator's resolveAgentTaskBudget.
+func (k *K8sClient) ResolveEffectiveTaskBudgetUSD(ctx context.Context, ns string, cfg komputerv1alpha1.AgentConfigSpec) string {
+	if cfg.TaskBudgetUSD != "" {
+		return cfg.TaskBudgetUSD
+	}
+	templateRef := cfg.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	tpl := &komputerv1alpha1.KomputerAgentTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: ns}, tpl); err == nil {
+		return tpl.Spec.TaskBudgetUSD
+	}
+	clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef}, clusterTpl); err == nil {
+		return clusterTpl.Spec.TaskBudgetUSD
+	}
+	return ""
+}
+
+// IsAgentBudgetExhausted reports whether an agent's EFFECTIVE lifetime budget
+// (its own budgetUSD, else its template's default) has been reached or passed by
+// status.totalCostUSD. Convenience wrapper combining ResolveEffectiveBudgetUSD and
+// isBudgetExhausted for the AgentResponse.BudgetExhausted field.
+func (k *K8sClient) IsAgentBudgetExhausted(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) bool {
+	budget := k.ResolveEffectiveBudgetUSD(ctx, agent.Namespace, agent.Spec.AgentConfigSpec)
+	return isBudgetExhausted(agent.Status.TotalCostUSD, budget)
 }
 
 // MergeAgentLabels merges the given labels into the agent's Spec.Labels additively.
@@ -637,15 +703,19 @@ func (k *K8sClient) CompactAgentTask(ctx context.Context, ns, podName, agentName
 	return nil
 }
 
-// ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to kubectl exec.
-func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentName, instructions, model, internalSystemPrompt, systemPrompt string) (int64, error) {
+// ForwardTaskToAgent sends a task to an agent's FastAPI endpoint, falling back to
+// kubectl exec. taskBudgetUSD is the effective per-task hard cap (agent over
+// template, see ResolveEffectiveTaskBudgetUSD); when non-empty, the agent prefers
+// it over its own KOMPUTER_TASK_BUDGET_USD env var, so a budget raised or lowered
+// after pod startup applies to the very next task without a restart.
+func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentName, instructions, model, internalSystemPrompt, systemPrompt, taskBudgetUSD string) (int64, error) {
 	// Push the idle clock out before the task lands. The agent's own task_started
 	// event refreshes LastActivityAt a moment later, but until it round-trips through
 	// Redis the operator could still see an agent idle past its sleepTTL and tear the
 	// pod down under the task we are about to send.
 	k.TouchAgentActivity(ctx, ns, agentName)
 
-	bodyMap := map[string]string{"instructions": instructions}
+	bodyMap := map[string]interface{}{"instructions": instructions}
 	if model != "" {
 		bodyMap["model"] = model
 	}
@@ -654,6 +724,14 @@ func (k *K8sClient) ForwardTaskToAgent(ctx context.Context, ns, podName, agentNa
 	}
 	if systemPrompt != "" {
 		bodyMap["system_prompt"] = systemPrompt
+	}
+	// Sent as a number, not a string — the agent's TaskRequest.task_budget_usd is a
+	// float field. A value that fails to parse (should never happen; validated on the
+	// way in) is dropped rather than sent malformed.
+	if taskBudgetUSD != "" {
+		if f, err := strconv.ParseFloat(taskBudgetUSD, 64); err == nil {
+			bodyMap["task_budget_usd"] = f
+		}
 	}
 	bodyJSON, _ := json.Marshal(bodyMap)
 
@@ -1083,7 +1161,7 @@ func (k *K8sClient) DeleteSchedule(ctx context.Context, ns, name string) error {
 }
 
 // PatchAgentSpec patches mutable spec fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, taskTimeout TTLUpdate) error {
+func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, taskTimeout TTLUpdate, budgetUSD, taskBudgetUSD StringUpdate) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -1125,6 +1203,14 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	}
 	if taskTimeout.Set && !durationEqual(agent.Spec.TaskTimeout, taskTimeout.Value) {
 		agent.Spec.TaskTimeout = taskTimeout.Value
+		changed = true
+	}
+	if budgetUSD.Set && agent.Spec.BudgetUSD != budgetUSD.Value {
+		agent.Spec.BudgetUSD = budgetUSD.Value
+		changed = true
+	}
+	if taskBudgetUSD.Set && agent.Spec.TaskBudgetUSD != taskBudgetUSD.Value {
+		agent.Spec.TaskBudgetUSD = taskBudgetUSD.Value
 		changed = true
 	}
 	if !changed {

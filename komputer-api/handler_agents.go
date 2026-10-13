@@ -45,7 +45,16 @@ type CreateAgentRequest struct {
 	// TaskTimeout cancels a running task once it has run this long, as a Go duration
 	// string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
 	// it. Empty means tasks run without a time limit.
-	TaskTimeout   string                        `json:"taskTimeout,omitempty"`
+	TaskTimeout string `json:"taskTimeout,omitempty"`
+	// BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
+	// a decimal USD string (e.g. "10.00"). Once status.totalCostUSD reaches or
+	// exceeds it, new tasks are refused with 409 until it's raised; a task already
+	// running is always allowed to finish. Empty means no lifetime cap.
+	BudgetUSD string `json:"budgetUSD,omitempty"`
+	// TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+	// "2.50"). The SDK stops a task the instant it is exceeded, mid-task. Empty
+	// means tasks run without a per-task cap.
+	TaskBudgetUSD string                        `json:"taskBudgetUSD,omitempty"`
 	OfficeManager string                        `json:"officeManager"`      // set by manager MCP tool
 	SystemPrompt  string                        `json:"systemPrompt"`       // optional custom system prompt
 	Priority      int32                         `json:"priority,omitempty"` // queue priority; higher = admitted first
@@ -68,6 +77,21 @@ type AgentResponse struct {
 	SleepTTL        string `json:"sleepTTL,omitempty"`    // idle timeout before auto-sleep, e.g. "30m"
 	DeleteTTL       string `json:"deleteTTL,omitempty"`   // absolute lifetime before auto-delete, e.g. "24h"
 	TaskTimeout     string `json:"taskTimeout,omitempty"` // per-task wall-clock cap, e.g. "30m"
+	// BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as
+	// a decimal USD string. Empty when unset on the agent itself — note the agent
+	// may still be bound by a template default; BudgetExhausted reflects that
+	// effective value even when this field is empty.
+	BudgetUSD string `json:"budgetUSD,omitempty"`
+	// TaskBudgetUSD is this agent's own HARD per-task spending cap
+	// (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent
+	// itself (it may still inherit a template default).
+	TaskBudgetUSD string `json:"taskBudgetUSD,omitempty"`
+	// BudgetExhausted is true when status.totalCostUSD has reached or passed the
+	// EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's
+	// default) — new tasks are refused with 409 until it's raised. Always false
+	// when no lifetime budget applies anywhere. Computed by the API so clients
+	// don't have to re-derive the template resolution themselves.
+	BudgetExhausted bool `json:"budgetExhausted,omitempty"`
 	// LastActivityAt is when the agent last saw task activity (RFC3339). The idle
 	// clock sleepTTL is measured against.
 	LastActivityAt string `json:"lastActivityAt,omitempty"`
@@ -249,10 +273,14 @@ func parseTTLUpdate(field string, value *string) (TTLUpdate, error) {
 	return TTLUpdate{Set: true, Value: d}, nil
 }
 
-// withAgentTTL returns resp with the agent's TTL fields populated. A pass-through
-// so the inline c.JSON(...) response sites stay single expressions.
-func withAgentTTL(resp AgentResponse, agent *komputerv1alpha1.KomputerAgent) AgentResponse {
+// withAgentTTL returns resp with the agent's TTL/budget fields populated. A
+// pass-through so the inline c.JSON(...) response sites stay single expressions.
+// Takes ctx/k8s (rather than being pure like fillAgentTTL) because
+// BudgetExhausted needs the effective budget, which may come from the agent's
+// template.
+func withAgentTTL(ctx context.Context, k8s *K8sClient, resp AgentResponse, agent *komputerv1alpha1.KomputerAgent) AgentResponse {
 	fillAgentTTL(&resp, agent)
+	resp.BudgetExhausted = k8s.IsAgentBudgetExhausted(ctx, agent)
 	return resp
 }
 
@@ -283,6 +311,8 @@ func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 	if agent.Status.TaskExpiresAt != nil {
 		resp.TaskExpiresAt = agent.Status.TaskExpiresAt.Format(time.RFC3339)
 	}
+	resp.BudgetUSD = agent.Spec.BudgetUSD
+	resp.TaskBudgetUSD = agent.Spec.TaskBudgetUSD
 }
 
 type PatchAgentRequest struct {
@@ -302,10 +332,14 @@ type PatchAgentRequest struct {
 	SystemPrompt    *string   `json:"systemPrompt,omitempty"` // custom system prompt
 	// SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
 	// clears the TTL; omitting the field leaves it unchanged.
-	SleepTTL    *string                       `json:"sleepTTL,omitempty"`
-	DeleteTTL   *string                       `json:"deleteTTL,omitempty"`
-	TaskTimeout *string                       `json:"taskTimeout,omitempty"`
-	Priority    *int32                        `json:"priority,omitempty"` // pointer so 0 vs unset is distinguishable
+	SleepTTL    *string `json:"sleepTTL,omitempty"`
+	DeleteTTL   *string `json:"deleteTTL,omitempty"`
+	TaskTimeout *string `json:"taskTimeout,omitempty"`
+	// BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
+	// "" clears the cap; omitting the field leaves it unchanged.
+	BudgetUSD     *string                       `json:"budgetUSD,omitempty"`
+	TaskBudgetUSD *string                       `json:"taskBudgetUSD,omitempty"`
+	Priority      *int32                        `json:"priority,omitempty"` // pointer so 0 vs unset is distinguishable
 	PodSpec     *corev1.PodSpec               `json:"podSpec,omitempty"`
 	Storage     *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
 	Labels      map[string]string             `json:"labels,omitempty"`
@@ -363,6 +397,16 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		taskTimeout, err := parseTTL("taskTimeout", req.TaskTimeout)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		budgetUSD, err := parseBudget("budgetUSD", req.BudgetUSD)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		taskBudgetUSD, err := parseBudget("taskBudgetUSD", req.TaskBudgetUSD)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -444,6 +488,14 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		if existing != nil {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+				// A wake-with-task always starts a brand new task, so the lifetime
+				// budget gates it the same way it gates a forward below. A plain idle
+				// wake (no task) goes through the separate /wake endpoint instead,
+				// which never reaches this branch.
+				if refuseIfBudgetExhausted(c, k8s, existing) {
+					agentActionsTotal.WithLabelValues("wake", "error").Inc()
+					return
+				}
 				// Use CR memories (may have been updated via PATCH since creation)
 				wakeMemories := existing.Spec.Memories
 				if len(req.Memories) > 0 {
@@ -464,13 +516,14 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				// the squad controller will rebuild it and the new container picks up
 				// instructions from env vars on startup.
 				if existing.Status.Squad && existing.Status.PodName != "" {
-					if _, fwdErr := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(wakeMemories), wakeSystemPrompt); fwdErr != nil {
+					effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(c.Request.Context(), ns, existing.Spec.AgentConfigSpec)
+					if _, fwdErr := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(wakeMemories), wakeSystemPrompt, effectiveTaskBudget); fwdErr != nil {
 						Logger.Warnw("squad-wake task forward failed (will rely on pod rebuild)", "agent_name", req.Name, "error", fwdErr)
 					}
 				}
 				Logger.Infow("waking sleeping agent", "namespace", ns, "agent_name", req.Name)
 				agentActionsTotal.WithLabelValues("wake", "success").Inc()
-				c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+				c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 					Name:               existing.Name,
 					Namespace:          existing.Namespace,
 					Model:              existing.Spec.Model,
@@ -517,8 +570,17 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// If the forward below fails after this patch, that's harmless — the
 			// task never reaches InProgress, so a reschedule won't auto-run it
 			// either; the next real task request will patch Instructions again.
+			//
+			// This is also the one place a NEW task can be refused for an exhausted
+			// lifetime budget: a steer (the else case, agent already mid-task) is
+			// always allowed to reach the running task, since that task is allowed
+			// to finish even if it has pushed spend past the cap.
 			if !agentTaskInProgress(existing.Status.TaskStatus) {
-				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}); err != nil {
+				if refuseIfBudgetExhausted(c, k8s, existing) {
+					agentActionsTotal.WithLabelValues("wake", "error").Inc()
+					return
+				}
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 					Logger.Warnw("failed to patch instructions before forwarding new task", "agent_name", req.Name, "error", err)
 				}
 			}
@@ -532,7 +594,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if forwardSystemPrompt == "" {
 				forwardSystemPrompt = existing.Spec.SystemPrompt
 			}
-			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt)
+			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(c.Request.Context(), ns, existing.Spec.AgentConfigSpec)
+			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt, effectiveTaskBudget)
 			if err != nil {
 				agentActionsTotal.WithLabelValues("wake", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
@@ -551,21 +614,24 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				}
 			}
 
-			// Update TTLs if this request carried new ones. Only non-empty values are
-			// applied — an omitted TTL on a task request must not silently clear an
-			// existing one, since callers routinely send just name + instructions.
-			if sleepTTL != nil || deleteTTL != nil || taskTimeout != nil {
+			// Update TTLs/budgets if this request carried new ones. Only non-empty
+			// values are applied — an omitted TTL/budget on a task request must not
+			// silently clear an existing one, since callers routinely send just
+			// name + instructions.
+			if sleepTTL != nil || deleteTTL != nil || taskTimeout != nil || budgetUSD != "" || taskBudgetUSD != "" {
 				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil,
 					TTLUpdate{Set: sleepTTL != nil, Value: sleepTTL},
 					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL},
-					TTLUpdate{Set: taskTimeout != nil, Value: taskTimeout}); err != nil {
-					Logger.Warnw("failed to patch TTLs", "agent_name", req.Name, "error", err)
+					TTLUpdate{Set: taskTimeout != nil, Value: taskTimeout},
+					StringUpdate{Set: budgetUSD != "", Value: budgetUSD},
+					StringUpdate{Set: taskBudgetUSD != "", Value: taskBudgetUSD}); err != nil {
+					Logger.Warnw("failed to patch TTLs/budgets", "agent_name", req.Name, "error", err)
 				}
 			}
 
 			Logger.Infow("forwarded task to existing agent", "namespace", ns, "agent_name", req.Name)
 			agentActionsTotal.WithLabelValues("wake", "success").Inc()
-			c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+			c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 				Name:               existing.Name,
 				Namespace:          existing.Namespace,
 				Model:              existing.Spec.Model,
@@ -644,6 +710,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				SleepTTL:        sleepTTL,
 				DeleteTTL:       deleteTTL,
 				TaskTimeout:     taskTimeout,
+				BudgetUSD:       budgetUSD,
+				TaskBudgetUSD:   taskBudgetUSD,
 				Priority:        req.Priority,
 				PodSpec:         req.PodSpec,
 				Storage:         req.Storage,
@@ -661,7 +729,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		Logger.Infow("created new agent", "namespace", ns, "agent_name", req.Name)
 		agentActionsTotal.WithLabelValues("create", "success").Inc()
-		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
@@ -892,7 +960,7 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		Logger.Infow("idle-woke agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("idle_wake", "success").Inc()
-		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
@@ -952,7 +1020,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
@@ -1129,7 +1197,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			if statusFilter != "" && !strings.EqualFold(statusFilter, string(a.Status.Phase)) {
 				continue
 			}
-			resp.Agents = append(resp.Agents, withAgentTTL(AgentResponse{
+			resp.Agents = append(resp.Agents, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 				Name:               a.Name,
 				Namespace:          a.Namespace,
 				Model:              a.Spec.Model,
@@ -1191,7 +1259,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && len(req.Labels) == 0 {
+		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1213,6 +1281,16 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 		taskTimeout, err := parseTTLUpdate("taskTimeout", req.TaskTimeout)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		budgetUSD, err := parseBudgetUpdate("budgetUSD", req.BudgetUSD)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		taskBudgetUSD, err := parseBudgetUpdate("taskBudgetUSD", req.TaskBudgetUSD)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -1269,7 +1347,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1. Patch CR spec first — this is the source of truth.
-		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout); err != nil {
+		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout, budgetUSD, taskBudgetUSD); err != nil {
 			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
@@ -1425,7 +1503,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			modelContextWindow = freshContextWindow
 		}
 		agentActionsTotal.WithLabelValues(patchAction, "success").Inc()
-		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 			Name:               updated.Name,
 			Namespace:          updated.Namespace,
 			Model:              updated.Spec.Model,
