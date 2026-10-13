@@ -6,7 +6,7 @@ import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
 import { ChevronRight, Moon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { listAgents, listSquads, createSquad, addSquadMember, patchAgent } from "@/lib/api";
+import { listAgents, listSquads, createSquad, addSquadMember, sleepAgent } from "@/lib/api";
 import type { AgentResponse, Squad } from "@/lib/types";
 import {
   AgentFieldsForm,
@@ -44,7 +44,7 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
     setSleepingPartner(true);
     onError(null);
     try {
-      await patchAgent(name, { lifecycle: "Sleep" }, namespace);
+      await sleepAgent(name, namespace);
       const res = await listAgents();
       setAvailableAgents(res.agents ?? []);
     } catch (e: unknown) {
