@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { AgentListFacets } from './AgentListFacets';
+import {
+    AgentListFacetsFromJSON,
+    AgentListFacetsFromJSONTyped,
+    AgentListFacetsToJSON,
+    AgentListFacetsToJSONTyped,
+} from './AgentListFacets';
 import type { AgentResponse } from './AgentResponse';
 import {
     AgentResponseFromJSON,
@@ -33,6 +40,29 @@ export interface AgentListResponse {
      * @memberof AgentListResponse
      */
     agents?: Array<AgentResponse>;
+    /**
+     * Facets lists every distinct namespace and "key=value" label pair across
+     * agents in the requested namespace scope, computed BEFORE status/label/q
+     * filtering — see AgentListFacets doc.
+     * @type {AgentListFacets}
+     * @memberof AgentListResponse
+     */
+    facets?: AgentListFacets;
+    /**
+     * NextOffset is the offset to request for the next page; omitted once
+     * there is no more data (or when `limit` was omitted).
+     * @type {number}
+     * @memberof AgentListResponse
+     */
+    nextOffset?: number;
+    /**
+     * Total is the number of agents matching the status/label/q filters, BEFORE
+     * the limit/offset slice is applied. Always populated (even when `limit`
+     * was omitted, in which case it simply equals len(Agents)).
+     * @type {number}
+     * @memberof AgentListResponse
+     */
+    total?: number;
 }
 
 /**
@@ -53,6 +83,9 @@ export function AgentListResponseFromJSONTyped(json: any, ignoreDiscriminator: b
     return {
         
         'agents': json['agents'] == null ? undefined : ((json['agents'] as Array<any>).map(AgentResponseFromJSON)),
+        'facets': json['facets'] == null ? undefined : AgentListFacetsFromJSON(json['facets']),
+        'nextOffset': json['nextOffset'] == null ? undefined : json['nextOffset'],
+        'total': json['total'] == null ? undefined : json['total'],
     };
 }
 
@@ -68,6 +101,9 @@ export function AgentListResponseToJSONTyped(value?: AgentListResponse | null, i
     return {
         
         'agents': value['agents'] == null ? undefined : ((value['agents'] as Array<any>).map(AgentResponseToJSON)),
+        'facets': AgentListFacetsToJSON(value['facets']),
+        'nextOffset': value['nextOffset'],
+        'total': value['total'],
     };
 }
 

@@ -52,13 +52,30 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Agents
+//
+// Leaving `limit` unset returns every matching agent in one response (the
+// backward-compatible default relied on by callers like useAgents()). Set
+// `limit`/`offset` to page through results — the response then also carries
+// `total`/`nextOffset`/`facets`.
 export const listAgents = (
   ns?: string,
-  opts?: { labelSelectors?: string[] },
+  opts?: {
+    labelSelectors?: string[];
+    status?: string;
+    q?: string;
+    sort?: string;
+    limit?: number;
+    offset?: number;
+  },
 ) => {
   if (MOCK_EMPTY) return Promise.resolve({ agents: [] } as AgentListResponse);
   const params = new URLSearchParams();
   if (ns) params.set('namespace', ns);
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.sort) params.set('sort', opts.sort);
+  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  if (opts?.offset != null) params.set('offset', String(opts.offset));
   for (const l of opts?.labelSelectors ?? []) {
     params.append('label', l);
   }

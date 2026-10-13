@@ -20,6 +20,12 @@ var _ MappedNullable = &AgentListResponse{}
 // AgentListResponse struct for AgentListResponse
 type AgentListResponse struct {
 	Agents []AgentResponse `json:"agents,omitempty"`
+	// Facets lists every distinct namespace and \"key=value\" label pair across agents in the requested namespace scope, computed BEFORE status/label/q filtering — see AgentListFacets doc.
+	Facets *AgentListFacets `json:"facets,omitempty"`
+	// NextOffset is the offset to request for the next page; omitted once there is no more data (or when `limit` was omitted).
+	NextOffset *int32 `json:"nextOffset,omitempty"`
+	// Total is the number of agents matching the status/label/q filters, BEFORE the limit/offset slice is applied. Always populated (even when `limit` was omitted, in which case it simply equals len(Agents)).
+	Total *int32 `json:"total,omitempty"`
 }
 
 // NewAgentListResponse instantiates a new AgentListResponse object
@@ -71,6 +77,102 @@ func (o *AgentListResponse) SetAgents(v []AgentResponse) {
 	o.Agents = v
 }
 
+// GetFacets returns the Facets field value if set, zero value otherwise.
+func (o *AgentListResponse) GetFacets() AgentListFacets {
+	if o == nil || IsNil(o.Facets) {
+		var ret AgentListFacets
+		return ret
+	}
+	return *o.Facets
+}
+
+// GetFacetsOk returns a tuple with the Facets field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentListResponse) GetFacetsOk() (*AgentListFacets, bool) {
+	if o == nil || IsNil(o.Facets) {
+		return nil, false
+	}
+	return o.Facets, true
+}
+
+// HasFacets returns a boolean if a field has been set.
+func (o *AgentListResponse) HasFacets() bool {
+	if o != nil && !IsNil(o.Facets) {
+		return true
+	}
+
+	return false
+}
+
+// SetFacets gets a reference to the given AgentListFacets and assigns it to the Facets field.
+func (o *AgentListResponse) SetFacets(v AgentListFacets) {
+	o.Facets = &v
+}
+
+// GetNextOffset returns the NextOffset field value if set, zero value otherwise.
+func (o *AgentListResponse) GetNextOffset() int32 {
+	if o == nil || IsNil(o.NextOffset) {
+		var ret int32
+		return ret
+	}
+	return *o.NextOffset
+}
+
+// GetNextOffsetOk returns a tuple with the NextOffset field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentListResponse) GetNextOffsetOk() (*int32, bool) {
+	if o == nil || IsNil(o.NextOffset) {
+		return nil, false
+	}
+	return o.NextOffset, true
+}
+
+// HasNextOffset returns a boolean if a field has been set.
+func (o *AgentListResponse) HasNextOffset() bool {
+	if o != nil && !IsNil(o.NextOffset) {
+		return true
+	}
+
+	return false
+}
+
+// SetNextOffset gets a reference to the given int32 and assigns it to the NextOffset field.
+func (o *AgentListResponse) SetNextOffset(v int32) {
+	o.NextOffset = &v
+}
+
+// GetTotal returns the Total field value if set, zero value otherwise.
+func (o *AgentListResponse) GetTotal() int32 {
+	if o == nil || IsNil(o.Total) {
+		var ret int32
+		return ret
+	}
+	return *o.Total
+}
+
+// GetTotalOk returns a tuple with the Total field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentListResponse) GetTotalOk() (*int32, bool) {
+	if o == nil || IsNil(o.Total) {
+		return nil, false
+	}
+	return o.Total, true
+}
+
+// HasTotal returns a boolean if a field has been set.
+func (o *AgentListResponse) HasTotal() bool {
+	if o != nil && !IsNil(o.Total) {
+		return true
+	}
+
+	return false
+}
+
+// SetTotal gets a reference to the given int32 and assigns it to the Total field.
+func (o *AgentListResponse) SetTotal(v int32) {
+	o.Total = &v
+}
+
 func (o AgentListResponse) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -83,6 +185,15 @@ func (o AgentListResponse) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.Agents) {
 		toSerialize["agents"] = o.Agents
+	}
+	if !IsNil(o.Facets) {
+		toSerialize["facets"] = o.Facets
+	}
+	if !IsNil(o.NextOffset) {
+		toSerialize["nextOffset"] = o.NextOffset
+	}
+	if !IsNil(o.Total) {
+		toSerialize["total"] = o.Total
 	}
 	return toSerialize, nil
 }

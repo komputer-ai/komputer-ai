@@ -607,11 +607,11 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace, status, label)
+> AgentListResponse listAgents(namespace, status, label, q, sort, limit, offset)
 
 List agents
 
-Returns all agents with their current status in the specified namespace.
+Returns agents with their current status in the specified namespace. Without &#x60;limit&#x60;, returns every matching agent (backward compatible). With &#x60;limit&#x60;, returns one page plus &#x60;total&#x60;/&#x60;nextOffset&#x60;/&#x60;facets&#x60; for infinite-scroll UIs.
 
 ### Example
 
@@ -633,6 +633,14 @@ async function example() {
     status: status_example,
     // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
     label: ...,
+    // string | Case-insensitive substring match against agent name (optional)
+    q: q_example,
+    // string | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional)
+    sort: sort_example,
+    // number | Max agents to return (1-200). Omit to return everything (legacy behavior) (optional)
+    limit: 56,
+    // number | Number of matching agents to skip (used with limit). Default 0 (optional)
+    offset: 56,
   } satisfies ListAgentsRequest;
 
   try {
@@ -655,6 +663,10 @@ example().catch(console.error);
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
 | **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
+| **q** | `string` | Case-insensitive substring match against agent name | [Optional] [Defaults to `undefined`] |
+| **sort** | `string` | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [Optional] [Defaults to `&#39;-created&#39;`] |
+| **limit** | `number` | Max agents to return (1-200). Omit to return everything (legacy behavior) | [Optional] [Defaults to `undefined`] |
+| **offset** | `number` | Number of matching agents to skip (used with limit). Default 0 | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -674,6 +686,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **200** | List of agents |  -  |
+| **400** | Bad request |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

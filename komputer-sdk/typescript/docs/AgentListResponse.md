@@ -7,6 +7,9 @@
 Name | Type
 ------------ | -------------
 `agents` | [Array&lt;AgentResponse&gt;](AgentResponse.md)
+`facets` | [AgentListFacets](AgentListFacets.md)
+`nextOffset` | number
+`total` | number
 
 ## Example
 
@@ -16,6 +19,9 @@ import type { AgentListResponse } from '@komputer-ai/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "agents": null,
+  "facets": null,
+  "nextOffset": null,
+  "total": null,
 } satisfies AgentListResponse
 
 console.log(example)

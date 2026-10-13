@@ -47,8 +47,11 @@ export class KomputerClient {
 
   // --- Agents ---
 
-  async listAgents() {
-    return this._agents.listAgents({});
+  // Leaving `limit` unset returns every matching agent in one response (the
+  // backward-compatible default). Set `limit` to page through results via
+  // `offset` and the response's `nextOffset`/`total`/`facets`.
+  async listAgents(params?: { namespace?: string; status?: string; label?: string[]; q?: string; sort?: string; limit?: number; offset?: number }) {
+    return this._agents.listAgents({ ...params });
   }
 
   async createAgent(params: { name: string; instructions: string; allowedTools?: string[]; budgetUSD?: string; connectors?: string[]; deleteTTL?: string; disallowedTools?: string[]; lifecycle?: string; sleepTTL?: string; taskBudgetUSD?: string; taskTimeout?: string; memories?: string[]; model?: string; namespace?: string; officeManager?: string; podSpec?: V1PodSpec; priority?: number; role?: string; secretRefs?: string[]; skills?: string[]; storage?: V1alpha1StorageSpec; systemPrompt?: string; templateRef?: string }) {

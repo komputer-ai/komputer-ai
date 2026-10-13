@@ -241,6 +241,17 @@ func mergeDefaultSkills(explicit []string, defaults []string) []string {
 
 type AgentListResponse struct {
 	Agents []AgentResponse `json:"agents"`
+	// Total is the number of agents matching the status/label/q filters, BEFORE
+	// the limit/offset slice is applied. Always populated (even when `limit`
+	// was omitted, in which case it simply equals len(Agents)).
+	Total int `json:"total"`
+	// NextOffset is the offset to request for the next page; omitted once
+	// there is no more data (or when `limit` was omitted).
+	NextOffset *int `json:"nextOffset,omitempty"`
+	// Facets lists every distinct namespace and "key=value" label pair across
+	// agents in the requested namespace scope, computed BEFORE status/label/q
+	// filtering — see AgentListFacets doc.
+	Facets AgentListFacets `json:"facets"`
 }
 
 // parseTTL converts a Go duration string into a *metav1.Duration. An empty string
@@ -1226,15 +1237,27 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 }
 
 // listAgents returns all agents in a namespace.
+//
+// Sorting/pagination (limit/offset/sort) and the free-text `q` filter all
+// operate over the FULL namespace-scoped list fetched from K8s in one call —
+// see filterSortPaginateAgents. `label` filtering is intentionally NOT pushed
+// down to the K8s list call (unlike before): facets must reflect every label
+// combination in the namespace scope regardless of the label/status/q filters
+// in effect, so the full list is always built and then filtered in-memory.
 // @ID listAgents
 // @Summary List agents
-// @Description Returns all agents with their current status in the specified namespace.
+// @Description Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 // @Tags agents
 // @Produce json
 // @Param namespace query string false "Kubernetes namespace"
 // @Param status query string false "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
 // @Param label query []string false "Label filter key=value; repeat for multiple (AND)" collectionFormat(multi)
+// @Param q query string false "Case-insensitive substring match against agent name"
+// @Param sort query string false "Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created" default(-created)
+// @Param limit query int false "Max agents to return (1-200). Omit to return everything (legacy behavior)"
+// @Param offset query int false "Number of matching agents to skip (used with limit). Default 0"
 // @Success 200 {object} AgentListResponse "List of agents"
+// @Failure 400 {object} map[string]string "Bad request"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents [get]
 func listAgents(k8s *K8sClient) gin.HandlerFunc {
@@ -1265,7 +1288,25 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			labelFilter[k] = v
 		}
 
-		agents, err := k8s.ListAgents(c.Request.Context(), ns, labelFilter)
+		limit, err := parseAgentListLimit(c.Query("limit"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		offset, err := parseAgentListOffset(c.Query("offset"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		sortParam := c.Query("sort")
+		if _, _, err := parseAgentSort(sortParam); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Fetch every agent in the namespace scope — no label filter pushed down
+		// to K8s, since facets must be computed over this same unfiltered set.
+		agents, err := k8s.ListAgents(c.Request.Context(), ns, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
 			return
@@ -1273,12 +1314,11 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 
 		squadByAgent := buildSquadNameMap(c.Request.Context(), k8s, ns)
 
-		resp := AgentListResponse{Agents: make([]AgentResponse, 0, len(agents))}
+		all := make([]AgentResponse, 0, len(agents))
+		metaLabels := make(map[string]map[string]string, len(agents))
 		for _, a := range agents {
-			if statusFilter != "" && !strings.EqualFold(statusFilter, string(a.Status.Phase)) {
-				continue
-			}
-			resp.Agents = append(resp.Agents, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
+			metaLabels[a.Namespace+"/"+a.Name] = a.Labels
+			all = append(all, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 				Name:               a.Name,
 				Namespace:          a.Namespace,
 				Model:              a.Spec.Model,
@@ -1311,7 +1351,26 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			}, &a))
 		}
 
-		c.JSON(http.StatusOK, resp)
+		page, total, nextOffset, facets, err := filterSortPaginateAgents(all, AgentListQuery{
+			Status:       statusFilter,
+			Labels:       labelFilter,
+			FilterLabels: metaLabels,
+			Q:            c.Query("q"),
+			Sort:         sortParam,
+			Limit:        limit,
+			Offset:       offset,
+		})
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, AgentListResponse{
+			Agents:     page,
+			Total:      total,
+			NextOffset: nextOffset,
+			Facets:     facets,
+		})
 	}
 }
 

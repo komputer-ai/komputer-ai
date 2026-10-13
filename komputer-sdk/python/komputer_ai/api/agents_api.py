@@ -2412,6 +2412,10 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
+        q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2427,7 +2431,7 @@ class AgentsApi:
     ) -> AgentListResponse:
         """List agents
 
-        Returns all agents with their current status in the specified namespace.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2435,6 +2439,14 @@ class AgentsApi:
         :type status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
+        :param q: Case-insensitive substring match against agent name
+        :type q: str
+        :param sort: Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created
+        :type sort: str
+        :param limit: Max agents to return (1-200). Omit to return everything (legacy behavior)
+        :type limit: int
+        :param offset: Number of matching agents to skip (used with limit). Default 0
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2461,6 +2473,10 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             label=label,
+            q=q,
+            sort=sort,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2469,6 +2485,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentListResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -2488,6 +2505,10 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
+        q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2503,7 +2524,7 @@ class AgentsApi:
     ) -> ApiResponse[AgentListResponse]:
         """List agents
 
-        Returns all agents with their current status in the specified namespace.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2511,6 +2532,14 @@ class AgentsApi:
         :type status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
+        :param q: Case-insensitive substring match against agent name
+        :type q: str
+        :param sort: Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created
+        :type sort: str
+        :param limit: Max agents to return (1-200). Omit to return everything (legacy behavior)
+        :type limit: int
+        :param offset: Number of matching agents to skip (used with limit). Default 0
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2537,6 +2566,10 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             label=label,
+            q=q,
+            sort=sort,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2545,6 +2578,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentListResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -2564,6 +2598,10 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
+        q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
+        sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
+        offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2579,7 +2617,7 @@ class AgentsApi:
     ) -> RESTResponseType:
         """List agents
 
-        Returns all agents with their current status in the specified namespace.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2587,6 +2625,14 @@ class AgentsApi:
         :type status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
+        :param q: Case-insensitive substring match against agent name
+        :type q: str
+        :param sort: Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created
+        :type sort: str
+        :param limit: Max agents to return (1-200). Omit to return everything (legacy behavior)
+        :type limit: int
+        :param offset: Number of matching agents to skip (used with limit). Default 0
+        :type offset: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2613,6 +2659,10 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             label=label,
+            q=q,
+            sort=sort,
+            limit=limit,
+            offset=offset,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2621,6 +2671,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentListResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -2635,6 +2686,10 @@ class AgentsApi:
         namespace,
         status,
         label,
+        q,
+        sort,
+        limit,
+        offset,
         _request_auth,
         _content_type,
         _headers,
@@ -2669,6 +2724,22 @@ class AgentsApi:
         if label is not None:
             
             _query_params.append(('label', label))
+            
+        if q is not None:
+            
+            _query_params.append(('q', q))
+            
+        if sort is not None:
+            
+            _query_params.append(('sort', sort))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if offset is not None:
+            
+            _query_params.append(('offset', offset))
             
         # process the header parameters
         # process the form parameters

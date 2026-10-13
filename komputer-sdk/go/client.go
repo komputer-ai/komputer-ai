@@ -33,8 +33,47 @@ func New(baseURL string) *Client {
 
 // --- Agents ---
 
-func (c *Client) ListAgents(ctx context.Context) (*komputer.AgentListResponse, *http.Response, error) {
-	return c.api.AgentsAPI.ListAgents(ctx).Execute()
+// ListAgentsOpts are optional filter/sort/pagination params for ListAgents.
+// Leaving Limit nil returns every matching agent in one response (the
+// backward-compatible default); setting it enables paging via Offset and the
+// response's NextOffset/Total/Facets fields.
+type ListAgentsOpts struct {
+	Namespace *string
+	Status    *string
+	Labels    []string // "key=value" filters, ANDed together
+	Q         *string  // case-insensitive substring match against agent name
+	Sort      *string  // created, name, status, model, lastActive, cost; prefix "-" for descending
+	Limit     *int32
+	Offset    *int32
+}
+
+func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*komputer.AgentListResponse, *http.Response, error) {
+	req := c.api.AgentsAPI.ListAgents(ctx)
+	if len(opts) > 0 {
+		o := opts[0]
+		if o.Namespace != nil {
+			req = req.Namespace(*o.Namespace)
+		}
+		if o.Status != nil {
+			req = req.Status(*o.Status)
+		}
+		if len(o.Labels) > 0 {
+			req = req.Label(o.Labels)
+		}
+		if o.Q != nil {
+			req = req.Q(*o.Q)
+		}
+		if o.Sort != nil {
+			req = req.Sort(*o.Sort)
+		}
+		if o.Limit != nil {
+			req = req.Limit(*o.Limit)
+		}
+		if o.Offset != nil {
+			req = req.Offset(*o.Offset)
+		}
+	}
+	return req.Execute()
 }
 
 type CreateAgentOpts struct {

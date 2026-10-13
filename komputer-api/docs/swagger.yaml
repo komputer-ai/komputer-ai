@@ -65,12 +65,41 @@ definitions:
       type:
         type: string
     type: object
+  main.AgentListFacets:
+    properties:
+      labels:
+        items:
+          type: string
+        type: array
+      namespaces:
+        items:
+          type: string
+        type: array
+    type: object
   main.AgentListResponse:
     properties:
       agents:
         items:
           $ref: '#/definitions/main.AgentResponse'
         type: array
+      facets:
+        allOf:
+        - $ref: '#/definitions/main.AgentListFacets'
+        description: |-
+          Facets lists every distinct namespace and "key=value" label pair across
+          agents in the requested namespace scope, computed BEFORE status/label/q
+          filtering — see AgentListFacets doc.
+      nextOffset:
+        description: |-
+          NextOffset is the offset to request for the next page; omitted once
+          there is no more data (or when `limit` was omitted).
+        type: integer
+      total:
+        description: |-
+          Total is the number of agents matching the status/label/q filters, BEFORE
+          the limit/offset slice is applied. Always populated (even when `limit`
+          was omitted, in which case it simply equals len(Agents)).
+        type: integer
     type: object
   main.AgentResponse:
     properties:
@@ -6687,7 +6716,10 @@ info:
 paths:
   /agents:
     get:
-      description: Returns all agents with their current status in the specified namespace.
+      description: Returns agents with their current status in the specified namespace.
+        Without `limit`, returns every matching agent (backward compatible). With
+        `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll
+        UIs.
       operationId: listAgents
       parameters:
       - description: Kubernetes namespace
@@ -6705,6 +6737,26 @@ paths:
           type: string
         name: label
         type: array
+      - description: Case-insensitive substring match against agent name
+        in: query
+        name: q
+        type: string
+      - default: -created
+        description: 'Sort key: created, name, status, model, lastActive, cost; prefix
+          with - for descending. Default -created'
+        in: query
+        name: sort
+        type: string
+      - description: Max agents to return (1-200). Omit to return everything (legacy
+          behavior)
+        in: query
+        name: limit
+        type: integer
+      - description: Number of matching agents to skip (used with limit). Default
+          0
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
@@ -6712,6 +6764,12 @@ paths:
           description: List of agents
           schema:
             $ref: '#/definitions/main.AgentListResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal error
           schema:
