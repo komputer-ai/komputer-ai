@@ -9,11 +9,13 @@ import {
 import type { ScheduleAgentSpec } from "@/lib/types";
 
 describe("buildScheduleAgentSpec", () => {
-  it("carries TTLs, task timeout and tool policy into the schedule spec", () => {
+  it("carries TTLs, task timeout, budgets and tool policy into the schedule spec", () => {
     const values = makeDefaultAgentFormValues({
       sleepTTL: "30m",
       deleteTTL: "24h",
       taskTimeout: "10m",
+      budgetUSD: "10.00",
+      taskBudgetUSD: "2.50",
       allowedTools: "Read\nmcp__github__*",
       disallowedTools: "Bash, WebFetch",
     });
@@ -21,15 +23,19 @@ describe("buildScheduleAgentSpec", () => {
     expect(spec.sleepTTL).toBe("30m");
     expect(spec.deleteTTL).toBe("24h");
     expect(spec.taskTimeout).toBe("10m");
+    expect(spec.budgetUSD).toBe("10.00");
+    expect(spec.taskBudgetUSD).toBe("2.50");
     expect(spec.allowedTools).toEqual(["Read", "mcp__github__*"]);
     expect(spec.disallowedTools).toEqual(["Bash", "WebFetch"]);
   });
 
-  it("omits empty TTLs and tool lists", () => {
+  it("omits empty TTLs, budgets and tool lists", () => {
     const spec = buildScheduleAgentSpec(makeDefaultAgentFormValues());
     expect(spec.sleepTTL).toBeUndefined();
     expect(spec.deleteTTL).toBeUndefined();
     expect(spec.taskTimeout).toBeUndefined();
+    expect(spec.budgetUSD).toBeUndefined();
+    expect(spec.taskBudgetUSD).toBeUndefined();
     expect(spec.allowedTools).toBeUndefined();
     expect(spec.disallowedTools).toBeUndefined();
   });
@@ -103,6 +109,8 @@ describe("agentFormValuesFromScheduleSpec", () => {
     sleepTTL: "30m0s",
     deleteTTL: "24h0m0s",
     taskTimeout: "1h30m0s",
+    budgetUSD: "10.00",
+    taskBudgetUSD: "2.50",
   };
 
   it("maps every editable field into form values", () => {
@@ -128,6 +136,8 @@ describe("agentFormValuesFromScheduleSpec", () => {
     expect(v.sleepTTL).toBe("30m");
     expect(v.deleteTTL).toBe("24h");
     expect(v.taskTimeout).toBe("1h30m");
+    expect(v.budgetUSD).toBe("10.00");
+    expect(v.taskBudgetUSD).toBe("2.50");
   });
 
   it("round-trips through buildScheduleAgentSpec without losing fields", () => {

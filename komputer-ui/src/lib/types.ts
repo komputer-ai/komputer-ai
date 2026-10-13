@@ -27,6 +27,10 @@ export interface AgentResponse {
   deleteTTL?: string;
   /** Per-task wall-clock cap, as a Go duration string (e.g. "30m0s"). */
   taskTimeout?: string;
+  /** Soft lifetime spending cap across all tasks, as a decimal USD string (e.g. "10.00"). */
+  budgetUSD?: string;
+  /** Hard per-task spending cap, as a decimal USD string (e.g. "10.00"). */
+  taskBudgetUSD?: string;
   /** RFC3339. Last task activity — the clock sleepTTL is measured against. */
   lastActivityAt?: string;
   /** RFC3339. When the TTL will fire. Absent when the TTL is unset or its clock isn't running. */
@@ -38,6 +42,8 @@ export interface AgentResponse {
   taskExpiresAt?: string;
   lastTaskCostUSD?: string;
   totalCostUSD?: string;
+  /** True once totalCostUSD has reached budgetUSD. Computed by the API; new tasks are refused while true. */
+  budgetExhausted?: boolean;
   totalTokens?: number;
   modelContextWindow?: number;
   secrets?: string[];
@@ -115,6 +121,9 @@ export interface ScheduleAgentSpec {
   sleepTTL?: string;
   deleteTTL?: string;
   taskTimeout?: string;
+  /** Decimal USD strings (e.g. "10.00"). */
+  budgetUSD?: string;
+  taskBudgetUSD?: string;
 }
 
 export interface ScheduleResponse {
@@ -185,6 +194,10 @@ export interface CreateAgentRequest {
   deleteTTL?: string;
   /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
   taskTimeout?: string;
+  /** Decimal USD string (e.g. "10.00"). Soft lifetime spending cap across all tasks. */
+  budgetUSD?: string;
+  /** Decimal USD string (e.g. "10.00"). Hard per-task spending cap. */
+  taskBudgetUSD?: string;
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;
@@ -221,6 +234,10 @@ export interface PatchAgentRequest {
   deleteTTL?: string;
   /** Go duration string (e.g. "30m"). Send "" to clear; omit to leave unchanged. */
   taskTimeout?: string;
+  /** Decimal USD string (e.g. "10.00"). Send "" to clear; omit to leave unchanged. */
+  budgetUSD?: string;
+  /** Decimal USD string (e.g. "10.00"). Send "" to clear; omit to leave unchanged. */
+  taskBudgetUSD?: string;
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;
