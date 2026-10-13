@@ -6,6 +6,8 @@ import type { AgentResponse, AgentListFacets } from "@/lib/types";
 import { appendAgentsDeduped } from "@/lib/agent-list-query";
 
 export const AGENTS_PAGE_SIZE = 50;
+// Mirrors MaxAgentListLimit in komputer-api.
+const MAX_API_LIMIT = 200;
 
 const EMPTY_FACETS: AgentListFacets = { namespaces: [], labels: [] };
 
@@ -22,7 +24,7 @@ export interface PaginatedAgentsFilters {
 /**
  * Drives the agents page's infinite-scroll list: fetches AGENTS_PAGE_SIZE at
  * a time, exposes loadMore() for the scroll sentinel, and refresh() that
- * re-fetches everything loaded so far in ONE request (so the page's existing
+ * re-fetches everything loaded so far (so the page's existing
  * periodic/visibility refresh doesn't collapse the list back to page 1).
  *
  * Changing any field of `filters` resets to the first page. This intentionally
@@ -102,17 +104,24 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
     }
   }, [nextOffset, loadingMore, loading, fetchPage, total, facets]);
 
-  // Re-fetches everything loaded so far in one request, so a periodic or
+  // Re-fetches everything loaded so far, so a periodic or
   // visibility-triggered refresh updates in place instead of resetting
   // infinite scroll back to the first 50.
   const refresh = useCallback(async () => {
     const requestId = requestIdRef.current;
     const loadedCount = Math.max(agentsRef.current.length, AGENTS_PAGE_SIZE);
     try {
-      const data = await fetchPage(loadedCount, 0);
+      // The API caps `limit` at MAX_API_LIMIT, so re-fetch in chunks once more
+      // than that has been scrolled into view.
+      let data = await fetchPage(Math.min(loadedCount, MAX_API_LIMIT), 0);
+      let refreshed = data.agents || [];
+      while (data.nextOffset != null && refreshed.length < loadedCount) {
+        data = await fetchPage(Math.min(loadedCount - refreshed.length, MAX_API_LIMIT), data.nextOffset);
+        refreshed = appendAgentsDeduped(refreshed, data.agents || []);
+      }
       if (requestId !== requestIdRef.current) return;
-      setAgents(data.agents || []);
-      setTotal(data.total ?? (data.agents || []).length);
+      setAgents(refreshed);
+      setTotal(data.total ?? refreshed.length);
       setFacets(data.facets ?? EMPTY_FACETS);
       setNextOffset(data.nextOffset ?? null);
       setError(null);
