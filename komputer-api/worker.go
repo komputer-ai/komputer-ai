@@ -151,9 +151,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "started", agentLabel).Inc()
 					case "task_completed":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "completed", agentLabel).Inc()
-						if cost, ok := event.Payload["cost_usd"].(float64); ok {
-							agentTaskCostUSD.WithLabelValues(event.Namespace, model, agentLabel).Add(cost)
-						}
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 						if dur, ok := event.Payload["duration_ms"].(float64); ok {
 							agentTaskDuration.WithLabelValues(event.Namespace, model, agentLabel).Observe(dur / 1000.0)
 						}
@@ -171,6 +169,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						}
 					case "task_cancelled":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "cancelled", agentLabel).Inc()
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 					case "error":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "errored", agentLabel).Inc()
 					case "tool_call":
@@ -534,6 +533,17 @@ func truncate(s string, max int) string {
 // event carries — task_completed, or task_cancelled since a cancelled run's
 // ResultMessage is published with the same accounting fields (see agent.py).
 // Any other event type yields zero values, matching the pre-extraction
+// recordTaskCostMetric adds a finished task's cost to the cost metric. Used for
+// both task_completed and task_cancelled: a cancelled task (manual or
+// taskTimeout) still spent money, and leaving it out made the metric
+// under-count and disagree with status.totalCostUSD. A payload without cost
+// (a cancel that fired before any result arrived) is a no-op.
+func recordTaskCostMetric(namespace, model, agentLabel string, payload map[string]interface{}) {
+	if cost, ok := payload["cost_usd"].(float64); ok {
+		agentTaskCostUSD.WithLabelValues(namespace, model, agentLabel).Add(cost)
+	}
+}
+
 // behavior where only these two types fed PatchAgentTaskStatus.
 func extractTaskAccounting(event AgentEvent) (sessionID string, costUSD float64, totalTokens int64, contextWindow int64) {
 	if event.Type != "task_completed" && event.Type != "task_cancelled" {
