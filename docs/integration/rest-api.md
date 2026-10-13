@@ -29,11 +29,14 @@ Content-Type: application/json
 | `role` | no | `manager` (can orchestrate sub-agents) or `worker` (default: `manager`) |
 | `connectors` | no | List of `KomputerConnector` names to attach |
 | `namespace` | no | Target Kubernetes namespace |
+| `budgetUSD` | no | Soft lifetime spending cap, as a decimal USD string (e.g. `"10.00"`). New tasks are refused once `status.totalCostUSD` reaches this; a running task still finishes. |
+| `taskBudgetUSD` | no | Hard per-task spending cap, as a decimal USD string (e.g. `"2.50"`). The task stops the instant it is exceeded, mid-task. |
 
 **Behavior:**
 - If the agent doesn't exist, it is created and starts working immediately
 - If the agent exists and is idle, the new task is assigned to it
 - If the agent exists and is busy, returns `409 Conflict`
+- If the agent exists, is idle, and its effective `budgetUSD` is exhausted, returns `409 Conflict` instead of starting the new task (a steer onto an already-busy agent is never refused this way)
 
 **Response (201 Created):**
 ```json
@@ -63,11 +66,15 @@ GET /api/v1/agents?namespace=production
       "status": "Running",
       "taskStatus": "InProgress",
       "lastTaskMessage": "Calling Bash: python analyze.py",
+      "budgetUSD": "10.00",
+      "budgetExhausted": false,
       "createdAt": "2026-03-27T10:00:00Z"
     }
   ]
 }
 ```
+
+`budgetExhausted` is computed by the API (agent's own `budgetUSD`, else its template's default, compared against `status.totalCostUSD`) so clients don't need to re-derive the template resolution themselves.
 
 ## Get Agent Details
 
