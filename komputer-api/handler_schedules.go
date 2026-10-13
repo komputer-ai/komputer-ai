@@ -305,7 +305,7 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			Logger.Warnw("manual trigger: failed to label scheduled agent", "schedule", schedule.Name, "agent", agentName, "error", err)
 		}
 	} else {
-		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
+		if agentTaskInProgress(agent.Status.TaskStatus) {
 			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
 		}
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {

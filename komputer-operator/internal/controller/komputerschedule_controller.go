@@ -159,8 +159,8 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, agentErr
 	} else {
 		// Agent exists
-		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
-			// Agent is busy, skip this run
+		if taskInProgress(agent.Status.TaskStatus) {
+			// Agent is busy (InProgress or its Compacting sub-state), skip this run
 			log.Info("Agent is busy, skipping scheduled run", "agent", agentName)
 			// Still compute next run time so we don't get stuck
 			if !schedule.Spec.AutoDelete {
