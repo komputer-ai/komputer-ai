@@ -692,6 +692,49 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	})
 
+	// ── sleep ────────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "sleep <name>",
+		Short: "Sleep an agent right now",
+		Long:  "Sleeps an agent immediately — pod deleted, PVC/workspace preserved — regardless of sleepTTL or a prior idle wake, without changing the agent's lifecycle policy. A no-op if already sleeping.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			ep := resolveEndpoint(cmd)
+			data, status, err := apiRequest("POST", fmt.Sprintf("%s/api/v1/agents/%s/sleep%s", ep, url.PathEscape(args[0]), nsQuery(cmd)), nil)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+
+			if jsonMode {
+				printJSON(agent)
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Sleeping %q (status: %s)", args[0], agent.Status)))
+		},
+	})
+
 	// ── compact ──────────────────────────────────────────────────────────
 	compactCmd := &cobra.Command{
 		Use:   "compact <name>",

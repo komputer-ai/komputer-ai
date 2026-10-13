@@ -51,6 +51,26 @@ const (
 //     still apply normally — an idle-woken agent should still time out).
 const AnnotationWakeIdle = "komputer.ai/wake-idle"
 
+// AnnotationSleepRequested records an explicit "sleep now" request that must take
+// effect regardless of wake-idle or sleepTTL, and WITHOUT changing spec.Lifecycle —
+// unlike the Lifecycle=Sleep immediate transition, which only fires once a task
+// completes and is suppressed by wake-idle/sleepTTL (see reconcileStatus).
+//
+// Owned by the API (set by SleepAgentNow, the handler for POST
+// /agents/{name}/sleep, on a non-squad agent). Consumed and cleared by the
+// operator's reconcileStatus: present + a pod exists + no task in progress +
+// a non-ephemeral workspace → sleep the agent now (delete pod, Phase=Sleeping,
+// keep PVC) via the same transition the Lifecycle=Sleep rule uses, then clear
+// this annotation and AnnotationWakeIdle (stale once asleep). If a task is in
+// progress when the request arrives, the operator leaves the pod running and
+// keeps the annotation set — it never kills a running task — and honors the
+// request on a later reconcile once the task ends.
+//
+// Squad members are skipped entirely by the agent controller (see Squad field),
+// so the API drives their sleep transition directly via PatchAgentPhase instead
+// of this annotation — see SleepAgentNow's doc comment.
+const AnnotationSleepRequested = "komputer.ai/sleep-requested"
+
 // KomputerAgentPhase represents the lifecycle phase of a KomputerAgent.
 type KomputerAgentPhase string
 

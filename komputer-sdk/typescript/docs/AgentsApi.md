@@ -14,6 +14,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**getAgentEvents**](AgentsApi.md#getagentevents) | **GET** /agents/{name}/events | Get agent events |
 | [**listAgents**](AgentsApi.md#listagents) | **GET** /agents | List agents |
 | [**patchAgent**](AgentsApi.md#patchagentoperation) | **PATCH** /agents/{name} | Patch agent |
+| [**sleepAgent**](AgentsApi.md#sleepagent) | **POST** /agents/{name}/sleep | Sleep an agent now |
 | [**wakeAgent**](AgentsApi.md#wakeagent) | **POST** /agents/{name}/wake | Wake an agent idle |
 
 
@@ -748,6 +749,80 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Updated agent |  -  |
 | **400** | Bad request |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## sleepAgent
+
+> AgentResponse sleepAgent(name, namespace)
+
+Sleep an agent now
+
+Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { SleepAgentRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+  } satisfies SleepAgentRequest;
+
+  try {
+    const data = await api.sleepAgent(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Agent sleeping (or already asleep) |  -  |
+| **400** | Ephemeral-workspace agents can\&#39;t sleep |  -  |
+| **404** | Agent not found |  -  |
+| **409** | Agent is running a task |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

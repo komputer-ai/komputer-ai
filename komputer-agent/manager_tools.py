@@ -557,7 +557,7 @@ async def update_agent(args):
 
 @tool(
     name="sleep_agent",
-    description="Put an agent to sleep — pod is deleted, PVC (workspace) is preserved. The agent can be woken later with a new task. Defaults to the current agent if no name is given.",
+    description="Put an agent to sleep right now — pod is deleted, PVC (workspace) is preserved. Takes effect immediately regardless of sleepTTL or a prior idle wake, and does not change the agent's lifecycle policy. The agent can be woken later with a new task. Defaults to the current agent if no name is given.",
     input_schema={
         "type": "object",
         "properties": {
@@ -573,7 +573,7 @@ async def sleep_agent(args):
         name = os.environ.get("KOMPUTER_AGENT_NAME", "")
         if not name:
             return _err("No name provided and KOMPUTER_AGENT_NAME not set.")
-    return await _request("PATCH", f"/api/v1/agents/{name}", timeout=30, json={"lifecycle": "Sleep"})
+    return await _request("POST", f"/api/v1/agents/{name}/sleep", timeout=30)
 
 
 @tool(

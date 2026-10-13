@@ -269,6 +269,15 @@ func (c *Client) WakeAgent(ctx context.Context, name string) (*komputer.AgentRes
 	return c.api.AgentsAPI.WakeAgent(ctx, name).Execute()
 }
 
+// SleepAgent sleeps an agent right now — pod deleted, PVC/workspace kept —
+// regardless of sleepTTL or a prior idle wake, and without changing the
+// agent's lifecycle policy. A no-op (returns the agent's current state) if
+// already sleeping; returns an error (409) if a task is in progress, or
+// (400) for an ephemeral-workspace agent.
+func (c *Client) SleepAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
+	return c.api.AgentsAPI.SleepAgent(ctx, name).Execute()
+}
+
 func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]interface{}, *http.Response, error) {
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }

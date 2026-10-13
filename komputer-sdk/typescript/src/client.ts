@@ -85,6 +85,15 @@ export class KomputerClient {
     return this._agents.wakeAgent({ name });
   }
 
+  /** Sleeps an agent right now — pod deleted, PVC/workspace kept — regardless
+   * of sleepTTL or a prior idle wake, and without changing the agent's
+   * lifecycle policy. A no-op (returns the agent's current state) if already
+   * sleeping; throws (409) if a task is in progress, or (400) for an
+   * ephemeral-workspace agent. */
+  async sleepAgent(name: string) {
+    return this._agents.sleepAgent({ name });
+  }
+
   async getAgentEvents(name: string) {
     return this._agents.getAgentEvents({ name });
   }

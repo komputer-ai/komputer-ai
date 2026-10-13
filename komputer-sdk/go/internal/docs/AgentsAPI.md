@@ -14,6 +14,7 @@ Method | HTTP request | Description
 [**GetAgentEvents**](AgentsAPI.md#GetAgentEvents) | **Get** /agents/{name}/events | Get agent events
 [**ListAgents**](AgentsAPI.md#ListAgents) | **Get** /agents | List agents
 [**PatchAgent**](AgentsAPI.md#PatchAgent) | **Patch** /agents/{name} | Patch agent
+[**SleepAgent**](AgentsAPI.md#SleepAgent) | **Post** /agents/{name}/sleep | Sleep an agent now
 [**WakeAgent**](AgentsAPI.md#WakeAgent) | **Post** /agents/{name}/wake | Wake an agent idle
 
 
@@ -735,6 +736,78 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## SleepAgent
+
+> AgentResponse SleepAgent(ctx, name).Namespace(namespace).Execute()
+
+Sleep an agent now
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Agent name
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.AgentsAPI.SleepAgent(context.Background(), name).Namespace(namespace).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.SleepAgent``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `SleepAgent`: AgentResponse
+	fmt.Fprintf(os.Stdout, "Response from `AgentsAPI.SleepAgent`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Agent name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiSleepAgentRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **namespace** | **string** | Kubernetes namespace | 
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

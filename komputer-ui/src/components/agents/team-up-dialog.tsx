@@ -20,7 +20,7 @@ import {
 } from "@/components/kit/select";
 import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
-import { listAgents, createSquad, addSquadMember, patchAgent } from "@/lib/api";
+import { listAgents, createSquad, addSquadMember, sleepAgent } from "@/lib/api";
 import { Moon } from "lucide-react";
 import type { Squad, AgentResponse } from "@/lib/types";
 
@@ -88,7 +88,7 @@ export function TeamUpDialog({
     !!partnerAgent && !selectedAgentSquad && partnerAgent.status !== "Sleeping";
 
   // Build the list of agents the user needs to sleep before they can team up.
-  // Each entry carries its namespace so the inline Sleep button can call patch.
+  // Each entry carries its namespace so the inline Sleep button can call sleepAgent.
   const notAsleepAgents: { name: string; namespace: string; status?: string }[] = [];
   if (currentAgentNotAsleep) {
     notAsleepAgents.push({ name: agentName, namespace: agentNamespace, status: agentStatus });
@@ -104,7 +104,7 @@ export function TeamUpDialog({
     setSleepingAgents((s) => ({ ...s, [key]: true }));
     setError(null);
     try {
-      await patchAgent(name, { lifecycle: "Sleep" }, namespace);
+      await sleepAgent(name, namespace);
       // Refresh the agent list so the warning recomputes from fresh status.
       const res = await listAgents(agentNamespace);
       setAgents((res.agents || []).filter((a) => a.name !== agentName));

@@ -994,6 +994,87 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// sleepAgent puts a running agent to sleep right now — the real counterpart to
+// wakeAgent. Unlike PATCH /agents/{name} with lifecycle=Sleep (which sets a
+// policy the operator applies once a task completes, suppressed by a prior
+// idle wake or a sleepTTL), this always takes effect immediately and never
+// touches spec.lifecycle.
+//
+// Already Sleeping is a no-op: it returns 200 with the agent's current state,
+// matching wakeAgent's idempotency.
+// @ID sleepAgent
+// @Summary Sleep an agent now
+// @Description Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentResponse "Agent sleeping (or already asleep)"
+// @Failure 400 {object} map[string]string "Ephemeral-workspace agents can't sleep"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent is running a task"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/sleep [post]
+func sleepAgent(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
+
+		agent, err := k8s.SleepAgentNow(c.Request.Context(), ns, name)
+		if err != nil {
+			switch {
+			case errors.IsNotFound(err):
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			case err == ErrAgentBusy:
+				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": "agent is running a task; cancel it first"})
+			case err == ErrAgentEphemeral:
+				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
+				c.JSON(http.StatusBadRequest, gin.H{"error": ErrAgentEphemeral.Error()})
+			default:
+				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to sleep agent: " + err.Error()})
+			}
+			return
+		}
+
+		Logger.Infow("sleep-requested agent", "namespace", ns, "agent_name", name)
+		agentActionsTotal.WithLabelValues("sleep_now", "success").Inc()
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Status:             string(agent.Status.Phase),
+			TaskStatus:         string(agent.Status.TaskStatus),
+			LastTaskMessage:    agent.Status.LastTaskMessage,
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			LastTaskCostUSD:    agent.Status.LastTaskCostUSD,
+			TotalCostUSD:       agent.Status.TotalCostUSD,
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
+			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Memories:           agent.Spec.Memories,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
+			Instructions:       agent.Spec.Instructions,
+			SystemPrompt:       agent.Spec.SystemPrompt,
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			Priority:           agent.Spec.Priority,
+			QueuePosition:      agent.Status.QueuePosition,
+			QueueReason:        agent.Status.QueueReason,
+			PodSpec:            agent.Spec.PodSpec,
+			Storage:            agent.Spec.Storage,
+			Squad:              agent.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
+			Labels:             agent.Spec.Labels,
+			CompletionTime:     formatTime(agent.Status.CompletionTime),
+		}, agent))
+	}
+}
+
 // getAgent returns details for a single agent.
 // @ID getAgent
 // @Summary Get agent details

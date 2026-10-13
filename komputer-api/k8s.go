@@ -147,6 +147,15 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 		return nil, err
 	}
 	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		// Not asleep yet, but a sleep may be pending (the operator waits out a running
+		// task): waking is the user's latest intent, so cancel it.
+		if _, pending := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]; pending {
+			metaOriginal := agent.DeepCopy()
+			delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
+			if err := k.client.Patch(ctx, agent, client.MergeFrom(metaOriginal)); err != nil {
+				return nil, fmt.Errorf("failed to cancel pending sleep request: %w", err)
+			}
+		}
 		return agent, nil
 	}
 
@@ -157,6 +166,7 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 		agent.Annotations = map[string]string{}
 	}
 	agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] = "true"
+	delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
 	if err := k.client.Patch(ctx, agent, client.MergeFrom(originalMeta)); err != nil {
 		return nil, fmt.Errorf("failed to patch annotations: %w", err)
 	}
@@ -172,6 +182,108 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 		return nil, fmt.Errorf("failed to patch status: %w", err)
 	}
 	return agent, nil
+}
+
+// ErrAgentBusy is returned by SleepAgentNow when the agent has a task in
+// progress (InProgress or Compacting) — the caller must cancel it first rather
+// than have the sleep silently kill it.
+var ErrAgentBusy = fmt.Errorf("agent is running a task")
+
+// ErrAgentEphemeral is returned by SleepAgentNow for an effectively ephemeral
+// (emptyDir, no PVC) agent — sleeping deletes the pod, which would silently
+// wipe such an agent's only copy of its workspace.
+var ErrAgentEphemeral = fmt.Errorf("ephemeral agents can't sleep: sleeping deletes the pod and would wipe the workspace")
+
+// SleepAgentNow puts an agent to sleep immediately, regardless of wake-idle or
+// sleepTTL, and WITHOUT changing spec.Lifecycle — the explicit "sleep now"
+// counterpart to IdleWakeAgent's explicit "wake now" (neither one carries a
+// task; compare WakeAgent, which always does). This is what POST
+// /agents/{name}/sleep calls, instead of the old approach of patching
+// spec.lifecycle to Sleep and hoping the operator's automatic immediate-Sleep
+// rule happened to apply — that rule is guarded by wake-idle and sleepTTL
+// (rightly so, for its own purpose) and permanently changes the lifecycle
+// policy, neither of which a one-off "sleep now" click should do.
+//
+// Already Sleeping is a no-op success (idempotent), matching IdleWakeAgent's
+// idempotency. A task in progress returns ErrAgentBusy without cancelling it.
+// An effectively ephemeral workspace returns ErrAgentEphemeral.
+//
+// Non-squad agents: Phase/PodName are operator-owned (see the CR-status
+// field-ownership rule), so this only records intent — it sets the
+// komputer.ai/sleep-requested annotation (komputerv1alpha1.AnnotationSleepRequested)
+// and lets the operator's reconcileStatus perform the actual pod delete and
+// Phase=Sleeping transition, sharing that transition with the Lifecycle=Sleep
+// immediate rule. See the annotation's doc comment for the operator-side half.
+//
+// Squad members: the agent controller skips squad-managed agents entirely
+// (status.Squad=true), so there is no reconcile loop to hand the annotation
+// to. Instead this drives the transition directly via PatchAgentPhase,
+// mirroring the existing Lifecycle=Sleep squad-member path in patchAgent — the
+// squad controller deletes the shared pod once every member is Sleeping.
+func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerAgent, error) {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return nil, err
+	}
+
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		return agent, nil
+	}
+	if agentTaskInProgress(agent.Status.TaskStatus) {
+		return nil, ErrAgentBusy
+	}
+	if k.ResolveEffectiveEphemeral(ctx, ns, agent.Spec.AgentConfigSpec) {
+		return nil, ErrAgentEphemeral
+	}
+
+	if agent.Status.Squad {
+		if err := k.PatchAgentPhase(ctx, ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — requested via API"); err != nil {
+			return nil, fmt.Errorf("failed to set sleeping phase: %w", err)
+		}
+		if err := k.clearSleepMetadata(ctx, ns, name); err != nil {
+			return nil, err
+		}
+		return k.GetAgent(ctx, ns, name)
+	}
+
+	original := agent.DeepCopy()
+	if agent.Annotations == nil {
+		agent.Annotations = map[string]string{}
+	}
+	agent.Annotations[komputerv1alpha1.AnnotationSleepRequested] = "true"
+	if err := k.client.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return nil, fmt.Errorf("failed to patch annotations: %w", err)
+	}
+	return agent, nil
+}
+
+// clearSleepMetadata clears the komputer.ai/wake-idle annotation (stale once an
+// agent is sleeping) and status.SleepExpiresAt (no future sleep deadline once
+// already asleep). Used by SleepAgentNow's squad-member path, which drives the
+// sleep transition directly rather than through the operator's reconcileStatus
+// (which does the equivalent clearing itself for the non-squad path).
+func (k *K8sClient) clearSleepMetadata(ctx context.Context, ns, name string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return err
+	}
+	if _, ok := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]; ok {
+		original := agent.DeepCopy()
+		delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+		if err := k.client.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+			return fmt.Errorf("failed to clear wake-idle annotation: %w", err)
+		}
+	}
+	if agent.Status.SleepExpiresAt != nil {
+		original := agent.DeepCopy()
+		agent.Status.SleepExpiresAt = nil
+		if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+			return fmt.Errorf("failed to clear sleepExpiresAt: %w", err)
+		}
+	}
+	return nil
 }
 
 // CreateAgentSecrets creates a K8s Secret with agent-specific secrets.
@@ -1939,11 +2051,17 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	// (InProgress -> InProgress/Compacting): taskStatusStartsTask is false there,
 	// since the agent was already doing real work, not sitting idle-woken.
 	if taskStatusStartsTask(prevTaskStatus, agent.Status.TaskStatus) {
-		if _, annotated := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]; annotated {
+		// A new task supersedes both an idle wake and a sleep request the operator
+		// hasn't acted on yet — otherwise the agent would sleep after a task the user
+		// started afterwards.
+		_, wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]
+		_, sleepRequested := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]
+		if wakeIdle || sleepRequested {
 			metaOriginal := agent.DeepCopy()
 			delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+			delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
 			if err := k.client.Patch(ctx, agent, client.MergeFrom(metaOriginal)); err != nil {
-				return fmt.Errorf("failed to clear wake-idle annotation: %w", err)
+				return fmt.Errorf("failed to clear wake-idle/sleep-requested annotations: %w", err)
 			}
 		}
 	}
