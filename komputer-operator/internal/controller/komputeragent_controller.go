@@ -891,16 +891,36 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 				"agent", agent.Name)
 		} else {
 			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
-			if err := r.Delete(ctx, pod); err != nil {
+			if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."); err != nil {
 				return err
 			}
-			return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
-				s.Phase = komputerv1alpha1.AgentPhaseSleeping
-				s.PodName = ""
-				s.PvcName = pvcName
-				s.Message = "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."
-			})
+			// A pending sleep-requested annotation is satisfied by this transition
+			// too (the agent ends up asleep either way) — clear it now, since once
+			// pod is nil the sleep-requested branch below can never run again to
+			// clear it itself.
+			return r.clearSleepRequestAnnotations(ctx, agent)
 		}
+	}
+
+	// Explicit sleep request (komputerv1alpha1.AnnotationSleepRequested, set by
+	// POST /agents/{name}/sleep): sleep right now regardless of wake-idle or
+	// sleepTTL, and without touching spec.Lifecycle — see the annotation's doc
+	// comment. Still never kills a running task: if one is in progress, the pod
+	// is left alone and the annotation stays set for a later reconcile (fired
+	// again once TaskStatus leaves InProgress/Compacting, since the API worker's
+	// status write re-triggers this controller). Also skipped for an ephemeral
+	// workspace, same reasoning as the Lifecycle=Sleep guard above — the API is
+	// expected to reject that case before ever setting the annotation, so this
+	// is defense in depth, not the primary guard.
+	if agent.Annotations[komputerv1alpha1.AnnotationSleepRequested] == "true" &&
+		pod != nil &&
+		!ephemeralWorkspace &&
+		!taskInProgress(agent.Status.TaskStatus) {
+		log.Info("sleep requested via API: deleting pod", "agent", agent.Name)
+		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
+			return err
+		}
+		return r.clearSleepRequestAnnotations(ctx, agent)
 	}
 
 	// AutoDelete mode: delete the entire agent CR when task completes successfully
@@ -962,6 +982,40 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 			s.Message = fmt.Sprintf("Pod phase: %s", pod.Status.Phase)
 		}
 	})
+}
+
+// sleepAgentNow deletes the agent's pod (keeping its PVC) and marks it Sleeping.
+// Shared by the immediate Lifecycle=Sleep transition and the sleep-requested
+// (AnnotationSleepRequested) transition in reconcileStatus — both end the agent
+// up in the exact same state, differing only in what triggers them and in the
+// human-readable message.
+func (r *KomputerAgentReconciler) sleepAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, message string) error {
+	if err := r.Delete(ctx, pod); err != nil {
+		return err
+	}
+	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+		s.Phase = komputerv1alpha1.AgentPhaseSleeping
+		s.PodName = ""
+		s.PvcName = pvcName
+		s.Message = message
+		// No future sleep deadline once the agent is actually asleep.
+		s.SleepExpiresAt = nil
+	})
+}
+
+// clearSleepRequestAnnotations removes AnnotationSleepRequested and
+// AnnotationWakeIdle after an explicit sleep request has been honored — the
+// request is done, and a wake-idle marker is meaningless on a sleeping agent.
+func (r *KomputerAgentReconciler) clearSleepRequestAnnotations(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+	_, hasSleepRequested := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]
+	_, hasWakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]
+	if !hasSleepRequested && !hasWakeIdle {
+		return nil
+	}
+	original := agent.DeepCopy()
+	delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
+	delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+	return r.Patch(ctx, agent, client.MergeFrom(original))
 }
 
 // updateStatus uses variadic extras pattern for status updates.
