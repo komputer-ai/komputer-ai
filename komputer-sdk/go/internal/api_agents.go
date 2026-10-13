@@ -1154,6 +1154,10 @@ type ApiListAgentsRequest struct {
 	namespace *string
 	status *string
 	label *[]string
+	q *string
+	sort *string
+	limit *int32
+	offset *int32
 }
 
 // Kubernetes namespace
@@ -1174,6 +1178,30 @@ func (r ApiListAgentsRequest) Label(label []string) ApiListAgentsRequest {
 	return r
 }
 
+// Case-insensitive substring match against agent name
+func (r ApiListAgentsRequest) Q(q string) ApiListAgentsRequest {
+	r.q = &q
+	return r
+}
+
+// Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created
+func (r ApiListAgentsRequest) Sort(sort string) ApiListAgentsRequest {
+	r.sort = &sort
+	return r
+}
+
+// Max agents to return (1-200). Omit to return everything (legacy behavior)
+func (r ApiListAgentsRequest) Limit(limit int32) ApiListAgentsRequest {
+	r.limit = &limit
+	return r
+}
+
+// Number of matching agents to skip (used with limit). Default 0
+func (r ApiListAgentsRequest) Offset(offset int32) ApiListAgentsRequest {
+	r.offset = &offset
+	return r
+}
+
 func (r ApiListAgentsRequest) Execute() (*AgentListResponse, *http.Response, error) {
 	return r.ApiService.ListAgentsExecute(r)
 }
@@ -1181,7 +1209,7 @@ func (r ApiListAgentsRequest) Execute() (*AgentListResponse, *http.Response, err
 /*
 ListAgents List agents
 
-Returns all agents with their current status in the specified namespace.
+Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiListAgentsRequest
@@ -1231,6 +1259,22 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 			parameterAddToHeaderOrQuery(localVarQueryParams, "label", t, "form", "multi")
 		}
 	}
+	if r.q != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "q", r.q, "form", "")
+	}
+	if r.sort != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "form", "")
+	} else {
+		var defaultValue string = "-created"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", defaultValue, "form", "")
+		r.sort = &defaultValue
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	}
+	if r.offset != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "offset", r.offset, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -1269,6 +1313,17 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 		newErr := &GenericOpenAPIError{
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v map[string]string
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 500 {
 			var v map[string]string

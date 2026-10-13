@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './AddSquadMemberRequest';
 export * from './AgentEvent';
+export * from './AgentListFacets';
 export * from './AgentListResponse';
 export * from './AgentResponse';
 export * from './CompactAgentRequest';

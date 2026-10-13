@@ -86,6 +86,10 @@ export interface ListAgentsRequest {
     namespace?: string;
     status?: string;
     label?: Array<string>;
+    q?: string;
+    sort?: string;
+    limit?: number;
+    offset?: number;
 }
 
 export interface PatchAgentOperationRequest {
@@ -555,6 +559,22 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['label'] = requestParameters['label'];
         }
 
+        if (requestParameters['q'] != null) {
+            queryParameters['q'] = requestParameters['q'];
+        }
+
+        if (requestParameters['sort'] != null) {
+            queryParameters['sort'] = requestParameters['sort'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['offset'] != null) {
+            queryParameters['offset'] = requestParameters['offset'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -569,7 +589,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns all agents with their current status in the specified namespace.
+     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
      * List agents
      */
     async listAgentsRaw(requestParameters: ListAgentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AgentListResponse>> {
@@ -580,7 +600,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns all agents with their current status in the specified namespace.
+     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
      * List agents
      */
     async listAgents(requestParameters: ListAgentsRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentListResponse> {

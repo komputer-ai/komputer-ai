@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.agent_list_facets import AgentListFacets
 from komputer_ai.models.agent_response import AgentResponse
 from typing import Optional, Set
 from typing_extensions import Self
@@ -29,7 +30,10 @@ class AgentListResponse(BaseModel):
     AgentListResponse
     """ # noqa: E501
     agents: Optional[List[AgentResponse]] = None
-    __properties: ClassVar[List[str]] = ["agents"]
+    facets: Optional[AgentListFacets] = Field(default=None, description="Facets lists every distinct namespace and \"key=value\" label pair across agents in the requested namespace scope, computed BEFORE status/label/q filtering — see AgentListFacets doc.")
+    next_offset: Optional[StrictInt] = Field(default=None, description="NextOffset is the offset to request for the next page; omitted once there is no more data (or when `limit` was omitted).", alias="nextOffset")
+    total: Optional[StrictInt] = Field(default=None, description="Total is the number of agents matching the status/label/q filters, BEFORE the limit/offset slice is applied. Always populated (even when `limit` was omitted, in which case it simply equals len(Agents)).")
+    __properties: ClassVar[List[str]] = ["agents", "facets", "nextOffset", "total"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -77,6 +81,9 @@ class AgentListResponse(BaseModel):
                 if _item_agents:
                     _items.append(_item_agents.to_dict())
             _dict['agents'] = _items
+        # override the default output from pydantic by calling `to_dict()` of facets
+        if self.facets:
+            _dict['facets'] = self.facets.to_dict()
         return _dict
 
     @classmethod
@@ -89,7 +96,10 @@ class AgentListResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "agents": [AgentResponse.from_dict(_item) for _item in obj["agents"]] if obj.get("agents") is not None else None
+            "agents": [AgentResponse.from_dict(_item) for _item in obj["agents"]] if obj.get("agents") is not None else None,
+            "facets": AgentListFacets.from_dict(obj["facets"]) if obj.get("facets") is not None else None,
+            "nextOffset": obj.get("nextOffset"),
+            "total": obj.get("total")
         })
         return _obj
 

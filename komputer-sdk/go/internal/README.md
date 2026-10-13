@@ -131,6 +131,7 @@ Class | Method | HTTP request | Description
 
  - [AddSquadMemberRequest](docs/AddSquadMemberRequest.md)
  - [AgentEvent](docs/AgentEvent.md)
+ - [AgentListFacets](docs/AgentListFacets.md)
  - [AgentListResponse](docs/AgentListResponse.md)
  - [AgentResponse](docs/AgentResponse.md)
  - [CompactAgentRequest](docs/CompactAgentRequest.md)

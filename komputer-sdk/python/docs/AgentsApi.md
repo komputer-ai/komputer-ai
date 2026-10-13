@@ -596,11 +596,11 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace, status=status, label=label)
+> AgentListResponse list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
 
 List agents
 
-Returns all agents with their current status in the specified namespace.
+Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
 
 ### Example
 
@@ -625,10 +625,14 @@ with komputer_ai.ApiClient(configuration) as api_client:
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
     label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
+    q = 'q_example' # str | Case-insensitive substring match against agent name (optional)
+    sort = '-created' # str | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to '-created')
+    limit = 56 # int | Max agents to return (1-200). Omit to return everything (legacy behavior) (optional)
+    offset = 56 # int | Number of matching agents to skip (used with limit). Default 0 (optional)
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -645,6 +649,10 @@ Name | Type | Description  | Notes
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
  **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
+ **q** | **str**| Case-insensitive substring match against agent name | [optional] 
+ **sort** | **str**| Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [optional] [default to &#39;-created&#39;]
+ **limit** | **int**| Max agents to return (1-200). Omit to return everything (legacy behavior) | [optional] 
+ **offset** | **int**| Number of matching agents to skip (used with limit). Default 0 | [optional] 
 
 ### Return type
 
@@ -664,6 +672,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | List of agents |  -  |
+**400** | Bad request |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

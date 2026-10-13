@@ -11,7 +11,10 @@ servers:
 paths:
   /agents:
     get:
-      description: Returns all agents with their current status in the specified namespace.
+      description: "Returns agents with their current status in the specified namespace.\
+        \ Without `limit`, returns every matching agent (backward compatible). With\
+        \ `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll\
+        \ UIs."
       operationId: listAgents
       parameters:
       - description: Kubernetes namespace
@@ -40,6 +43,42 @@ paths:
             type: string
           type: array
         style: form
+      - description: Case-insensitive substring match against agent name
+        explode: true
+        in: query
+        name: q
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: "Sort key: created, name, status, model, lastActive, cost; prefix\
+          \ with - for descending. Default -created"
+        explode: true
+        in: query
+        name: sort
+        required: false
+        schema:
+          default: -created
+          type: string
+        style: form
+      - description: Max agents to return (1-200). Omit to return everything (legacy
+          behavior)
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: Number of matching agents to skip (used with limit). Default
+          0
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          type: integer
+        style: form
       responses:
         "200":
           content:
@@ -47,6 +86,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/AgentListResponse"
           description: List of agents
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Bad request
         "500":
           content:
             application/json:
@@ -2597,8 +2644,21 @@ components:
         type:
           type: string
       type: object
+    AgentListFacets:
+      properties:
+        labels:
+          items:
+            type: string
+          type: array
+        namespaces:
+          items:
+            type: string
+          type: array
+      type: object
     AgentListResponse:
       example:
+        total: 1
+        nextOffset: 1
         agents:
         - instructions: instructions
           connectors:
@@ -3956,11 +4016,31 @@ components:
           - allowedTools
           - allowedTools
           status: status
+        facets: "{}"
       properties:
         agents:
           items:
             $ref: "#/components/schemas/AgentResponse"
           type: array
+        facets:
+          allOf:
+          - $ref: "#/components/schemas/AgentListFacets"
+          description: |-
+            Facets lists every distinct namespace and "key=value" label pair across
+            agents in the requested namespace scope, computed BEFORE status/label/q
+            filtering — see AgentListFacets doc.
+          type: object
+        nextOffset:
+          description: |-
+            NextOffset is the offset to request for the next page; omitted once
+            there is no more data (or when `limit` was omitted).
+          type: integer
+        total:
+          description: |-
+            Total is the number of agents matching the status/label/q filters, BEFORE
+            the limit/offset slice is applied. Always populated (even when `limit`
+            was omitted, in which case it simply equals len(Agents)).
+          type: integer
       type: object
     AgentResponse:
       example:

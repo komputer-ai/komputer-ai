@@ -1,6 +1,7 @@
 .gitignore
 docs/AddSquadMemberRequest.md
 docs/AgentEvent.md
+docs/AgentListFacets.md
 docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
@@ -209,6 +210,7 @@ src/apis/TemplatesApi.ts
 src/apis/index.ts
 src/models/AddSquadMemberRequest.ts
 src/models/AgentEvent.ts
+src/models/AgentListFacets.ts
 src/models/AgentListResponse.ts
 src/models/AgentResponse.ts
 src/models/CompactAgentRequest.ts
