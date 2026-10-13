@@ -4,6 +4,7 @@ import {
   buildScheduleAgentSpec,
   agentFormValuesFromScheduleSpec,
   buildCreateAgentRequest,
+  buildAgentSpecForSquad,
 } from "./agent-fields-form";
 import type { ScheduleAgentSpec } from "@/lib/types";
 
@@ -42,6 +43,40 @@ describe("buildCreateAgentRequest", () => {
     expect(req.allowedTools).toEqual(["Read", "Write"]);
     expect(req.disallowedTools).toBeUndefined();
   });
+
+  it("omits storage entirely when neither size nor ephemeral is set", () => {
+    const req = buildCreateAgentRequest(makeDefaultAgentFormValues({ name: "a" }));
+    expect(req.storage).toBeUndefined();
+  });
+
+  it("sends storage.ephemeral=true without a size", () => {
+    const req = buildCreateAgentRequest(makeDefaultAgentFormValues({ name: "a", ephemeral: true }));
+    expect(req.storage).toEqual({ size: undefined, ephemeral: true });
+  });
+
+  it("sends both size and ephemeral when both are set", () => {
+    const req = buildCreateAgentRequest(
+      makeDefaultAgentFormValues({ name: "a", ephemeral: true, storageSize: "10Gi" })
+    );
+    expect(req.storage).toEqual({ size: "10Gi", ephemeral: true });
+  });
+});
+
+describe("buildAgentSpecForSquad ephemeral storage", () => {
+  it("omits storage when neither size nor ephemeral is set", () => {
+    const spec = buildAgentSpecForSquad(makeDefaultAgentFormValues());
+    expect(spec.storage).toBeUndefined();
+  });
+
+  it("includes ephemeral:true in the squad member's storage", () => {
+    const spec = buildAgentSpecForSquad(makeDefaultAgentFormValues({ ephemeral: true }));
+    expect(spec.storage).toEqual({ ephemeral: true });
+  });
+
+  it("includes both size and ephemeral", () => {
+    const spec = buildAgentSpecForSquad(makeDefaultAgentFormValues({ ephemeral: true, storageSize: "5Gi" }));
+    expect(spec.storage).toEqual({ size: "5Gi", ephemeral: true });
+  });
 });
 
 describe("agentFormValuesFromScheduleSpec", () => {
@@ -63,7 +98,7 @@ describe("agentFormValuesFromScheduleSpec", () => {
         { name: "agent", image: "custom:1", resources: { requests: { cpu: "2", memory: "4Gi" }, limits: { cpu: "2", memory: "4Gi" } } },
       ],
     },
-    storage: { size: "20Gi" },
+    storage: { size: "20Gi", ephemeral: true },
     // The API serialises Go durations with their zero-valued tail units.
     sleepTTL: "30m0s",
     deleteTTL: "24h0m0s",
@@ -89,6 +124,7 @@ describe("agentFormValuesFromScheduleSpec", () => {
     expect(v.memoryLimit).toBe("4Gi");
     expect(v.image).toBe("custom:1");
     expect(v.storageSize).toBe("20Gi");
+    expect(v.ephemeral).toBe(true);
     expect(v.sleepTTL).toBe("30m");
     expect(v.deleteTTL).toBe("24h");
     expect(v.taskTimeout).toBe("1h30m");

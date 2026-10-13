@@ -3,6 +3,14 @@ export type AgentStatus = 'Pending' | 'Running' | 'Queued' | 'Sleeping' | 'Succe
 export interface StorageOverride {
   size?: string;
   storageClassName?: string;
+  /**
+   * Runs the agent's workspace as an emptyDir instead of a PVC: no persistent
+   * volume at all. Files, installed packages, and the Claude session are lost
+   * whenever the pod is deleted, evicted, rescheduled, or restarted. Incompatible
+   * with lifecycle "Sleep" and sleepTTL (sleeping deletes the pod). Immutable
+   * after agent creation.
+   */
+  ephemeral?: boolean;
 }
 
 export interface AgentResponse {
@@ -101,7 +109,7 @@ export interface ScheduleAgentSpec {
   systemPrompt?: string;
   priority?: number;
   podSpec?: Record<string, unknown>;
-  storage?: { size?: string };
+  storage?: StorageOverride;
   labels?: Record<string, string>;
   /** Go duration strings; the API echoes them as e.g. "30m0s". */
   sleepTTL?: string;

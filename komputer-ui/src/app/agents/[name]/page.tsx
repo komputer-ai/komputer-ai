@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -443,6 +443,24 @@ export default function AgentDetailPage() {
                   <Badge variant="secondary" className="text-xs">
                     {agent.lifecycle}
                   </Badge>
+                )}
+                {agent.storage?.ephemeral && (
+                  <Tooltip
+                    side="bottom"
+                    content={
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[var(--color-text)]">Ephemeral workspace</span>
+                        <span className="font-normal text-[var(--color-text-secondary)]">
+                          No PVC — files, packages, and the session are lost whenever the pod stops.
+                        </span>
+                      </span>
+                    }
+                  >
+                    <Badge variant="secondary" className="text-xs gap-1.5 cursor-default" aria-label="Ephemeral workspace: no PVC, lost on pod restart">
+                      <Eraser className="size-3 text-[var(--color-text-muted)]" aria-hidden />
+                      Ephemeral
+                    </Badge>
+                  </Tooltip>
                 )}
                 {agent.sleepTTL && (
                   <TtlBadge
@@ -942,12 +960,27 @@ function SettingsCard({ agent, agentNs, onSaved }: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {LIFECYCLES.map((l) => (
+            {LIFECYCLES.filter((l) => !(agent.storage?.ephemeral && l.value === "Sleep")).map((l) => (
               <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {agent.storage?.ephemeral && (
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Sleep is unavailable — this agent&apos;s workspace is ephemeral (no PVC).
+          </p>
+        )}
       </div>
+
+      {agent.storage?.ephemeral && (
+        <div className="flex flex-col gap-1.5">
+          <Label>Storage</Label>
+          <Input value="Ephemeral (emptyDir, no PVC)" disabled className="opacity-60 cursor-not-allowed" />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Immutable after creation — cannot be changed to persistent storage.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
