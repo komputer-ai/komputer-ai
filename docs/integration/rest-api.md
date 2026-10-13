@@ -122,6 +122,18 @@ Wakes a sleeping agent **without running any task** — unlike `POST /agents` (s
 
 **Response (200 OK):** the agent's `AgentResponse`, same shape as "Get Agent Details" above.
 
+## Sleep an Agent Now
+
+```
+POST /api/v1/agents/:name/sleep?namespace=production
+```
+
+Sleeps an agent **right now** — pod deleted, PVC/workspace kept — regardless of `sleepTTL` or a prior idle wake, and **without changing `spec.lifecycle`**. This is different from `PATCH /api/v1/agents/:name` with `{"lifecycle": "Sleep"}` (see "Update Agent Configuration" below), which only sets a policy the operator applies once the current task completes, and which a prior idle wake or a `sleepTTL` suppress — this endpoint always takes effect immediately and leaves the lifecycle policy untouched.
+
+A no-op if the agent is already sleeping: returns `200 OK` with its current state. Returns `409 Conflict` if a task is in progress (cancel it first via `POST /agents/:name/cancel`) and `400 Bad Request` for an agent with an ephemeral (`storage.ephemeral: true`) workspace, since sleeping would delete the pod and wipe it.
+
+**Response (200 OK):** the agent's `AgentResponse`, same shape as "Get Agent Details" above.
+
 ## Compact a Conversation
 
 Manually trigger compaction on the agent's active task. Older turns are summarized to free context space. Only works while the agent is actively running a task — returns `409 Conflict` otherwise.
