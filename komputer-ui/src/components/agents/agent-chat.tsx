@@ -12,7 +12,7 @@ import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
 import { JsonView } from "@/components/shared/json-view";
 import { isBedrockModelId } from "@/lib/model-utils";
-import { cn } from "@/lib/utils";
+import { cn, formatToolDuration } from "@/lib/utils";
 import {
   ChevronRight,
   ArrowUp,
@@ -75,6 +75,7 @@ type ChatMessage =
       input?: unknown;
       output?: unknown;
       outputTruncated?: boolean;
+      durationMs?: number;
       timestamp: string;
     }
   | {
@@ -192,6 +193,7 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
           input: toolName === "Skill" ? undefined : inp,
           output,
           outputTruncated: event.payload.output_truncated === true,
+          durationMs: typeof event.payload.duration_ms === "number" ? event.payload.duration_ms : undefined,
           timestamp: event.timestamp,
         });
         break;
@@ -533,6 +535,7 @@ function ToolCard({
   input,
   output,
   outputTruncated,
+  durationMs,
   timestamp,
 }: {
   toolName: string;
@@ -541,6 +544,7 @@ function ToolCard({
   input?: unknown;
   output?: unknown;
   outputTruncated?: boolean;
+  durationMs?: number;
   timestamp: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -571,6 +575,11 @@ function ToolCard({
           <code className="min-w-0 truncate text-xs font-mono text-[var(--color-text-muted)]">
             {command}
           </code>
+        )}
+        {durationMs != null && (
+          <span className="ml-auto shrink-0 pl-2 text-xs tabular-nums text-[var(--color-text-muted)]">
+            {formatToolDuration(durationMs)}
+          </span>
         )}
       </button>
       <AnimatePresence initial={false}>
@@ -623,23 +632,24 @@ function ToolCard({
                   )}
                 </>
               )}
+              <p className="mt-2 text-[10px] text-[var(--color-text-secondary)]">
+                {formatTimestamp(timestamp)}
+              </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      <p className="px-3 pb-1.5 text-[10px] text-[var(--color-text-secondary)]">
-        {formatTimestamp(timestamp)}
-      </p>
     </div>
   );
 }
 
-function SkillCard({ skillName, args, timestamp }: { skillName: string; args?: string; timestamp: string }) {
+function SkillCard({ skillName, args, durationMs, timestamp }: { skillName: string; args?: string; durationMs?: number; timestamp: string }) {
   return (
     <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]">
       <Link
         href={`/skills/${encodeURIComponent(skillName)}`}
         className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+        title={formatTimestamp(timestamp)}
       >
         <Sparkles className="size-3.5 shrink-0 text-[var(--color-brand-violet)]" />
         <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
@@ -653,10 +663,12 @@ function SkillCard({ skillName, args, timestamp }: { skillName: string; args?: s
             {args}
           </code>
         )}
+        {durationMs != null && (
+          <span className="ml-auto shrink-0 pl-2 text-xs tabular-nums text-[var(--color-text-muted)]">
+            {formatToolDuration(durationMs)}
+          </span>
+        )}
       </Link>
-      <p className="px-3 pb-1.5 text-[10px] text-[var(--color-text-secondary)]">
-        {formatTimestamp(timestamp)}
-      </p>
     </div>
   );
 }
@@ -953,8 +965,8 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
         return (
           <motion.div key={key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>
             {msg.toolName === "Skill"
-              ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} timestamp={msg.timestamp} />
-              : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} outputTruncated={msg.outputTruncated} timestamp={msg.timestamp} />}
+              ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} durationMs={msg.durationMs} timestamp={msg.timestamp} />
+              : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} outputTruncated={msg.outputTruncated} durationMs={msg.durationMs} timestamp={msg.timestamp} />}
           </motion.div>
         );
       case "completed":

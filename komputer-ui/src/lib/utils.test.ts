@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { formatCost, formatRelativeTime, cronToHuman } from './utils';
+import { formatCost, formatRelativeTime, cronToHuman, formatToolDuration } from './utils';
 
 // ─── formatCost ───────────────────────────────────────────────────────────────
 
@@ -132,5 +132,23 @@ describe('formatRelativeTime', () => {
   it('returns in Xd for future timestamp days away', () => {
     const ts = new Date('2024-06-04T12:00:00Z').toISOString();
     expect(formatRelativeTime(ts)).toBe('in 3d');
+  });
+});
+
+describe("formatToolDuration", () => {
+  it("shows seconds with one decimal under a minute", () => {
+    expect(formatToolDuration(4400)).toBe("4.4s");
+    expect(formatToolDuration(1000)).toBe("1.0s");
+    expect(formatToolDuration(59_940)).toBe("59.9s");
+  });
+  it("rounds sub-second durations to a tenth, with a floor marker", () => {
+    expect(formatToolDuration(320)).toBe("0.3s");
+    expect(formatToolDuration(50)).toBe("0.1s");
+    expect(formatToolDuration(20)).toBe("<0.1s");
+    expect(formatToolDuration(0)).toBe("<0.1s");
+  });
+  it("switches to minutes and seconds from a minute up", () => {
+    expect(formatToolDuration(60_000)).toBe("1m 0s");
+    expect(formatToolDuration(125_400)).toBe("2m 5s");
   });
 });
