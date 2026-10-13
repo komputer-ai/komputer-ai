@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -75,6 +76,25 @@ def _fetch_context_window(model: str) -> int | None:
         return None
 
 
+def _serialize_tool_output(value) -> tuple[str, bool]:
+    """Serialize a tool_response value for the tool_result event payload.
+
+    str() of a dict/list produces Python repr (single quotes, True/False/None)
+    instead of JSON, which the UI can't parse. Dicts/lists are JSON-serialized
+    instead; strings pass through unchanged; anything else falls back to str().
+    The 1000-char cap is applied after serialization so it doesn't cut a
+    JSON string mid-token. Returns (output, truncated).
+    """
+    if isinstance(value, (dict, list)):
+        serialized = json.dumps(value, ensure_ascii=False, default=str)
+    elif isinstance(value, str):
+        serialized = value
+    else:
+        serialized = str(value)
+    truncated = len(serialized) > 1000
+    return serialized[:1000], truncated
+
+
 def _write_skills(skills: dict[str, str | dict[str, str]]):
     """Write Claude skills to ~/.claude/skills/<name>/SKILL.md."""
     for name, skill in skills.items():
@@ -123,14 +143,15 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     last_usage = None
 
     async def post_tool_hook(input, session_id, ctx):
-        publisher.publish(
-            "tool_result",
-            {
-                "tool": input.get("tool_name", ""),
-                "input": input.get("tool_input", {}),
-                "output": str(input.get("tool_response", ""))[:1000],
-            },
-        )
+        output, truncated = _serialize_tool_output(input.get("tool_response", ""))
+        payload = {
+            "tool": input.get("tool_name", ""),
+            "input": input.get("tool_input", {}),
+            "output": output,
+        }
+        if truncated:
+            payload["output_truncated"] = True
+        publisher.publish("tool_result", payload)
         return {}
 
     async def pre_compact_hook(input, session_id, ctx):
