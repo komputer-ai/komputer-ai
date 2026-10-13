@@ -12,7 +12,7 @@ import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
 import { JsonView } from "@/components/shared/json-view";
 import { isBedrockModelId } from "@/lib/model-utils";
-import { cn, formatToolDuration } from "@/lib/utils";
+import { cn, formatToolDuration, isLongThinking } from "@/lib/utils";
 import {
   ChevronRight,
   ArrowUp,
@@ -453,6 +453,9 @@ function AgentBubble({ text, timestamp, usage, agentName, namespace }: { text: s
 }
 
 function ThinkingBubble({ text }: { text: string }) {
+  // Thinking is published in full; collapse long reasoning to a few lines.
+  const long = isLongThinking(text);
+  const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
       className="flex justify-start"
@@ -462,7 +465,23 @@ function ThinkingBubble({ text }: { text: string }) {
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
       <div className="max-w-[80%]">
-        <p className="text-sm italic text-[var(--color-text-secondary)]">{text}</p>
+        <p
+          className={cn(
+            "whitespace-pre-wrap text-sm italic text-[var(--color-text-secondary)]",
+            long && !expanded && "line-clamp-3"
+          )}
+        >
+          {text}
+        </p>
+        {long && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="mt-0.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] cursor-pointer"
+          >
+            {expanded ? "Show less" : "Show more"}
+          </button>
+        )}
       </div>
     </motion.div>
   );

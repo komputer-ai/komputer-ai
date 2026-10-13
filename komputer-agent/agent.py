@@ -389,7 +389,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     if isinstance(block, TextBlock):
                         publisher.publish("text", {"content": block.text, "usage": usage})
                     elif isinstance(block, ThinkingBlock):
-                        publisher.publish("thinking", {"content": block.thinking[:500], "usage": usage})
+                        publisher.publish("thinking", {"content": block.thinking, "usage": usage})
                     elif isinstance(block, ToolUseBlock):
                         tool_started[block.id] = time.monotonic()
                         publisher.publish("tool_call", {

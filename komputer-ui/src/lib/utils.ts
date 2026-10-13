@@ -54,6 +54,14 @@ export function formatToolDuration(ms: number): string {
   return `${(tenths / 10).toFixed(1)}s`;
 }
 
+/**
+ * Whether a thinking block is long enough to collapse in the chat. Thinking is
+ * published in full, so long reasoning would otherwise flood the conversation.
+ */
+export function isLongThinking(text: string): boolean {
+  return text.length > 320 || text.split("\n").length > 3;
+}
+
 export function cronToHuman(cron: string): string {
   const parts = cron.split(' ');
   if (parts.length !== 5) return cron;
