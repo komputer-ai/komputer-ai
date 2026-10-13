@@ -715,6 +715,14 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// startup path identical in both modes.
 	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: "8000"})
 
+	// Decide run-vs-idle from the last known task status (see shouldStartIdle).
+	// A fresh pod created while a task is pending/in-flight auto-runs
+	// Instructions; one created after the last task already finished starts
+	// idle instead of re-running stale Instructions.
+	if shouldStartIdle(agent.Status.TaskStatus) {
+		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
+	}
+
 	// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when
 	// configured. The mirror for this secret already exists in agent.Namespace
 	// (ensured earlier in Reconcile), so the secretKeyRef resolves within the
