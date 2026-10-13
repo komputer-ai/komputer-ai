@@ -14,6 +14,7 @@ Method | HTTP request | Description
 [**get_agent_events**](AgentsApi.md#get_agent_events) | **GET** /agents/{name}/events | Get agent events
 [**list_agents**](AgentsApi.md#list_agents) | **GET** /agents | List agents
 [**patch_agent**](AgentsApi.md#patch_agent) | **PATCH** /agents/{name} | Patch agent
+[**sleep_agent**](AgentsApi.md#sleep_agent) | **POST** /agents/{name}/sleep | Sleep an agent now
 [**wake_agent**](AgentsApi.md#wake_agent) | **POST** /agents/{name}/wake | Wake an agent idle
 
 
@@ -738,6 +739,80 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated agent |  -  |
 **400** | Bad request |  -  |
+**500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **sleep_agent**
+> AgentResponse sleep_agent(name, namespace=namespace)
+
+Sleep an agent now
+
+Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.AgentsApi(api_client)
+    name = 'name_example' # str | Agent name
+    namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+
+    try:
+        # Sleep an agent now
+        api_response = api_instance.sleep_agent(name, namespace=namespace)
+        print("The response of AgentsApi->sleep_agent:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling AgentsApi->sleep_agent: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Agent name | 
+ **namespace** | **str**| Kubernetes namespace | [optional] 
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Agent sleeping (or already asleep) |  -  |
+**400** | Ephemeral-workspace agents can&#39;t sleep |  -  |
+**404** | Agent not found |  -  |
+**409** | Agent is running a task |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

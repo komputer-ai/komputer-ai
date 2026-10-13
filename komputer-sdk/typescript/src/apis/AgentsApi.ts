@@ -94,6 +94,11 @@ export interface PatchAgentOperationRequest {
     namespace?: string;
 }
 
+export interface SleepAgentRequest {
+    name: string;
+    namespace?: string;
+}
+
 export interface WakeAgentRequest {
     name: string;
     namespace?: string;
@@ -641,6 +646,57 @@ export class AgentsApi extends runtime.BaseAPI {
      */
     async patchAgent(requestParameters: PatchAgentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentResponse> {
         const response = await this.patchAgentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for sleepAgent without sending the request
+     */
+    async sleepAgentRequestOpts(requestParameters: SleepAgentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling sleepAgent().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/agents/{name}/sleep`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.
+     * Sleep an agent now
+     */
+    async sleepAgentRaw(requestParameters: SleepAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AgentResponse>> {
+        const requestOptions = await this.sleepAgentRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AgentResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.
+     * Sleep an agent now
+     */
+    async sleepAgent(requestParameters: SleepAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentResponse> {
+        const response = await this.sleepAgentRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

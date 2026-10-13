@@ -456,6 +456,66 @@ paths:
       summary: Get agent events
       tags:
       - agents
+  /agents/{name}/sleep:
+    post:
+      description: "Sleeps an agent immediately (pod deleted, workspace/PVC kept),\
+        \ regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle.\
+        \ A no-op (200, current state) if already sleeping."
+      operationId: sleepAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+          description: Agent sleeping (or already asleep)
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Ephemeral-workspace agents can't sleep
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent is running a task
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Sleep an agent now
+      tags:
+      - agents
   /agents/{name}/wake:
     post:
       description: "Wakes a sleeping agent without running any task, leaving its instructions\
