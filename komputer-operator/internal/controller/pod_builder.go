@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -285,10 +286,27 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 	return envVars, nil
 }
 
-// buildAgentVolumes returns the pod-level Volume entry for an agent's workspace PVC.
+// buildAgentVolumes returns the pod-level Volume entry for an agent's workspace.
 // volumeName is the name to give the Volume object (e.g. "workspace" for solo pods,
 // "<agentName>-workspace" for squad pods). The caller controls the naming convention.
-func buildAgentVolumes(volumeName, pvcName string) []corev1.Volume {
+//
+// When ephemeral is true, the workspace is an emptyDir instead of a PVC — it lives
+// exactly as long as the pod, with no backing PersistentVolumeClaim at all. sizeLimit,
+// when non-nil, caps the emptyDir's size (from storage.size); nil means unbounded,
+// matching emptyDir's default. sizeLimit is ignored when ephemeral is false.
+func buildAgentVolumes(volumeName, pvcName string, ephemeral bool, sizeLimit *resource.Quantity) []corev1.Volume {
+	if ephemeral {
+		return []corev1.Volume{
+			{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: sizeLimit,
+					},
+				},
+			},
+		}
+	}
 	return []corev1.Volume{
 		{
 			Name: volumeName,

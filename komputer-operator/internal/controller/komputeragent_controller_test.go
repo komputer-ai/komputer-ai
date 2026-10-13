@@ -231,6 +231,101 @@ var _ = Describe("KomputerAgent Controller", func() {
 		})
 	})
 
+	Context("Ephemeral workspace", func() {
+		It("mounts an emptyDir instead of creating a PVC", func() {
+			agent := &komputerv1alpha1.KomputerAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "ephemeral-agent", Namespace: "default"},
+				Spec: komputerv1alpha1.KomputerAgentSpec{
+					AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+						TemplateRef: "default",
+						Model:       "claude-sonnet-4-6",
+						Storage:     &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(true)},
+					},
+					Instructions: "Do a one-shot test task",
+				},
+			}
+			Expect(k8sClient.Create(ctx, agent)).To(Succeed())
+			DeferCleanup(func() { _ = k8sClient.Delete(ctx, agent) })
+
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "ephemeral-agent-pod", Namespace: "default"}, pod)
+			}, timeout, interval).Should(Succeed())
+
+			var workspaceVol *corev1.Volume
+			for i := range pod.Spec.Volumes {
+				if pod.Spec.Volumes[i].Name == "workspace" {
+					workspaceVol = &pod.Spec.Volumes[i]
+				}
+			}
+			Expect(workspaceVol).NotTo(BeNil())
+			Expect(workspaceVol.EmptyDir).NotTo(BeNil())
+			Expect(workspaceVol.PersistentVolumeClaim).To(BeNil())
+
+			// No PVC should ever be created for this agent.
+			Consistently(func() bool {
+				pvc := &corev1.PersistentVolumeClaim{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: "ephemeral-agent-pvc", Namespace: "default"}, pvc)
+				return apierrors.IsNotFound(err)
+			}, 2*time.Second, interval).Should(BeTrue())
+
+			// status.pvcName must stay empty — there's no PVC to name.
+			updated := &komputerv1alpha1.KomputerAgent{}
+			Eventually(func() string {
+				_ = k8sClient.Get(ctx, types.NamespacedName{Name: "ephemeral-agent", Namespace: "default"}, updated)
+				return updated.Status.PodName
+			}, timeout, interval).Should(Equal("ephemeral-agent-pod"))
+			Expect(updated.Status.PvcName).To(BeEmpty())
+		})
+
+		It("keeps mounting an agent's existing PVC even after it is marked ephemeral", func() {
+			agent := &komputerv1alpha1.KomputerAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "was-persistent-agent", Namespace: "default"},
+				Spec: komputerv1alpha1.KomputerAgentSpec{
+					AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+						TemplateRef: "default",
+						Model:       "claude-sonnet-4-6",
+					},
+					Instructions: "Do a test task",
+				},
+			}
+			Expect(k8sClient.Create(ctx, agent)).To(Succeed())
+			DeferCleanup(func() { _ = k8sClient.Delete(ctx, agent) })
+
+			// Let the operator create the PVC the normal (non-ephemeral) way first.
+			pvc := &corev1.PersistentVolumeClaim{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "was-persistent-agent-pvc", Namespace: "default"}, pvc)
+			}, timeout, interval).Should(Succeed())
+
+			// Now flip the agent to ephemeral.
+			current := &komputerv1alpha1.KomputerAgent{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "was-persistent-agent", Namespace: "default"}, current)).To(Succeed())
+			orig := current.DeepCopy()
+			current.Spec.Storage = &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(true)}
+			Expect(k8sClient.Patch(ctx, current, client.MergeFrom(orig))).To(Succeed())
+
+			// The existing PVC must never be deleted, and the pod must keep mounting it.
+			Consistently(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "was-persistent-agent-pvc", Namespace: "default"}, &corev1.PersistentVolumeClaim{})
+			}, 2*time.Second, interval).Should(Succeed())
+
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "was-persistent-agent-pod", Namespace: "default"}, pod)
+			}, timeout, interval).Should(Succeed())
+			var workspaceVol *corev1.Volume
+			for i := range pod.Spec.Volumes {
+				if pod.Spec.Volumes[i].Name == "workspace" {
+					workspaceVol = &pod.Spec.Volumes[i]
+				}
+			}
+			Expect(workspaceVol).NotTo(BeNil())
+			Expect(workspaceVol.PersistentVolumeClaim).NotTo(BeNil())
+			Expect(workspaceVol.PersistentVolumeClaim.ClaimName).To(Equal("was-persistent-agent-pvc"))
+		})
+	})
+
 	Context("Velocity control — template cap", func() {
 		// The envtest reconciler continuously reconciles in the background,
 		// racing with the test's own `k8sClient.Status().Patch(...)` calls

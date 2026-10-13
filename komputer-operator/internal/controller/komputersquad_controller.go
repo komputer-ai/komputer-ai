@@ -359,6 +359,25 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			}
 		}
 
+		pvcName := agent.Status.PvcName
+		if pvcName == "" {
+			pvcName = agent.Name + "-pvc"
+		}
+		ephemeral := isAgentEphemeral(ctx, r.Client, agent)
+		ephemeralWorkspace := false
+		if ephemeral {
+			hasPVC, err := hasExistingWorkspacePVC(ctx, r.Client, agent, pvcName)
+			if err != nil {
+				log.Error(err, "Failed to resolve workspace volume for squad member TTL", "agent", agent.Name)
+			} else if !hasPVC {
+				ephemeralWorkspace = true
+			}
+			if sleepTTL != nil && sleepTTL.Duration > 0 {
+				log.Info("ignoring sleepTTL for ephemeral squad member: sleeping would delete its emptyDir workspace",
+					"squad", squad.Name, "agent", agent.Name, "sleepTTL", sleepTTL.Duration)
+			}
+		}
+
 		if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 			// Clear stale expiries if the TTLs were removed from the spec.
 			if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
@@ -375,7 +394,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			continue
 		}
 
-		d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now())
+		d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now(), ephemeralWorkspace)
 
 		switch d.Action {
 		case ttlActionDelete:
@@ -421,9 +440,14 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 	return survivors
 }
 
-// ensureMemberPVCs ensures each member agent has a PVC. Reuses the agent's existing PVC
-// (from status.pvcName) if set; otherwise creates <agentName>-pvc.
+// ensureMemberPVCs ensures each non-ephemeral member agent has a PVC. Reuses the
+// agent's existing PVC (from status.pvcName) if set; otherwise creates <agentName>-pvc.
+// An ephemeral member with no existing PVC is skipped entirely — its workspace is an
+// emptyDir declared directly in the squad pod spec (see buildSquadPodSpec). An
+// ephemeral member that already has a PVC keeps it: the operator never deletes an
+// existing PVC, to avoid orphaning data.
 func (r *KomputerSquadReconciler) ensureMemberPVCs(ctx context.Context, squad *komputerv1alpha1.KomputerSquad, agents []*komputerv1alpha1.KomputerAgent) error {
+	log := logf.FromContext(ctx)
 	for _, agent := range agents {
 		pvcName := agent.Status.PvcName
 		if pvcName == "" {
@@ -432,7 +456,20 @@ func (r *KomputerSquadReconciler) ensureMemberPVCs(ctx context.Context, squad *k
 
 		pvc := &corev1.PersistentVolumeClaim{}
 		err := r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: agent.Namespace}, pvc)
-		if err == nil {
+		pvcExists := err == nil
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("get pvc %s: %w", pvcName, err)
+		}
+
+		if isAgentEphemeral(ctx, r.Client, agent) {
+			if !pvcExists && agent.Status.PvcName == "" {
+				continue
+			}
+			log.Info("squad member is configured ephemeral but already has a persistent workspace; keeping its PVC rather than losing data",
+				"squad", squad.Name, "agent", agent.Name, "pvc", pvcName)
+		}
+
+		if pvcExists {
 			// PVC exists — ensure agent status has pvcName set
 			if agent.Status.PvcName != pvcName {
 				original := agent.DeepCopy()
@@ -442,9 +479,6 @@ func (r *KomputerSquadReconciler) ensureMemberPVCs(ctx context.Context, squad *k
 				}
 			}
 			continue
-		}
-		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("get pvc %s: %w", pvcName, err)
 		}
 
 		// Create PVC with default size (5Gi)
@@ -803,25 +837,50 @@ func (r *KomputerSquadReconciler) cancelTaskViaAPI(ctx context.Context, namespac
 //
 // Each container gets the same env vars as a solo agent (secrets, connectors,
 // MCP servers, OAuth tokens) via the shared buildAgentEnvVars helper.
+// resolveSquadMemberVolume decides one squad member's workspace volume: PVC-backed
+// unless the member is effectively ephemeral with no existing PVC to protect (see
+// isAgentEphemeral / hasExistingWorkspacePVC), in which case it's an emptyDir,
+// optionally capped by the member's effective storage.size as a SizeLimit.
+func (r *KomputerSquadReconciler) resolveSquadMemberVolume(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) corev1.Volume {
+	log := logf.FromContext(ctx)
+	pvcName := agent.Status.PvcName
+	if pvcName == "" {
+		pvcName = agent.Name + "-pvc"
+	}
+	ephemeral := false
+	if isAgentEphemeral(ctx, r.Client, agent) {
+		hasPVC, err := hasExistingWorkspacePVC(ctx, r.Client, agent, pvcName)
+		if err != nil {
+			log.Error(err, "Failed to resolve workspace volume for squad member", "agent", agent.Name)
+		} else if !hasPVC {
+			ephemeral = true
+		}
+	}
+	var sizeLimit *resource.Quantity
+	if ephemeral {
+		if size := resolveEffectiveStorage(ctx, r.Client, agent).Size; size != "" {
+			if q, err := resource.ParseQuantity(size); err == nil {
+				sizeLimit = &q
+			}
+		}
+	}
+	return buildAgentVolumes(agent.Name+"-workspace", pvcName, ephemeral, sizeLimit)[0]
+}
+
 func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *komputerv1alpha1.KomputerSquad, agents []*komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) (*corev1.Pod, error) {
 	log := logf.FromContext(ctx)
 	podName := squad.Name + "-pod"
 
-	// Build the Volumes block: one PVC-backed volume per agent.
+	// Build the Volumes block: one volume per agent, PVC-backed unless the member is
+	// effectively ephemeral with no existing PVC to protect, in which case it gets an
+	// emptyDir instead. Mixed squads — some members ephemeral, others not — are
+	// expected: each member's volume is decided independently. NOTE: every ephemeral
+	// member's workspace is wiped whenever the squad pod is rebuilt (deleted and
+	// recreated), not just when the member's own agent CR changes, since the emptyDir
+	// belongs to the shared squad pod.
 	volumes := make([]corev1.Volume, 0, len(agents))
 	for _, agent := range agents {
-		pvcName := agent.Status.PvcName
-		if pvcName == "" {
-			pvcName = agent.Name + "-pvc"
-		}
-		volumes = append(volumes, corev1.Volume{
-			Name: agent.Name + "-workspace",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvcName,
-				},
-			},
-		})
+		volumes = append(volumes, r.resolveSquadMemberVolume(ctx, agent))
 	}
 
 	// Build one container per agent.

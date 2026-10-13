@@ -92,6 +92,35 @@ func TestApplyMemberTTLs_SleepsIdleMemberByPhaseOnly(t *testing.T) {
 	}
 }
 
+// TestApplyMemberTTLs_NeverSleepsAnEphemeralMember verifies the never-sleep guard for
+// squad members: an idle member past sleepTTL is normally slept (see
+// TestApplyMemberTTLs_SleepsIdleMemberByPhaseOnly above), but one with no existing PVC
+// and ephemeral=true must stay Running, since sleeping would delete the squad pod's
+// emptyDir and wipe its workspace.
+func TestApplyMemberTTLs_NeverSleepsAnEphemeralMember(t *testing.T) {
+	ctx := context.Background()
+	m := squadMember("ephemeral-member", time.Hour, func(a *komputerv1alpha1.KomputerAgent) {
+		a.Spec.Storage = &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(true)}
+	})
+	m.Spec.SleepTTL = dur(30 * time.Minute)
+	squad := testSquad("ephemeral-member")
+	r := newSquadTTLReconciler(t, squad, m)
+
+	survivors := r.applyMemberTTLs(ctx, squad, []*komputerv1alpha1.KomputerAgent{m})
+
+	if len(survivors) != 1 {
+		t.Fatalf("survivors = %d, want 1", len(survivors))
+	}
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(ctx, types.NamespacedName{Name: "ephemeral-member", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get member: %v", err)
+	}
+	if got.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		t.Error("ephemeral member was put to sleep; sleeping would wipe its emptyDir workspace")
+	}
+}
+
 func TestApplyMemberTTLs_DeletesExpiredMemberAndDropsIt(t *testing.T) {
 	ctx := context.Background()
 	m := squadMember("member-a", 48*time.Hour)

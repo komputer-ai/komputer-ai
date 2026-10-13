@@ -84,6 +84,7 @@ func TestEvaluateTTL(t *testing.T) {
 		sleepTTL   *metav1.Duration
 		deleteTTL  *metav1.Duration
 		now        time.Time
+		ephemeral  bool
 		wantAction ttlAction
 		// wantRequeue is checked only when non-zero.
 		wantRequeue time.Duration
@@ -230,11 +231,31 @@ func TestEvaluateTTL(t *testing.T) {
 			now:        baseTime.Add(99 * time.Hour),
 			wantAction: ttlActionNone,
 		},
+		{
+			// The core of the never-sleep guard: an ephemeral workspace must never
+			// transition to ttlActionSleep, however long sleepTTL has elapsed.
+			name:       "ephemeral workspace is never slept by sleepTTL",
+			agent:      ttlAgent(withLastActivity(0)),
+			sleepTTL:   dur(30 * time.Minute),
+			now:        baseTime.Add(99 * time.Hour),
+			ephemeral:  true,
+			wantAction: ttlActionNone,
+		},
+		{
+			// deleteTTL is unaffected by ephemeral — deleting the whole agent (PVC-less
+			// or not) is always safe; only *sleeping* an emptyDir workspace loses data.
+			name:       "ephemeral workspace still honors deleteTTL",
+			agent:      ttlAgent(withLastActivity(0)),
+			deleteTTL:  dur(24 * time.Hour),
+			now:        baseTime.Add(25 * time.Hour),
+			ephemeral:  true,
+			wantAction: ttlActionDelete,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := evaluateTTL(tc.agent, tc.sleepTTL, tc.deleteTTL, tc.now)
+			got := evaluateTTL(tc.agent, tc.sleepTTL, tc.deleteTTL, tc.now, tc.ephemeral)
 			if got.Action != tc.wantAction {
 				t.Errorf("Action = %v, want %v", got.Action, tc.wantAction)
 			}
@@ -248,7 +269,7 @@ func TestEvaluateTTL(t *testing.T) {
 func TestEvaluateTTLExpiryTimestamps(t *testing.T) {
 	t.Run("both deadlines are projected for status", func(t *testing.T) {
 		agent := ttlAgent(withLastActivity(5 * time.Minute))
-		d := evaluateTTL(agent, dur(30*time.Minute), dur(24*time.Hour), baseTime.Add(10*time.Minute))
+		d := evaluateTTL(agent, dur(30*time.Minute), dur(24*time.Hour), baseTime.Add(10*time.Minute), false)
 
 		if d.SleepExpiresAt == nil {
 			t.Fatal("SleepExpiresAt = nil, want a timestamp")
@@ -268,7 +289,7 @@ func TestEvaluateTTLExpiryTimestamps(t *testing.T) {
 
 	t.Run("sleep expiry is nil while a task is in progress", func(t *testing.T) {
 		agent := ttlAgent(withLastActivity(0), withTaskStatus(komputerv1alpha1.AgentTaskInProgress))
-		d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(10*time.Minute))
+		d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(10*time.Minute), false)
 		if d.SleepExpiresAt != nil {
 			t.Errorf("SleepExpiresAt = %v, want nil (clock not running)", d.SleepExpiresAt)
 		}
@@ -276,7 +297,7 @@ func TestEvaluateTTLExpiryTimestamps(t *testing.T) {
 
 	t.Run("sleep expiry is nil once asleep", func(t *testing.T) {
 		agent := ttlAgent(withPhase(komputerv1alpha1.AgentPhaseSleeping))
-		d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(10*time.Minute))
+		d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(10*time.Minute), false)
 		if d.SleepExpiresAt != nil {
 			t.Errorf("SleepExpiresAt = %v, want nil (already sleeping)", d.SleepExpiresAt)
 		}
@@ -319,7 +340,7 @@ func TestIdleSince(t *testing.T) {
 // startup could sleep an agent before its first task ran, losing that task.
 func TestEvaluateTTLNeverRanAgentIsNotSlept(t *testing.T) {
 	agent := ttlAgent(withPhase(komputerv1alpha1.AgentPhasePending), withTaskStatus(""))
-	d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(99*time.Hour))
+	d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(99*time.Hour), false)
 	if d.Action != ttlActionNone {
 		t.Errorf("Action = %v, want ttlActionNone (no task has started)", d.Action)
 	}
@@ -337,7 +358,7 @@ func TestEvaluateTTLSlowPodStartupIsNotSlept(t *testing.T) {
 	agent := ttlAgent(withPhase(komputerv1alpha1.AgentPhasePending), withTaskStatus(""))
 	start := metav1.NewTime(baseTime)
 	agent.Status.StartTime = &start
-	d := evaluateTTL(agent, dur(time.Minute), nil, baseTime.Add(10*time.Minute))
+	d := evaluateTTL(agent, dur(time.Minute), nil, baseTime.Add(10*time.Minute), false)
 	if d.Action != ttlActionNone {
 		t.Errorf("Action = %v, want ttlActionNone — must not sleep before the first task", d.Action)
 	}
@@ -346,7 +367,7 @@ func TestEvaluateTTLSlowPodStartupIsNotSlept(t *testing.T) {
 // Once the first task starts, the clock does run and the agent sleeps normally.
 func TestEvaluateTTLClockStartsWithFirstTask(t *testing.T) {
 	agent := ttlAgent(withLastActivity(0), withTaskStatus(komputerv1alpha1.AgentTaskComplete))
-	d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(31*time.Minute))
+	d := evaluateTTL(agent, dur(30*time.Minute), nil, baseTime.Add(31*time.Minute), false)
 	if d.Action != ttlActionSleep {
 		t.Errorf("Action = %v, want ttlActionSleep once a task has run", d.Action)
 	}
@@ -356,7 +377,7 @@ func TestEvaluateTTLClockStartsWithFirstTask(t *testing.T) {
 // not idleness, so it still reclaims a never-tasked agent.
 func TestEvaluateTTLDeleteStillReclaimsNeverRanAgent(t *testing.T) {
 	agent := ttlAgent(withPhase(komputerv1alpha1.AgentPhasePending), withTaskStatus(""))
-	d := evaluateTTL(agent, dur(30*time.Minute), dur(24*time.Hour), baseTime.Add(25*time.Hour))
+	d := evaluateTTL(agent, dur(30*time.Minute), dur(24*time.Hour), baseTime.Add(25*time.Hour), false)
 	if d.Action != ttlActionDelete {
 		t.Errorf("Action = %v, want ttlActionDelete", d.Action)
 	}
@@ -406,7 +427,7 @@ func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -441,13 +462,46 @@ func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 	}
 }
 
+// TestApplyTTL_EphemeralWorkspaceIsNeverSlept verifies the end-to-end never-sleep
+// guard through applyTTL: an idle agent past sleepTTL whose workspace is an emptyDir
+// stays Running with its pod intact, rather than being slept (which would delete the
+// pod and wipe the emptyDir).
+func TestApplyTTL_EphemeralWorkspaceIsNeverSlept(t *testing.T) {
+	ctx := context.Background()
+	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour)) // idle for an hour
+	pod := agentPod("test-agent-pod", "default")
+	r := newTTLReconciler(t, agent, pod)
+
+	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, true)
+	if err != nil {
+		t.Fatalf("applyTTL: %v", err)
+	}
+	if handled {
+		t.Fatal("handled = true, want false — an ephemeral workspace must never be slept")
+	}
+	_ = res
+
+	// The pod must survive.
+	if err := r.Get(ctx, types.NamespacedName{Name: "test-agent-pod", Namespace: "default"}, &corev1.Pod{}); err != nil {
+		t.Errorf("pod was deleted, want it to survive: %v", err)
+	}
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(ctx, types.NamespacedName{Name: "test-agent", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get agent: %v", err)
+	}
+	if got.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		t.Error("Phase = Sleeping, want the agent to stay awake")
+	}
+}
+
 func TestApplyTTL_SleepStillWatchesPendingDelete(t *testing.T) {
 	ctx := context.Background()
 	agent := ttlAgent(withCreatedAgo(time.Hour), withLastActivityAgo(time.Hour))
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour), nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour), nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -474,7 +528,7 @@ func TestApplyTTL_SleepWithNoPodStillSleeps(t *testing.T) {
 	r := newTTLReconciler(t, agent)
 
 	// A nil pod (deleted out from under us) must not panic or error.
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil, nil)
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL with nil pod: %v", err)
 	}
@@ -490,7 +544,7 @@ func TestApplyTTL_DeleteRemovesAgent(t *testing.T) {
 	agent.CreationTimestamp = metav1.NewTime(time.Now().Add(-48 * time.Hour))
 	r := newTTLReconciler(t, agent)
 
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour), nil)
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour), nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -508,7 +562,7 @@ func TestApplyTTL_NoTTLsIsANoOp(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil, nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -530,7 +584,7 @@ func TestApplyTTL_PublishesExpiryTimestampsWhenPending(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour), nil)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour), nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -560,7 +614,7 @@ func TestApplyTTL_ClearsStaleExpiriesWhenTTLsRemoved(t *testing.T) {
 	agent.Status.DeleteExpiresAt = &stale
 	r := newTTLReconciler(t, agent)
 
-	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil, nil); err != nil || handled {
+	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil, nil, false); err != nil || handled {
 		t.Fatalf("applyTTL: handled=%v err=%v", handled, err)
 	}
 
@@ -579,7 +633,7 @@ func TestApplyTTL_InProgressTaskIsNotSlept(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil, nil)
+	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
