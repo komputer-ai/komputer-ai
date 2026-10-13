@@ -70,11 +70,32 @@ GET /api/v1/agents?namespace=production
       "budgetExhausted": false,
       "createdAt": "2026-03-27T10:00:00Z"
     }
-  ]
+  ],
+  "total": 1,
+  "facets": { "namespaces": ["production"], "labels": [] }
 }
 ```
 
 `budgetExhausted` is computed by the API (agent's own `budgetUSD`, else its template's default, compared against `status.totalCostUSD`) so clients don't need to re-derive the template resolution themselves.
+
+**Query params** (all optional):
+
+| Param | Description |
+|---|---|
+| `namespace` | Kubernetes namespace. Omitted = all namespaces. |
+| `status` | Filter by agent phase, case-insensitive (e.g. `Running`, `Sleeping`). |
+| `label` | `key=value` label filter; repeat for multiple (ANDed). |
+| `q` | Case-insensitive substring match against the agent name. |
+| `sort` | One of `created`, `name`, `status`, `model`, `lastActive`, `cost`. Prefix with `-` for descending. Default `-created` (newest first). Ties are broken by name; for `lastActive`, agents that have never run a task sort last regardless of direction. |
+| `limit` | Max agents to return (1-200). **Omitting `limit` returns every matching agent, exactly as before** — existing integrations are unaffected. |
+| `offset` | Number of matching agents to skip, for use with `limit`. Default `0`. |
+
+When `limit` is set, the response also includes `nextOffset` (the offset to request next; omitted once there's no more data) and `total` (the count of agents matching `status`/`label`/`q`, before slicing). `facets` lists every distinct namespace and `key=value` label pair visible in the requested namespace scope — computed *before* `status`/`label`/`q` filtering, so a UI's filter dropdowns can always offer every option even while only a partial page has been fetched.
+
+Paging example:
+```
+GET /api/v1/agents?limit=50&offset=50&sort=-cost
+```
 
 ## Get Agent Details
 
