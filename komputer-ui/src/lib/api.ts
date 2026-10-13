@@ -83,6 +83,12 @@ export const deleteAgent = (name: string, ns?: string, opts?: { recreatePod?: bo
 export const cancelAgent = (name: string, ns?: string) =>
   request<void>(`/agents/${name}/cancel${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
+// wakeAgent wakes a sleeping agent idle, without running any task — unlike
+// createAgent(), which always carries a task. A no-op (returns the agent's
+// current state) if the agent is not sleeping.
+export const wakeAgent = (name: string, ns?: string) =>
+  request<AgentResponse>(`/agents/${name}/wake${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
+
 export const compactAgent = (name: string, opts?: { instructions?: string; namespace?: string }) =>
   request<{ status: string; name: string }>(
     `/agents/${name}/compact${opts?.namespace ? `?namespace=${opts.namespace}` : ''}`,

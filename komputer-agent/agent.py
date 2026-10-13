@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -75,6 +76,53 @@ def _fetch_context_window(model: str) -> int | None:
         return None
 
 
+TOOL_OUTPUT_CAP = 1000
+
+
+def _truncate_strings(value, limit: int):
+    """Return a copy of value with every string leaf cut to `limit` chars (marked with …)."""
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[:limit] + "…"
+    if isinstance(value, dict):
+        return {k: _truncate_strings(v, limit) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_truncate_strings(v, limit) for v in value]
+    return value
+
+
+def _serialize_tool_output(value) -> tuple[str, bool]:
+    """Serialize a tool_response value for the tool_result event payload.
+
+    str() of a dict/list produces Python repr (single quotes, True/False/None)
+    instead of JSON, which the UI can't parse. Dicts/lists are JSON-serialized
+    instead; strings pass through unchanged; anything else falls back to str().
+
+    Output is capped at TOOL_OUTPUT_CAP chars. For dicts/lists the cap shortens
+    long string leaves rather than cutting the serialized text, so the UI still
+    receives valid JSON — a Bash result's stdout routinely exceeds the cap on its
+    own. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
+    text cut as a last resort. Returns (output, truncated).
+    """
+    if isinstance(value, (dict, list)):
+        serialized = json.dumps(value, ensure_ascii=False, default=str)
+        if len(serialized) <= TOOL_OUTPUT_CAP:
+            return serialized, False
+        # Largest per-leaf limit whose serialization fits, via binary search.
+        lo, hi, best = 0, TOOL_OUTPUT_CAP, None
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            candidate = json.dumps(_truncate_strings(value, mid), ensure_ascii=False, default=str)
+            if len(candidate) <= TOOL_OUTPUT_CAP:
+                best, lo = candidate, mid + 1
+            else:
+                hi = mid - 1
+        if best is not None:
+            return best, True
+        return serialized[:TOOL_OUTPUT_CAP], True
+    serialized = value if isinstance(value, str) else str(value)
+    return serialized[:TOOL_OUTPUT_CAP], len(serialized) > TOOL_OUTPUT_CAP
+
+
 def _write_skills(skills: dict[str, str | dict[str, str]]):
     """Write Claude skills to ~/.claude/skills/<name>/SKILL.md."""
     for name, skill in skills.items():
@@ -123,14 +171,15 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     last_usage = None
 
     async def post_tool_hook(input, session_id, ctx):
-        publisher.publish(
-            "tool_result",
-            {
-                "tool": input.get("tool_name", ""),
-                "input": input.get("tool_input", {}),
-                "output": str(input.get("tool_response", ""))[:1000],
-            },
-        )
+        output, truncated = _serialize_tool_output(input.get("tool_response", ""))
+        payload = {
+            "tool": input.get("tool_name", ""),
+            "input": input.get("tool_input", {}),
+            "output": output,
+        }
+        if truncated:
+            payload["output_truncated"] = True
+        publisher.publish("tool_result", payload)
         return {}
 
     async def pre_compact_hook(input, session_id, ctx):

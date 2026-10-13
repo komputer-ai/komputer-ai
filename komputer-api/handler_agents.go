@@ -507,6 +507,21 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 
 			// If the agent is busy, the message is queued as a steer (follow-up).
 			// The agent's /task endpoint handles both new tasks and steers.
+			//
+			// A NEW task (agent not currently mid-task) must update spec.Instructions
+			// before it is forwarded, so that if the pod is later rescheduled the
+			// operator re-runs THIS task rather than the stale one from agent
+			// creation (see shouldStartIdle in the operator). A steer must NOT do
+			// this: overwriting Instructions with just the steer text would make an
+			// interrupted original task resume as only the follow-up message.
+			// If the forward below fails after this patch, that's harmless — the
+			// task never reaches InProgress, so a reschedule won't auto-run it
+			// either; the next real task request will patch Instructions again.
+			if !agentTaskInProgress(existing.Status.TaskStatus) {
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}); err != nil {
+					Logger.Warnw("failed to patch instructions before forwarding new task", "agent_name", req.Name, "error", err)
+				}
+			}
 
 			// Use CR memories for existing agents (may have been updated via PATCH)
 			forwardMemories := existing.Spec.Memories
@@ -836,6 +851,78 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 		Logger.Infow("cancelled task on agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("cancel", "success").Inc()
 		c.JSON(http.StatusOK, gin.H{"status": "cancelling", "name": name})
+	}
+}
+
+// wakeAgent wakes a sleeping agent WITHOUT running any task — unlike POST /agents,
+// which always carries a task (even an empty-string one counts as "run this").
+// Use it to bring an agent (or a sleeping squad member) back up idle, ready for
+// commands over its own channel (e.g. a manager delegating later) without kicking
+// off work immediately.
+//
+// Calling it on an agent that isn't Sleeping is a no-op: it returns 200 with the
+// agent's current state rather than an error, so callers can wake unconditionally.
+// @ID wakeAgent
+// @Summary Wake an agent idle
+// @Description Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentResponse "Agent woken (or already awake)"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/wake [post]
+func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
+
+		agent, err := k8s.IdleWakeAgent(c.Request.Context(), ns, name)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+				return
+			}
+			agentActionsTotal.WithLabelValues("idle_wake", "error").Inc()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
+			return
+		}
+
+		Logger.Infow("idle-woke agent", "namespace", ns, "agent_name", name)
+		agentActionsTotal.WithLabelValues("idle_wake", "success").Inc()
+		c.JSON(http.StatusOK, withAgentTTL(AgentResponse{
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Status:             string(agent.Status.Phase),
+			TaskStatus:         string(agent.Status.TaskStatus),
+			LastTaskMessage:    agent.Status.LastTaskMessage,
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			LastTaskCostUSD:    agent.Status.LastTaskCostUSD,
+			TotalCostUSD:       agent.Status.TotalCostUSD,
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
+			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Memories:           agent.Spec.Memories,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
+			Instructions:       agent.Spec.Instructions,
+			SystemPrompt:       agent.Spec.SystemPrompt,
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			Priority:           agent.Spec.Priority,
+			QueuePosition:      agent.Status.QueuePosition,
+			QueueReason:        agent.Status.QueueReason,
+			PodSpec:            agent.Spec.PodSpec,
+			Storage:            agent.Spec.Storage,
+			Squad:              agent.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
+			Labels:             agent.Spec.Labels,
+			CompletionTime:     formatTime(agent.Status.CompletionTime),
+		}, agent))
 	}
 }
 

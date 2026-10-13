@@ -572,21 +572,22 @@ async def sleep_agent(args):
 
 @tool(
     name="wake_agent",
-    description="Wake a sleeping agent (or trigger a new task on a running one) by sending it instructions. Equivalent to calling create_agent with the same name — the API routes the call to the existing agent.",
+    description="Wake a sleeping agent. With 'instructions', sends it a task (equivalent to create_agent with the same name). Without 'instructions', wakes it idle — pod comes up, nothing runs — for when you just want it ready for a command later.",
     input_schema={
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Agent to wake."},
-            "instructions": {"type": "string", "description": "Task instructions for this run."},
+            "instructions": {"type": "string", "description": "Task instructions for this run. Omit to wake idle without running anything."},
         },
-        "required": ["name", "instructions"],
+        "required": ["name"],
     },
 )
 async def wake_agent(args):
-    if not args.get("instructions"):
-        return _err("wake_agent requires 'instructions'.")
     name = _sanitize_name(args["name"])
-    payload = {"name": name, "instructions": args["instructions"], "namespace": NAMESPACE}
+    instructions = args.get("instructions")
+    if not instructions:
+        return await _request("POST", f"/api/v1/agents/{name}/wake", timeout=30)
+    payload = {"name": name, "instructions": instructions, "namespace": NAMESPACE}
     return await _request("POST", "/api/v1/agents", timeout=30, json=payload)
 
 

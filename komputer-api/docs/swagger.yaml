@@ -6968,6 +6968,43 @@ paths:
       summary: Get agent events
       tags:
       - agents
+  /agents/{name}/wake:
+    post:
+      description: Wakes a sleeping agent without running any task, leaving its instructions
+        untouched. A no-op (200, current state) if the agent is not sleeping.
+      operationId: wakeAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent woken (or already awake)
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Wake an agent idle
+      tags:
+      - agents
   /agents/{name}/ws:
     get:
       description: 'Upgrades to a WebSocket connection to stream real-time agent events.

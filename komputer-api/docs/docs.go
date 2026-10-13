@@ -576,6 +576,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/{name}/wake": {
+            "post": {
+                "description": "Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Wake an agent idle",
+                "operationId": "wakeAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Agent woken (or already awake)",
+                        "schema": {
+                            "$ref": "#/definitions/main.AgentResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Agent not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/agents/{name}/ws": {
             "get": {
                 "description": "Upgrades to a WebSocket connection to stream real-time agent events. Pass ` + "`" + `?group=\u003cname\u003e` + "`" + ` to join a consumer group: each event in the stream is delivered to exactly one client per group across all API replicas (useful for distributed consumers). Without ` + "`" + `group` + "`" + `, every connected client receives every event (legacy broadcast).",

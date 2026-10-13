@@ -24,7 +24,7 @@ API: `POST /api/v1/squads/<name>/members`
 
 Sleep on a squad member cancels its task and sets `Phase=Sleeping`. The member's container keeps running idle inside the squad pod (Kubernetes can't selectively stop one container in a pod). Once **every** member is Sleeping, the operator deletes the squad pod entirely (PVCs are preserved).
 
-Waking a sleeping member sends a task to it normally — the API forwards the task and clears `Phase=Sleeping`. If the squad pod was deleted (all members were sleeping), the operator rebuilds it; the woken member runs its task, while still-sleeping siblings come up with `KOMPUTER_WAKE_IDLE=true` so their containers expose HTTP without auto-running prior instructions.
+Waking a sleeping member sends a task to it normally — the API forwards the task and clears `Phase=Sleeping`. If the squad pod was deleted (all members were sleeping), the operator rebuilds it; the woken member runs its task, while still-sleeping siblings come up with `KOMPUTER_WAKE_IDLE=true` so their containers expose HTTP without auto-running prior instructions. To wake a member without running anything, use `POST /api/v1/agents/<name>/wake` instead — same `Phase=Sleeping` clearing, but the member comes up idle too.
 
 UI: Sleep button on the agent detail page or "Sleep all" on the squad detail page.
 CLI: `komputer agent patch <name> --lifecycle Sleep`

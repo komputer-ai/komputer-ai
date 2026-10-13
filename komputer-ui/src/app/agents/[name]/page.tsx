@@ -18,7 +18,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, compactAgent, createAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, compactAgent, wakeAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
 import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
@@ -338,9 +338,7 @@ export default function AgentDetailPage() {
   const handleWake = async () => {
     if (!agentName) return;
     try {
-      // Without namespace the API can't find the sleeping CR and falls
-      // through to creating a new "wake" agent in the default namespace.
-      await createAgent({ name: agentName, instructions: "wake", namespace: agentNs });
+      await wakeAgent(agentName, agentNs);
       fetchAgent();
     } catch {
       // Will be reflected in next poll

@@ -8,6 +8,7 @@ import type { AgentEvent } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
+import { JsonView } from "@/components/shared/json-view";
 import { ChevronRight } from "lucide-react";
 
 type EventCardProps = {
@@ -93,23 +94,28 @@ function ToolResultEvent({ event }: EventCardProps) {
                   <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
                     Input
                   </p>
-                  <pre className="overflow-x-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
-                    {typeof event.payload.input === "string"
-                      ? event.payload.input
-                      : JSON.stringify(event.payload.input, null, 2)}
-                  </pre>
+                  <JsonView
+                    value={event.payload.input}
+                    className="overflow-x-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                  />
                 </div>
               )}
               {output && (
                 <div>
-                  <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
-                    Output
-                  </p>
-                  <pre className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]">
-                    {typeof output === "string"
-                      ? output
-                      : JSON.stringify(output, null, 2)}
-                  </pre>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <p className="text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
+                      Output
+                    </p>
+                    {event.payload.output_truncated === true && (
+                      <span className="text-[10px] text-[var(--color-status-pending)]">
+                        truncated
+                      </span>
+                    )}
+                  </div>
+                  <JsonView
+                    value={output}
+                    className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                  />
                 </div>
               )}
             </div>

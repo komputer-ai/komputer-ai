@@ -10,6 +10,7 @@ import { createAgent, cancelAgent, patchAgent } from "@/lib/api";
 import { getConfig } from "@/lib/config";
 import { CostBadge } from "@/components/shared/cost-badge";
 import { CopyButton } from "@/components/shared/copy-button";
+import { JsonView } from "@/components/shared/json-view";
 import { isBedrockModelId } from "@/lib/model-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -73,6 +74,7 @@ type ChatMessage =
       command?: string;
       input?: unknown;
       output?: unknown;
+      outputTruncated?: boolean;
       timestamp: string;
     }
   | {
@@ -189,6 +191,7 @@ export function eventsToChatMessages(events: AgentEvent[]): ChatMessage[] {
           command: inputSummary,
           input: toolName === "Skill" ? undefined : inp,
           output,
+          outputTruncated: event.payload.output_truncated === true,
           timestamp: event.timestamp,
         });
         break;
@@ -529,12 +532,16 @@ function ToolCard({
   command,
   input,
   output,
+  outputTruncated,
+  timestamp,
 }: {
   toolName: string;
   description?: string;
   command?: string;
   input?: unknown;
   output?: unknown;
+  outputTruncated?: boolean;
+  timestamp: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -588,23 +595,30 @@ function ToolCard({
                       <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
                         Input
                       </p>
-                      <pre className="whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]" style={{ overflowWrap: "anywhere" }}>
-                        {typeof input === "string"
-                          ? input
-                          : JSON.stringify(input, null, 2)}
-                      </pre>
+                      <JsonView
+                        value={input}
+                        className="whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                        style={{ overflowWrap: "anywhere" }}
+                      />
                     </div>
                   )}
                   {output != null && (
                     <div>
-                      <p className="mb-1 text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
-                        Output
-                      </p>
-                      <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]" style={{ overflowWrap: "anywhere" }}>
-                        {typeof output === "string"
-                          ? output
-                          : JSON.stringify(output, null, 2)}
-                      </pre>
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <p className="text-[10px] font-medium uppercase text-[var(--color-text-secondary)]">
+                          Output
+                        </p>
+                        {outputTruncated && (
+                          <span className="text-[10px] text-[var(--color-status-pending)]">
+                            truncated
+                          </span>
+                        )}
+                      </div>
+                      <JsonView
+                        value={output}
+                        className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                        style={{ overflowWrap: "anywhere" }}
+                      />
                     </div>
                   )}
                 </>
@@ -613,29 +627,37 @@ function ToolCard({
           </motion.div>
         )}
       </AnimatePresence>
+      <p className="px-3 pb-1.5 text-[10px] text-[var(--color-text-secondary)]">
+        {formatTimestamp(timestamp)}
+      </p>
     </div>
   );
 }
 
-function SkillCard({ skillName, args }: { skillName: string; args?: string }) {
+function SkillCard({ skillName, args, timestamp }: { skillName: string; args?: string; timestamp: string }) {
   return (
-    <Link
-      href={`/skills/${encodeURIComponent(skillName)}`}
-      className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
-    >
-      <Sparkles className="size-3.5 shrink-0 text-[var(--color-brand-violet)]" />
-      <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
-        Skill
-      </span>
-      <span className="shrink-0 text-sm text-[var(--color-text-secondary)]">
-        {skillName}
-      </span>
-      {args && (
-        <code className="min-w-0 truncate text-xs font-mono text-[var(--color-text-muted)]">
-          {args}
-        </code>
-      )}
-    </Link>
+    <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]">
+      <Link
+        href={`/skills/${encodeURIComponent(skillName)}`}
+        className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+      >
+        <Sparkles className="size-3.5 shrink-0 text-[var(--color-brand-violet)]" />
+        <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">
+          Skill
+        </span>
+        <span className="shrink-0 text-sm text-[var(--color-text-secondary)]">
+          {skillName}
+        </span>
+        {args && (
+          <code className="min-w-0 truncate text-xs font-mono text-[var(--color-text-muted)]">
+            {args}
+          </code>
+        )}
+      </Link>
+      <p className="px-3 pb-1.5 text-[10px] text-[var(--color-text-secondary)]">
+        {formatTimestamp(timestamp)}
+      </p>
+    </div>
   );
 }
 
@@ -931,8 +953,8 @@ export const MessageList = React.memo(function MessageList({ messages, agentName
         return (
           <motion.div key={key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }}>
             {msg.toolName === "Skill"
-              ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} />
-              : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} />}
+              ? <SkillCard skillName={msg.description ?? "skill"} args={msg.command} timestamp={msg.timestamp} />
+              : <ToolCard toolName={msg.toolName} description={msg.description} command={msg.command} input={msg.input} output={msg.output} outputTruncated={msg.outputTruncated} timestamp={msg.timestamp} />}
           </motion.div>
         );
       case "completed":

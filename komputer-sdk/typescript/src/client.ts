@@ -78,6 +78,13 @@ export class KomputerClient {
     return this._agents.cancelAgentTask({ name });
   }
 
+  /** Wakes a sleeping agent without running any task, leaving its instructions
+   * untouched. A no-op (returns the agent's current state) if the agent is not
+   * sleeping. */
+  async wakeAgent(name: string) {
+    return this._agents.wakeAgent({ name });
+  }
+
   async getAgentEvents(name: string) {
     return this._agents.getAgentEvents({ name });
   }

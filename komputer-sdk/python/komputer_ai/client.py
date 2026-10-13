@@ -79,6 +79,12 @@ class KomputerClient:
     def cancel_agent_task(self, name: str):
         return self.agents.cancel_agent_task(name)
 
+    def wake_agent(self, name: str):
+        """Wake a sleeping agent without running any task, leaving its
+        instructions untouched. A no-op (returns the agent's current state)
+        if the agent is not sleeping."""
+        return self.agents.wake_agent(name)
+
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
 

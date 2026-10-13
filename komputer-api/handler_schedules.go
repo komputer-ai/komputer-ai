@@ -328,7 +328,7 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			Logger.Warnw("manual trigger: failed to label scheduled agent", "schedule", schedule.Name, "agent", agentName, "error", err)
 		}
 	} else {
-		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
+		if agentTaskInProgress(agent.Status.TaskStatus) {
 			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
 		}
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
@@ -336,6 +336,12 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 				return "", http.StatusInternalServerError, fmt.Errorf("failed to wake agent: %w", err)
 			}
 		} else if agent.Status.PodName != "" {
+			// Confirmed not busy above (TaskStatus != InProgress), so this is a new
+			// task — patch spec.Instructions first so a pod reschedule re-runs this
+			// scheduled run instead of stale creation-time instructions.
+			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}); err != nil {
+				Logger.Warnw("manual trigger: failed to patch instructions before forwarding", "agent", agentName, "error", err)
+			}
 			if _, err := k8s.ForwardTaskToAgent(ctx, ns, agent.Status.PodName, agentName, instructions, "", "", ""); err != nil {
 				return "", http.StatusInternalServerError, fmt.Errorf("failed to forward task: %w", err)
 			}

@@ -14,6 +14,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | [**getAgentEvents**](AgentsApi.md#getagentevents) | **GET** /agents/{name}/events | Get agent events |
 | [**listAgents**](AgentsApi.md#listagents) | **GET** /agents | List agents |
 | [**patchAgent**](AgentsApi.md#patchagentoperation) | **PATCH** /agents/{name} | Patch agent |
+| [**wakeAgent**](AgentsApi.md#wakeagent) | **POST** /agents/{name}/wake | Wake an agent idle |
 
 
 
@@ -747,6 +748,78 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Updated agent |  -  |
 | **400** | Bad request |  -  |
+| **500** | Internal error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## wakeAgent
+
+> AgentResponse wakeAgent(name, namespace)
+
+Wake an agent idle
+
+Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { WakeAgentRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+  } satisfies WakeAgentRequest;
+
+  try {
+    const data = await api.wakeAgent(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Agent woken (or already awake) |  -  |
+| **404** | Agent not found |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

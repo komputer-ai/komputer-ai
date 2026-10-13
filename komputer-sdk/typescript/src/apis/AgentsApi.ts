@@ -94,6 +94,11 @@ export interface PatchAgentOperationRequest {
     namespace?: string;
 }
 
+export interface WakeAgentRequest {
+    name: string;
+    namespace?: string;
+}
+
 /**
  * 
  */
@@ -636,6 +641,57 @@ export class AgentsApi extends runtime.BaseAPI {
      */
     async patchAgent(requestParameters: PatchAgentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentResponse> {
         const response = await this.patchAgentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for wakeAgent without sending the request
+     */
+    async wakeAgentRequestOpts(requestParameters: WakeAgentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling wakeAgent().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/agents/{name}/wake`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.
+     * Wake an agent idle
+     */
+    async wakeAgentRaw(requestParameters: WakeAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AgentResponse>> {
+        const requestOptions = await this.wakeAgentRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AgentResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.
+     * Wake an agent idle
+     */
+    async wakeAgent(requestParameters: WakeAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentResponse> {
+        const response = await this.wakeAgentRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

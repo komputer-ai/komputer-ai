@@ -159,8 +159,8 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, agentErr
 	} else {
 		// Agent exists
-		if agent.Status.TaskStatus == komputerv1alpha1.AgentTaskInProgress {
-			// Agent is busy, skip this run
+		if taskInProgress(agent.Status.TaskStatus) {
+			// Agent is busy (InProgress or its Compacting sub-state), skip this run
 			log.Info("Agent is busy, skipping scheduled run", "agent", agentName)
 			// Still compute next run time so we don't get stuck
 			if !schedule.Spec.AutoDelete {
@@ -200,7 +200,18 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}
 			log.Info("Woke sleeping agent for scheduled run", "agent", agentName)
 		} else if agent.Status.PodName != "" {
-			// Running + idle agent: forward task to the pod.
+			// Running + idle agent: forward task to the pod. The agent is confirmed
+			// not busy (InProgress check above), so this is a new task — patch
+			// spec.Instructions first so a later pod reschedule re-runs THIS task
+			// rather than whatever Instructions the agent was created with (see
+			// shouldStartIdle in pod_builder.go and the matching fix in the API's
+			// createOrTriggerAgent).
+			original := agent.DeepCopy()
+			agent.Spec.Instructions = schedule.Spec.Instructions
+			if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				log.Error(err, "Failed to patch agent instructions before scheduled forward", "agent", agentName)
+			}
+
 			// Try direct HTTP to pod IP first (works in-cluster), fall back to API (works locally).
 			bodyJSON, _ := json.Marshal(map[string]string{
 				"instructions": schedule.Spec.Instructions,
