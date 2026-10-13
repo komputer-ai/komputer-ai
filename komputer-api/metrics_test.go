@@ -112,3 +112,20 @@ func TestToolCallTracker(t *testing.T) {
 		t.Error("expected second consume to fail")
 	}
 }
+
+// A cancelled task (manual or taskTimeout) still spent money; its cost must reach
+// the cost metric the same way a completed task's does, or Grafana spend
+// under-counts and disagrees with status.totalCostUSD.
+func TestRecordTaskCostMetric_CountsCompletedAndCancelled(t *testing.T) {
+	ns, model, agent := "metrics-cost-ns", "claude-opus-5-5", ""
+	before := testutil.ToFloat64(agentTaskCostUSD.WithLabelValues(ns, model, agent))
+
+	recordTaskCostMetric(ns, model, agent, map[string]interface{}{"cost_usd": 0.25})               // completed
+	recordTaskCostMetric(ns, model, agent, map[string]interface{}{"cost_usd": 0.5, "reason": "x"}) // cancelled
+	recordTaskCostMetric(ns, model, agent, map[string]interface{}{"reason": "no result"})          // no cost: no-op
+
+	got := testutil.ToFloat64(agentTaskCostUSD.WithLabelValues(ns, model, agent)) - before
+	if got != 0.75 {
+		t.Errorf("cost metric delta = %v, want 0.75", got)
+	}
+}

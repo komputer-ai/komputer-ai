@@ -117,3 +117,50 @@ func TestPatchAgentTaskStatus_NoAnnotation_NoOpPatch(t *testing.T) {
 		t.Errorf("TaskStatus = %q, want InProgress", got.Status.TaskStatus)
 	}
 }
+
+// TestPatchAgentTaskStatus_AccumulatesCancelledTaskCost verifies that the cost
+// of a cancelled task — passed through via extractTaskAccounting's new
+// task_cancelled handling in the worker — lands in both LastTaskCostUSD and
+// the running TotalCostUSD, exactly like a completed task's cost does.
+// PatchAgentTaskStatus itself doesn't look at taskStatus to decide whether to
+// record cost, so an agent whose only tasks were ever cancelled must still
+// end up with a non-empty, correctly-summed Cost.
+func TestPatchAgentTaskStatus_AccumulatesCancelledTaskCost(t *testing.T) {
+	agent := &komputerv1alpha1.KomputerAgent{
+		ObjectMeta: metav1.ObjectMeta{Name: "a1", Namespace: "default"},
+		Status:     komputerv1alpha1.KomputerAgentStatus{TaskStatus: komputerv1alpha1.AgentTaskStatus("")},
+	}
+	k8s := newFakeK8sWithStatusSubresource(t, agent)
+
+	// First cancelled task: cost_usd=0.05 (mirrors a task_cancelled event's
+	// extracted accounting reaching PatchAgentTaskStatus via the worker).
+	if err := k8s.PatchAgentTaskStatus(context.Background(), "default", "a1", "Complete", "Task cancelled", "sess-1", 0.05, 100, 200000); err != nil {
+		t.Fatalf("PatchAgentTaskStatus returned error: %v", err)
+	}
+
+	var got komputerv1alpha1.KomputerAgent
+	if err := k8s.client.Get(context.Background(), types.NamespacedName{Name: "a1", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get agent: %v", err)
+	}
+	if got.Status.LastTaskCostUSD != "0.0500" {
+		t.Errorf("LastTaskCostUSD = %q, want %q", got.Status.LastTaskCostUSD, "0.0500")
+	}
+	if got.Status.TotalCostUSD != "0.0500" {
+		t.Errorf("TotalCostUSD = %q, want %q", got.Status.TotalCostUSD, "0.0500")
+	}
+
+	// A second cancelled task on the same agent must ADD to the running total,
+	// not replace it.
+	if err := k8s.PatchAgentTaskStatus(context.Background(), "default", "a1", "Complete", "Task cancelled", "sess-2", 0.03, 50, 200000); err != nil {
+		t.Fatalf("PatchAgentTaskStatus returned error: %v", err)
+	}
+	if err := k8s.client.Get(context.Background(), types.NamespacedName{Name: "a1", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get agent: %v", err)
+	}
+	if got.Status.LastTaskCostUSD != "0.0300" {
+		t.Errorf("LastTaskCostUSD = %q, want %q", got.Status.LastTaskCostUSD, "0.0300")
+	}
+	if got.Status.TotalCostUSD != "0.0800" {
+		t.Errorf("TotalCostUSD = %q, want %q (0.05 + 0.03)", got.Status.TotalCostUSD, "0.0800")
+	}
+}

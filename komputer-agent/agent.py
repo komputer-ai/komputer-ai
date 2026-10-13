@@ -387,7 +387,22 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             _save_session_id(result.session_id)
 
             if state.interrupted:
-                publisher.publish("task_cancelled", {"reason": "Cancelled by user"})
+                # A cancelled run still gets a ResultMessage back from the SDK
+                # (whatever work completed before the interrupt), so include
+                # the same accounting fields task_completed sends — otherwise
+                # the cost of every cancelled task is silently dropped.
+                publisher.publish("task_cancelled", {
+                    "reason": "Cancelled by user",
+                    "cost_usd": result.total_cost_usd,
+                    "duration_ms": result.duration_ms,
+                    "turns": result.num_turns,
+                    "stop_reason": result.stop_reason,
+                    "session_id": result.session_id,
+                    "usage": result.usage,
+                    "last_usage": last_usage,
+                    "context_window": _fetch_context_window(model),
+                    "model": model,
+                })
                 state.interrupted = False
             else:
                 publisher.publish("task_completed", {

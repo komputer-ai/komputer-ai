@@ -108,6 +108,7 @@ func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEve
 //   - Compaction summaries ("read the full transcript at:") → skipped
 //   - Background task notifications ("*(Background task completed") → skipped
 //   - System prompt prefix stripped from first user message per turn
+//
 // ---------------------------------------------------------------------------
 // modelRates holds per-1M-token pricing (USD) for one model.
 type modelRates struct {
@@ -210,34 +211,27 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 	// Track per-turn stats for task_completed events.
 	// Cost is calculated per API call and summed (each call has its own billing).
 	var lastAssistantTimestamp string
-	var turnCostUSD float64          // accumulated cost across all API calls in the turn
+	var turnCostUSD float64                                                         // accumulated cost across all API calls in the turn
 	var turnInputTokens, turnOutputTokens, turnCacheRead, turnCacheCreation float64 // for display
 	var turnAssistantMessages int
 	var prevCallInput, prevCallCacheRead, prevCallCacheCreate float64 // detect same API call
-	var pendingCancel *AgentEvent // deferred cancel — emitted only if not followed by a steer
-	var lastToolWasSkill bool      // true if the last assistant tool_use was "Skill" — next user message is skill content, skip it
+	var pendingCancelAt string                                        // deferred cancel timestamp — emitted only if not followed by a steer; "" = none pending
+	var lastToolWasSkill bool                                         // true if the last assistant tool_use was "Skill" — next user message is skill content, skip it
 	firstTurn := true
 
-	emitTaskCompleted := func() {
-		if lastAssistantTimestamp == "" {
-			return
+	// turnUsagePayload builds the usage map shared by task_completed and
+	// task_cancelled — a cancelled turn's accumulated cost/tokens are just as
+	// real as a completed one's (the agent already ran those API calls).
+	turnUsagePayload := func() map[string]interface{} {
+		return map[string]interface{}{
+			"input_tokens":                int64(turnInputTokens),
+			"output_tokens":               int64(turnOutputTokens),
+			"cache_read_input_tokens":     int64(turnCacheRead),
+			"cache_creation_input_tokens": int64(turnCacheCreation),
 		}
-		payload := map[string]interface{}{
-			"num_turns": turnAssistantMessages,
-			"cost_usd":  turnCostUSD,
-			"usage": map[string]interface{}{
-				"input_tokens":                int64(turnInputTokens),
-				"output_tokens":               int64(turnOutputTokens),
-				"cache_read_input_tokens":     int64(turnCacheRead),
-				"cache_creation_input_tokens": int64(turnCacheCreation),
-			},
-		}
-		events = append(events, AgentEvent{
-			AgentName: agentName,
-			Type:      "task_completed",
-			Timestamp: lastAssistantTimestamp,
-			Payload:   payload,
-		})
+	}
+
+	resetTurnAccumulators := func() {
 		lastAssistantTimestamp = ""
 		turnCostUSD = 0
 		turnInputTokens = 0
@@ -248,6 +242,43 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		prevCallInput = 0
 		prevCallCacheRead = 0
 		prevCallCacheCreate = 0
+	}
+
+	emitTaskCompleted := func() {
+		if lastAssistantTimestamp == "" {
+			return
+		}
+		events = append(events, AgentEvent{
+			AgentName: agentName,
+			Type:      "task_completed",
+			Timestamp: lastAssistantTimestamp,
+			Payload: map[string]interface{}{
+				"num_turns": turnAssistantMessages,
+				"cost_usd":  turnCostUSD,
+				"usage":     turnUsagePayload(),
+			},
+		})
+		resetTurnAccumulators()
+	}
+
+	// emitTaskCancelled mirrors emitTaskCompleted but for a cancelled turn:
+	// same cost/usage accounting (so the worker's totalCostUSD — which now
+	// includes cancelled tasks, see worker.go's extractTaskAccounting — stays
+	// reconcilable with what backfill estimates), plus the cancel reason.
+	// Uses the interrupt's own timestamp rather than lastAssistantTimestamp.
+	emitTaskCancelled := func(timestamp string) {
+		events = append(events, AgentEvent{
+			AgentName: agentName,
+			Type:      "task_cancelled",
+			Timestamp: timestamp,
+			Payload: map[string]interface{}{
+				"reason":    "Cancelled by user",
+				"num_turns": turnAssistantMessages,
+				"cost_usd":  turnCostUSD,
+				"usage":     turnUsagePayload(),
+			},
+		})
+		resetTurnAccumulators()
 	}
 
 	for _, line := range strings.Split(string(raw), "\n") {
@@ -265,21 +296,10 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		if entryType == "queue-operation" {
 			op, _ := entry["operation"].(string)
 			if op == "enqueue" && !firstTurn {
-				if pendingCancel != nil {
+				if pendingCancelAt != "" {
 					// Task was cancelled — emit cancel instead of task_completed.
-					events = append(events, *pendingCancel)
-					pendingCancel = nil
-					// Reset turn accumulators without emitting task_completed.
-					lastAssistantTimestamp = ""
-					turnCostUSD = 0
-					turnInputTokens = 0
-					turnOutputTokens = 0
-					turnCacheRead = 0
-					turnCacheCreation = 0
-					turnAssistantMessages = 0
-		prevCallInput = 0
-		prevCallCacheRead = 0
-		prevCallCacheCreate = 0
+					emitTaskCancelled(pendingCancelAt)
+					pendingCancelAt = ""
 				} else {
 					emitTaskCompleted()
 				}
@@ -354,17 +374,12 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 			// Interruptions: defer decision — if next user message follows immediately
 			// (steer), skip the cancel. If a new turn starts or file ends, emit cancel.
 			if strings.HasPrefix(text, "[Request interrupted by user") {
-				pendingCancel = &AgentEvent{
-					AgentName: agentName,
-					Type:      "task_cancelled",
-					Timestamp: timestamp,
-					Payload:   map[string]interface{}{"reason": "Cancelled by user"},
-				}
+				pendingCancelAt = timestamp
 				continue
 			}
 			// A real user message after an interrupt means it was a steer — drop the cancel.
-			if pendingCancel != nil {
-				pendingCancel = nil
+			if pendingCancelAt != "" {
+				pendingCancelAt = ""
 			}
 			// Compaction summaries → compaction indicator.
 			// The only marker the bundled Claude Code CLI writes into JSONL is the
@@ -404,7 +419,7 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 				Payload:   map[string]interface{}{"content": text},
 			})
 
-		// ── Assistant messages ──────────────────────────────────────────
+			// ── Assistant messages ──────────────────────────────────────────
 		} else if role == "assistant" {
 			lastAssistantTimestamp = timestamp
 			turnAssistantMessages++
@@ -519,20 +534,28 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		}
 	}
 
-	// Flush pending cancel at end of file — it was a real cancel.
-	if pendingCancel != nil {
-		events = append(events, *pendingCancel)
-		pendingCancel = nil
+	// Flush pending cancel at end of file — it was a real cancel. This resets
+	// the turn accumulators, so the emitTaskCompleted() call right after is a
+	// no-op for this same turn (lastAssistantTimestamp is now "") instead of
+	// emitting a second, duplicate-cost event for it.
+	if pendingCancelAt != "" {
+		emitTaskCancelled(pendingCancelAt)
+		pendingCancelAt = ""
 	}
 	// Emit task_completed for the final turn.
 	emitTaskCompleted()
 
 	// Scale estimated costs proportionally to match the CR's actual total.
 	// The estimation from token counts is approximate; the CR total is authoritative.
+	// totalCostUSD (status.totalCostUSD) now accumulates cancelled tasks' cost
+	// too (see worker.go's extractTaskAccounting), so task_cancelled events'
+	// estimated cost must be included here as well — otherwise estimatedTotal
+	// would undercount and every completed task's displayed cost would be
+	// scaled up to wrongly cover the cancelled turns' share.
 	if totalCostUSD > 0 {
 		var estimatedTotal float64
 		for _, ev := range events {
-			if ev.Type == "task_completed" {
+			if ev.Type == "task_completed" || ev.Type == "task_cancelled" {
 				if c, ok := ev.Payload["cost_usd"].(float64); ok {
 					estimatedTotal += c
 				}
@@ -541,7 +564,7 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 		if estimatedTotal > 0 {
 			scale := totalCostUSD / estimatedTotal
 			for i := range events {
-				if events[i].Type == "task_completed" {
+				if events[i].Type == "task_completed" || events[i].Type == "task_cancelled" {
 					if c, ok := events[i].Payload["cost_usd"].(float64); ok {
 						events[i].Payload["cost_usd"] = c * scale
 					}
