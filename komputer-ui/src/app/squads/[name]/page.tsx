@@ -18,8 +18,8 @@ import {
   getSquad,
   deleteSquad,
   listAgents,
-  patchAgent,
   wakeAgent,
+  sleepAgent,
 } from "@/lib/api";
 import type { Squad, AgentResponse } from "@/lib/types";
 
@@ -186,6 +186,7 @@ export default function SquadDetailPage() {
   const showLoading = useDelayedLoading(loading);
   const [notFound, setNotFound] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const countdown = useOrphanCountdown(squad?.orphanedSince, squad?.orphanTTL);
 
@@ -215,6 +216,12 @@ export default function SquadDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!actionError) return;
+    const t = window.setTimeout(() => setActionError(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [actionError]);
+
   // --- Actions ---
 
   async function handleWakeAll() {
@@ -233,12 +240,21 @@ export default function SquadDetailPage() {
   async function handleSleepAll() {
     if (!squad) return;
     setActionInProgress("sleep");
+    setActionError(null);
     try {
-      await Promise.allSettled(
-        squad.members.map((m) =>
-          patchAgent(m.name, { lifecycle: "Sleep" }, namespace)
-        )
+      const results = await Promise.allSettled(
+        squad.members.map((m) => sleepAgent(m.name, namespace))
       );
+      const failures = results.filter(
+        (r): r is PromiseRejectedResult => r.status === "rejected"
+      );
+      if (failures.length > 0) {
+        const reason = failures[0].reason;
+        const msg = reason instanceof Error ? reason.message : "unknown error";
+        setActionError(
+          `Failed to sleep ${failures.length} of ${squad.members.length} member(s): ${msg}`
+        );
+      }
       await fetchData();
     } finally {
       setActionInProgress(null);
@@ -311,6 +327,19 @@ export default function SquadDetailPage() {
                 <> Will be automatically deleted in <strong>{countdown}</strong>.</>
               )}
             </span>
+          </motion.div>
+        )}
+
+        {/* Member action error (e.g. a member busy with a task when Sleep all was clicked) */}
+        {actionError && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-3 rounded-[var(--radius-md)] border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm"
+          >
+            <AlertTriangle className="size-4 shrink-0 text-red-400" />
+            <span className="text-red-300">{actionError}</span>
           </motion.div>
         )}
 

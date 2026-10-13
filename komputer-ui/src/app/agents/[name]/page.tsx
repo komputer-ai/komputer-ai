@@ -18,7 +18,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, compactAgent, wakeAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, compactAgent, wakeAgent, sleepAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
 import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
@@ -345,14 +345,18 @@ export default function AgentDetailPage() {
     }
   };
 
+  const [sleepNote, setSleepNote] = useState<string | null>(null);
   const handleSleep = async () => {
     if (!agentName) return;
     setSleeping(true);
+    setSleepNote(null);
     try {
-      await patchAgent(agentName, { lifecycle: "Sleep" }, agentNs);
+      await sleepAgent(agentName, agentNs);
       await fetchAgent();
-    } catch {
-      // ignore
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to sleep agent";
+      setSleepNote(/409/.test(msg) ? "Agent is running a task — cancel it first" : msg);
+      window.setTimeout(() => setSleepNote(null), 4000);
     } finally {
       setSleeping(false);
     }
@@ -554,9 +558,19 @@ export default function AgentDetailPage() {
                         Cancel
                       </Button>
                     )}
-                    <Button variant="secondary" size="sm" onClick={handleSleep} disabled={sleeping}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSleep}
+                      disabled={sleeping || agent.storage?.ephemeral}
+                      title={
+                        agent.storage?.ephemeral
+                          ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
+                          : undefined
+                      }
+                    >
                       <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
-                      {sleeping ? "Sleeping…" : "Sleep"}
+                      {sleepNote ?? (sleeping ? "Sleeping…" : "Sleep")}
                     </Button>
                   </>
                 )}

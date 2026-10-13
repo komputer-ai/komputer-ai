@@ -89,6 +89,17 @@ export const cancelAgent = (name: string, ns?: string) =>
 export const wakeAgent = (name: string, ns?: string) =>
   request<AgentResponse>(`/agents/${name}/wake${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
+// sleepAgent sleeps an agent right now — pod deleted, PVC/workspace kept —
+// regardless of sleepTTL or a prior idle wake, and WITHOUT changing the
+// agent's lifecycle policy. Unlike patchAgent(name, { lifecycle: "Sleep" }),
+// which only sets a policy the operator applies once a task completes (and
+// which a prior wake or a sleepTTL can silently suppress), this always takes
+// effect immediately. A no-op (returns the agent's current state) if already
+// sleeping; throws (409) if a task is in progress, or (400) for an
+// ephemeral-workspace agent.
+export const sleepAgent = (name: string, ns?: string) =>
+  request<AgentResponse>(`/agents/${name}/sleep${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
+
 export const compactAgent = (name: string, opts?: { instructions?: string; namespace?: string }) =>
   request<{ status: string; name: string }>(
     `/agents/${name}/compact${opts?.namespace ? `?namespace=${opts.namespace}` : ''}`,
