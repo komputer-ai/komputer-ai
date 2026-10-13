@@ -85,6 +85,14 @@ class KomputerClient:
         if the agent is not sleeping."""
         return self.agents.wake_agent(name)
 
+    def sleep_agent(self, name: str):
+        """Sleep an agent right now — pod deleted, PVC/workspace kept —
+        regardless of sleepTTL or a prior idle wake, and without changing the
+        agent's lifecycle policy. A no-op (returns the agent's current state)
+        if already sleeping; raises ApiException (409) if a task is in
+        progress, or (400) for an ephemeral-workspace agent."""
+        return self.agents.sleep_agent(name)
+
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
 
