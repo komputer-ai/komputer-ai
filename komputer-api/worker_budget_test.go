@@ -38,7 +38,7 @@ func TestExtractTaskCompletionFields_ErrorStillReportsCost(t *testing.T) {
 			"session_id": "sess-123",
 		},
 	}
-	sessionID, costUSD, _, _ := extractTaskCompletionFields(event)
+	sessionID, costUSD, _, _ := extractTaskAccounting(event)
 	if costUSD != 2.50 {
 		t.Errorf("costUSD = %v, want 2.50", costUSD)
 	}
@@ -56,7 +56,7 @@ func TestExtractTaskCompletionFields_OrdinaryErrorHasNoCost(t *testing.T) {
 		Type:    "error",
 		Payload: map[string]interface{}{"error": "something unrelated broke"},
 	}
-	_, costUSD, _, _ := extractTaskCompletionFields(event)
+	_, costUSD, _, _ := extractTaskAccounting(event)
 	if costUSD != 0 {
 		t.Errorf("costUSD = %v, want 0", costUSD)
 	}
@@ -71,7 +71,7 @@ func TestExtractTaskCompletionFields_OtherEventTypesYieldZero(t *testing.T) {
 		Type:    "text",
 		Payload: map[string]interface{}{"cost_usd": 99.0, "session_id": "nope"},
 	}
-	sessionID, costUSD, totalTokens, contextWindow := extractTaskCompletionFields(event)
+	sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
 	if sessionID != "" || costUSD != 0 || totalTokens != 0 || contextWindow != 0 {
 		t.Errorf("got (%q, %v, %v, %v), want all zero for a non-completion event", sessionID, costUSD, totalTokens, contextWindow)
 	}

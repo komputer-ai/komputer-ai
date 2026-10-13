@@ -81,7 +81,9 @@ func buildCostBreakdown(events []AgentEvent) CostBreakdownResponse {
 				idx++
 			}
 
-		case "task_completed", "task_cancelled":
+		// error ends a task too — including one the SDK stopped for exceeding
+		// taskBudgetUSD, which carries that task's cost.
+		case "task_completed", "task_cancelled", "error":
 			if current != nil {
 				current.CompletedAt = ev.Timestamp
 				if costRaw, ok := ev.Payload["cost_usd"].(float64); ok {
@@ -180,4 +182,3 @@ func getAgentCostBreakdown(worker *RedisWorker) gin.HandlerFunc {
 		c.JSON(http.StatusOK, resp)
 	}
 }
-

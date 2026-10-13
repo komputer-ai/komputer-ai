@@ -151,9 +151,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "started", agentLabel).Inc()
 					case "task_completed":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "completed", agentLabel).Inc()
-						if cost, ok := event.Payload["cost_usd"].(float64); ok {
-							agentTaskCostUSD.WithLabelValues(event.Namespace, model, agentLabel).Add(cost)
-						}
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 						if dur, ok := event.Payload["duration_ms"].(float64); ok {
 							agentTaskDuration.WithLabelValues(event.Namespace, model, agentLabel).Observe(dur / 1000.0)
 						}
@@ -171,8 +169,10 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						}
 					case "task_cancelled":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "cancelled", agentLabel).Inc()
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 					case "error":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "errored", agentLabel).Inc()
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 					case "tool_call":
 						if toolName, ok := event.Payload["tool"].(string); ok && toolName != "" {
 							if toolUseID, ok := event.Payload["id"].(string); ok && toolUseID != "" {
@@ -213,7 +213,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 
 					taskStatus, lastMessage := mapEventToTaskStatus(event)
 					if taskStatus != "" {
-						sessionID, costUSD, totalTokens, contextWindow := extractTaskCompletionFields(event)
+						sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
 						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
 							Logger.Errorw("failed to patch task status", "agent_name", event.AgentName, "error", err)
 						}
@@ -394,7 +394,7 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 
 				taskStatus, lastMessage := mapEventToTaskStatus(event)
 				if taskStatus != "" {
-					sessionID, costUSD, totalTokens, contextWindow := extractTaskCompletionFields(event)
+					sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
 					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow)
 				}
 
@@ -529,6 +529,52 @@ func truncate(s string, max int) string {
 	return s
 }
 
+// recordTaskCostMetric adds a finished task's cost to the cost metric. Used for
+// every terminal event that can carry cost — task_completed, task_cancelled, and
+// an error from a budget stop: a cancelled or budget-stopped task still spent
+// money, and leaving it out made the metric under-count and disagree with
+// status.totalCostUSD. A payload without cost (e.g. a cancel that fired before
+// any result arrived, or an ordinary error) is a no-op.
+func recordTaskCostMetric(namespace, model, agentLabel string, payload map[string]interface{}) {
+	if cost, ok := payload["cost_usd"].(float64); ok {
+		agentTaskCostUSD.WithLabelValues(namespace, model, agentLabel).Add(cost)
+	}
+}
+
+// extractTaskAccounting reads the cost/session/token fields a terminal task
+// event carries: task_completed; task_cancelled, since a cancelled run's
+// ResultMessage is published with the same accounting fields; and error, which
+// carries cost when the SDK stopped the task for exceeding taskBudgetUSD (see
+// agent.py). An error without cost yields zero cost. Any other event type yields
+// zero values.
+func extractTaskAccounting(event AgentEvent) (sessionID string, costUSD float64, totalTokens int64, contextWindow int64) {
+	if event.Type != "task_completed" && event.Type != "task_cancelled" && event.Type != "error" {
+		return "", 0, 0, 0
+	}
+
+	sessionID, _ = event.Payload["session_id"].(string)
+	costUSD, _ = event.Payload["cost_usd"].(float64)
+	totalTokens = extractTotalTokens(event.Payload)
+
+	// Use last_usage (single API call) for context size, not accumulated usage.
+	if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
+		var ctxTokens int64
+		for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+			if v, ok := lastUsage[key].(float64); ok {
+				ctxTokens += int64(v)
+			}
+		}
+		if ctxTokens > 0 {
+			totalTokens = ctxTokens
+		}
+	}
+	if cw, ok := event.Payload["context_window"].(float64); ok {
+		contextWindow = int64(cw)
+	}
+
+	return sessionID, costUSD, totalTokens, contextWindow
+}
+
 // extractTotalTokens reads all input + output tokens from a task_completed payload's
 // "usage" map, including cache_read and cache_creation tokens. Returns 0 if absent or malformed.
 func extractTotalTokens(payload map[string]interface{}) int64 {
@@ -547,37 +593,6 @@ func extractTotalTokens(payload map[string]interface{}) int64 {
 		}
 	}
 	return total
-}
-
-// extractTaskCompletionFields pulls the fields PatchAgentTaskStatus needs out of an
-// event's payload: session ID, cost, total tokens, and context window. Only
-// "task_completed" and "error" carry these — "error" so a task stopped mid-flight by
-// error_max_budget_usd (see the agent's run_agent) still reports what it spent before
-// the SDK cut it off, even though the task did not complete normally. Every other
-// event type yields all zero values, same as before this was factored out.
-func extractTaskCompletionFields(event AgentEvent) (sessionID string, costUSD float64, totalTokens int64, contextWindow int64) {
-	if event.Type != "task_completed" && event.Type != "error" {
-		return "", 0, 0, 0
-	}
-	sessionID, _ = event.Payload["session_id"].(string)
-	costUSD, _ = event.Payload["cost_usd"].(float64)
-	totalTokens = extractTotalTokens(event.Payload)
-	// Use last_usage (single API call) for context size, not accumulated usage.
-	if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
-		var ctx int64
-		for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
-			if v, ok := lastUsage[key].(float64); ok {
-				ctx += int64(v)
-			}
-		}
-		if ctx > 0 {
-			totalTokens = ctx
-		}
-	}
-	if cw, ok := event.Payload["context_window"].(float64); ok {
-		contextWindow = int64(cw)
-	}
-	return sessionID, costUSD, totalTokens, contextWindow
 }
 
 // extractContextTokens returns the total input size for the last turn — used as a proxy for
