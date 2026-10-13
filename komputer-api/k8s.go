@@ -147,6 +147,15 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 		return nil, err
 	}
 	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		// Not asleep yet, but a sleep may be pending (the operator waits out a running
+		// task): waking is the user's latest intent, so cancel it.
+		if _, pending := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]; pending {
+			metaOriginal := agent.DeepCopy()
+			delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
+			if err := k.client.Patch(ctx, agent, client.MergeFrom(metaOriginal)); err != nil {
+				return nil, fmt.Errorf("failed to cancel pending sleep request: %w", err)
+			}
+		}
 		return agent, nil
 	}
 
@@ -157,6 +166,7 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 		agent.Annotations = map[string]string{}
 	}
 	agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] = "true"
+	delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
 	if err := k.client.Patch(ctx, agent, client.MergeFrom(originalMeta)); err != nil {
 		return nil, fmt.Errorf("failed to patch annotations: %w", err)
 	}
@@ -2041,11 +2051,17 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	// (InProgress -> InProgress/Compacting): taskStatusStartsTask is false there,
 	// since the agent was already doing real work, not sitting idle-woken.
 	if taskStatusStartsTask(prevTaskStatus, agent.Status.TaskStatus) {
-		if _, annotated := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]; annotated {
+		// A new task supersedes both an idle wake and a sleep request the operator
+		// hasn't acted on yet — otherwise the agent would sleep after a task the user
+		// started afterwards.
+		_, wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]
+		_, sleepRequested := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]
+		if wakeIdle || sleepRequested {
 			metaOriginal := agent.DeepCopy()
 			delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+			delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
 			if err := k.client.Patch(ctx, agent, client.MergeFrom(metaOriginal)); err != nil {
-				return fmt.Errorf("failed to clear wake-idle annotation: %w", err)
+				return fmt.Errorf("failed to clear wake-idle/sleep-requested annotations: %w", err)
 			}
 		}
 	}
