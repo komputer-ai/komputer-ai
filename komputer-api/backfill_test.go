@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -95,6 +96,91 @@ func TestOutputRatePerM(t *testing.T) {
 				t.Fatalf("outputRatePerM(%q) = %v, want %v", tc.model, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestConvertSessionJSONL_CancelledSessionCarriesCost reconstructs a session
+// whose JSONL ends right on an interruption (no further queue-operation entry
+// and no steer) — the EOF flush path. Before the fix:
+//   1. the cancel event carried only {"reason": ...}, no cost/usage at all, and
+//   2. the unconditional emitTaskCompleted() call right after the EOF flush
+//      double-emitted a second, duplicate-cost event for the very same turn
+//      (lastAssistantTimestamp was never cleared by the old pendingCancel path).
+// Both must be fixed: the cancel event should carry the turn's accumulated
+// cost_usd/usage/num_turns, and no trailing task_completed should follow it.
+func TestConvertSessionJSONL_CancelledSessionCarriesCost(t *testing.T) {
+	raw := []byte(strings.Join([]string{
+		`{"timestamp":"2024-01-01T00:00:00Z","message":{"role":"user","content":"do the thing"}}`,
+		`{"timestamp":"2024-01-01T00:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"ok working on it"}],"usage":{"input_tokens":100,"output_tokens":50},"model":"claude-sonnet-4-6"}}`,
+		`{"timestamp":"2024-01-01T00:00:02Z","message":{"role":"user","content":"[Request interrupted by user]"}}`,
+	}, "\n"))
+
+	events := convertSessionJSONL(raw, "agent-1", 0, "claude-sonnet-4-6", 0)
+
+	var cancelled, completed int
+	var cancelPayload map[string]interface{}
+	for _, ev := range events {
+		switch ev.Type {
+		case "task_cancelled":
+			cancelled++
+			cancelPayload = ev.Payload
+		case "task_completed":
+			completed++
+		}
+	}
+
+	if cancelled != 1 {
+		t.Fatalf("got %d task_cancelled events, want 1 (events: %+v)", cancelled, events)
+	}
+	if completed != 0 {
+		t.Fatalf("got %d task_completed events, want 0 — the EOF flush must not double-emit (events: %+v)", completed, events)
+	}
+
+	wantCost := estimateCostUSD("claude-sonnet-4-6", 100, 50, 0, 0)
+	if c, ok := cancelPayload["cost_usd"].(float64); !ok || math.Abs(c-wantCost) > 1e-9 {
+		t.Errorf("task_cancelled cost_usd = %v, want %v", cancelPayload["cost_usd"], wantCost)
+	}
+	if cancelPayload["reason"] != "Cancelled by user" {
+		t.Errorf("task_cancelled reason = %v, want %q", cancelPayload["reason"], "Cancelled by user")
+	}
+	usage, ok := cancelPayload["usage"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("task_cancelled usage missing or wrong type: %v", cancelPayload["usage"])
+	}
+	if usage["input_tokens"] != int64(100) || usage["output_tokens"] != int64(50) {
+		t.Errorf("task_cancelled usage = %+v, want input_tokens=100 output_tokens=50", usage)
+	}
+}
+
+// TestConvertSessionJSONL_CostScalingIncludesCancelledTasks verifies the final
+// scaling pass (which reconciles backfill's per-token cost estimate against
+// the CR's authoritative totalCostUSD) also scales task_cancelled events —
+// otherwise a session with a cancelled task would under-count estimatedTotal
+// and inflate every completed task's displayed cost to compensate.
+func TestConvertSessionJSONL_CostScalingIncludesCancelledTasks(t *testing.T) {
+	raw := []byte(strings.Join([]string{
+		`{"timestamp":"2024-01-01T00:00:00Z","message":{"role":"user","content":"do the thing"}}`,
+		`{"timestamp":"2024-01-01T00:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"ok working on it"}],"usage":{"input_tokens":100,"output_tokens":50},"model":"claude-sonnet-4-6"}}`,
+		`{"timestamp":"2024-01-01T00:00:02Z","message":{"role":"user","content":"[Request interrupted by user]"}}`,
+	}, "\n"))
+
+	estimated := estimateCostUSD("claude-sonnet-4-6", 100, 50, 0, 0)
+	authoritative := estimated * 2 // CR's real total is exactly double the per-token estimate
+
+	events := convertSessionJSONL(raw, "agent-1", 0, "claude-sonnet-4-6", authoritative)
+
+	var gotCost float64
+	var found bool
+	for _, ev := range events {
+		if ev.Type == "task_cancelled" {
+			gotCost, found = ev.Payload["cost_usd"].(float64)
+		}
+	}
+	if !found {
+		t.Fatalf("no task_cancelled event found (events: %+v)", events)
+	}
+	if math.Abs(gotCost-authoritative) > 1e-9 {
+		t.Errorf("scaled task_cancelled cost_usd = %v, want %v (scale factor 2x applied)", gotCost, authoritative)
 	}
 }
 
