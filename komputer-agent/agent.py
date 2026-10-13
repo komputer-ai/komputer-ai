@@ -76,23 +76,51 @@ def _fetch_context_window(model: str) -> int | None:
         return None
 
 
+TOOL_OUTPUT_CAP = 1000
+
+
+def _truncate_strings(value, limit: int):
+    """Return a copy of value with every string leaf cut to `limit` chars (marked with …)."""
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[:limit] + "…"
+    if isinstance(value, dict):
+        return {k: _truncate_strings(v, limit) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_truncate_strings(v, limit) for v in value]
+    return value
+
+
 def _serialize_tool_output(value) -> tuple[str, bool]:
     """Serialize a tool_response value for the tool_result event payload.
 
     str() of a dict/list produces Python repr (single quotes, True/False/None)
     instead of JSON, which the UI can't parse. Dicts/lists are JSON-serialized
     instead; strings pass through unchanged; anything else falls back to str().
-    The 1000-char cap is applied after serialization so it doesn't cut a
-    JSON string mid-token. Returns (output, truncated).
+
+    Output is capped at TOOL_OUTPUT_CAP chars. For dicts/lists the cap shortens
+    long string leaves rather than cutting the serialized text, so the UI still
+    receives valid JSON — a Bash result's stdout routinely exceeds the cap on its
+    own. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
+    text cut as a last resort. Returns (output, truncated).
     """
     if isinstance(value, (dict, list)):
         serialized = json.dumps(value, ensure_ascii=False, default=str)
-    elif isinstance(value, str):
-        serialized = value
-    else:
-        serialized = str(value)
-    truncated = len(serialized) > 1000
-    return serialized[:1000], truncated
+        if len(serialized) <= TOOL_OUTPUT_CAP:
+            return serialized, False
+        # Largest per-leaf limit whose serialization fits, via binary search.
+        lo, hi, best = 0, TOOL_OUTPUT_CAP, None
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            candidate = json.dumps(_truncate_strings(value, mid), ensure_ascii=False, default=str)
+            if len(candidate) <= TOOL_OUTPUT_CAP:
+                best, lo = candidate, mid + 1
+            else:
+                hi = mid - 1
+        if best is not None:
+            return best, True
+        return serialized[:TOOL_OUTPUT_CAP], True
+    serialized = value if isinstance(value, str) else str(value)
+    return serialized[:TOOL_OUTPUT_CAP], len(serialized) > TOOL_OUTPUT_CAP
 
 
 def _write_skills(skills: dict[str, str | dict[str, str]]):
