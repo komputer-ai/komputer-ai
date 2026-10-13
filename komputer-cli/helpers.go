@@ -82,6 +82,11 @@ func printAgent(a AgentResponse) {
 	if a.TaskTimeout != "" {
 		row("Task Timeout:", a.TaskTimeout+expiryHint("cancels", a.TaskExpiresAt))
 	}
+	if a.Storage.IsEphemeral() {
+		row("Storage:", warnStyle.Render("Ephemeral (emptyDir, no PVC)"))
+	} else if a.Storage != nil && a.Storage.Size != "" {
+		row("Storage:", a.Storage.Size)
+	}
 	if a.LastTaskCostUSD != "" {
 		row("Last Task Cost:", "$"+a.LastTaskCostUSD)
 	}

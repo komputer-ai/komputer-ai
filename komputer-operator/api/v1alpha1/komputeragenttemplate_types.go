@@ -23,12 +23,27 @@ import (
 
 // StorageSpec defines PVC settings for agent workspaces.
 type StorageSpec struct {
-	// Size is the PVC storage size (e.g. "5Gi").
+	// Size is the PVC storage size (e.g. "5Gi"). When Ephemeral is true, this is
+	// instead used as the emptyDir's SizeLimit.
 	// +kubebuilder:default="5Gi"
 	Size string `json:"size,omitempty"`
-	// StorageClassName is the optional storage class name.
+	// StorageClassName is the optional storage class name. Ignored when Ephemeral is true.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
+	// Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC:
+	// no PersistentVolumeClaim is created. The workspace lives exactly as long as the
+	// pod — files, installed packages and the Claude session are permanently lost
+	// whenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with
+	// Lifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting
+	// its pod (the operator refuses to sleep an ephemeral agent for this reason).
+	//
+	// Unset (default) or false keeps today's behavior: every agent gets a PVC. Set it on
+	// a KomputerAgentTemplate to make ephemeral the default for agents using it, or on an
+	// individual agent to override its template either way. Immutable after agent
+	// creation. An agent that already has a PVC keeps it even if later marked ephemeral —
+	// the operator never deletes an existing PVC.
+	// +optional
+	Ephemeral *bool `json:"ephemeral,omitempty"`
 }
 
 // KomputerAgentTemplateSpec defines the desired state of KomputerAgentTemplate.

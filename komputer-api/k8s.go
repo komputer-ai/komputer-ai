@@ -368,6 +368,31 @@ func (k *K8sClient) CreateAgent(ctx context.Context, ns, name, instructions, int
 	return agent, nil
 }
 
+// ResolveEffectiveEphemeral resolves whether an agent config is effectively ephemeral:
+// its own storage.ephemeral if set, else its template's, else false. Mirrors the
+// operator's isAgentEphemeral/applyAgentOverrides resolution so the API rejects the
+// same combinations the operator would otherwise have to silently ignore. A template
+// that can't be read (not found, RBAC, transient error) resolves to false — this must
+// never fail an otherwise-valid request.
+func (k *K8sClient) ResolveEffectiveEphemeral(ctx context.Context, ns string, cfg komputerv1alpha1.AgentConfigSpec) bool {
+	if cfg.Storage != nil && cfg.Storage.Ephemeral != nil {
+		return *cfg.Storage.Ephemeral
+	}
+	templateRef := cfg.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	tpl := &komputerv1alpha1.KomputerAgentTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: ns}, tpl); err == nil {
+		return tpl.Spec.Storage.Ephemeral != nil && *tpl.Spec.Storage.Ephemeral
+	}
+	clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef}, clusterTpl); err == nil {
+		return clusterTpl.Spec.Storage.Ephemeral != nil && *clusterTpl.Spec.Storage.Ephemeral
+	}
+	return false
+}
+
 // MergeAgentLabels merges the given labels into the agent's Spec.Labels additively.
 // Existing keys are overwritten; no keys are removed.
 func (k *K8sClient) MergeAgentLabels(ctx context.Context, ns, agentName string, labels map[string]string) error {
@@ -402,10 +427,27 @@ func (k *K8sClient) PatchAgentOverrides(ctx context.Context, ns, agentName strin
 		}
 	}
 	if storage != nil {
-		if storage.Size == "" && storage.StorageClassName == nil {
+		// Merge field-by-field onto whatever the agent already has, rather than
+		// replacing wholesale — a patch that only sets size (the common case: see
+		// the CLI's --storage flag) must not silently clear storageClassName or
+		// ephemeral, and vice versa.
+		var merged komputerv1alpha1.StorageSpec
+		if agent.Spec.Storage != nil {
+			merged = *agent.Spec.Storage
+		}
+		if storage.Size != "" {
+			merged.Size = storage.Size
+		}
+		if storage.StorageClassName != nil {
+			merged.StorageClassName = storage.StorageClassName
+		}
+		if storage.Ephemeral != nil {
+			merged.Ephemeral = storage.Ephemeral
+		}
+		if merged.Size == "" && merged.StorageClassName == nil && merged.Ephemeral == nil {
 			agent.Spec.Storage = nil
 		} else {
-			agent.Spec.Storage = storage
+			agent.Spec.Storage = &merged
 		}
 	}
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))

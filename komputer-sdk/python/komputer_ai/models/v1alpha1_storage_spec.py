@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,9 +27,10 @@ class V1alpha1StorageSpec(BaseModel):
     """
     V1alpha1StorageSpec
     """ # noqa: E501
-    size: Optional[StrictStr] = Field(default=None, description="Size is the PVC storage size (e.g. \"5Gi\"). +kubebuilder:default=\"5Gi\"")
-    storage_class_name: Optional[StrictStr] = Field(default=None, description="StorageClassName is the optional storage class name. +optional", alias="storageClassName")
-    __properties: ClassVar[List[str]] = ["size", "storageClassName"]
+    ephemeral: Optional[StrictBool] = Field(default=None, description="Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC: no PersistentVolumeClaim is created. The workspace lives exactly as long as the pod — files, installed packages and the Claude session are permanently lost whenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with Lifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting its pod (the operator refuses to sleep an ephemeral agent for this reason).  Unset (default) or false keeps today's behavior: every agent gets a PVC. Set it on a KomputerAgentTemplate to make ephemeral the default for agents using it, or on an individual agent to override its template either way. Immutable after agent creation. An agent that already has a PVC keeps it even if later marked ephemeral — the operator never deletes an existing PVC. +optional")
+    size: Optional[StrictStr] = Field(default=None, description="Size is the PVC storage size (e.g. \"5Gi\"). When Ephemeral is true, this is instead used as the emptyDir's SizeLimit. +kubebuilder:default=\"5Gi\"")
+    storage_class_name: Optional[StrictStr] = Field(default=None, description="StorageClassName is the optional storage class name. Ignored when Ephemeral is true. +optional", alias="storageClassName")
+    __properties: ClassVar[List[str]] = ["ephemeral", "size", "storageClassName"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -82,6 +83,7 @@ class V1alpha1StorageSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "ephemeral": obj.get("ephemeral"),
             "size": obj.get("size"),
             "storageClassName": obj.get("storageClassName")
         })

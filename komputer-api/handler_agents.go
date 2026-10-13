@@ -413,6 +413,34 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// An ephemeral workspace (no PVC) can never be combined with Sleep/sleepTTL —
+		// sleeping deletes the pod, which would wipe it. For a new agent this checks
+		// the request's own values; for wake (existing != nil), storage can't change
+		// here, so it's the existing agent's effective ephemeral/sleepTTL plus any
+		// Lifecycle override the wake call is making.
+		{
+			lifecycleToCheck := req.Lifecycle
+			var sleepTTLToCheck *metav1.Duration
+			var effectiveEphemeral bool
+			if existing != nil {
+				effectiveEphemeral = k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, existing.Spec.AgentConfigSpec)
+				if lifecycleToCheck == "" {
+					lifecycleToCheck = string(existing.Spec.Lifecycle)
+				}
+				sleepTTLToCheck = existing.Spec.SleepTTL // wake cannot change sleepTTL
+			} else {
+				effectiveEphemeral = k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, komputerv1alpha1.AgentConfigSpec{
+					TemplateRef: req.TemplateRef,
+					Storage:     req.Storage,
+				})
+				sleepTTLToCheck = sleepTTL
+			}
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		if existing != nil {
 			// Wake-up flow for sleeping agents
 			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
@@ -1188,6 +1216,35 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		// storage.ephemeral is immutable, and can never combine with Sleep lifecycle or
+		// a sleepTTL (sleeping deletes the pod, which would wipe an ephemeral
+		// workspace). Checked against the agent as it will be once this patch applies:
+		// its own current values for anything the patch doesn't touch.
+		if req.Storage != nil || req.Lifecycle != nil || sleepTTL.Set {
+			existingAgent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
+			if getErr != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found: " + getErr.Error()})
+				return
+			}
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, existingAgent.Spec.AgentConfigSpec)
+			if err := validateEphemeralImmutable(effectiveEphemeral, req.Storage); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			lifecycleToCheck := string(existingAgent.Spec.Lifecycle)
+			if req.Lifecycle != nil {
+				lifecycleToCheck = *req.Lifecycle
+			}
+			sleepTTLToCheck := existingAgent.Spec.SleepTTL
+			if sleepTTL.Set {
+				sleepTTLToCheck = sleepTTL.Value
+			}
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		// Reject a disabled connector only if it's being newly attached — a connector

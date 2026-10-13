@@ -95,6 +95,37 @@ spec:
 
 Manager agents can apply overrides at runtime through the `update_agent` MCP tool — pass `cpu`, `memory`, `storage`, or `image`, and the manager builds the same shape and PATCHes the agent. Pass an empty string (e.g. `storage=""`) to remove an override and revert to the template default.
 
+## Ephemeral Agents
+
+By default every agent gets a PVC, so its workspace survives pod restarts, sleeps, and reschedules. Setting `storage.ephemeral: true` opts an agent out of that: its workspace becomes an `emptyDir` instead — no `PersistentVolumeClaim` is created at all.
+
+An ephemeral agent's workspace lives exactly as long as its pod. Files, installed packages, and the Claude session are **permanently lost** whenever the pod is deleted, evicted, rescheduled, or restarted — not just on a deliberate cleanup. Use it for:
+
+- **One-shot tasks** — `lifecycle: AutoDelete` sub-agents that do a single job and never need their workspace again. Skipping the PVC means nothing to garbage-collect and a faster teardown.
+- **CI / throwaway jobs** — scheduled or ad-hoc agents where every run starts from a clean slate by design, so a persistent workspace would be wasted state anyway.
+- **High-churn worker fleets** — where provisioning PVCs at scale is the bottleneck, and no individual agent's workspace is worth preserving.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgent
+metadata:
+  name: one-shot-job
+spec:
+  instructions: "Run the report and exit"
+  lifecycle: AutoDelete
+  storage:
+    ephemeral: true
+    size: 2Gi # optional — caps the emptyDir, same field as the PVC size
+```
+
+**Incompatible with sleeping.** `lifecycle: Sleep` and `sleepTTL` both work by deleting the pod and relying on the PVC to preserve the workspace across the gap. An `emptyDir` doesn't survive that, so the API rejects any request that combines `storage.ephemeral: true` with `lifecycle: Sleep` or a `sleepTTL` — on create, on patch, and on squad member specs. `deleteTTL` and `lifecycle: AutoDelete` are unaffected, since deleting the whole agent is always safe regardless of storage.
+
+**Immutable after creation.** You can't flip `storage.ephemeral` on an existing agent in either direction — doing so would either strand an existing PVC or silently switch a running agent onto storage it never had. Decide at creation time.
+
+**Template default.** Set `storage.ephemeral: true` on a `KomputerAgentTemplate` (or cluster template) to make every agent using it ephemeral by default; an individual agent can still override it either way at creation. If an agent already has a PVC — for example, it predates the template change — the operator keeps mounting that PVC rather than orphaning it, logging a warning instead of silently losing data.
+
+**Squads.** A squad can mix ephemeral and persistent members freely; each member's workspace volume is decided independently. The caveat is sharper here than for a solo agent: an ephemeral member's workspace is wiped not just when its own agent CR changes, but whenever the **shared squad pod** is rebuilt — which can be triggered by any member joining or leaving.
+
 ## Concurrency Control
 
 Templates can cap how many of their agents run concurrently per namespace via `spec.maxConcurrentAgents`. When the cap is reached, new agents enter the `Queued` phase instead of having a pod created — they don't consume cluster resources while waiting.

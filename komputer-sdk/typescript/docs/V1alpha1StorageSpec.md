@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`ephemeral` | boolean
 `size` | string
 `storageClassName` | string
 
@@ -16,6 +17,7 @@ import type { V1alpha1StorageSpec } from '@komputer-ai/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "ephemeral": null,
   "size": null,
   "storageClassName": null,
 } satisfies V1alpha1StorageSpec

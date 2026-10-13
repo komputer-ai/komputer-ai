@@ -19,7 +19,7 @@ import (
 func applyAgentOverrides(template *komputerv1alpha1.KomputerAgentTemplate, agent *komputerv1alpha1.KomputerAgent) *komputerv1alpha1.KomputerAgentTemplate {
 	out := template.DeepCopy()
 	if agent.Spec.Storage != nil {
-		out.Spec.Storage = *agent.Spec.Storage.DeepCopy()
+		out.Spec.Storage = mergeStorageSpec(out.Spec.Storage, agent.Spec.Storage)
 	}
 	if agent.Spec.PodSpec != nil {
 		mergePodSpec(&out.Spec.PodSpec, agent.Spec.PodSpec)
@@ -34,6 +34,33 @@ func applyAgentOverrides(template *komputerv1alpha1.KomputerAgentTemplate, agent
 		out.Spec.TaskTimeout = agent.Spec.TaskTimeout.DeepCopy()
 	}
 	return out
+}
+
+// mergeStorageSpec overlays non-zero fields from `override` onto `base`, field by
+// field, so setting one storage field (e.g. size) doesn't clear another (e.g.
+// ephemeral) that the override left unset.
+func mergeStorageSpec(base komputerv1alpha1.StorageSpec, override *komputerv1alpha1.StorageSpec) komputerv1alpha1.StorageSpec {
+	merged := *base.DeepCopy()
+	if override == nil {
+		return merged
+	}
+	if override.Size != "" {
+		merged.Size = override.Size
+	}
+	if override.StorageClassName != nil {
+		merged.StorageClassName = override.StorageClassName
+	}
+	if override.Ephemeral != nil {
+		merged.Ephemeral = override.Ephemeral
+	}
+	return merged
+}
+
+// isEphemeralStorage resolves a (possibly merged) StorageSpec's effective ephemeral
+// value: nil (unset) resolves to false, preserving today's "every agent gets a PVC"
+// behavior for the overwhelming majority of agents that never set this field.
+func isEphemeralStorage(s komputerv1alpha1.StorageSpec) bool {
+	return s.Ephemeral != nil && *s.Ephemeral
 }
 
 // mergePodSpec overlays non-zero fields from `override` onto `base`. Containers

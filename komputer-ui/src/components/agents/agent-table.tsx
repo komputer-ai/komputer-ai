@@ -92,7 +92,17 @@ export function AgentTable({ agents, onDelete }: AgentTableProps) {
                 <CostBadge cost={agent.totalCostUSD} />
               </TableCell>
               <TableCell className="text-xs text-[var(--color-text-secondary)]">
-                {lifecycleLabel(agent.lifecycle)}
+                <div className="flex items-center gap-1.5">
+                  <span>{lifecycleLabel(agent.lifecycle)}</span>
+                  {agent.storage?.ephemeral && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300"
+                      title="Ephemeral workspace — no PVC, lost on pod restart"
+                    >
+                      Ephemeral
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <RelativeTime timestamp={agent.createdAt} />

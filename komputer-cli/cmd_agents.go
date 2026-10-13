@@ -253,11 +253,19 @@ func registerAgentCommands(root *cobra.Command) {
 			memLimit, _ := cmd.Flags().GetString("memory-limit")
 			image, _ := cmd.Flags().GetString("image")
 			storage, _ := cmd.Flags().GetString("storage")
+			ephemeral, _ := cmd.Flags().GetBool("ephemeral")
 			if ps := buildPodSpecOverride(cpu, memLimit, image); ps != nil {
 				body["podSpec"] = ps
 			}
-			if storage != "" {
-				body["storage"] = map[string]interface{}{"size": storage}
+			if storage != "" || ephemeral {
+				storageBody := map[string]interface{}{}
+				if storage != "" {
+					storageBody["size"] = storage
+				}
+				if ephemeral {
+					storageBody["ephemeral"] = true
+				}
+				body["storage"] = storageBody
 			}
 			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
 				body["labels"] = parseLabelFlags(labelFlags)
@@ -324,6 +332,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
 	createCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
 	createCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
+	createCmd.Flags().Bool("ephemeral", false, "Run with an emptyDir workspace instead of a PVC. No persistence across pod restarts; cannot be combined with --lifecycle Sleep or --sleep-ttl. Immutable after creation.")
 	createCmd.Flags().String("image", "", "Override agent container image.")
 	createCmd.Flags().StringArray("label", nil, "Label key=value (repeatable, e.g. --label team=core)")
 	root.AddCommand(createCmd)
@@ -780,12 +789,18 @@ func registerAgentCommands(root *cobra.Command) {
 				prio, _ := cmd.Flags().GetInt32("priority")
 				body["priority"] = prio
 			}
+			if ephemeral, _ := cmd.Flags().GetBool("ephemeral"); ephemeral {
+				// storage.ephemeral is immutable after creation — the API accepts this
+				// only when it matches the agent's current effective value (e.g. pinning
+				// a template-inherited ephemeral=true explicitly onto the agent).
+				body["storage"] = map[string]interface{}{"ephemeral": true}
+			}
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, or --priority flags.", 400)
+					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags.", 400)
 				}
-				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, or --priority flags."))
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags."))
 				os.Exit(1)
 			}
 
@@ -834,6 +849,7 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().StringSlice("disallow-tool", nil, "Remove these tools, keeping all others (repeatable). Pass --disallow-tool '' to clear. Applies on next agent start.")
 	configCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	configCmd.Flags().Int32("priority", 0, "Queue priority (higher = admitted first; use --priority 0 to reset)")
+	configCmd.Flags().Bool("ephemeral", false, "Pin the agent's workspace to ephemeral (emptyDir, no PVC). Immutable: rejected unless it already matches the agent's current effective value.")
 	root.AddCommand(configCmd)
 
 	// ── watch ────────────────────────────────────────────────────────────
@@ -989,6 +1005,9 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
+			}
+			if ephemeral, _ := cmd.Flags().GetBool("ephemeral"); ephemeral {
+				body["storage"] = map[string]interface{}{"ephemeral": true}
 			}
 
 			data, status, err := apiRequest("POST", ep+"/api/v1/agents", body)
@@ -1151,6 +1170,7 @@ func registerAgentCommands(root *cobra.Command) {
 	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	runCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	runCmd.Flags().String("system-prompt", "", "Custom system prompt to inject into the agent")
+	runCmd.Flags().Bool("ephemeral", false, "Run with an emptyDir workspace instead of a PVC. No persistence across pod restarts; cannot be combined with --lifecycle Sleep or --sleep-ttl. Immutable after creation.")
 	root.AddCommand(runCmd)
 
 	// ── chat (interactive) ──────────────────────────────────────────────
@@ -1324,6 +1344,9 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 				if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 					body["taskTimeout"] = ttimeout
+				}
+				if ephemeral, _ := cmd.Flags().GetBool("ephemeral"); ephemeral {
+					body["storage"] = map[string]interface{}{"ephemeral": true}
 				}
 
 				// Retry on 409 (pod may still be starting)
@@ -1571,6 +1594,7 @@ func registerAgentCommands(root *cobra.Command) {
 	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	chatCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	chatCmd.Flags().Bool("ephemeral", false, "Run with an emptyDir workspace instead of a PVC. No persistence across pod restarts; cannot be combined with --lifecycle Sleep or --sleep-ttl. Immutable after creation.")
 	root.AddCommand(chatCmd)
 }
 

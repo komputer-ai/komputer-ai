@@ -185,6 +185,101 @@ func TestApplyAgentOverrides_TTLs(t *testing.T) {
 	})
 }
 
+func TestApplyAgentOverrides_StorageEphemeral(t *testing.T) {
+	t.Run("agent ephemeral=true overrides template ephemeral=false", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.Storage.Ephemeral = boolPtr(false)
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					Storage: &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(true)},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.Storage.Ephemeral == nil || !*out.Spec.Storage.Ephemeral {
+			t.Fatalf("expected agent's ephemeral=true to win, got %v", out.Spec.Storage.Ephemeral)
+		}
+	})
+
+	t.Run("agent ephemeral=false overrides template ephemeral=true", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.Storage.Ephemeral = boolPtr(true)
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					Storage: &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(false)},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.Storage.Ephemeral == nil || *out.Spec.Storage.Ephemeral {
+			t.Fatalf("expected agent's ephemeral=false to win, got %v", out.Spec.Storage.Ephemeral)
+		}
+	})
+
+	t.Run("template ephemeral is inherited when the agent sets none", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.Storage.Ephemeral = boolPtr(true)
+		out := applyAgentOverrides(tpl, &komputerv1alpha1.KomputerAgent{})
+		if out.Spec.Storage.Ephemeral == nil || !*out.Spec.Storage.Ephemeral {
+			t.Fatalf("expected template's ephemeral=true to be inherited, got %v", out.Spec.Storage.Ephemeral)
+		}
+	})
+
+	t.Run("nil on both sides stays nil (treated as false)", func(t *testing.T) {
+		tpl := tplFixture()
+		out := applyAgentOverrides(tpl, &komputerv1alpha1.KomputerAgent{})
+		if out.Spec.Storage.Ephemeral != nil {
+			t.Fatalf("expected nil ephemeral, got %v", *out.Spec.Storage.Ephemeral)
+		}
+		if isEphemeralStorage(out.Spec.Storage) {
+			t.Fatal("nil ephemeral should resolve to false")
+		}
+	})
+
+	t.Run("agent setting only size does not wipe template's ephemeral", func(t *testing.T) {
+		tpl := tplFixture()
+		tpl.Spec.Storage.Ephemeral = boolPtr(true)
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					Storage: &komputerv1alpha1.StorageSpec{Size: "10Gi"},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.Storage.Size != "10Gi" {
+			t.Fatalf("size not overridden: %s", out.Spec.Storage.Size)
+		}
+		if out.Spec.Storage.Ephemeral == nil || !*out.Spec.Storage.Ephemeral {
+			t.Fatalf("expected template's ephemeral=true to survive a size-only override, got %v", out.Spec.Storage.Ephemeral)
+		}
+	})
+
+	t.Run("agent setting only ephemeral does not wipe template's storageClassName", func(t *testing.T) {
+		tpl := tplFixture()
+		sc := "fast-ssd"
+		tpl.Spec.Storage.StorageClassName = &sc
+		agent := &komputerv1alpha1.KomputerAgent{
+			Spec: komputerv1alpha1.KomputerAgentSpec{
+				AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+					Storage: &komputerv1alpha1.StorageSpec{Ephemeral: boolPtr(true)},
+				},
+			},
+		}
+		out := applyAgentOverrides(tpl, agent)
+		if out.Spec.Storage.StorageClassName == nil || *out.Spec.Storage.StorageClassName != "fast-ssd" {
+			t.Fatalf("expected template's storageClassName to survive an ephemeral-only override, got %v", out.Spec.Storage.StorageClassName)
+		}
+		if out.Spec.Storage.Ephemeral == nil || !*out.Spec.Storage.Ephemeral {
+			t.Fatalf("expected ephemeral=true to be set, got %v", out.Spec.Storage.Ephemeral)
+		}
+	})
+}
+
+func boolPtr(b bool) *bool { return &b }
+
 func TestApplyAgentOverridesTaskTimeout(t *testing.T) {
 	t.Run("agent value overrides the template", func(t *testing.T) {
 		tpl := &komputerv1alpha1.KomputerAgentTemplate{

@@ -19,9 +19,11 @@ var _ MappedNullable = &V1alpha1StorageSpec{}
 
 // V1alpha1StorageSpec struct for V1alpha1StorageSpec
 type V1alpha1StorageSpec struct {
-	// Size is the PVC storage size (e.g. \"5Gi\"). +kubebuilder:default=\"5Gi\"
+	// Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC: no PersistentVolumeClaim is created. The workspace lives exactly as long as the pod — files, installed packages and the Claude session are permanently lost whenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with Lifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting its pod (the operator refuses to sleep an ephemeral agent for this reason).  Unset (default) or false keeps today's behavior: every agent gets a PVC. Set it on a KomputerAgentTemplate to make ephemeral the default for agents using it, or on an individual agent to override its template either way. Immutable after agent creation. An agent that already has a PVC keeps it even if later marked ephemeral — the operator never deletes an existing PVC. +optional
+	Ephemeral *bool `json:"ephemeral,omitempty"`
+	// Size is the PVC storage size (e.g. \"5Gi\"). When Ephemeral is true, this is instead used as the emptyDir's SizeLimit. +kubebuilder:default=\"5Gi\"
 	Size *string `json:"size,omitempty"`
-	// StorageClassName is the optional storage class name. +optional
+	// StorageClassName is the optional storage class name. Ignored when Ephemeral is true. +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
@@ -40,6 +42,38 @@ func NewV1alpha1StorageSpec() *V1alpha1StorageSpec {
 func NewV1alpha1StorageSpecWithDefaults() *V1alpha1StorageSpec {
 	this := V1alpha1StorageSpec{}
 	return &this
+}
+
+// GetEphemeral returns the Ephemeral field value if set, zero value otherwise.
+func (o *V1alpha1StorageSpec) GetEphemeral() bool {
+	if o == nil || IsNil(o.Ephemeral) {
+		var ret bool
+		return ret
+	}
+	return *o.Ephemeral
+}
+
+// GetEphemeralOk returns a tuple with the Ephemeral field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1StorageSpec) GetEphemeralOk() (*bool, bool) {
+	if o == nil || IsNil(o.Ephemeral) {
+		return nil, false
+	}
+	return o.Ephemeral, true
+}
+
+// HasEphemeral returns a boolean if a field has been set.
+func (o *V1alpha1StorageSpec) HasEphemeral() bool {
+	if o != nil && !IsNil(o.Ephemeral) {
+		return true
+	}
+
+	return false
+}
+
+// SetEphemeral gets a reference to the given bool and assigns it to the Ephemeral field.
+func (o *V1alpha1StorageSpec) SetEphemeral(v bool) {
+	o.Ephemeral = &v
 }
 
 // GetSize returns the Size field value if set, zero value otherwise.
@@ -116,6 +150,9 @@ func (o V1alpha1StorageSpec) MarshalJSON() ([]byte, error) {
 
 func (o V1alpha1StorageSpec) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Ephemeral) {
+		toSerialize["ephemeral"] = o.Ephemeral
+	}
 	if !IsNil(o.Size) {
 		toSerialize["size"] = o.Size
 	}

@@ -73,7 +73,7 @@ func TestBuildPodWakeIdleFromTaskStatus(t *testing.T) {
 			}
 			config := &komputerv1alpha1.KomputerConfig{}
 
-			pod, err := r.buildPod(context.Background(), agent, template, "my-agent-pvc", "my-agent-pod", config)
+			pod, err := r.buildPod(context.Background(), agent, template, "my-agent-pvc", "my-agent-pod", config, false)
 			if err != nil {
 				t.Fatalf("buildPod returned error: %v", err)
 			}

@@ -177,6 +177,17 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                           {formatRelativeTime(agent.createdAt)}
                         </span>
                       </div>
+                      {agent.storage?.ephemeral && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">storage</span>
+                          <span
+                            className="text-[11px] font-medium text-[var(--color-warning,#FBBF24)]"
+                            title="Ephemeral workspace — no PVC, lost on pod restart"
+                          >
+                            Ephemeral
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

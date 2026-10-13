@@ -41,6 +41,8 @@ export interface AgentFormValues {
   cpu: string;
   memoryLimit: string;
   storageSize: string;
+  /** Run with an emptyDir workspace instead of a PVC. Immutable after creation. */
+  ephemeral: boolean;
   image: string;
   /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
   sleepTTL: string;
@@ -76,6 +78,7 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     cpu: "",
     memoryLimit: "",
     storageSize: "",
+    ephemeral: false,
     sleepTTL: "",
     deleteTTL: "",
     taskTimeout: "",
@@ -256,13 +259,16 @@ export function AgentFieldsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LIFECYCLES.map((l) => (
+              {LIFECYCLES.filter((l) => !(values.ephemeral && l.value === "Sleep")).map((l) => (
                 <SelectItem key={l.value} value={l.value}>
                   {l.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {values.ephemeral && (
+            <p className="text-xs text-[var(--color-text-secondary)]">Sleep is unavailable for an ephemeral workspace.</p>
+          )}
         </div>
       </div>
 
@@ -453,7 +459,7 @@ export function AgentFieldsForm({
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor={`${idPrefix}-storage`}>Storage</Label>
+                      <Label htmlFor={`${idPrefix}-storage`}>{values.ephemeral ? "Workspace size limit" : "Storage"}</Label>
                       <Input
                         id={`${idPrefix}-storage`}
                         placeholder="e.g. 20Gi"
@@ -476,9 +482,10 @@ export function AgentFieldsForm({
                       <Label htmlFor={`${idPrefix}-sleep-ttl`}>Sleep TTL</Label>
                       <Input
                         id={`${idPrefix}-sleep-ttl`}
-                        placeholder="e.g. 30m"
+                        placeholder={values.ephemeral ? "Unavailable (ephemeral)" : "e.g. 30m"}
                         value={values.sleepTTL}
                         onChange={(e) => patch("sleepTTL", e.target.value)}
+                        disabled={values.ephemeral}
                         autoComplete="off"
                       />
                     </div>
@@ -515,6 +522,33 @@ export function AgentFieldsForm({
                       className="flex h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand-blue)]"
                     />
                     <p className="text-xs text-[var(--color-text-secondary)]">Higher priority agents are admitted first when the template capacity limit is reached. Default: 0.</p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={values.ephemeral}
+                        onChange={(e) => {
+                          const ephemeral = e.target.checked;
+                          onChange({
+                            ...values,
+                            ephemeral,
+                            // Sleeping deletes the pod, which would wipe an ephemeral
+                            // (emptyDir) workspace — clear anything that would sleep it.
+                            lifecycle: ephemeral && values.lifecycle === "Sleep" ? "default" : values.lifecycle,
+                            sleepTTL: ephemeral ? "" : values.sleepTTL,
+                          });
+                        }}
+                        className="mt-0.5 accent-[var(--color-brand-blue)]"
+                      />
+                      <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors leading-snug">
+                        Ephemeral workspace (no PVC)
+                      </span>
+                    </label>
+                    <p className="text-xs text-[var(--color-text-secondary)] pl-6">
+                      Workspace runs as an emptyDir instead of a persistent volume — all files, installed packages, and the Claude session are lost whenever the pod stops. Cannot be combined with Sleep lifecycle or a Sleep TTL, and can&apos;t be changed after the agent is created.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -590,7 +624,9 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     systemPrompt: values.systemPrompt.trim() || undefined,
     priority: values.priority !== 0 ? values.priority : undefined,
     podSpec: podSpecOverride,
-    storage: values.storageSize.trim() ? { size: values.storageSize.trim() } : undefined,
+    storage: values.storageSize.trim() || values.ephemeral
+      ? { size: values.storageSize.trim() || undefined, ephemeral: values.ephemeral || undefined }
+      : undefined,
     sleepTTL: values.sleepTTL.trim() || undefined,
     deleteTTL: values.deleteTTL.trim() || undefined,
     taskTimeout: values.taskTimeout.trim() || undefined,
@@ -658,6 +694,7 @@ export function agentFormValuesFromScheduleSpec(spec: ScheduleAgentSpec, namespa
     memoryLimit: rl.memory ?? "",
     image: (container?.image as string | undefined) ?? "",
     storageSize: spec.storage?.size ?? "",
+    ephemeral: spec.storage?.ephemeral ?? false,
     sleepTTL: fmtDuration(spec.sleepTTL ?? ""),
     deleteTTL: fmtDuration(spec.deleteTTL ?? ""),
     taskTimeout: fmtDuration(spec.taskTimeout ?? ""),
@@ -692,7 +729,12 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
   if (values.selectedConnectors.length > 0) spec.connectors = values.selectedConnectors;
   if (values.priority !== 0) spec.priority = values.priority;
   if (podSpecOverride) spec.podSpec = podSpecOverride;
-  if (values.storageSize.trim()) spec.storage = { size: values.storageSize.trim() };
+  if (values.storageSize.trim() || values.ephemeral) {
+    spec.storage = {
+      ...(values.storageSize.trim() ? { size: values.storageSize.trim() } : {}),
+      ...(values.ephemeral ? { ephemeral: true } : {}),
+    };
+  }
   if (values.sleepTTL.trim()) spec.sleepTTL = values.sleepTTL.trim();
   if (values.deleteTTL.trim()) spec.deleteTTL = values.deleteTTL.trim();
   if (values.taskTimeout.trim()) spec.taskTimeout = values.taskTimeout.trim();

@@ -71,6 +71,7 @@ func evaluateTTL(
 	agent *komputerv1alpha1.KomputerAgent,
 	sleepTTL, deleteTTL *metav1.Duration,
 	now time.Time,
+	ephemeralWorkspace bool,
 ) ttlDecision {
 	var d ttlDecision
 	var sleepDeadline, deleteDeadline *time.Time
@@ -85,8 +86,10 @@ func evaluateTTL(
 	// The sleep clock only runs on an awake agent that has started at least one task
 	// and isn't currently mid-task. Leaving SleepExpiresAt nil in the other cases is
 	// deliberate: it tells the UI "no pending sleep" rather than showing a deadline
-	// that isn't counting down.
+	// that isn't counting down. An ephemeral (emptyDir) workspace never gets a sleep
+	// clock at all: sleeping deletes the pod, which would wipe it.
 	if since, ok := idleSince(agent); ok && sleepTTL != nil && sleepTTL.Duration > 0 &&
+		!ephemeralWorkspace &&
 		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping &&
 		!taskInProgress(agent.Status.TaskStatus) {
 
@@ -239,6 +242,50 @@ func resolveAgentTTLs(ctx context.Context, c client.Client, agent *komputerv1alp
 	return sleepTTL, deleteTTL, taskTimeout
 }
 
+// resolveEffectiveStorage resolves an agent's effective StorageSpec: the agent's own
+// storage fields merged field-by-field onto its template's (mirrors
+// applyAgentOverrides / mergeStorageSpec), for callers — the squad controller — that
+// never build a full merged template. A template that can't be read contributes a
+// zero-value base, matching resolveAgentTTLs's "no defaults" fallback.
+func resolveEffectiveStorage(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) komputerv1alpha1.StorageSpec {
+	var base komputerv1alpha1.StorageSpec
+	templateRef := agent.Spec.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	if spec, err := readTemplateSpec(ctx, c, templateRef, agent.Namespace); err == nil {
+		base = spec.Storage
+	}
+	return mergeStorageSpec(base, agent.Spec.Storage)
+}
+
+// isAgentEphemeral resolves whether an agent's workspace should run as an ephemeral
+// emptyDir rather than a PVC. The agent controller already has a merged template via
+// applyAgentOverrides and should read Spec.Storage.Ephemeral off it directly instead
+// of calling this.
+func isAgentEphemeral(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) bool {
+	return isEphemeralStorage(resolveEffectiveStorage(ctx, c, agent))
+}
+
+// hasExistingWorkspacePVC reports whether an agent already has a persistent workspace:
+// either status.pvcName is set, or a PVC named pvcName exists on the cluster. Both
+// controllers' ephemeral-workspace decisions consult this first and must never delete
+// or skip an existing PVC — doing so would orphan the user's data.
+func hasExistingWorkspacePVC(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent, pvcName string) (bool, error) {
+	if agent.Status.PvcName != "" {
+		return true, nil
+	}
+	pvc := &corev1.PersistentVolumeClaim{}
+	err := c.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: agent.Namespace}, pvc)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.IsNotFound(err) {
+		return false, err
+	}
+	return false, nil
+}
+
 // readTemplateSpec resolves a template by name: namespaced first, then cluster-scoped,
 // matching how the rest of the operator resolves templateRef.
 func readTemplateSpec(ctx context.Context, c client.Client, name, namespace string) (*komputerv1alpha1.KomputerAgentTemplateSpec, error) {
@@ -265,8 +312,14 @@ func (r *KomputerAgentReconciler) applyTTL(
 	pod *corev1.Pod,
 	pvcName string,
 	sleepTTL, deleteTTL, taskTimeout *metav1.Duration,
+	ephemeralWorkspace bool,
 ) (ctrl.Result, bool, error) {
 	log := logf.FromContext(ctx)
+
+	if ephemeralWorkspace && sleepTTL != nil && sleepTTL.Duration > 0 {
+		log.Info("ignoring sleepTTL for ephemeral agent: sleeping would delete its emptyDir workspace",
+			"agent", agent.Name, "sleepTTL", sleepTTL.Duration)
+	}
 
 	if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
 		// Clear stale expiry timestamps if the TTLs were removed from the spec.
@@ -310,7 +363,7 @@ func (r *KomputerAgentReconciler) applyTTL(
 			"agent", agent.Name, "sleepTTL", sleepTTL.Duration, "deleteTTL", deleteTTL.Duration)
 	}
 
-	d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now())
+	d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now(), ephemeralWorkspace)
 
 	switch d.Action {
 	case ttlActionDelete:

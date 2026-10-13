@@ -268,16 +268,36 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(condErr, "Failed to set SecretsMirrored condition")
 	}
 
-	// 4. Ensure PVC exists
+	// 4. Resolve whether this agent's workspace is backed by a PVC or runs as an
+	// ephemeral emptyDir, then ensure the PVC exists for every non-ephemeral agent.
+	// An agent configured ephemeral that already has a PVC keeps it — the operator
+	// never deletes an existing PVC, to avoid orphaning the user's data.
 	pvcName := agent.Name + "-pvc"
-	if err := r.ensurePVC(ctx, agent, template, pvcName); err != nil {
-		log.Error(err, "Failed to ensure PVC")
+	effectiveEphemeral := isEphemeralStorage(template.Spec.Storage)
+	usePVC, err := r.shouldUsePVC(ctx, agent, pvcName, effectiveEphemeral)
+	if err != nil {
+		log.Error(err, "Failed to resolve workspace volume")
 		return ctrl.Result{}, err
 	}
+	if usePVC {
+		if effectiveEphemeral {
+			log.Info("agent is configured ephemeral but already has a persistent workspace; keeping its PVC rather than losing data",
+				"agent", agent.Name, "pvc", pvcName)
+		}
+		if err := r.ensurePVC(ctx, agent, template, pvcName); err != nil {
+			log.Error(err, "Failed to ensure PVC")
+			return ctrl.Result{}, err
+		}
+	}
+	// ephemeralWorkspace reflects what's actually mounted this reconcile (an emptyDir),
+	// which can differ from effectiveEphemeral when an existing PVC is being preserved
+	// above. It's this — not the raw config flag — that must never be slept: sleeping
+	// is safe for a PVC-backed workspace, since the data survives the pod deletion.
+	ephemeralWorkspace := !usePVC
 
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
-	pod, err := r.ensurePod(ctx, agent, template, pvcName, podName, komputerConfig)
+	pod, err := r.ensurePod(ctx, agent, template, pvcName, podName, komputerConfig, ephemeralWorkspace)
 	if err != nil {
 		log.Error(err, "Failed to ensure Pod")
 		return ctrl.Result{}, err
@@ -287,9 +307,9 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// on the merged template (applyAgentOverrides has already overlaid the agent's own
 	// values). Runs before status reconciliation so an expired agent isn't reported
 	// Running on its way out, and an over-running task is cancelled rather than reported
-	// as merely running.
+	// as merely running. An ephemeral (emptyDir) agent is never slept — see applyTTL.
 	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout)
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout, ephemeralWorkspace)
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
 		return ctrl.Result{}, err
@@ -300,7 +320,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// 8. Update CR status based on pod state
-	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName, sleepTTL, deleteTTL); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
 	}
@@ -502,6 +522,19 @@ func (r *KomputerAgentReconciler) getConfig(ctx context.Context) (*komputerv1alp
 // the desired size grows. Shrinks are silently ignored (Kubernetes does not
 // support PVC shrink). Expansion requires a StorageClass with
 // allowVolumeExpansion: true.
+// shouldUsePVC decides whether to mount a persistent workspace for this agent this
+// reconcile. It is true whenever the agent isn't effectively ephemeral, and ALSO true
+// for an effectively-ephemeral agent that already has a persistent workspace (recorded
+// in status.pvcName, or an actual PVC on the cluster) — the operator never deletes an
+// existing PVC, so a template or agent later flipped to ephemeral can't orphan data
+// that already exists.
+func (r *KomputerAgentReconciler) shouldUsePVC(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pvcName string, effectiveEphemeral bool) (bool, error) {
+	if !effectiveEphemeral {
+		return true, nil
+	}
+	return hasExistingWorkspacePVC(ctx, r.Client, agent, pvcName)
+}
+
 func (r *KomputerAgentReconciler) ensurePVC(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName string) error {
 	size := template.Spec.Storage.Size
 	if size == "" {
@@ -633,7 +666,7 @@ func (r *KomputerAgentReconciler) ensureConfigMap(ctx context.Context, agent *ko
 
 // ensurePod creates a Pod if it does not exist, or deletes it if it is in a terminal state
 // and the agent status has already been persisted as terminal (two-phase deletion).
-func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig) (*corev1.Pod, error) {
+func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig, ephemeralWorkspace bool) (*corev1.Pod, error) {
 	log := logf.FromContext(ctx)
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
@@ -664,7 +697,7 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	}
 
 	// Build and create the pod
-	pod, err = r.buildPod(ctx, agent, template, pvcName, podName, config)
+	pod, err = r.buildPod(ctx, agent, template, pvcName, podName, config, ephemeralWorkspace)
 	if err != nil {
 		return nil, err
 	}
@@ -688,7 +721,7 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 }
 
 // buildPod deep copies the template PodSpec and injects env/volumes/mounts.
-func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig) (*corev1.Pod, error) {
+func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, template *komputerv1alpha1.KomputerAgentTemplate, pvcName, podName string, config *komputerv1alpha1.KomputerConfig, ephemeralWorkspace bool) (*corev1.Pod, error) {
 	podSpec := *template.Spec.PodSpec.DeepCopy()
 
 	if len(podSpec.Containers) == 0 {
@@ -698,8 +731,18 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// Set restart policy
 	podSpec.RestartPolicy = corev1.RestartPolicyNever
 
-	// Add workspace volume (solo pod uses the plain name "workspace").
-	podSpec.Volumes = append(podSpec.Volumes, buildAgentVolumes("workspace", pvcName)...)
+	// Add workspace volume (solo pod uses the plain name "workspace"). An ephemeral
+	// workspace is an emptyDir, optionally capped by storage.size as a SizeLimit.
+	var sizeLimit *resource.Quantity
+	if ephemeralWorkspace && template.Spec.Storage.Size != "" {
+		if q, err := resource.ParseQuantity(template.Spec.Storage.Size); err == nil {
+			sizeLimit = &q
+		} else {
+			logf.FromContext(ctx).Info("ignoring invalid storage.size for ephemeral workspace sizeLimit",
+				"agent", agent.Name, "size", template.Spec.Storage.Size, "error", err.Error())
+		}
+	}
+	podSpec.Volumes = append(podSpec.Volumes, buildAgentVolumes("workspace", pvcName, ephemeralWorkspace, sizeLimit)...)
 
 	// Inject into first container
 	container := &podSpec.Containers[0]
@@ -827,26 +870,37 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 // NOT suppressed by the annotation — applyTTL runs independently of it (and before
 // this method), so a woken-but-left-idle agent still sleeps/deletes on its own
 // schedule once its (freshly restarted) idle clock elapses.
-func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration) error {
+//
+// ephemeralWorkspace is true when the agent's workspace is currently an emptyDir (no
+// PVC) — such an agent is never slept, since sleeping deletes the pod and an emptyDir
+// doesn't survive that, which would silently wipe the workspace.
+func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration, ephemeralWorkspace bool) error {
 	log := logf.FromContext(ctx)
 	wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] == "true"
 
-	// Sleep mode: delete pod when task is done (complete or error), keep PVC
+	// Sleep mode: delete pod when task is done (complete or error), keep PVC.
+	// Skipped for an ephemeral (emptyDir) workspace — sleeping would delete the pod
+	// and silently wipe it, rather than merely pausing the agent.
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleSleep &&
 		sleepTTL == nil &&
 		!wakeIdle &&
 		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
-		log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
-		if err := r.Delete(ctx, pod); err != nil {
-			return err
+		if ephemeralWorkspace {
+			log.Info("skipping Sleep lifecycle for ephemeral agent: sleeping would delete its emptyDir workspace",
+				"agent", agent.Name)
+		} else {
+			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
+			if err := r.Delete(ctx, pod); err != nil {
+				return err
+			}
+			return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+				s.Phase = komputerv1alpha1.AgentPhaseSleeping
+				s.PodName = ""
+				s.PvcName = pvcName
+				s.Message = "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."
+			})
 		}
-		return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
-			s.Phase = komputerv1alpha1.AgentPhaseSleeping
-			s.PodName = ""
-			s.PvcName = pvcName
-			s.Message = "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."
-		})
 	}
 
 	// AutoDelete mode: delete the entire agent CR when task completes successfully
@@ -860,7 +914,13 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.PodName = podName
-		s.PvcName = pvcName
+		if ephemeralWorkspace {
+			// No PVC backs this agent's workspace — leave PvcName empty rather than
+			// naming a resource that doesn't exist.
+			s.PvcName = ""
+		} else {
+			s.PvcName = pvcName
+		}
 		// Solo agents always listen on 8000.
 		s.Port = 8000
 
