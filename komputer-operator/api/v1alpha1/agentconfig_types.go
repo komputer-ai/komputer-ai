@@ -112,6 +112,33 @@ type AgentConfigSpec struct {
 	// Overrides the template's taskTimeout when set.
 	// +optional
 	TaskTimeout *metav1.Duration `json:"taskTimeout,omitempty"`
+	// BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
+	// runs, as a decimal USD string (e.g. "10.00"). Measured against
+	// Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to
+	// start any NEW task for the agent. A task already in progress when the cap is
+	// crossed is always allowed to finish, even if it overshoots — the cap only
+	// gates starting the next one. Raising (or clearing) BudgetUSD unblocks the
+	// agent again.
+	//
+	// A string rather than a float to match how the rest of the CRD represents USD
+	// (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for
+	// floats. Unset (default) means no lifetime cap. Overrides the template's
+	// budgetUSD when set.
+	// +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+	// +optional
+	BudgetUSD string `json:"budgetUSD,omitempty"`
+	// TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+	// "2.50"). Passed to the Claude Agent SDK as max_budget_usd for each task the
+	// agent runs: the SDK itself stops the task the instant this is exceeded,
+	// wherever it is mid-task, returning an error_max_budget_usd result. Unlike
+	// BudgetUSD this is enforced inside the running task rather than by refusing to
+	// start one.
+	//
+	// Unset (default) means tasks run without a per-task cap. Overrides the
+	// template's taskBudgetUSD when set.
+	// +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+	// +optional
+	TaskBudgetUSD string `json:"taskBudgetUSD,omitempty"`
 	// Priority controls admission order when the template's maxConcurrentAgents
 	// limit is reached. Higher number = admitted first (matches K8s PodPriority).
 	// Ties broken by creationTimestamp (older first). Defaults to 0.

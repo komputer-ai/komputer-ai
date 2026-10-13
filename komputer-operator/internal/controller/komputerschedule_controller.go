@@ -180,6 +180,30 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
 
+		// Agent is idle (confirmed not busy above), so this would start a brand new
+		// task — the one place the lifetime budget gates a scheduled run. A task
+		// already in progress is never interrupted by this check; it is only ever
+		// consulted before starting a new one.
+		if budget := resolveAgentLifetimeBudget(ctx, r.Client, agent); isBudgetExhausted(agent.Status.TotalCostUSD, budget) {
+			log.Info("agent budget exhausted, skipping scheduled run",
+				"agent", agentName, "totalCostUSD", agent.Status.TotalCostUSD, "budgetUSD", budget)
+			if !schedule.Spec.AutoDelete {
+				nextTime, err := computeNextRunTime(schedule.Spec.Schedule, schedule.Spec.Timezone, now)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				schedule.Status.NextRunTime = nextTime
+				schedule.Status.Message = fmt.Sprintf("Skipped: agent budget exhausted (spent $%s of $%s)", agent.Status.TotalCostUSD, budget)
+			}
+			if err := r.Status().Update(ctx, schedule); err != nil {
+				return ctrl.Result{}, err
+			}
+			if schedule.Status.NextRunTime != nil {
+				return ctrl.Result{RequeueAfter: schedule.Status.NextRunTime.Time.Sub(now)}, nil
+			}
+			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		}
+
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
 			// Sleeping agent: patch instructions and wake it (creates new pod)
 			original := agent.DeepCopy()
