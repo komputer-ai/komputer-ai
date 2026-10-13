@@ -2286,6 +2286,7 @@ components:
           - skills
           completionTime: completionTime
           createdAt: createdAt
+          budgetUSD: budgetUSD
           disallowedTools:
           - disallowedTools
           - disallowedTools
@@ -2298,6 +2299,7 @@ components:
           model: model
           lastTaskCostUSD: lastTaskCostUSD
           lastTaskMessage: lastTaskMessage
+          taskBudgetUSD: taskBudgetUSD
           taskStatus: taskStatus
           deleteTTL: deleteTTL
           squadName: squadName
@@ -2937,6 +2939,7 @@ components:
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          budgetExhausted: true
           errors:
           - errors
           - errors
@@ -2961,6 +2964,7 @@ components:
           - skills
           completionTime: completionTime
           createdAt: createdAt
+          budgetUSD: budgetUSD
           disallowedTools:
           - disallowedTools
           - disallowedTools
@@ -2973,6 +2977,7 @@ components:
           model: model
           lastTaskCostUSD: lastTaskCostUSD
           lastTaskMessage: lastTaskMessage
+          taskBudgetUSD: taskBudgetUSD
           taskStatus: taskStatus
           deleteTTL: deleteTTL
           squadName: squadName
@@ -3612,6 +3617,7 @@ components:
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          budgetExhausted: true
           errors:
           - errors
           - errors
@@ -3644,6 +3650,7 @@ components:
         - skills
         completionTime: completionTime
         createdAt: createdAt
+        budgetUSD: budgetUSD
         disallowedTools:
         - disallowedTools
         - disallowedTools
@@ -3656,6 +3663,7 @@ components:
         model: model
         lastTaskCostUSD: lastTaskCostUSD
         lastTaskMessage: lastTaskMessage
+        taskBudgetUSD: taskBudgetUSD
         taskStatus: taskStatus
         deleteTTL: deleteTTL
         squadName: squadName
@@ -4295,6 +4303,7 @@ components:
         name: name
         namespace: namespace
         taskExpiresAt: taskExpiresAt
+        budgetExhausted: true
         errors:
         - errors
         - errors
@@ -4308,6 +4317,21 @@ components:
           items:
             type: string
           type: array
+        budgetExhausted:
+          description: |-
+            BudgetExhausted is true when status.totalCostUSD has reached or passed the
+            EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's
+            default) — new tasks are refused with 409 until it's raised. Always false
+            when no lifetime budget applies anywhere. Computed by the API so clients
+            don't have to re-derive the template resolution themselves.
+          type: boolean
+        budgetUSD:
+          description: |-
+            BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as
+            a decimal USD string. Empty when unset on the agent itself — note the agent
+            may still be bound by a template default; BudgetExhausted reflects that
+            effective value even when this field is empty.
+          type: string
         completionTime:
           type: string
         connectors:
@@ -4404,6 +4428,12 @@ components:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
           description: Custom system prompt (spec.systemPrompt)
+          type: string
+        taskBudgetUSD:
+          description: |-
+            TaskBudgetUSD is this agent's own HARD per-task spending cap
+            (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent
+            itself (it may still inherit a template default).
           type: string
         taskExpiresAt:
           type: string
@@ -4567,6 +4597,13 @@ components:
           items:
             type: string
           type: array
+        budgetUSD:
+          description: |-
+            BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
+            a decimal USD string (e.g. "10.00"). Once status.totalCostUSD reaches or
+            exceeds it, new tasks are refused with 409 until it's raised; a task already
+            running is always allowed to finish. Empty means no lifetime cap.
+          type: string
         connectors:
           description: optional KomputerConnector names to attach
           items:
@@ -4639,6 +4676,12 @@ components:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
           description: optional custom system prompt
+          type: string
+        taskBudgetUSD:
+          description: |-
+            TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+            "2.50"). The SDK stops a task the instant it is exceeded, mid-task. Empty
+            means tasks run without a per-task cap.
           type: string
         taskTimeout:
           description: |-
@@ -4923,6 +4966,11 @@ components:
           items:
             type: string
           type: array
+        budgetUSD:
+          description: |-
+            BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
+            "" clears the cap; omitting the field leaves it unchanged.
+          type: string
         connectors:
           description: connector names to attach
           items:
@@ -4975,6 +5023,8 @@ components:
           $ref: "#/components/schemas/v1alpha1.StorageSpec"
         systemPrompt:
           description: custom system prompt
+          type: string
+        taskBudgetUSD:
           type: string
         taskTimeout:
           type: string
@@ -5049,6 +5099,7 @@ components:
             - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
+            budgetUSD: budgetUSD
             disallowedTools:
             - disallowedTools
             - disallowedTools
@@ -5056,6 +5107,7 @@ components:
             - memories
             - memories
             model: model
+            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
@@ -5102,6 +5154,7 @@ components:
             - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
+            budgetUSD: budgetUSD
             disallowedTools:
             - disallowedTools
             - disallowedTools
@@ -5109,6 +5162,7 @@ components:
             - memories
             - memories
             model: model
+            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
@@ -5163,6 +5217,7 @@ components:
           - skills
           sleepTTL: "{}"
           systemPrompt: systemPrompt
+          budgetUSD: budgetUSD
           disallowedTools:
           - disallowedTools
           - disallowedTools
@@ -5170,6 +5225,7 @@ components:
           - memories
           - memories
           model: model
+          taskBudgetUSD: taskBudgetUSD
           allowedTools:
           - allowedTools
           - allowedTools
@@ -11906,6 +11962,23 @@ components:
           items:
             type: string
           type: array
+        budgetUSD:
+          description: |-
+            BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
+            runs, as a decimal USD string (e.g. "10.00"). Measured against
+            Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to
+            start any NEW task for the agent. A task already in progress when the cap is
+            crossed is always allowed to finish, even if it overshoots — the cap only
+            gates starting the next one. Raising (or clearing) BudgetUSD unblocks the
+            agent again.
+
+            A string rather than a float to match how the rest of the CRD represents USD
+            (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for
+            floats. Unset (default) means no lifetime cap. Overrides the template's
+            budgetUSD when set.
+            +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+            +optional
+          type: string
         connectors:
           description: |-
             Connectors is a list of KomputerConnector names to attach to this agent.
@@ -12051,6 +12124,20 @@ components:
             SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
             +optional
           type: string
+        taskBudgetUSD:
+          description: |-
+            TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+            "2.50"). Passed to the Claude Agent SDK as max_budget_usd for each task the
+            agent runs: the SDK itself stops the task the instant this is exceeded,
+            wherever it is mid-task, returning an error_max_budget_usd result. Unlike
+            BudgetUSD this is enforced inside the running task rather than by refusing to
+            start one.
+
+            Unset (default) means tasks run without a per-task cap. Overrides the
+            template's taskBudgetUSD when set.
+            +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+            +optional
+          type: string
         taskTimeout:
           allOf:
           - $ref: "#/components/schemas/v1.Duration"
@@ -12118,6 +12205,7 @@ components:
         - skills
         sleepTTL: "{}"
         systemPrompt: systemPrompt
+        budgetUSD: budgetUSD
         disallowedTools:
         - disallowedTools
         - disallowedTools
@@ -12125,6 +12213,7 @@ components:
         - memories
         - memories
         model: model
+        taskBudgetUSD: taskBudgetUSD
         allowedTools:
         - allowedTools
         - allowedTools
@@ -12145,6 +12234,23 @@ components:
           items:
             type: string
           type: array
+        budgetUSD:
+          description: |-
+            BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
+            runs, as a decimal USD string (e.g. "10.00"). Measured against
+            Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to
+            start any NEW task for the agent. A task already in progress when the cap is
+            crossed is always allowed to finish, even if it overshoots — the cap only
+            gates starting the next one. Raising (or clearing) BudgetUSD unblocks the
+            agent again.
+
+            A string rather than a float to match how the rest of the CRD represents USD
+            (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for
+            floats. Unset (default) means no lifetime cap. Overrides the template's
+            budgetUSD when set.
+            +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+            +optional
+          type: string
         connectors:
           description: |-
             Connectors is a list of KomputerConnector names to attach to this agent.
@@ -12274,6 +12380,20 @@ components:
         systemPrompt:
           description: |-
             SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.
+            +optional
+          type: string
+        taskBudgetUSD:
+          description: |-
+            TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+            "2.50"). Passed to the Claude Agent SDK as max_budget_usd for each task the
+            agent runs: the SDK itself stops the task the instant this is exceeded,
+            wherever it is mid-task, returning an error_max_budget_usd result. Unlike
+            BudgetUSD this is enforced inside the running task rather than by refusing to
+            start one.
+
+            Unset (default) means tasks run without a per-task cap. Overrides the
+            template's taskBudgetUSD when set.
+            +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
             +optional
           type: string
         taskTimeout:

@@ -39,6 +39,7 @@ func (c *Client) ListAgents(ctx context.Context) (*komputer.AgentListResponse, *
 
 type CreateAgentOpts struct {
 	AllowedTools    []string
+	BudgetUSD       *string
 	Connectors      []string
 	DeleteTTL       *string
 	DisallowedTools []string
@@ -55,6 +56,7 @@ type CreateAgentOpts struct {
 	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
+	TaskBudgetUSD   *string
 	TaskTimeout     *string
 	TemplateRef     *string
 }
@@ -68,6 +70,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		o := opts[0]
 		if o.AllowedTools != nil {
 			req.AllowedTools = o.AllowedTools
+		}
+		if o.BudgetUSD != nil {
+			req.BudgetUSD = o.BudgetUSD
 		}
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
@@ -89,6 +94,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.TaskBudgetUSD != nil {
+			req.TaskBudgetUSD = o.TaskBudgetUSD
 		}
 		if o.TaskTimeout != nil {
 			req.TaskTimeout = o.TaskTimeout
@@ -131,6 +139,7 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 			o := opts[0]
 			patchOpts = PatchAgentOpts{
 				AllowedTools:    o.AllowedTools,
+				BudgetUSD:       o.BudgetUSD,
 				Connectors:      o.Connectors,
 				DisallowedTools: o.DisallowedTools,
 				Instructions:    &instructions,
@@ -143,6 +152,7 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 				Skills:          o.Skills,
 				Storage:         o.Storage,
 				SystemPrompt:    o.SystemPrompt,
+				TaskBudgetUSD:   o.TaskBudgetUSD,
 				TemplateRef:     o.TemplateRef,
 			}
 		} else {
@@ -159,6 +169,7 @@ func (c *Client) GetAgent(ctx context.Context, name string) (*komputer.AgentResp
 
 type PatchAgentOpts struct {
 	AllowedTools    []string
+	BudgetUSD       *string
 	Connectors      []string
 	DeleteTTL       *string
 	DisallowedTools []string
@@ -173,6 +184,7 @@ type PatchAgentOpts struct {
 	SleepTTL        *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
+	TaskBudgetUSD   *string
 	TaskTimeout     *string
 	TemplateRef     *string
 }
@@ -183,6 +195,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		o := opts[0]
 		if o.AllowedTools != nil {
 			req.AllowedTools = o.AllowedTools
+		}
+		if o.BudgetUSD != nil {
+			req.BudgetUSD = o.BudgetUSD
 		}
 		if o.Connectors != nil {
 			req.Connectors = o.Connectors
@@ -219,6 +234,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.TaskBudgetUSD != nil {
+			req.TaskBudgetUSD = o.TaskBudgetUSD
 		}
 		if o.TaskTimeout != nil {
 			req.TaskTimeout = o.TaskTimeout

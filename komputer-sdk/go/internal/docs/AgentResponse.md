@@ -5,6 +5,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
+**BudgetExhausted** | Pointer to **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
+**BudgetUSD** | Pointer to **string** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **CompletionTime** | Pointer to **string** |  | [optional] 
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
@@ -36,6 +38,7 @@ Name | Type | Description | Notes
 **Status** | Pointer to **string** |  | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | Custom system prompt (spec.systemPrompt) | [optional] 
+**TaskBudgetUSD** | Pointer to **string** | TaskBudgetUSD is this agent&#39;s own HARD per-task spending cap (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent itself (it may still inherit a template default). | [optional] 
 **TaskExpiresAt** | Pointer to **string** |  | [optional] 
 **TaskStartedAt** | Pointer to **string** | TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running. | [optional] 
 **TaskStatus** | Pointer to **string** |  | [optional] 
@@ -86,6 +89,56 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *AgentResponse) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetBudgetExhausted
+
+`func (o *AgentResponse) GetBudgetExhausted() bool`
+
+GetBudgetExhausted returns the BudgetExhausted field if non-nil, zero value otherwise.
+
+### GetBudgetExhaustedOk
+
+`func (o *AgentResponse) GetBudgetExhaustedOk() (*bool, bool)`
+
+GetBudgetExhaustedOk returns a tuple with the BudgetExhausted field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBudgetExhausted
+
+`func (o *AgentResponse) SetBudgetExhausted(v bool)`
+
+SetBudgetExhausted sets BudgetExhausted field to given value.
+
+### HasBudgetExhausted
+
+`func (o *AgentResponse) HasBudgetExhausted() bool`
+
+HasBudgetExhausted returns a boolean if a field has been set.
+
+### GetBudgetUSD
+
+`func (o *AgentResponse) GetBudgetUSD() string`
+
+GetBudgetUSD returns the BudgetUSD field if non-nil, zero value otherwise.
+
+### GetBudgetUSDOk
+
+`func (o *AgentResponse) GetBudgetUSDOk() (*string, bool)`
+
+GetBudgetUSDOk returns a tuple with the BudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBudgetUSD
+
+`func (o *AgentResponse) SetBudgetUSD(v string)`
+
+SetBudgetUSD sets BudgetUSD field to given value.
+
+### HasBudgetUSD
+
+`func (o *AgentResponse) HasBudgetUSD() bool`
+
+HasBudgetUSD returns a boolean if a field has been set.
 
 ### GetCompletionTime
 
@@ -861,6 +914,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *AgentResponse) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskBudgetUSD
+
+`func (o *AgentResponse) GetTaskBudgetUSD() string`
+
+GetTaskBudgetUSD returns the TaskBudgetUSD field if non-nil, zero value otherwise.
+
+### GetTaskBudgetUSDOk
+
+`func (o *AgentResponse) GetTaskBudgetUSDOk() (*string, bool)`
+
+GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskBudgetUSD
+
+`func (o *AgentResponse) SetTaskBudgetUSD(v string)`
+
+SetTaskBudgetUSD sets TaskBudgetUSD field to given value.
+
+### HasTaskBudgetUSD
+
+`func (o *AgentResponse) HasTaskBudgetUSD() bool`
+
+HasTaskBudgetUSD returns a boolean if a field has been set.
 
 ### GetTaskExpiresAt
 

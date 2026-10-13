@@ -41,6 +41,25 @@ export interface AgentResponse {
      */
     allowedTools?: Array<string>;
     /**
+     * BudgetExhausted is true when status.totalCostUSD has reached or passed the
+     * EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's
+     * default) — new tasks are refused with 409 until it's raised. Always false
+     * when no lifetime budget applies anywhere. Computed by the API so clients
+     * don't have to re-derive the template resolution themselves.
+     * @type {boolean}
+     * @memberof AgentResponse
+     */
+    budgetExhausted?: boolean;
+    /**
+     * BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as
+     * a decimal USD string. Empty when unset on the agent itself — note the agent
+     * may still be bound by a template default; BudgetExhausted reflects that
+     * effective value even when this field is empty.
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    budgetUSD?: string;
+    /**
      * 
      * @type {string}
      * @memberof AgentResponse
@@ -231,6 +250,14 @@ export interface AgentResponse {
      */
     systemPrompt?: string;
     /**
+     * TaskBudgetUSD is this agent's own HARD per-task spending cap
+     * (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent
+     * itself (it may still inherit a template default).
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    taskBudgetUSD?: string;
+    /**
      * 
      * @type {string}
      * @memberof AgentResponse
@@ -287,6 +314,8 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'budgetExhausted': json['budgetExhausted'] == null ? undefined : json['budgetExhausted'],
+        'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'completionTime': json['completionTime'] == null ? undefined : json['completionTime'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
@@ -318,6 +347,7 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'status': json['status'] == null ? undefined : json['status'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskBudgetUSD': json['taskBudgetUSD'] == null ? undefined : json['taskBudgetUSD'],
         'taskExpiresAt': json['taskExpiresAt'] == null ? undefined : json['taskExpiresAt'],
         'taskStartedAt': json['taskStartedAt'] == null ? undefined : json['taskStartedAt'],
         'taskStatus': json['taskStatus'] == null ? undefined : json['taskStatus'],
@@ -339,6 +369,8 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
     return {
         
         'allowedTools': value['allowedTools'],
+        'budgetExhausted': value['budgetExhausted'],
+        'budgetUSD': value['budgetUSD'],
         'completionTime': value['completionTime'],
         'connectors': value['connectors'],
         'createdAt': value['createdAt'],
@@ -370,6 +402,7 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'status': value['status'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskBudgetUSD': value['taskBudgetUSD'],
         'taskExpiresAt': value['taskExpiresAt'],
         'taskStartedAt': value['taskStartedAt'],
         'taskStatus': value['taskStatus'],

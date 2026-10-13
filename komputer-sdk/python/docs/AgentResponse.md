@@ -6,6 +6,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
+**budget_exhausted** | **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
+**budget_usd** | **str** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **completion_time** | **str** |  | [optional] 
 **connectors** | **List[str]** | KomputerConnector names attached to this agent | [optional] 
 **created_at** | **str** |  | [optional] 
@@ -37,6 +39,7 @@ Name | Type | Description | Notes
 **status** | **str** |  | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | Custom system prompt (spec.systemPrompt) | [optional] 
+**task_budget_usd** | **str** | TaskBudgetUSD is this agent&#39;s own HARD per-task spending cap (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent itself (it may still inherit a template default). | [optional] 
 **task_expires_at** | **str** |  | [optional] 
 **task_started_at** | **str** | TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running. | [optional] 
 **task_status** | **str** |  | [optional] 

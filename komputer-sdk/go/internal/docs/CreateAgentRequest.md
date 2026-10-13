@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. Empty keeps default behavior. | [optional] 
+**BudgetUSD** | Pointer to **string** | BudgetUSD is a SOFT lifetime spending cap across all of this agent&#39;s tasks, as a decimal USD string (e.g. \&quot;10.00\&quot;). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it&#39;s raised; a task already running is always allowed to finish. Empty means no lifetime cap. | [optional] 
 **Connectors** | Pointer to **[]string** | optional KomputerConnector names to attach | [optional] 
 **DeleteTTL** | Pointer to **string** | DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \&quot;24h\&quot;). Absolute — it does not reset on wake. Empty means never auto-delete. | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards. | [optional] 
@@ -24,6 +25,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to **string** | SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \&quot;30m\&quot;, \&quot;2h\&quot;). Empty means never auto-sleep. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | optional custom system prompt | [optional] 
+**TaskBudgetUSD** | Pointer to **string** | TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \&quot;2.50\&quot;). The SDK stops a task the instant it is exceeded, mid-task. Empty means tasks run without a per-task cap. | [optional] 
 **TaskTimeout** | Pointer to **string** | TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \&quot;30m\&quot;). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit. | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
@@ -70,6 +72,31 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *CreateAgentRequest) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetBudgetUSD
+
+`func (o *CreateAgentRequest) GetBudgetUSD() string`
+
+GetBudgetUSD returns the BudgetUSD field if non-nil, zero value otherwise.
+
+### GetBudgetUSDOk
+
+`func (o *CreateAgentRequest) GetBudgetUSDOk() (*string, bool)`
+
+GetBudgetUSDOk returns a tuple with the BudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBudgetUSD
+
+`func (o *CreateAgentRequest) SetBudgetUSD(v string)`
+
+SetBudgetUSD sets BudgetUSD field to given value.
+
+### HasBudgetUSD
+
+`func (o *CreateAgentRequest) HasBudgetUSD() bool`
+
+HasBudgetUSD returns a boolean if a field has been set.
 
 ### GetConnectors
 
@@ -535,6 +562,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *CreateAgentRequest) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskBudgetUSD
+
+`func (o *CreateAgentRequest) GetTaskBudgetUSD() string`
+
+GetTaskBudgetUSD returns the TaskBudgetUSD field if non-nil, zero value otherwise.
+
+### GetTaskBudgetUSDOk
+
+`func (o *CreateAgentRequest) GetTaskBudgetUSDOk() (*string, bool)`
+
+GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskBudgetUSD
+
+`func (o *CreateAgentRequest) SetTaskBudgetUSD(v string)`
+
+SetTaskBudgetUSD sets TaskBudgetUSD field to given value.
+
+### HasTaskBudgetUSD
+
+`func (o *CreateAgentRequest) HasTaskBudgetUSD() bool`
+
+HasTaskBudgetUSD returns a boolean if a field has been set.
 
 ### GetTaskTimeout
 

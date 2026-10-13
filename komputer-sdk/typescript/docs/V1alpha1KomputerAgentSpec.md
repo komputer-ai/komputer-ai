@@ -7,6 +7,7 @@
 Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
+`budgetUSD` | string
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | [V1Duration](V1Duration.md)
 `disallowedTools` | Array&lt;string&gt;
@@ -25,6 +26,7 @@ Name | Type
 `sleepTTL` | [V1Duration](V1Duration.md)
 `storage` | [V1alpha1StorageSpec](V1alpha1StorageSpec.md)
 `systemPrompt` | string
+`taskBudgetUSD` | string
 `taskTimeout` | [V1Duration](V1Duration.md)
 `templateRef` | string
 
@@ -36,6 +38,7 @@ import type { V1alpha1KomputerAgentSpec } from '@komputer-ai/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "allowedTools": null,
+  "budgetUSD": null,
   "connectors": null,
   "deleteTTL": null,
   "disallowedTools": null,
@@ -54,6 +57,7 @@ const example = {
   "sleepTTL": null,
   "storage": null,
   "systemPrompt": null,
+  "taskBudgetUSD": null,
   "taskTimeout": null,
   "templateRef": null,
 } satisfies V1alpha1KomputerAgentSpec

@@ -21,6 +21,8 @@ var _ MappedNullable = &PatchAgentRequest{}
 type PatchAgentRequest struct {
 	// AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \"10.00\"). An explicit \"\" clears the cap; omitting the field leaves it unchanged.
+	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// connector names to attach
 	Connectors []string `json:"connectors,omitempty"`
 	DeleteTTL *string `json:"deleteTTL,omitempty"`
@@ -44,6 +46,7 @@ type PatchAgentRequest struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	TaskBudgetUSD *string `json:"taskBudgetUSD,omitempty"`
 	TaskTimeout *string `json:"taskTimeout,omitempty"`
 	TemplateRef *string `json:"templateRef,omitempty"`
 }
@@ -95,6 +98,38 @@ func (o *PatchAgentRequest) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *PatchAgentRequest) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetBudgetUSD() string {
+	if o == nil || IsNil(o.BudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.BudgetUSD
+}
+
+// GetBudgetUSDOk returns a tuple with the BudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.BudgetUSD) {
+		return nil, false
+	}
+	return o.BudgetUSD, true
+}
+
+// HasBudgetUSD returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasBudgetUSD() bool {
+	if o != nil && !IsNil(o.BudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetBudgetUSD gets a reference to the given string and assigns it to the BudgetUSD field.
+func (o *PatchAgentRequest) SetBudgetUSD(v string) {
+	o.BudgetUSD = &v
 }
 
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
@@ -577,6 +612,38 @@ func (o *PatchAgentRequest) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskBudgetUSD returns the TaskBudgetUSD field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetTaskBudgetUSD() string {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.TaskBudgetUSD
+}
+
+// GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetTaskBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		return nil, false
+	}
+	return o.TaskBudgetUSD, true
+}
+
+// HasTaskBudgetUSD returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasTaskBudgetUSD() bool {
+	if o != nil && !IsNil(o.TaskBudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskBudgetUSD gets a reference to the given string and assigns it to the TaskBudgetUSD field.
+func (o *PatchAgentRequest) SetTaskBudgetUSD(v string) {
+	o.TaskBudgetUSD = &v
+}
+
 // GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
 func (o *PatchAgentRequest) GetTaskTimeout() string {
 	if o == nil || IsNil(o.TaskTimeout) {
@@ -654,6 +721,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
 	}
+	if !IsNil(o.BudgetUSD) {
+		toSerialize["budgetUSD"] = o.BudgetUSD
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
@@ -698,6 +768,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskBudgetUSD) {
+		toSerialize["taskBudgetUSD"] = o.TaskBudgetUSD
 	}
 	if !IsNil(o.TaskTimeout) {
 		toSerialize["taskTimeout"] = o.TaskTimeout
