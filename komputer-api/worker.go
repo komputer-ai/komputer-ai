@@ -213,31 +213,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 
 					taskStatus, lastMessage := mapEventToTaskStatus(event)
 					if taskStatus != "" {
-						sessionID := ""
-						costUSD := 0.0
-						var totalTokens int64
-						var contextWindow int64
-						if event.Type == "task_completed" {
-							sessionID, _ = event.Payload["session_id"].(string)
-							costUSD, _ = event.Payload["cost_usd"].(float64)
-							totalTokens = extractTotalTokens(event.Payload)
-							// Use last_usage (single API call) for context size, not accumulated usage.
-							// Use last_usage (single API call) for context size, not accumulated usage.
-							if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
-								var ctx int64
-								for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
-									if v, ok := lastUsage[key].(float64); ok {
-										ctx += int64(v)
-									}
-								}
-								if ctx > 0 {
-									totalTokens = ctx
-								}
-							}
-							if cw, ok := event.Payload["context_window"].(float64); ok {
-								contextWindow = int64(cw)
-							}
-						}
+						sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
 
 						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
 							Logger.Errorw("failed to patch task status", "agent_name", event.AgentName, "error", err)
@@ -419,30 +395,7 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 
 				taskStatus, lastMessage := mapEventToTaskStatus(event)
 				if taskStatus != "" {
-					sessionID := ""
-					costUSD := 0.0
-					var totalTokens int64
-					var contextWindow int64
-					if event.Type == "task_completed" {
-						sessionID, _ = event.Payload["session_id"].(string)
-						costUSD, _ = event.Payload["cost_usd"].(float64)
-						totalTokens = extractTotalTokens(event.Payload)
-						// Use last_usage (single API call) for context size, not accumulated usage.
-						if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
-							var ctx int64
-							for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
-								if v, ok := lastUsage[key].(float64); ok {
-									ctx += int64(v)
-								}
-							}
-							if ctx > 0 {
-								totalTokens = ctx
-							}
-						}
-						if cw, ok := event.Payload["context_window"].(float64); ok {
-							contextWindow = int64(cw)
-						}
-					}
+					sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
 					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow)
 				}
 
@@ -575,6 +528,39 @@ func truncate(s string, max int) string {
 		return string(runes[:max])
 	}
 	return s
+}
+
+// extractTaskAccounting reads the cost/session/token fields a terminal task
+// event carries — task_completed, or task_cancelled since a cancelled run's
+// ResultMessage is published with the same accounting fields (see agent.py).
+// Any other event type yields zero values, matching the pre-extraction
+// behavior where only these two types fed PatchAgentTaskStatus.
+func extractTaskAccounting(event AgentEvent) (sessionID string, costUSD float64, totalTokens int64, contextWindow int64) {
+	if event.Type != "task_completed" && event.Type != "task_cancelled" {
+		return "", 0, 0, 0
+	}
+
+	sessionID, _ = event.Payload["session_id"].(string)
+	costUSD, _ = event.Payload["cost_usd"].(float64)
+	totalTokens = extractTotalTokens(event.Payload)
+
+	// Use last_usage (single API call) for context size, not accumulated usage.
+	if lastUsage, ok := event.Payload["last_usage"].(map[string]interface{}); ok {
+		var ctxTokens int64
+		for _, key := range []string{"input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+			if v, ok := lastUsage[key].(float64); ok {
+				ctxTokens += int64(v)
+			}
+		}
+		if ctxTokens > 0 {
+			totalTokens = ctxTokens
+		}
+	}
+	if cw, ok := event.Payload["context_window"].(float64); ok {
+		contextWindow = int64(cw)
+	}
+
+	return sessionID, costUSD, totalTokens, contextWindow
 }
 
 // extractTotalTokens reads all input + output tokens from a task_completed payload's
