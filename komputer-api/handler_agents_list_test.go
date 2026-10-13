@@ -143,3 +143,28 @@ func TestListAgents_ValidationErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestListAgents_LabelFilterMatchesMetadataLabels guards the pre-pagination
+// behavior where `label` was pushed down to the K8s list call and so matched
+// the CR's metadata labels — including operator-set ones like
+// komputer.ai/office that never appear in Spec.Labels.
+func TestListAgents_LabelFilterMatchesMetadataLabels(t *testing.T) {
+	a := newTestAgent("in-office", "default")
+	a.Labels = map[string]string{"komputer.ai/office": "mgr-office"}
+	b := newTestAgent("elsewhere", "default")
+	k8s := newFakeK8s(t, a, b)
+
+	for _, q := range []string{"?label=komputer.ai/office=mgr-office", "?label=komputer.ai/office=mgr-office&limit=10"} {
+		w := serveListAgents(t, k8s, q)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, body = %s", q, w.Code, w.Body.String())
+		}
+		var resp AgentListResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if len(resp.Agents) != 1 || resp.Agents[0].Name != "in-office" {
+			t.Errorf("%s: got %+v, want only in-office", q, resp.Agents)
+		}
+	}
+}

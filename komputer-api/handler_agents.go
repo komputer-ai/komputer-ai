@@ -1315,7 +1315,9 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 		squadByAgent := buildSquadNameMap(c.Request.Context(), k8s, ns)
 
 		all := make([]AgentResponse, 0, len(agents))
+		metaLabels := make(map[string]map[string]string, len(agents))
 		for _, a := range agents {
+			metaLabels[a.Namespace+"/"+a.Name] = a.Labels
 			all = append(all, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 				Name:               a.Name,
 				Namespace:          a.Namespace,
@@ -1350,12 +1352,13 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		page, total, nextOffset, facets, err := filterSortPaginateAgents(all, AgentListQuery{
-			Status: statusFilter,
-			Labels: labelFilter,
-			Q:      c.Query("q"),
-			Sort:   sortParam,
-			Limit:  limit,
-			Offset: offset,
+			Status:       statusFilter,
+			Labels:       labelFilter,
+			FilterLabels: metaLabels,
+			Q:            c.Query("q"),
+			Sort:         sortParam,
+			Limit:        limit,
+			Offset:       offset,
 		})
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

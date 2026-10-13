@@ -19,6 +19,12 @@ type AgentListQuery struct {
 	Status string
 	// Labels are "key=value" filters, ANDed together.
 	Labels map[string]string
+	// FilterLabels optionally maps "namespace/name" to the agent CR's metadata
+	// labels. Label filters match these when present (falling back to
+	// AgentResponse.Labels, i.e. spec labels), so operator-set metadata labels
+	// such as komputer.ai/office keep matching as they did when the filter was
+	// pushed down to the K8s list call.
+	FilterLabels map[string]map[string]string
 	// Q is a case-insensitive substring match against the agent name.
 	Q string
 	// Sort is one of "created", "name", "status", "model", "lastActive", "cost",
@@ -124,12 +130,16 @@ func computeAgentFacets(agents []AgentResponse) AgentListFacets {
 	return AgentListFacets{Namespaces: namespaces, Labels: labels}
 }
 
-func matchesAgentLabels(agent AgentResponse, filter map[string]string) bool {
+func matchesAgentLabels(agent AgentResponse, filter map[string]string, filterLabels map[string]map[string]string) bool {
 	if len(filter) == 0 {
 		return true
 	}
+	labels := agent.Labels
+	if m, ok := filterLabels[agent.Namespace+"/"+agent.Name]; ok {
+		labels = m
+	}
 	for k, v := range filter {
-		if agent.Labels[k] != v {
+		if labels[k] != v {
 			return false
 		}
 	}
@@ -253,7 +263,7 @@ func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (pag
 		if query.Status != "" && !strings.EqualFold(query.Status, a.Status) {
 			continue
 		}
-		if !matchesAgentLabels(a, query.Labels) {
+		if !matchesAgentLabels(a, query.Labels, query.FilterLabels) {
 			continue
 		}
 		if q != "" && !strings.Contains(strings.ToLower(a.Name), q) {
