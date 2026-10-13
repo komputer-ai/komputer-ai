@@ -570,6 +570,78 @@
                 }
             }
         },
+        "/agents/{name}/sleep": {
+            "post": {
+                "description": "Sleeps an agent immediately (pod deleted, workspace/PVC kept), regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle. A no-op (200, current state) if already sleeping.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Sleep an agent now",
+                "operationId": "sleepAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Agent sleeping (or already asleep)",
+                        "schema": {
+                            "$ref": "#/definitions/main.AgentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ephemeral-workspace agents can't sleep",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Agent not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Agent is running a task",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/agents/{name}/wake": {
             "post": {
                 "description": "Wakes a sleeping agent without running any task, leaving its instructions untouched. A no-op (200, current state) if the agent is not sleeping.",

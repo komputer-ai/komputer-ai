@@ -7071,6 +7071,56 @@ paths:
       summary: Get agent events
       tags:
       - agents
+  /agents/{name}/sleep:
+    post:
+      description: Sleeps an agent immediately (pod deleted, workspace/PVC kept),
+        regardless of sleepTTL or a prior idle wake, without changing spec.lifecycle.
+        A no-op (200, current state) if already sleeping.
+      operationId: sleepAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Agent sleeping (or already asleep)
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "400":
+          description: Ephemeral-workspace agents can't sleep
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent is running a task
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Sleep an agent now
+      tags:
+      - agents
   /agents/{name}/wake:
     post:
       description: Wakes a sleeping agent without running any task, leaving its instructions
