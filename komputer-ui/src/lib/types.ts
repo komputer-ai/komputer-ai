@@ -67,8 +67,23 @@ export interface AgentResponse {
   labels?: Record<string, string>;
 }
 
+export interface AgentListFacets {
+  namespaces: string[];
+  labels: string[];
+}
+
 export interface AgentListResponse {
   agents: AgentResponse[];
+  /** Count of agents matching status/label/q filters, before the limit/offset slice. */
+  total?: number;
+  /** Offset to request for the next page; absent once there's no more data. */
+  nextOffset?: number;
+  /**
+   * Distinct namespaces and "key=value" label pairs across agents in the
+   * requested namespace scope, computed BEFORE status/label/q filtering — so
+   * filter dropdowns can always offer every option.
+   */
+  facets?: AgentListFacets;
 }
 
 export interface OfficeMemberResponse {

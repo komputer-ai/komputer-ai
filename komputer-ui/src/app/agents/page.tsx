@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Trash2, X, CheckSquare, Users } from "lucide-react";
+import { Trash2, X, CheckSquare, Users, LayoutGrid, Rows3, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -14,59 +14,108 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/kit/select";
-import { AgentCards, agentKey } from "@/components/agents/agent-cards";
+import { AgentCards } from "@/components/agents/agent-cards";
+import { AgentTable } from "@/components/agents/agent-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
-import { useAgents } from "@/hooks/use-agents";
+import { usePaginatedAgents } from "@/hooks/use-paginated-agents";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { usePageRefresh, usePageHeaderSlot } from "@/components/layout/app-shell";
 import { deleteAgent, deleteSquad } from "@/lib/api";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { cn } from "@/lib/utils";
-import { filterAndSortAgents, labelSuggestions, type AgentSort } from "@/lib/agent-list";
+import { agentKey, cardsSortToApiSort, type CardsSort } from "@/lib/agent-list-query";
 
 const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-const SORT_OPTIONS: { value: AgentSort; label: string }[] = [
+const SORT_OPTIONS: { value: CardsSort; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
   { value: "recent-active", label: "Recently active" },
 ];
 
+type View = "cards" | "table";
+const VIEW_STORAGE_KEY = "komputer:agents-view";
+
+function readStoredView(): View | null {
+  try {
+    const v = localStorage.getItem(VIEW_STORAGE_KEY);
+    return v === "table" || v === "cards" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredView(v: View) {
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, v);
+  } catch {
+    // ignore (private browsing, storage disabled, etc.)
+  }
+}
+
 export default function AgentsPage() {
-  const { agents, loading, error, refresh } = useAgents();
-  const showLoading = useDelayedLoading(loading);
-  usePageRefresh(refresh);
+  const [view, setView] = useState<View>("cards");
+  // Read localStorage after mount only, so the server-rendered markup (which
+  // has no access to it) matches the client's first paint.
+  useEffect(() => {
+    const stored = readStoredView();
+    if (stored) setView(stored);
+  }, []);
+  const changeView = useCallback((v: View) => {
+    setView(v);
+    writeStoredView(v);
+  }, []);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
   const [labelFilters, setLabelFilters] = useState<string[]>([]);
-  const [sort, setSort] = useState<AgentSort>("newest");
+  const [apiSort, setApiSort] = useState<string>("-created");
 
-  const namespaces = useMemo(
-    () => [...new Set(agents.map((a) => a.namespace))].sort(),
-    [agents]
+  // Debounce free-text search ~300ms before it drives the API query.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const filters = useMemo(
+    () => ({
+      namespace: namespace || undefined,
+      status: statusFilter === "All" ? undefined : statusFilter,
+      labels: labelFilters,
+      q: search || undefined,
+      sort: apiSort,
+    }),
+    [namespace, statusFilter, labelFilters, search, apiSort]
   );
 
-  // Existing "key=value" label pairs across loaded agents, offered as filter suggestions.
+  const { agents, facets, hasMore, loading, loadingMore, error, loadMore, refresh } =
+    usePaginatedAgents(filters);
+  const showLoading = useDelayedLoading(loading);
+  usePageRefresh(refresh);
+
+  const filtersActive =
+    statusFilter !== "All" || search.trim() !== "" || namespace !== "" || labelFilters.length > 0;
+
+  // Namespace options and label suggestions come from facets (every option
+  // across the namespace scope) rather than the agents actually loaded so
+  // far, so they stay complete while infinite scroll has only fetched part
+  // of the list.
+  const namespaces = facets.namespaces;
   const labelOptions = useMemo(
-    () => labelSuggestions(agents).map((l) => ({ value: l, label: l })),
-    [agents]
+    () => facets.labels.map((l) => ({ value: l, label: l })),
+    [facets.labels]
   );
 
-  const filtered = useMemo(
-    () =>
-      filterAndSortAgents(agents, {
-        namespace,
-        status: statusFilter,
-        search,
-        labels: labelFilters,
-        sort,
-      }),
-    [agents, statusFilter, search, namespace, labelFilters, sort]
-  );
+  // Reverse-maps the API sort string to the cards dropdown's 3 friendly
+  // options, for display only — falls back to "newest" for any sort the
+  // dropdown doesn't have an option for (e.g. a table column like cost).
+  const cardsSortValue: CardsSort =
+    apiSort === "created" ? "oldest" : apiSort === "-lastActive" ? "recent-active" : "newest";
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -83,8 +132,10 @@ export default function AgentsPage() {
   const clearSelection = useCallback(() => setSelected(new Set()), []);
 
   const selectAll = useCallback(() => {
-    setSelected(new Set(filtered.map((a) => agentKey(a))));
-  }, [filtered]);
+    // Selects every agent currently loaded (infinite scroll may not have
+    // fetched the full matching set yet).
+    setSelected(new Set(agents.map((a) => agentKey(a))));
+  }, [agents]);
 
   async function handleDelete(name: string, namespace: string, opts?: { recreatePod?: boolean }) {
     try {
@@ -99,7 +150,7 @@ export default function AgentsPage() {
     if (selected.size === 0) return;
     setBulkDeleting(true);
     try {
-      const targets = filtered.filter((a) => selected.has(agentKey(a)));
+      const targets = agents.filter((a) => selected.has(agentKey(a)));
       await Promise.allSettled(targets.map((a) => deleteAgent(a.name, a.namespace, opts)));
       setSelected(new Set());
       refresh();
@@ -108,17 +159,33 @@ export default function AgentsPage() {
     }
   }
 
+  // Infinite scroll: load the next page when the sentinel near the bottom
+  // enters the viewport. Shared by both views.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "300px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
+
   // Inject the bulk-action bar into the global header (left of "+ New Agent").
-  const allSelected = selected.size > 0 && selected.size === filtered.length;
+  const allSelected = selected.size > 0 && selected.size === agents.length;
 
   // List the selected squad-member agents (and their squad names) so the user
   // can confirm exactly what will happen to them.
   const squadSelectedAgents = useMemo(() => {
     if (selected.size === 0) return [] as { name: string; namespace: string; squadName?: string }[];
-    return filtered
+    return agents
       .filter((a) => selected.has(agentKey(a)) && a.squad)
       .map((a) => ({ name: a.name, namespace: a.namespace, squadName: a.squadName }));
-  }, [selected, filtered]);
+  }, [selected, agents]);
   const squadSelectedCount = squadSelectedAgents.length;
 
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -184,8 +251,8 @@ export default function AgentsPage() {
         className="flex-1 overflow-y-auto p-6"
       >
         <ListFilterBar
-          search={search}
-          onSearchChange={setSearch}
+          search={searchInput}
+          onSearchChange={setSearchInput}
           searchPlaceholder="Search agents..."
           namespace={namespace}
           onNamespaceChange={setNamespace}
@@ -203,18 +270,53 @@ export default function AgentsPage() {
                 className="w-60"
                 triggerClassName="h-7 text-xs"
               />
-              <Select value={sort} onValueChange={(v) => setSort(v as AgentSort)}>
-                <SelectTrigger className="h-7 w-36 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {view === "cards" && (
+                <Select
+                  value={cardsSortValue}
+                  onValueChange={(v) => setApiSort(cardsSortToApiSort(v as CardsSort))}
+                >
+                  <SelectTrigger className="h-7 w-36 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="flex items-center rounded-md border border-[var(--color-border)] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => changeView("cards")}
+                  aria-label="Cards view"
+                  aria-pressed={view === "cards"}
+                  className={cn(
+                    "flex items-center justify-center h-7 w-7 cursor-pointer transition-colors",
+                    view === "cards"
+                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
+                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+                  )}
+                >
+                  <LayoutGrid className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeView("table")}
+                  aria-label="Table view"
+                  aria-pressed={view === "table"}
+                  className={cn(
+                    "flex items-center justify-center h-7 w-7 cursor-pointer transition-colors border-l border-[var(--color-border)]",
+                    view === "table"
+                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
+                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+                  )}
+                >
+                  <Rows3 className="size-3.5" />
+                </button>
+              </div>
             </>
           }
         >
@@ -264,23 +366,40 @@ export default function AgentsPage() {
           null
         ) : error ? (
           <p className="text-sm text-red-400">{error}</p>
-        ) : filtered.length === 0 && agents.length === 0 ? (
+        ) : agents.length === 0 && !filtersActive ? (
           <EmptyState
             title="No agents yet"
             description="Create your first agent to get started."
           />
-        ) : filtered.length === 0 ? (
+        ) : agents.length === 0 ? (
           <EmptyState
             title="No matching agents"
             description="Try adjusting your search or filter criteria."
           />
+        ) : view === "table" ? (
+          <AgentTable
+            agents={agents}
+            onDelete={handleDelete}
+            sort={apiSort}
+            onSortChange={setApiSort}
+            selected={selected}
+            onToggleSelect={toggleSelect}
+          />
         ) : (
           <AgentCards
-            agents={filtered}
+            agents={agents}
             onDelete={handleDelete}
             selected={selected}
             onToggleSelect={toggleSelect}
           />
+        )}
+
+        {!loading && agents.length > 0 && (
+          <div ref={sentinelRef} className="flex items-center justify-center h-12">
+            {loadingMore && (
+              <Loader2 className="size-4 animate-spin text-[var(--color-text-secondary)]" />
+            )}
+          </div>
         )}
       </motion.div>
 

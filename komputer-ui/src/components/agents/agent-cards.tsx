@@ -11,8 +11,9 @@ import { formatCost, formatRelativeTime } from "@/lib/utils";
 import type { AgentResponse, Squad } from "@/lib/types";
 import { useSquads } from "@/hooks/use-squads";
 import { deleteSquad } from "@/lib/api";
+import { agentKey } from "@/lib/agent-list-query";
 
-export const agentKey = (a: { name: string; namespace: string }) => `${a.namespace}/${a.name}`;
+export { agentKey };
 
 type AgentCardsProps = {
   agents: AgentResponse[];
@@ -202,7 +203,8 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
 }
 
 // Squad-aware delete button: shows extra options when agent is in a squad.
-function AgentDeleteButton({
+// Exported so the table view can reuse the same delete affordance as cards.
+export function AgentDeleteButton({
   agentName,
   agentNamespace,
   squad,
