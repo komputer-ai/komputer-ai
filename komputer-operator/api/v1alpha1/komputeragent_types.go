@@ -28,6 +28,29 @@ const (
 	ConditionSecretsMirrored = "SecretsMirrored"
 )
 
+// AnnotationWakeIdle marks an agent as explicitly woken idle — "nothing should
+// run" — as opposed to simply having finished its last task. status.TaskStatus
+// alone can't tell these apart (both leave it at Complete/Error), but the
+// operator needs to: a Complete/Error TaskStatus normally means "sleep this
+// Lifecycle=Sleep agent" / "delete this Lifecycle=AutoDelete agent" the moment
+// its pod comes up again, which would immediately undo an idle wake.
+//
+// Owned by the API (set by IdleWakeAgent on wake, in the same metadata patch
+// as the Sleeping-phase clear). Cleared by the API worker's
+// PatchAgentTaskStatus the moment a real task starts (taskStatusStartsTask
+// transitions to true) — covering every path a task can start through
+// (forward, wake-with-task, schedules, manager tools). Never cleared on a
+// steer (InProgress → InProgress), since the agent is still doing the same
+// "woken idle, nothing queued yet" work until a task actually begins.
+//
+// Consumed by:
+//   - shouldStartIdle (pod_builder.go): present → start the pod/container idle
+//     regardless of TaskStatus.
+//   - reconcileStatus (komputeragent_controller.go): present → skip the
+//     immediate Lifecycle Sleep/AutoDelete transitions (sleepTTL/deleteTTL
+//     still apply normally — an idle-woken agent should still time out).
+const AnnotationWakeIdle = "komputer.ai/wake-idle"
+
 // KomputerAgentPhase represents the lifecycle phase of a KomputerAgent.
 type KomputerAgentPhase string
 

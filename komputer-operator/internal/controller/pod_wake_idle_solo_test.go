@@ -34,15 +34,22 @@ import (
 // auto-runs spec.Instructions in those cases.
 func TestBuildPodWakeIdleFromTaskStatus(t *testing.T) {
 	cases := []struct {
-		name       string
-		taskStatus komputerv1alpha1.AgentTaskStatus
-		wantIdle   bool
+		name        string
+		taskStatus  komputerv1alpha1.AgentTaskStatus
+		annotations map[string]string
+		wantIdle    bool
 	}{
-		{"empty status auto-runs", komputerv1alpha1.AgentTaskStatus(""), false},
-		{"InProgress auto-runs (resume)", komputerv1alpha1.AgentTaskInProgress, false},
-		{"Compacting auto-runs (resume)", komputerv1alpha1.AgentTaskCompacting, false},
-		{"Complete starts idle", komputerv1alpha1.AgentTaskComplete, true},
-		{"Error starts idle", komputerv1alpha1.AgentTaskError, true},
+		{"empty status auto-runs", komputerv1alpha1.AgentTaskStatus(""), nil, false},
+		{"InProgress auto-runs (resume)", komputerv1alpha1.AgentTaskInProgress, nil, false},
+		{"Compacting auto-runs (resume)", komputerv1alpha1.AgentTaskCompacting, nil, false},
+		{"Complete starts idle", komputerv1alpha1.AgentTaskComplete, nil, true},
+		{"Error starts idle", komputerv1alpha1.AgentTaskError, nil, true},
+		{
+			"wake-idle annotation starts idle even mid-task",
+			komputerv1alpha1.AgentTaskInProgress,
+			map[string]string{komputerv1alpha1.AnnotationWakeIdle: "true"},
+			true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -60,7 +67,7 @@ func TestBuildPodWakeIdleFromTaskStatus(t *testing.T) {
 				},
 			}
 			agent := &komputerv1alpha1.KomputerAgent{
-				ObjectMeta: metav1.ObjectMeta{Name: "my-agent", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "my-agent", Namespace: "default", Annotations: tc.annotations},
 				Spec:       komputerv1alpha1.KomputerAgentSpec{Instructions: "do stuff"},
 				Status:     komputerv1alpha1.KomputerAgentStatus{TaskStatus: tc.taskStatus},
 			}

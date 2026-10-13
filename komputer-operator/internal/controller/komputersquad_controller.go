@@ -708,7 +708,7 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 	// auto-running Instructions — when this member is still Sleeping (other
 	// siblings need their containers up, but a still-sleeping one must not
 	// restart) or when shouldStartIdle says its last task already finished.
-	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus) {
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus, agent.Annotations) {
 		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 	}
 	envVars = mergeEnvVars(baseContainer.Env, envVars)
@@ -876,7 +876,7 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		// without auto-running Instructions — when this member is still
 		// Sleeping (the pod may be (re)built for a non-sleeping sibling) or
 		// when shouldStartIdle says its last task already finished.
-		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus) {
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus, agent.Annotations) {
 			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 		}
 		// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when

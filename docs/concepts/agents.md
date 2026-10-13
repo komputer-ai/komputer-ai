@@ -17,9 +17,11 @@ By default, agent pods stay running after task completion. You can change this b
 - **Sleep** — Pod is deleted after task completion, but the PVC (workspace) is preserved. When a new task is sent, the operator creates a fresh pod that reconnects to the same workspace. Saves compute costs for infrequent tasks.
 - **AutoDelete** — The entire agent (CR, pod, PVC, secrets) is deleted after task completion. Best for one-shot tasks where nothing needs to persist.
 
-Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions untouched. See [REST API](/integration/rest-api) for details.
+Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](/integration/rest-api) for details.
 
 A pod only auto-runs `spec.instructions` on startup when a task is pending or was interrupted (`status.taskStatus` is empty, `InProgress`, or `Compacting`); if the last task already finished (`Complete`/`Error`), a freshly (re)built pod comes up idle instead. This is what makes an agent reschedule (eviction, crash, node drain) safe: it resumes the task it was actually on rather than silently re-running whatever instructions it was created with.
+
+An explicit idle wake is marked internally with the `komputer.ai/wake-idle` annotation (set by the API, cleared automatically the moment a real task next starts). It overrides the rule above — the pod starts idle regardless of `status.taskStatus` — and, just as importantly, it also tells the operator to skip its immediate `lifecycle: Sleep`/`AutoDelete` transition while present, so idle-waking an agent that sleeps (or deletes itself) via `lifecycle` doesn't instantly undo the wake. `sleepTTL`/`deleteTTL` are unaffected: a woken-but-idle agent still times out on its own schedule, since the wake also restarts its idle clock.
 
 ## Timeouts — Auto-Sleep, Auto-Delete, and Task Caps
 

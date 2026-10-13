@@ -719,7 +719,7 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// A fresh pod created while a task is pending/in-flight auto-runs
 	// Instructions; one created after the last task already finished starts
 	// idle instead of re-running stale Instructions.
-	if shouldStartIdle(agent.Status.TaskStatus) {
+	if shouldStartIdle(agent.Status.TaskStatus, agent.Annotations) {
 		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 	}
 
@@ -816,12 +816,25 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 // lifecycle action into a delayed one: the immediate transition below is skipped and
 // applyTTL fires it once the TTL elapses. That makes `lifecycle: Sleep` + `sleepTTL: 30m`
 // mean "sleep after 30m idle" rather than the two rules racing each other.
+//
+// The komputer.ai/wake-idle annotation (AnnotationWakeIdle) is the other thing that
+// skips these two immediate transitions: TaskStatus alone can't tell "idle-woken,
+// nothing queued" apart from "task just finished", and both leave it at
+// Complete/Error. Without this carve-out, idle-waking a Lifecycle=Sleep agent (the
+// common case — most sleeping agents are asleep BECAUSE of lifecycle Sleep) would
+// get its pod deleted again on the very next reconcile, and idle-waking a
+// Lifecycle=AutoDelete agent would delete the whole CR. sleepTTL/deleteTTL are
+// NOT suppressed by the annotation — applyTTL runs independently of it (and before
+// this method), so a woken-but-left-idle agent still sleeps/deletes on its own
+// schedule once its (freshly restarted) idle clock elapses.
 func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration) error {
 	log := logf.FromContext(ctx)
+	wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] == "true"
 
 	// Sleep mode: delete pod when task is done (complete or error), keep PVC
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleSleep &&
 		sleepTTL == nil &&
+		!wakeIdle &&
 		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
 		log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
@@ -839,6 +852,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	// AutoDelete mode: delete the entire agent CR when task completes successfully
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleAutoDelete &&
 		deleteTTL == nil &&
+		!wakeIdle &&
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
 		log.Info("AutoDelete mode: deleting agent after task completion", "agent", agent.Name)
 		return r.Delete(ctx, agent)
