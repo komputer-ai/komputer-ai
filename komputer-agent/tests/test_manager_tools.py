@@ -43,9 +43,24 @@ async def test_wake_agent_posts_with_instructions(mock_api):
 
 
 @pytest.mark.asyncio
-async def test_wake_agent_requires_instructions(mock_api):
+async def test_wake_agent_without_instructions_calls_idle_wake_endpoint(mock_api):
+    # No instructions: must hit the dedicated idle-wake endpoint (not POST
+    # /agents, which always carries a task) so the agent comes up without
+    # running anything.
+    mock_api.set("POST", "/api/v1/agents/foo/wake", {"name": "foo", "status": "Pending"})
     result = await manager_tools.wake_agent.handler({"name": "foo"})
-    assert result.get("isError")
+    assert not result.get("isError")
+    assert mock_api.calls == [("POST", "/api/v1/agents/foo/wake")]
+
+
+@pytest.mark.asyncio
+async def test_wake_agent_empty_instructions_calls_idle_wake_endpoint(mock_api):
+    # An empty string is falsy, same as omitted — still idle wake, not a task
+    # with an empty-string instruction.
+    mock_api.set("POST", "/api/v1/agents/foo/wake", {"name": "foo", "status": "Pending"})
+    result = await manager_tools.wake_agent.handler({"name": "foo", "instructions": ""})
+    assert not result.get("isError")
+    assert mock_api.calls == [("POST", "/api/v1/agents/foo/wake")]
 
 
 # --- list_agents ---
