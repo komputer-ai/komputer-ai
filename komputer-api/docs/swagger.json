@@ -2904,6 +2904,14 @@
                         "type": "string"
                     }
                 },
+                "budgetExhausted": {
+                    "description": "BudgetExhausted is true when status.totalCostUSD has reached or passed the\nEFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's\ndefault) — new tasks are refused with 409 until it's raised. Always false\nwhen no lifetime budget applies anywhere. Computed by the API so clients\ndon't have to re-derive the template resolution themselves.",
+                    "type": "boolean"
+                },
+                "budgetUSD": {
+                    "description": "BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as\na decimal USD string. Empty when unset on the agent itself — note the agent\nmay still be bound by a template default; BudgetExhausted reflects that\neffective value even when this field is empty.",
+                    "type": "string"
+                },
                 "completionTime": {
                     "type": "string"
                 },
@@ -3032,6 +3040,10 @@
                     "description": "Custom system prompt (spec.systemPrompt)",
                     "type": "string"
                 },
+                "taskBudgetUSD": {
+                    "description": "TaskBudgetUSD is this agent's own HARD per-task spending cap\n(spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent\nitself (it may still inherit a template default).",
+                    "type": "string"
+                },
                 "taskExpiresAt": {
                     "type": "string"
                 },
@@ -3157,6 +3169,10 @@
                         "type": "string"
                     }
                 },
+                "budgetUSD": {
+                    "description": "BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as\na decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or\nexceeds it, new tasks are refused with 409 until it's raised; a task already\nrunning is always allowed to finish. Empty means no lifetime cap.",
+                    "type": "string"
+                },
                 "connectors": {
                     "description": "optional KomputerConnector names to attach",
                     "type": "array",
@@ -3244,6 +3260,10 @@
                 },
                 "systemPrompt": {
                     "description": "optional custom system prompt",
+                    "type": "string"
+                },
+                "taskBudgetUSD": {
+                    "description": "TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.\n\"2.50\"). The SDK stops a task the instant it is exceeded, mid-task. Empty\nmeans tasks run without a per-task cap.",
                     "type": "string"
                 },
                 "taskTimeout": {
@@ -3542,6 +3562,10 @@
                         "type": "string"
                     }
                 },
+                "budgetUSD": {
+                    "description": "BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \"10.00\"). An explicit\n\"\" clears the cap; omitting the field leaves it unchanged.",
+                    "type": "string"
+                },
                 "connectors": {
                     "description": "connector names to attach",
                     "type": "array",
@@ -3611,6 +3635,9 @@
                 },
                 "systemPrompt": {
                     "description": "custom system prompt",
+                    "type": "string"
+                },
+                "taskBudgetUSD": {
                     "type": "string"
                 },
                 "taskTimeout": {
@@ -8174,6 +8201,10 @@
                         "type": "string"
                     }
                 },
+                "budgetUSD": {
+                    "description": "BudgetUSD is a SOFT lifetime spending cap across every task this agent ever\nruns, as a decimal USD string (e.g. \"10.00\"). Measured against\nStatus.TotalCostUSD: once spent reaches or exceeds this, the API refuses to\nstart any NEW task for the agent. A task already in progress when the cap is\ncrossed is always allowed to finish, even if it overshoots — the cap only\ngates starting the next one. Raising (or clearing) BudgetUSD unblocks the\nagent again.\n\nA string rather than a float to match how the rest of the CRD represents USD\n(see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for\nfloats. Unset (default) means no lifetime cap. Overrides the template's\nbudgetUSD when set.\n+kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$`\n+optional",
+                    "type": "string"
+                },
                 "connectors": {
                     "description": "Connectors is a list of KomputerConnector names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
                     "type": "array",
@@ -8284,6 +8315,10 @@
                     "description": "SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.\n+optional",
                     "type": "string"
                 },
+                "taskBudgetUSD": {
+                    "description": "TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.\n\"2.50\"). Passed to the Claude Agent SDK as max_budget_usd for each task the\nagent runs: the SDK itself stops the task the instant this is exceeded,\nwherever it is mid-task, returning an error_max_budget_usd result. Unlike\nBudgetUSD this is enforced inside the running task rather than by refusing to\nstart one.\n\nUnset (default) means tasks run without a per-task cap. Overrides the\ntemplate's taskBudgetUSD when set.\n+kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$`\n+optional",
+                    "type": "string"
+                },
                 "taskTimeout": {
                     "description": "TaskTimeout cancels the agent's running task once it has been running for this\nlong. The clock starts when a task starts (Status.TaskStartedAt) and never\nresets — steering a task does not extend it — so this is a hard wall-clock cap\non a single task, not an idle timeout.\n\nOnly the task is cancelled; the agent itself stays alive and any configured\nLifecycle (Sleep / AutoDelete) then applies as it would after any other task end.\nUnset (default) means tasks run without a time limit.\nOverrides the template's taskTimeout when set.\n+optional",
                     "allOf": [
@@ -8339,6 +8374,10 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "budgetUSD": {
+                    "description": "BudgetUSD is a SOFT lifetime spending cap across every task this agent ever\nruns, as a decimal USD string (e.g. \"10.00\"). Measured against\nStatus.TotalCostUSD: once spent reaches or exceeds this, the API refuses to\nstart any NEW task for the agent. A task already in progress when the cap is\ncrossed is always allowed to finish, even if it overshoots — the cap only\ngates starting the next one. Raising (or clearing) BudgetUSD unblocks the\nagent again.\n\nA string rather than a float to match how the rest of the CRD represents USD\n(see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for\nfloats. Unset (default) means no lifetime cap. Overrides the template's\nbudgetUSD when set.\n+kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$`\n+optional",
+                    "type": "string"
                 },
                 "connectors": {
                     "description": "Connectors is a list of KomputerConnector names to attach to this agent.\nNames can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace).\n+optional",
@@ -8436,6 +8475,10 @@
                 },
                 "systemPrompt": {
                     "description": "SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt.\n+optional",
+                    "type": "string"
+                },
+                "taskBudgetUSD": {
+                    "description": "TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.\n\"2.50\"). Passed to the Claude Agent SDK as max_budget_usd for each task the\nagent runs: the SDK itself stops the task the instant this is exceeded,\nwherever it is mid-task, returning an error_max_budget_usd result. Unlike\nBudgetUSD this is enforced inside the running task rather than by refusing to\nstart one.\n\nUnset (default) means tasks run without a per-task cap. Overrides the\ntemplate's taskBudgetUSD when set.\n+kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$`\n+optional",
                     "type": "string"
                 },
                 "taskTimeout": {

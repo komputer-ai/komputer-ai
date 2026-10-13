@@ -21,6 +21,8 @@ var _ MappedNullable = &V1alpha1ScheduleAgentSpec{}
 type V1alpha1ScheduleAgentSpec struct {
 	// AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// BudgetUSD is a SOFT lifetime spending cap across every task this agent ever runs, as a decimal USD string (e.g. \"10.00\"). Measured against Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to start any NEW task for the agent. A task already in progress when the cap is crossed is always allowed to finish, even if it overshoots — the cap only gates starting the next one. Raising (or clearing) BudgetUSD unblocks the agent again.  A string rather than a float to match how the rest of the CRD represents USD (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for floats. Unset (default) means no lifetime cap. Overrides the template's budgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional
+	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Connectors []string `json:"connectors,omitempty"`
 	// DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template's deleteTTL when set. +optional
@@ -51,6 +53,8 @@ type V1alpha1ScheduleAgentSpec struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	// TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). Passed to the Claude Agent SDK as max_budget_usd for each task the agent runs: the SDK itself stops the task the instant this is exceeded, wherever it is mid-task, returning an error_max_budget_usd result. Unlike BudgetUSD this is enforced inside the running task rather than by refusing to start one.  Unset (default) means tasks run without a per-task cap. Overrides the template's taskBudgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional
+	TaskBudgetUSD *string `json:"taskBudgetUSD,omitempty"`
 	// TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional
 	TaskTimeout *V1Duration `json:"taskTimeout,omitempty"`
 	// TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"
@@ -104,6 +108,38 @@ func (o *V1alpha1ScheduleAgentSpec) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *V1alpha1ScheduleAgentSpec) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
+func (o *V1alpha1ScheduleAgentSpec) GetBudgetUSD() string {
+	if o == nil || IsNil(o.BudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.BudgetUSD
+}
+
+// GetBudgetUSDOk returns a tuple with the BudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1ScheduleAgentSpec) GetBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.BudgetUSD) {
+		return nil, false
+	}
+	return o.BudgetUSD, true
+}
+
+// HasBudgetUSD returns a boolean if a field has been set.
+func (o *V1alpha1ScheduleAgentSpec) HasBudgetUSD() bool {
+	if o != nil && !IsNil(o.BudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetBudgetUSD gets a reference to the given string and assigns it to the BudgetUSD field.
+func (o *V1alpha1ScheduleAgentSpec) SetBudgetUSD(v string) {
+	o.BudgetUSD = &v
 }
 
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
@@ -586,6 +622,38 @@ func (o *V1alpha1ScheduleAgentSpec) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskBudgetUSD returns the TaskBudgetUSD field value if set, zero value otherwise.
+func (o *V1alpha1ScheduleAgentSpec) GetTaskBudgetUSD() string {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.TaskBudgetUSD
+}
+
+// GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1ScheduleAgentSpec) GetTaskBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		return nil, false
+	}
+	return o.TaskBudgetUSD, true
+}
+
+// HasTaskBudgetUSD returns a boolean if a field has been set.
+func (o *V1alpha1ScheduleAgentSpec) HasTaskBudgetUSD() bool {
+	if o != nil && !IsNil(o.TaskBudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskBudgetUSD gets a reference to the given string and assigns it to the TaskBudgetUSD field.
+func (o *V1alpha1ScheduleAgentSpec) SetTaskBudgetUSD(v string) {
+	o.TaskBudgetUSD = &v
+}
+
 // GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
 func (o *V1alpha1ScheduleAgentSpec) GetTaskTimeout() V1Duration {
 	if o == nil || IsNil(o.TaskTimeout) {
@@ -663,6 +731,9 @@ func (o V1alpha1ScheduleAgentSpec) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
 	}
+	if !IsNil(o.BudgetUSD) {
+		toSerialize["budgetUSD"] = o.BudgetUSD
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
@@ -707,6 +778,9 @@ func (o V1alpha1ScheduleAgentSpec) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskBudgetUSD) {
+		toSerialize["taskBudgetUSD"] = o.TaskBudgetUSD
 	}
 	if !IsNil(o.TaskTimeout) {
 		toSerialize["taskTimeout"] = o.TaskTimeout

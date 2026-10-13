@@ -18,6 +18,9 @@ type AgentResponse struct {
 	TaskTimeout     string            `json:"taskTimeout,omitempty"`
 	TaskStartedAt   string            `json:"taskStartedAt,omitempty"`
 	TaskExpiresAt   string            `json:"taskExpiresAt,omitempty"`
+	BudgetUSD       string            `json:"budgetUSD,omitempty"`
+	TaskBudgetUSD   string            `json:"taskBudgetUSD,omitempty"`
+	BudgetExhausted bool              `json:"budgetExhausted,omitempty"`
 	LastTaskCostUSD string            `json:"lastTaskCostUSD"`
 	TotalCostUSD    string            `json:"totalCostUSD"`
 	CreatedAt       string            `json:"createdAt"`
@@ -103,6 +106,8 @@ type ScheduleAgentSpec struct {
 	PodSpec         map[string]any    `json:"podSpec,omitempty"`
 	Storage         *StorageOverride  `json:"storage,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
+	BudgetUSD       string            `json:"budgetUSD,omitempty"`
+	TaskBudgetUSD   string            `json:"taskBudgetUSD,omitempty"`
 }
 
 type ScheduleResponse struct {

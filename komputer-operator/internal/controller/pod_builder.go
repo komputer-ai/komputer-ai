@@ -111,6 +111,15 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 		{Name: "KOMPUTER_REDIS_STREAM_PREFIX", Value: redis.StreamPrefix},
 	}
 
+	// Hard per-task spending cap (agent spec over template default — callers
+	// without a merged template use resolveAgentTaskBudget). Only set when a cap
+	// is actually configured; the agent prefers a per-request value over this env
+	// var, so a changed budget takes effect on the next task without waiting for
+	// a pod restart.
+	if taskBudget := resolveAgentTaskBudget(ctx, c, agent); taskBudget != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_TASK_BUDGET_USD", Value: taskBudget})
+	}
+
 	// Redis password from Secret (stays as a Secret, not plaintext).
 	if redis.PasswordSecret != nil && redis.PasswordSecret.Name != "" {
 		envVars = append(envVars, corev1.EnvVar{

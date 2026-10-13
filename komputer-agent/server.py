@@ -66,6 +66,11 @@ class TaskRequest(BaseModel):
     lifecycle: Optional[str] = None
     internal_system_prompt: Optional[str] = None
     system_prompt: Optional[str] = None
+    # Hard per-task spending cap in USD. When present, preferred over the
+    # KOMPUTER_TASK_BUDGET_USD env var set at pod startup — see
+    # agent._resolve_task_budget_usd — so a budget changed after pod startup
+    # applies to this task without waiting for a restart.
+    task_budget_usd: Optional[float] = None
 
 
 class ConfigRequest(BaseModel):
@@ -201,7 +206,10 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
             _current_loop = loop
             combined_parts = [p for p in [req.internal_system_prompt, req.system_prompt] if p]
             combined_system_prompt = "\n\n".join(combined_parts) if combined_parts else None
-            _current_task = loop.create_task(run_agent(req.instructions, task_model, _publisher, system_prompt=combined_system_prompt))
+            _current_task = loop.create_task(run_agent(
+                req.instructions, task_model, _publisher,
+                system_prompt=combined_system_prompt, task_budget_usd=req.task_budget_usd,
+            ))
             try:
                 loop.run_until_complete(_current_task)
             except asyncio.CancelledError:

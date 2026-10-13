@@ -172,6 +172,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 					case "error":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "errored", agentLabel).Inc()
+						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
 					case "tool_call":
 						if toolName, ok := event.Payload["tool"].(string); ok && toolName != "" {
 							if toolUseID, ok := event.Payload["id"].(string); ok && toolUseID != "" {
@@ -213,7 +214,6 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 					taskStatus, lastMessage := mapEventToTaskStatus(event)
 					if taskStatus != "" {
 						sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
-
 						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
 							Logger.Errorw("failed to patch task status", "agent_name", event.AgentName, "error", err)
 						}
@@ -529,24 +529,26 @@ func truncate(s string, max int) string {
 	return s
 }
 
-// extractTaskAccounting reads the cost/session/token fields a terminal task
-// event carries — task_completed, or task_cancelled since a cancelled run's
-// ResultMessage is published with the same accounting fields (see agent.py).
-// Any other event type yields zero values, matching the pre-extraction
 // recordTaskCostMetric adds a finished task's cost to the cost metric. Used for
-// both task_completed and task_cancelled: a cancelled task (manual or
-// taskTimeout) still spent money, and leaving it out made the metric
-// under-count and disagree with status.totalCostUSD. A payload without cost
-// (a cancel that fired before any result arrived) is a no-op.
+// every terminal event that can carry cost — task_completed, task_cancelled, and
+// an error from a budget stop: a cancelled or budget-stopped task still spent
+// money, and leaving it out made the metric under-count and disagree with
+// status.totalCostUSD. A payload without cost (e.g. a cancel that fired before
+// any result arrived, or an ordinary error) is a no-op.
 func recordTaskCostMetric(namespace, model, agentLabel string, payload map[string]interface{}) {
 	if cost, ok := payload["cost_usd"].(float64); ok {
 		agentTaskCostUSD.WithLabelValues(namespace, model, agentLabel).Add(cost)
 	}
 }
 
-// behavior where only these two types fed PatchAgentTaskStatus.
+// extractTaskAccounting reads the cost/session/token fields a terminal task
+// event carries: task_completed; task_cancelled, since a cancelled run's
+// ResultMessage is published with the same accounting fields; and error, which
+// carries cost when the SDK stopped the task for exceeding taskBudgetUSD (see
+// agent.py). An error without cost yields zero cost. Any other event type yields
+// zero values.
 func extractTaskAccounting(event AgentEvent) (sessionID string, costUSD float64, totalTokens int64, contextWindow int64) {
-	if event.Type != "task_completed" && event.Type != "task_cancelled" {
+	if event.Type != "task_completed" && event.Type != "task_cancelled" && event.Type != "error" {
 		return "", 0, 0, 0
 	}
 

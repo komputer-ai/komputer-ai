@@ -53,6 +53,8 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},
+            "budgetUSD": {"type": "string", "description": "Soft lifetime spending cap in USD, e.g. '10.00'. Once the sub-agent's total spend reaches this, new tasks are refused (a running task still finishes). Omit for no cap."},
+            "taskBudgetUSD": {"type": "string", "description": "Hard per-task spending cap in USD, e.g. '2.50'. The task stops the instant it is exceeded, mid-task. Omit for no cap."},
             "ephemeral": {"type": "boolean", "description": "Run with an emptyDir workspace instead of a PVC — no files, packages, or session survive past this pod. Good for true one-shot AutoDelete sub-agents. Cannot be combined with lifecycle='Sleep' or sleepTTL, and is immutable after creation."},
             "model": {"type": "string", "description": "Claude model override (optional)."},
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
@@ -94,6 +96,10 @@ async def create_agent(args):
         payload["deleteTTL"] = args["deleteTTL"]
     if args.get("taskTimeout"):
         payload["taskTimeout"] = args["taskTimeout"]
+    if args.get("budgetUSD"):
+        payload["budgetUSD"] = args["budgetUSD"]
+    if args.get("taskBudgetUSD"):
+        payload["taskBudgetUSD"] = args["taskBudgetUSD"]
     if args.get("ephemeral"):
         payload["storage"] = {"ephemeral": True}
     if args.get("model"):
@@ -648,6 +654,8 @@ async def list_agents(args):
             "sleepTTL": {"type": "string", "description": "Sleep the agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Pass '' to remove."},
             "deleteTTL": {"type": "string", "description": "Delete the agent this long after creation, e.g. '24h'. Absolute — does not reset on wake. Pass '' to remove."},
             "taskTimeout": {"type": "string", "description": "Cancel the agent's task if it runs longer than this, e.g. '30m', '2h'. Pass '' to remove."},
+            "budgetUSD": {"type": "string", "description": "Soft lifetime spending cap in USD, e.g. '10.00'. New tasks are refused once total spend reaches this. Pass '' to remove."},
+            "taskBudgetUSD": {"type": "string", "description": "Hard per-task spending cap in USD, e.g. '2.50'. Pass '' to remove."},
         },
         "required": ["name"],
     },
@@ -669,6 +677,10 @@ async def patch_agent(args):
         body["deleteTTL"] = args["deleteTTL"]
     if args.get("taskTimeout") is not None:
         body["taskTimeout"] = args["taskTimeout"]
+    if args.get("budgetUSD") is not None:
+        body["budgetUSD"] = args["budgetUSD"]
+    if args.get("taskBudgetUSD") is not None:
+        body["taskBudgetUSD"] = args["taskBudgetUSD"]
     if not body:
         return _err("patch_agent requires at least one field to update (e.g. labels, allowedTools, sleepTTL).")
     return await _request("PATCH", f"/api/v1/agents/{name}", timeout=10, json=body)
@@ -1282,8 +1294,8 @@ async def list_templates(args):
         "is either an inline spec (creates a new agent as part of the squad) or a ref to an existing, sleeping agent. "
         "You can mix both in the same call. "
         "\n\n"
-        "Inline specs let you set name, instructions, role, model, lifecycle, sleepTTL, deleteTTL, systemPrompt, "
-        "secrets, memories, skills, connectors, templateRef, priority, and resources up-front — no need for "
+        "Inline specs let you set name, instructions, role, model, lifecycle, sleepTTL, deleteTTL, budgetUSD, "
+        "taskBudgetUSD, systemPrompt, secrets, memories, skills, connectors, templateRef, priority, and resources up-front — no need for "
         "separate attach_* calls. "
         "Inherited from this manager: connectors, secrets (same as create_agent). "
         "\n\n"
@@ -1326,6 +1338,8 @@ async def list_templates(args):
                         "image": {"type": "string", "description": "Container image override, e.g. 'custom:latest'."},
                         "sleepTTL": {"type": "string", "description": "Sleep this member after this long with no activity, e.g. '30m'. Resets on every task. Omit to never auto-sleep."},
                         "deleteTTL": {"type": "string", "description": "Delete this member this long after creation, e.g. '24h'. Absolute — does not reset on wake. Omit to never auto-delete."},
+                        "budgetUSD": {"type": "string", "description": "Soft lifetime spending cap in USD for this member, e.g. '10.00'. New tasks are refused once total spend reaches this. Omit for no cap."},
+                        "taskBudgetUSD": {"type": "string", "description": "Hard per-task spending cap in USD for this member, e.g. '2.50'. The task stops the instant it is exceeded. Omit for no cap."},
                     },
                 },
             },
@@ -1389,6 +1403,10 @@ async def create_squad(args):
             spec["sleepTTL"] = m["sleepTTL"]
         if m.get("deleteTTL"):
             spec["deleteTTL"] = m["deleteTTL"]
+        if m.get("budgetUSD"):
+            spec["budgetUSD"] = m["budgetUSD"]
+        if m.get("taskBudgetUSD"):
+            spec["taskBudgetUSD"] = m["taskBudgetUSD"]
 
         cpu = m.get("cpu")
         mem_limit = m.get("memory_limit")

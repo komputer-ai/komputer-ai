@@ -21,6 +21,10 @@ var _ MappedNullable = &AgentResponse{}
 type AgentResponse struct {
 	// Tools this agent is restricted to (empty = defaults)
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's default) — new tasks are refused with 409 until it's raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don't have to re-derive the template resolution themselves.
+	BudgetExhausted *bool `json:"budgetExhausted,omitempty"`
+	// BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.
+	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	CompletionTime *string `json:"completionTime,omitempty"`
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
@@ -66,6 +70,8 @@ type AgentResponse struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// Custom system prompt (spec.systemPrompt)
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	// TaskBudgetUSD is this agent's own HARD per-task spending cap (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent itself (it may still inherit a template default).
+	TaskBudgetUSD *string `json:"taskBudgetUSD,omitempty"`
 	TaskExpiresAt *string `json:"taskExpiresAt,omitempty"`
 	// TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
 	TaskStartedAt *string `json:"taskStartedAt,omitempty"`
@@ -123,6 +129,70 @@ func (o *AgentResponse) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *AgentResponse) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetBudgetExhausted returns the BudgetExhausted field value if set, zero value otherwise.
+func (o *AgentResponse) GetBudgetExhausted() bool {
+	if o == nil || IsNil(o.BudgetExhausted) {
+		var ret bool
+		return ret
+	}
+	return *o.BudgetExhausted
+}
+
+// GetBudgetExhaustedOk returns a tuple with the BudgetExhausted field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetBudgetExhaustedOk() (*bool, bool) {
+	if o == nil || IsNil(o.BudgetExhausted) {
+		return nil, false
+	}
+	return o.BudgetExhausted, true
+}
+
+// HasBudgetExhausted returns a boolean if a field has been set.
+func (o *AgentResponse) HasBudgetExhausted() bool {
+	if o != nil && !IsNil(o.BudgetExhausted) {
+		return true
+	}
+
+	return false
+}
+
+// SetBudgetExhausted gets a reference to the given bool and assigns it to the BudgetExhausted field.
+func (o *AgentResponse) SetBudgetExhausted(v bool) {
+	o.BudgetExhausted = &v
+}
+
+// GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
+func (o *AgentResponse) GetBudgetUSD() string {
+	if o == nil || IsNil(o.BudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.BudgetUSD
+}
+
+// GetBudgetUSDOk returns a tuple with the BudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.BudgetUSD) {
+		return nil, false
+	}
+	return o.BudgetUSD, true
+}
+
+// HasBudgetUSD returns a boolean if a field has been set.
+func (o *AgentResponse) HasBudgetUSD() bool {
+	if o != nil && !IsNil(o.BudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetBudgetUSD gets a reference to the given string and assigns it to the BudgetUSD field.
+func (o *AgentResponse) SetBudgetUSD(v string) {
+	o.BudgetUSD = &v
 }
 
 // GetCompletionTime returns the CompletionTime field value if set, zero value otherwise.
@@ -1117,6 +1187,38 @@ func (o *AgentResponse) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskBudgetUSD returns the TaskBudgetUSD field value if set, zero value otherwise.
+func (o *AgentResponse) GetTaskBudgetUSD() string {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.TaskBudgetUSD
+}
+
+// GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetTaskBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		return nil, false
+	}
+	return o.TaskBudgetUSD, true
+}
+
+// HasTaskBudgetUSD returns a boolean if a field has been set.
+func (o *AgentResponse) HasTaskBudgetUSD() bool {
+	if o != nil && !IsNil(o.TaskBudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskBudgetUSD gets a reference to the given string and assigns it to the TaskBudgetUSD field.
+func (o *AgentResponse) SetTaskBudgetUSD(v string) {
+	o.TaskBudgetUSD = &v
+}
+
 // GetTaskExpiresAt returns the TaskExpiresAt field value if set, zero value otherwise.
 func (o *AgentResponse) GetTaskExpiresAt() string {
 	if o == nil || IsNil(o.TaskExpiresAt) {
@@ -1322,6 +1424,12 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
 	}
+	if !IsNil(o.BudgetExhausted) {
+		toSerialize["budgetExhausted"] = o.BudgetExhausted
+	}
+	if !IsNil(o.BudgetUSD) {
+		toSerialize["budgetUSD"] = o.BudgetUSD
+	}
 	if !IsNil(o.CompletionTime) {
 		toSerialize["completionTime"] = o.CompletionTime
 	}
@@ -1414,6 +1522,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskBudgetUSD) {
+		toSerialize["taskBudgetUSD"] = o.TaskBudgetUSD
 	}
 	if !IsNil(o.TaskExpiresAt) {
 		toSerialize["taskExpiresAt"] = o.TaskExpiresAt

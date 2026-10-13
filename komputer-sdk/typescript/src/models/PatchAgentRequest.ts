@@ -42,6 +42,13 @@ export interface PatchAgentRequest {
      */
     allowedTools?: Array<string>;
     /**
+     * BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
+     * "" clears the cap; omitting the field leaves it unchanged.
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
+    budgetUSD?: string;
+    /**
      * connector names to attach
      * @type {Array<string>}
      * @memberof PatchAgentRequest
@@ -137,6 +144,12 @@ export interface PatchAgentRequest {
      * @type {string}
      * @memberof PatchAgentRequest
      */
+    taskBudgetUSD?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
     taskTimeout?: string;
     /**
      * 
@@ -164,6 +177,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
@@ -179,6 +193,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskBudgetUSD': json['taskBudgetUSD'] == null ? undefined : json['taskBudgetUSD'],
         'taskTimeout': json['taskTimeout'] == null ? undefined : json['taskTimeout'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
@@ -196,6 +211,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
     return {
         
         'allowedTools': value['allowedTools'],
+        'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
@@ -211,6 +227,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskBudgetUSD': value['taskBudgetUSD'],
         'taskTimeout': value['taskTimeout'],
         'templateRef': value['templateRef'],
     };

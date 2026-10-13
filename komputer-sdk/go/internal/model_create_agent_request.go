@@ -23,6 +23,8 @@ var _ MappedNullable = &CreateAgentRequest{}
 type CreateAgentRequest struct {
 	// AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as a decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it's raised; a task already running is always allowed to finish. Empty means no lifetime cap.
+	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// optional KomputerConnector names to attach
 	Connectors []string `json:"connectors,omitempty"`
 	// DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.
@@ -56,6 +58,8 @@ type CreateAgentRequest struct {
 	Storage *V1alpha1StorageSpec `json:"storage,omitempty"`
 	// optional custom system prompt
 	SystemPrompt *string `json:"systemPrompt,omitempty"`
+	// TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). The SDK stops a task the instant it is exceeded, mid-task. Empty means tasks run without a per-task cap.
+	TaskBudgetUSD *string `json:"taskBudgetUSD,omitempty"`
 	// TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit.
 	TaskTimeout *string `json:"taskTimeout,omitempty"`
 	TemplateRef *string `json:"templateRef,omitempty"`
@@ -112,6 +116,38 @@ func (o *CreateAgentRequest) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *CreateAgentRequest) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetBudgetUSD() string {
+	if o == nil || IsNil(o.BudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.BudgetUSD
+}
+
+// GetBudgetUSDOk returns a tuple with the BudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.BudgetUSD) {
+		return nil, false
+	}
+	return o.BudgetUSD, true
+}
+
+// HasBudgetUSD returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasBudgetUSD() bool {
+	if o != nil && !IsNil(o.BudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetBudgetUSD gets a reference to the given string and assigns it to the BudgetUSD field.
+func (o *CreateAgentRequest) SetBudgetUSD(v string) {
+	o.BudgetUSD = &v
 }
 
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
@@ -706,6 +742,38 @@ func (o *CreateAgentRequest) SetSystemPrompt(v string) {
 	o.SystemPrompt = &v
 }
 
+// GetTaskBudgetUSD returns the TaskBudgetUSD field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetTaskBudgetUSD() string {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		var ret string
+		return ret
+	}
+	return *o.TaskBudgetUSD
+}
+
+// GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetTaskBudgetUSDOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskBudgetUSD) {
+		return nil, false
+	}
+	return o.TaskBudgetUSD, true
+}
+
+// HasTaskBudgetUSD returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasTaskBudgetUSD() bool {
+	if o != nil && !IsNil(o.TaskBudgetUSD) {
+		return true
+	}
+
+	return false
+}
+
+// SetTaskBudgetUSD gets a reference to the given string and assigns it to the TaskBudgetUSD field.
+func (o *CreateAgentRequest) SetTaskBudgetUSD(v string) {
+	o.TaskBudgetUSD = &v
+}
+
 // GetTaskTimeout returns the TaskTimeout field value if set, zero value otherwise.
 func (o *CreateAgentRequest) GetTaskTimeout() string {
 	if o == nil || IsNil(o.TaskTimeout) {
@@ -783,6 +851,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
 	}
+	if !IsNil(o.BudgetUSD) {
+		toSerialize["budgetUSD"] = o.BudgetUSD
+	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors
 	}
@@ -835,6 +906,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SystemPrompt) {
 		toSerialize["systemPrompt"] = o.SystemPrompt
+	}
+	if !IsNil(o.TaskBudgetUSD) {
+		toSerialize["taskBudgetUSD"] = o.TaskBudgetUSD
 	}
 	if !IsNil(o.TaskTimeout) {
 		toSerialize["taskTimeout"] = o.TaskTimeout

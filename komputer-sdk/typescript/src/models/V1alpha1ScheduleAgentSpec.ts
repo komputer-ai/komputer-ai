@@ -64,6 +64,25 @@ export interface V1alpha1ScheduleAgentSpec {
      */
     allowedTools?: Array<string>;
     /**
+     * BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
+     * runs, as a decimal USD string (e.g. "10.00"). Measured against
+     * Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to
+     * start any NEW task for the agent. A task already in progress when the cap is
+     * crossed is always allowed to finish, even if it overshoots — the cap only
+     * gates starting the next one. Raising (or clearing) BudgetUSD unblocks the
+     * agent again.
+     * 
+     * A string rather than a float to match how the rest of the CRD represents USD
+     * (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for
+     * floats. Unset (default) means no lifetime cap. Overrides the template's
+     * budgetUSD when set.
+     * +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+     * +optional
+     * @type {string}
+     * @memberof V1alpha1ScheduleAgentSpec
+     */
+    budgetUSD?: string;
+    /**
      * Connectors is a list of KomputerConnector names to attach to this agent.
      * Names can be "name" (same namespace) or "namespace/name" (cross-namespace).
      * +optional
@@ -203,6 +222,22 @@ export interface V1alpha1ScheduleAgentSpec {
      */
     systemPrompt?: string;
     /**
+     * TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+     * "2.50"). Passed to the Claude Agent SDK as max_budget_usd for each task the
+     * agent runs: the SDK itself stops the task the instant this is exceeded,
+     * wherever it is mid-task, returning an error_max_budget_usd result. Unlike
+     * BudgetUSD this is enforced inside the running task rather than by refusing to
+     * start one.
+     * 
+     * Unset (default) means tasks run without a per-task cap. Overrides the
+     * template's taskBudgetUSD when set.
+     * +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+     * +optional
+     * @type {string}
+     * @memberof V1alpha1ScheduleAgentSpec
+     */
+    taskBudgetUSD?: string;
+    /**
      * TaskTimeout cancels the agent's running task once it has been running for this
      * long. The clock starts when a task starts (Status.TaskStartedAt) and never
      * resets — steering a task does not extend it — so this is a hard wall-clock cap
@@ -246,6 +281,7 @@ export function V1alpha1ScheduleAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : V1DurationFromJSON(json['deleteTTL']),
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
@@ -261,6 +297,7 @@ export function V1alpha1ScheduleAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         'sleepTTL': json['sleepTTL'] == null ? undefined : V1DurationFromJSON(json['sleepTTL']),
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskBudgetUSD': json['taskBudgetUSD'] == null ? undefined : json['taskBudgetUSD'],
         'taskTimeout': json['taskTimeout'] == null ? undefined : V1DurationFromJSON(json['taskTimeout']),
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
@@ -278,6 +315,7 @@ export function V1alpha1ScheduleAgentSpecToJSONTyped(value?: V1alpha1ScheduleAge
     return {
         
         'allowedTools': value['allowedTools'],
+        'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': V1DurationToJSON(value['deleteTTL']),
         'disallowedTools': value['disallowedTools'],
@@ -293,6 +331,7 @@ export function V1alpha1ScheduleAgentSpecToJSONTyped(value?: V1alpha1ScheduleAge
         'sleepTTL': V1DurationToJSON(value['sleepTTL']),
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskBudgetUSD': value['taskBudgetUSD'],
         'taskTimeout': V1DurationToJSON(value['taskTimeout']),
         'templateRef': value['templateRef'],
     };

@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
+**BudgetUSD** | Pointer to **string** | BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \&quot;10.00\&quot;). An explicit \&quot;\&quot; clears the cap; omitting the field leaves it unchanged. | [optional] 
 **Connectors** | Pointer to **[]string** | connector names to attach | [optional] 
 **DeleteTTL** | Pointer to **string** |  | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
@@ -20,6 +21,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to **string** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **SystemPrompt** | Pointer to **string** | custom system prompt | [optional] 
+**TaskBudgetUSD** | Pointer to **string** |  | [optional] 
 **TaskTimeout** | Pointer to **string** |  | [optional] 
 **TemplateRef** | Pointer to **string** |  | [optional] 
 
@@ -66,6 +68,31 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *PatchAgentRequest) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetBudgetUSD
+
+`func (o *PatchAgentRequest) GetBudgetUSD() string`
+
+GetBudgetUSD returns the BudgetUSD field if non-nil, zero value otherwise.
+
+### GetBudgetUSDOk
+
+`func (o *PatchAgentRequest) GetBudgetUSDOk() (*string, bool)`
+
+GetBudgetUSDOk returns a tuple with the BudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBudgetUSD
+
+`func (o *PatchAgentRequest) SetBudgetUSD(v string)`
+
+SetBudgetUSD sets BudgetUSD field to given value.
+
+### HasBudgetUSD
+
+`func (o *PatchAgentRequest) HasBudgetUSD() bool`
+
+HasBudgetUSD returns a boolean if a field has been set.
 
 ### GetConnectors
 
@@ -441,6 +468,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *PatchAgentRequest) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskBudgetUSD
+
+`func (o *PatchAgentRequest) GetTaskBudgetUSD() string`
+
+GetTaskBudgetUSD returns the TaskBudgetUSD field if non-nil, zero value otherwise.
+
+### GetTaskBudgetUSDOk
+
+`func (o *PatchAgentRequest) GetTaskBudgetUSDOk() (*string, bool)`
+
+GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskBudgetUSD
+
+`func (o *PatchAgentRequest) SetTaskBudgetUSD(v string)`
+
+SetTaskBudgetUSD sets TaskBudgetUSD field to given value.
+
+### HasTaskBudgetUSD
+
+`func (o *PatchAgentRequest) HasTaskBudgetUSD() bool`
+
+HasTaskBudgetUSD returns a boolean if a field has been set.
 
 ### GetTaskTimeout
 

@@ -33,6 +33,12 @@ func applyAgentOverrides(template *komputerv1alpha1.KomputerAgentTemplate, agent
 	if agent.Spec.TaskTimeout != nil {
 		out.Spec.TaskTimeout = agent.Spec.TaskTimeout.DeepCopy()
 	}
+	if agent.Spec.BudgetUSD != "" {
+		out.Spec.BudgetUSD = agent.Spec.BudgetUSD
+	}
+	if agent.Spec.TaskBudgetUSD != "" {
+		out.Spec.TaskBudgetUSD = agent.Spec.TaskBudgetUSD
+	}
 	return out
 }
 

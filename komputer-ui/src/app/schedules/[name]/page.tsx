@@ -791,6 +791,8 @@ export default function ScheduleDetailPage() {
                   ["Sleep TTL", agentSpec.sleepTTL ? fmtDuration(agentSpec.sleepTTL) : undefined, false],
                   ["Delete TTL", agentSpec.deleteTTL ? fmtDuration(agentSpec.deleteTTL) : undefined, false],
                   ["Task Timeout", agentSpec.taskTimeout ? fmtDuration(agentSpec.taskTimeout) : undefined, false],
+                  ["Budget (USD)", agentSpec.budgetUSD ? `$${agentSpec.budgetUSD}` : undefined, false],
+                  ["Task Budget (USD)", agentSpec.taskBudgetUSD ? `$${agentSpec.taskBudgetUSD}` : undefined, false],
                 ] as const
               )
                 .filter(([, value]) => value)

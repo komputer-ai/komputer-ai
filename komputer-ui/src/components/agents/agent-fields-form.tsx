@@ -50,6 +50,10 @@ export interface AgentFormValues {
   deleteTTL: string;
   /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
   taskTimeout: string;
+  /** Decimal USD string (e.g. "10.00"). Soft lifetime spending cap across all tasks. */
+  budgetUSD: string;
+  /** Decimal USD string (e.g. "10.00"). Hard per-task spending cap. */
+  taskBudgetUSD: string;
   /** Tool patterns, one per line or comma-separated. Empty = no restriction. */
   allowedTools: string;
   /** Tool patterns, one per line or comma-separated. Empty = nothing blocked. */
@@ -82,6 +86,8 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     sleepTTL: "",
     deleteTTL: "",
     taskTimeout: "",
+    budgetUSD: "",
+    taskBudgetUSD: "",
     allowedTools: "",
     disallowedTools: "",
     image: "",
@@ -509,6 +515,28 @@ export function AgentFieldsForm({
                         autoComplete="off"
                       />
                     </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-budget-usd`}>Budget (USD)</Label>
+                      <Input
+                        id={`${idPrefix}-budget-usd`}
+                        placeholder="e.g. 10.00"
+                        value={values.budgetUSD}
+                        onChange={(e) => patch("budgetUSD", e.target.value)}
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-[var(--color-text-secondary)]">Soft lifetime cap — new tasks are refused once spend reaches it. A running task still finishes.</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`${idPrefix}-task-budget-usd`}>Task Budget (USD)</Label>
+                      <Input
+                        id={`${idPrefix}-task-budget-usd`}
+                        placeholder="e.g. 10.00"
+                        value={values.taskBudgetUSD}
+                        onChange={(e) => patch("taskBudgetUSD", e.target.value)}
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-[var(--color-text-secondary)]">Hard per-task cap — the task stops instantly when exceeded.</p>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -630,6 +658,8 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     sleepTTL: values.sleepTTL.trim() || undefined,
     deleteTTL: values.deleteTTL.trim() || undefined,
     taskTimeout: values.taskTimeout.trim() || undefined,
+    budgetUSD: values.budgetUSD.trim() || undefined,
+    taskBudgetUSD: values.taskBudgetUSD.trim() || undefined,
     allowedTools: parseToolList(values.allowedTools),
     disallowedTools: parseToolList(values.disallowedTools),
   };
@@ -662,6 +692,8 @@ export function buildScheduleAgentSpec(values: AgentFormValues): ScheduleAgentSp
     sleepTTL: base.sleepTTL,
     deleteTTL: base.deleteTTL,
     taskTimeout: base.taskTimeout,
+    budgetUSD: base.budgetUSD,
+    taskBudgetUSD: base.taskBudgetUSD,
   };
 }
 
@@ -698,6 +730,8 @@ export function agentFormValuesFromScheduleSpec(spec: ScheduleAgentSpec, namespa
     sleepTTL: fmtDuration(spec.sleepTTL ?? ""),
     deleteTTL: fmtDuration(spec.deleteTTL ?? ""),
     taskTimeout: fmtDuration(spec.taskTimeout ?? ""),
+    budgetUSD: spec.budgetUSD ?? "",
+    taskBudgetUSD: spec.taskBudgetUSD ?? "",
   });
 }
 
@@ -738,6 +772,8 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
   if (values.sleepTTL.trim()) spec.sleepTTL = values.sleepTTL.trim();
   if (values.deleteTTL.trim()) spec.deleteTTL = values.deleteTTL.trim();
   if (values.taskTimeout.trim()) spec.taskTimeout = values.taskTimeout.trim();
+  if (values.budgetUSD.trim()) spec.budgetUSD = values.budgetUSD.trim();
+  if (values.taskBudgetUSD.trim()) spec.taskBudgetUSD = values.taskBudgetUSD.trim();
   const allowed = parseToolList(values.allowedTools);
   const disallowed = parseToolList(values.disallowedTools);
   if (allowed) spec.allowedTools = allowed;

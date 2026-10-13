@@ -147,11 +147,31 @@ async def _wait_for_steer(queue: asyncio.Queue, timeout: float) -> bool:
         return False
 
 
-async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None):
+def _resolve_task_budget_usd(task_budget_usd: float | None) -> float | None:
+    """Resolve the effective per-task hard budget cap: a per-request value (from
+    server.py's /task handler, when the API forwarded one) wins over the
+    KOMPUTER_TASK_BUDGET_USD env var the operator sets on the pod, so a budget
+    raised or lowered after pod startup applies to the very next task. A missing
+    or unparseable env var means no cap, same as not setting it at all.
+    """
+    if task_budget_usd is not None:
+        return task_budget_usd
+    raw = os.environ.get("KOMPUTER_TASK_BUDGET_USD")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("ignoring invalid KOMPUTER_TASK_BUDGET_USD", extra={"value": raw})
+        return None
+
+
+async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None, task_budget_usd: float | None = None):
     """Run a Claude agent with the given instructions using the Claude Agent SDK."""
     import state
     state.interrupted = False
     session_id = _load_session_id()
+    effective_task_budget_usd = _resolve_task_budget_usd(task_budget_usd)
 
     # Strip system prompt from the event — only show the user's task
     user_task = instructions
@@ -222,6 +242,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         settings='{"cleanupPeriodDays": 36500}',
         permission_mode="bypassPermissions",
         model=model,
+        max_budget_usd=effective_task_budget_usd,
         cwd="/workspace",
         hooks={
             "PostToolUse": [
@@ -404,6 +425,19 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "model": model,
                 })
                 state.interrupted = False
+            elif result.subtype == "error_max_budget_usd":
+                # The SDK itself stopped the task the instant taskBudgetUSD was
+                # exceeded (see max_budget_usd above) — this must surface as a task
+                # ERROR, not a normal completion, while still reporting what was
+                # spent before the cutoff.
+                cost = result.total_cost_usd
+                cost_str = f"${cost:.2f}" if cost is not None else "budget"
+                publisher.publish("error", {
+                    "error": f"Task budget exceeded ({cost_str})",
+                    "cost_usd": cost,
+                    "duration_ms": result.duration_ms,
+                    "session_id": result.session_id,
+                })
             else:
                 publisher.publish("task_completed", {
                     "cost_usd": result.total_cost_usd,

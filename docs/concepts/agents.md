@@ -55,6 +55,30 @@ The operator publishes the projected transition times as `status.sleepExpiresAt`
 - Sleeping a member only sets `Phase=Sleeping`; there is no per-member pod to delete. The shared squad pod is torn down once **every** member is asleep, the same path a manual member sleep takes.
 - A member deleted by `deleteTTL` is removed from the squad automatically — its dangling ref is pruned on the next reconcile, which then feeds the normal [empty-squad and single-member-shrinkage handling](squads/lifecycle.md). Squads also have their own `orphanTTL` for reclaiming a squad once it is empty.
 
+## Budgets
+
+TTLs cap elapsed *time*; budgets cap elapsed *spend*. There are two, at different scopes, and they fail differently on purpose:
+
+- **`spec.taskBudgetUSD`** — A **hard per-task cap**, as a decimal USD string (e.g. `"2.50"`). Passed straight to the Claude Agent SDK as `max_budget_usd` for that task: the SDK itself stops the task the instant this is exceeded, wherever it is mid-task, and returns an `error_max_budget_usd` result. The agent maps this to a task `taskStatus: Error` with a message like `Task budget exceeded ($2.50)` — not a normal completion — while still reporting the cost actually spent before the cutoff. A changed `taskBudgetUSD` is forwarded to the pod on the *next* task request, so raising or lowering it doesn't require a pod restart.
+- **`spec.budgetUSD`** — A **soft lifetime cap** across every task the agent has ever run, as a decimal USD string (e.g. `"10.00"`). Measured against `status.totalCostUSD`: once spend reaches or exceeds it, the API refuses to start any **new** task for the agent (`409 Conflict`, with a message naming the agent, the amount spent, and the budget). A task already in progress when spend crosses the line is always allowed to finish, even if it overshoots — the cap only gates starting the *next* one. Raising (or clearing) `budgetUSD` unblocks the agent immediately.
+
+```yaml
+apiVersion: komputer.komputer.ai/v1alpha1
+kind: KomputerAgent
+metadata:
+  name: nightly-report
+spec:
+  instructions: "Generate the nightly report"
+  budgetUSD: "10.00"      # refuse new tasks once lifetime spend hits $10
+  taskBudgetUSD: "2.50"   # stop any single task that exceeds $2.50
+```
+
+**What's refused vs. not.** `budgetUSD` exhaustion only gates paths that would start a *new* task: creating/forwarding a task to an agent via the agents API, triggering a schedule (manually or on its cron cadence), and waking a sleeping agent with a task. It never refuses a steer onto an already in-progress task, and never refuses the idle `/agents/{name}/wake` endpoint (which carries no task), patches, or reads. A scheduled run skipped this way is recorded in the schedule's status the same way a busy-agent skip is, so it isn't silently lost — the schedule just tries again on its next cron tick.
+
+**Template-level defaults.** Like `sleepTTL`/`deleteTTL`/`taskTimeout`, both budgets can be set on a `KomputerAgentTemplate` (or `KomputerAgentClusterTemplate`) to apply to every agent using it; a per-agent value overrides the template's, independently for each field.
+
+**Checking exhaustion.** `AgentResponse` carries a computed `budgetExhausted: boolean` so clients don't have to re-derive the agent-over-template resolution themselves.
+
 ## Roles
 
 Agents have one of two roles:

@@ -71,6 +71,13 @@ spec:
                 - key
                 - name
                 type: object
+              budgetUSD:
+                description: |-
+                  BudgetUSD is the default SOFT lifetime spending cap for agents using this
+                  template, as a decimal USD string. Individual agents override it via their
+                  own spec.budgetUSD. Unset (default) means no lifetime cap.
+                pattern: ^[0-9]+(\.[0-9]+)?$
+                type: string
               deleteTTL:
                 description: |-
                   DeleteTTL is the default absolute lifetime after which agents using this template
@@ -8105,6 +8112,13 @@ spec:
                       Ignored when Ephemeral is true.
                     type: string
                 type: object
+              taskBudgetUSD:
+                description: |-
+                  TaskBudgetUSD is the default HARD per-task spending cap for agents using this
+                  template, as a decimal USD string. Individual agents override it via their
+                  own spec.taskBudgetUSD. Unset (default) means tasks run without a per-task cap.
+                pattern: ^[0-9]+(\.[0-9]+)?$
+                type: string
               taskTimeout:
                 description: |-
                   TaskTimeout is the default per-task wall-clock cap for agents using this

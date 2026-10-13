@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\&quot;Read\&quot;] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \&quot;mcp__figma__*\&quot; for a whole connector or \&quot;mcp__figma__get_design_context\&quot; for a single tool. +optional | [optional] 
+**BudgetUSD** | Pointer to **string** | BudgetUSD is a SOFT lifetime spending cap across every task this agent ever runs, as a decimal USD string (e.g. \&quot;10.00\&quot;). Measured against Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to start any NEW task for the agent. A task already in progress when the cap is crossed is always allowed to finish, even if it overshoots — the cap only gates starting the next one. Raising (or clearing) BudgetUSD unblocks the agent again.  A string rather than a float to match how the rest of the CRD represents USD (see Status.TotalCostUSD) and avoid controller-gen&#39;s allowDangerousTypes for floats. Unset (default) means no lifetime cap. Overrides the template&#39;s budgetUSD when set. +kubebuilder:validation:Pattern&#x3D;&#x60;^[0-9]+(\\.[0-9]+)?$&#x60; +optional | [optional] 
 **Connectors** | Pointer to **[]string** | Connectors is a list of KomputerConnector names to attach to this agent. Names can be \&quot;name\&quot; (same namespace) or \&quot;namespace/name\&quot; (cross-namespace). +optional | [optional] 
 **DeleteTTL** | Pointer to [**V1Duration**](V1Duration.md) | DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template&#39;s deleteTTL when set. +optional | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. +optional | [optional] 
@@ -20,6 +21,7 @@ Name | Type | Description | Notes
 **SleepTTL** | Pointer to [**V1Duration**](V1Duration.md) | SleepTTL puts the agent to sleep (pod deleted, PVC preserved) once it has been idle for this long. Idle is measured from Status.LastActivityAt, so the clock only starts once a task has actually started, and any later task event or wake resets it. Never fires while a task is in progress, and an agent that has never run a task is never auto-slept (use DeleteTTL to reclaim those). Unset (default) means the agent never auto-sleeps. Overrides the template&#39;s sleepTTL when set. +optional | [optional] 
 **Storage** | Pointer to [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) | Storage, when set, overrides the template&#39;s storage settings for this agent. Existing PVCs are expanded in place when the storage class supports it. +optional | [optional] 
 **SystemPrompt** | Pointer to **string** | SystemPrompt is a custom system prompt provided by the user, appended to the internal prompt. +optional | [optional] 
+**TaskBudgetUSD** | Pointer to **string** | TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \&quot;2.50\&quot;). Passed to the Claude Agent SDK as max_budget_usd for each task the agent runs: the SDK itself stops the task the instant this is exceeded, wherever it is mid-task, returning an error_max_budget_usd result. Unlike BudgetUSD this is enforced inside the running task rather than by refusing to start one.  Unset (default) means tasks run without a per-task cap. Overrides the template&#39;s taskBudgetUSD when set. +kubebuilder:validation:Pattern&#x3D;&#x60;^[0-9]+(\\.[0-9]+)?$&#x60; +optional | [optional] 
 **TaskTimeout** | Pointer to [**V1Duration**](V1Duration.md) | TaskTimeout cancels the agent&#39;s running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template&#39;s taskTimeout when set. +optional | [optional] 
 **TemplateRef** | Pointer to **string** | TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default&#x3D;\&quot;default\&quot; | [optional] 
 
@@ -66,6 +68,31 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *V1alpha1ScheduleAgentSpec) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) GetBudgetUSD() string`
+
+GetBudgetUSD returns the BudgetUSD field if non-nil, zero value otherwise.
+
+### GetBudgetUSDOk
+
+`func (o *V1alpha1ScheduleAgentSpec) GetBudgetUSDOk() (*string, bool)`
+
+GetBudgetUSDOk returns a tuple with the BudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) SetBudgetUSD(v string)`
+
+SetBudgetUSD sets BudgetUSD field to given value.
+
+### HasBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) HasBudgetUSD() bool`
+
+HasBudgetUSD returns a boolean if a field has been set.
 
 ### GetConnectors
 
@@ -441,6 +468,31 @@ SetSystemPrompt sets SystemPrompt field to given value.
 `func (o *V1alpha1ScheduleAgentSpec) HasSystemPrompt() bool`
 
 HasSystemPrompt returns a boolean if a field has been set.
+
+### GetTaskBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) GetTaskBudgetUSD() string`
+
+GetTaskBudgetUSD returns the TaskBudgetUSD field if non-nil, zero value otherwise.
+
+### GetTaskBudgetUSDOk
+
+`func (o *V1alpha1ScheduleAgentSpec) GetTaskBudgetUSDOk() (*string, bool)`
+
+GetTaskBudgetUSDOk returns a tuple with the TaskBudgetUSD field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTaskBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) SetTaskBudgetUSD(v string)`
+
+SetTaskBudgetUSD sets TaskBudgetUSD field to given value.
+
+### HasTaskBudgetUSD
+
+`func (o *V1alpha1ScheduleAgentSpec) HasTaskBudgetUSD() bool`
+
+HasTaskBudgetUSD returns a boolean if a field has been set.
 
 ### GetTaskTimeout
 

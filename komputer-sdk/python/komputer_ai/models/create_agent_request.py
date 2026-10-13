@@ -30,6 +30,7 @@ class CreateAgentRequest(BaseModel):
     CreateAgentRequest
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.", alias="allowedTools")
+    budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as a decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it's raised; a task already running is always allowed to finish. Empty means no lifetime cap.", alias="budgetUSD")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerConnector names to attach")
     delete_ttl: Optional[StrictStr] = Field(default=None, description="DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.", alias="disallowedTools")
@@ -49,9 +50,10 @@ class CreateAgentRequest(BaseModel):
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="SleepTTL puts the agent to sleep after this long with no activity, as a Go duration string (e.g. \"30m\", \"2h\"). Empty means never auto-sleep.", alias="sleepTTL")
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="optional custom system prompt", alias="systemPrompt")
+    task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). The SDK stops a task the instant it is exceeded, mid-task. Empty means tasks run without a per-task cap.", alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, description="TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit.", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -111,6 +113,7 @@ class CreateAgentRequest(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "budgetUSD": obj.get("budgetUSD"),
             "connectors": obj.get("connectors"),
             "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
@@ -130,6 +133,7 @@ class CreateAgentRequest(BaseModel):
             "sleepTTL": obj.get("sleepTTL"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskBudgetUSD": obj.get("taskBudgetUSD"),
             "taskTimeout": obj.get("taskTimeout"),
             "templateRef": obj.get("templateRef")
         })

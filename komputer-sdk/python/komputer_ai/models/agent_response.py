@@ -30,6 +30,8 @@ class AgentResponse(BaseModel):
     AgentResponse
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools this agent is restricted to (empty = defaults)", alias="allowedTools")
+    budget_exhausted: Optional[StrictBool] = Field(default=None, description="BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's default) — new tasks are refused with 409 until it's raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don't have to re-derive the template resolution themselves.", alias="budgetExhausted")
+    budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.", alias="budgetUSD")
     completion_time: Optional[StrictStr] = Field(default=None, alias="completionTime")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="KomputerConnector names attached to this agent")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
@@ -61,13 +63,14 @@ class AgentResponse(BaseModel):
     status: Optional[StrictStr] = None
     storage: Optional[V1alpha1StorageSpec] = None
     system_prompt: Optional[StrictStr] = Field(default=None, description="Custom system prompt (spec.systemPrompt)", alias="systemPrompt")
+    task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is this agent's own HARD per-task spending cap (spec.taskBudgetUSD), as a decimal USD string. Empty when unset on the agent itself (it may still inherit a template default).", alias="taskBudgetUSD")
     task_expires_at: Optional[StrictStr] = Field(default=None, alias="taskExpiresAt")
     task_started_at: Optional[StrictStr] = Field(default=None, description="TaskStartedAt is when the current (or most recent) task started (RFC3339). TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.", alias="taskStartedAt")
     task_status: Optional[StrictStr] = Field(default=None, alias="taskStatus")
     task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -127,6 +130,8 @@ class AgentResponse(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "budgetExhausted": obj.get("budgetExhausted"),
+            "budgetUSD": obj.get("budgetUSD"),
             "completionTime": obj.get("completionTime"),
             "connectors": obj.get("connectors"),
             "createdAt": obj.get("createdAt"),
@@ -158,6 +163,7 @@ class AgentResponse(BaseModel):
             "status": obj.get("status"),
             "storage": V1alpha1StorageSpec.from_dict(obj["storage"]) if obj.get("storage") is not None else None,
             "systemPrompt": obj.get("systemPrompt"),
+            "taskBudgetUSD": obj.get("taskBudgetUSD"),
             "taskExpiresAt": obj.get("taskExpiresAt"),
             "taskStartedAt": obj.get("taskStartedAt"),
             "taskStatus": obj.get("taskStatus"),

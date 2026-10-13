@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -488,6 +488,32 @@ export default function AgentDetailPage() {
                     value={fmtDuration(agent.taskTimeout)}
                   />
                 )}
+                {agent.budgetUSD && (
+                  <TtlBadge
+                    icon={Wallet}
+                    label="Budget"
+                    detail="Soft lifetime spending cap across all tasks. New tasks are refused once reached — a running task still finishes."
+                    value={`$${agent.totalCostUSD ?? "0"} / $${agent.budgetUSD}`}
+                  />
+                )}
+                {agent.taskBudgetUSD && (
+                  <TtlBadge
+                    icon={Wallet}
+                    label="Task budget"
+                    detail="Hard per-task spending cap. The task stops the instant it is exceeded."
+                    value={`$${agent.taskBudgetUSD}`}
+                  />
+                )}
+                {agent.budgetExhausted && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs gap-1.5 cursor-default border border-amber-500/40 bg-amber-500/10 text-amber-300"
+                    aria-label="Budget exhausted: new tasks are refused"
+                  >
+                    <AlertTriangle className="size-3" aria-hidden />
+                    Budget exhausted
+                  </Badge>
+                )}
               </div>
             )}
 
@@ -678,6 +704,14 @@ export default function AgentDetailPage() {
                 />
               </motion.div>
 
+              {agent.budgetUSD && (
+                <BudgetMeter
+                  spentUSD={agent.totalCostUSD}
+                  budgetUSD={agent.budgetUSD}
+                  exhausted={agent.budgetExhausted}
+                />
+              )}
+
               {/* Settings */}
               <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
 
@@ -792,6 +826,50 @@ function MetricsRow({ totalCostUSD, lastTaskCostUSD, totalTokens }: {
   );
 }
 
+// Spend-vs-budget meter: a small horizontal bar under the metrics row, shown
+// only when a soft lifetime budgetUSD is set. Turns the accent color red once
+// budgetExhausted (computed by the API) so the "new tasks refused" state is
+// visible at a glance, matching the TTL badges' icon + detail convention.
+function BudgetMeter({ spentUSD, budgetUSD, exhausted }: {
+  spentUSD?: string;
+  budgetUSD: string;
+  exhausted?: boolean;
+}) {
+  const spent = parseFloat(spentUSD || "0") || 0;
+  const budget = parseFloat(budgetUSD) || 0;
+  const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+  return (
+    <motion.div
+      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 space-y-2"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <div className="flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+          <Wallet className="size-3" aria-hidden />
+          Budget
+        </span>
+        <span className="font-mono tabular-nums text-[var(--color-text)]">
+          ${spent.toFixed(2)} / ${budget.toFixed(2)}
+        </span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-raised)] overflow-hidden">
+        <div
+          className="h-full rounded-full transition-[width] duration-300"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: exhausted ? "var(--color-status-error)" : "var(--color-brand-blue)",
+          }}
+        />
+      </div>
+      {exhausted && (
+        <p className="text-[11px] text-[var(--color-status-error)]">Budget exhausted — new tasks are refused until it&apos;s raised.</p>
+      )}
+    </motion.div>
+  );
+}
+
 function SettingsCard({ agent, agentNs, onSaved }: {
   agent: AgentResponse;
   agentNs?: string;
@@ -804,6 +882,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [sleepTTL, setSleepTTL] = useState(fmtDuration(agent.sleepTTL ?? ""));
   const [deleteTTL, setDeleteTTL] = useState(fmtDuration(agent.deleteTTL ?? ""));
   const [taskTimeout, setTaskTimeout] = useState(fmtDuration(agent.taskTimeout ?? ""));
+  // Decimal USD strings, not Go durations — no fmtDuration needed.
+  const [budgetUSD, setBudgetUSD] = useState(agent.budgetUSD ?? "");
+  const [taskBudgetUSD, setTaskBudgetUSD] = useState(agent.taskBudgetUSD ?? "");
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
   const [systemPromptOpen, setSystemPromptOpen] = useState(!!agent.systemPrompt);
@@ -857,7 +938,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
   const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
   const taskTimeoutChanged = taskTimeout.trim() !== fmtDuration(agent.taskTimeout ?? "");
-  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged;
+  const budgetUSDChanged = budgetUSD.trim() !== (agent.budgetUSD ?? "");
+  const taskBudgetUSDChanged = taskBudgetUSD.trim() !== (agent.taskBudgetUSD ?? "");
+  const hasChanges = model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -877,6 +960,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
       if (deleteTTLChanged) patch.deleteTTL = deleteTTL.trim();
       if (taskTimeoutChanged) patch.taskTimeout = taskTimeout.trim();
+      if (budgetUSDChanged) patch.budgetUSD = budgetUSD.trim();
+      if (taskBudgetUSDChanged) patch.taskBudgetUSD = taskBudgetUSD.trim();
       const updated = await patchAgent(agent.name, patch, agentNs);
       if (updated.errors && updated.errors.length > 0) {
         // Saved successfully but some live-pod sync steps failed. Surface the error
@@ -1012,6 +1097,28 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           />
           <p className="text-[11px] text-[var(--color-text-muted)]">
             Cancel a single task that runs this long. Steering does not extend it. Empty for no limit.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Budget (USD)</Label>
+          <Input
+            value={budgetUSD}
+            onChange={(e) => setBudgetUSD(e.target.value)}
+            placeholder="e.g. 10.00"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Soft lifetime cap — new tasks are refused once total spend reaches it. A running task still finishes. Empty for no cap.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Task Budget (USD)</Label>
+          <Input
+            value={taskBudgetUSD}
+            onChange={(e) => setTaskBudgetUSD(e.target.value)}
+            placeholder="e.g. 10.00"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Hard per-task cap — the task stops the instant it is exceeded. Empty for no cap.
           </p>
         </div>
       </div>

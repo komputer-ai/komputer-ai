@@ -43,6 +43,15 @@ export interface CreateAgentRequest {
      */
     allowedTools?: Array<string>;
     /**
+     * BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
+     * a decimal USD string (e.g. "10.00"). Once status.totalCostUSD reaches or
+     * exceeds it, new tasks are refused with 409 until it's raised; a task already
+     * running is always allowed to finish. Empty means no lifetime cap.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    budgetUSD?: string;
+    /**
      * optional KomputerConnector names to attach
      * @type {Array<string>}
      * @memberof CreateAgentRequest
@@ -162,6 +171,14 @@ export interface CreateAgentRequest {
      */
     systemPrompt?: string;
     /**
+     * TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g.
+     * "2.50"). The SDK stops a task the instant it is exceeded, mid-task. Empty
+     * means tasks run without a per-task cap.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    taskBudgetUSD?: string;
+    /**
      * TaskTimeout cancels a running task once it has run this long, as a Go duration
      * string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
      * it. Empty means tasks run without a time limit.
@@ -197,6 +214,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
@@ -216,6 +234,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
         'storage': json['storage'] == null ? undefined : V1alpha1StorageSpecFromJSON(json['storage']),
         'systemPrompt': json['systemPrompt'] == null ? undefined : json['systemPrompt'],
+        'taskBudgetUSD': json['taskBudgetUSD'] == null ? undefined : json['taskBudgetUSD'],
         'taskTimeout': json['taskTimeout'] == null ? undefined : json['taskTimeout'],
         'templateRef': json['templateRef'] == null ? undefined : json['templateRef'],
     };
@@ -233,6 +252,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
     return {
         
         'allowedTools': value['allowedTools'],
+        'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
@@ -252,6 +272,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         'sleepTTL': value['sleepTTL'],
         'storage': V1alpha1StorageSpecToJSON(value['storage']),
         'systemPrompt': value['systemPrompt'],
+        'taskBudgetUSD': value['taskBudgetUSD'],
         'taskTimeout': value['taskTimeout'],
         'templateRef': value['templateRef'],
     };

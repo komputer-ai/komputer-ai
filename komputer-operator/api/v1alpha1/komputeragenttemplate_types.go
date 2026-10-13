@@ -75,6 +75,18 @@ type KomputerAgentTemplateSpec struct {
 	// Unset (default) means tasks run without a time limit.
 	// +optional
 	TaskTimeout *metav1.Duration `json:"taskTimeout,omitempty"`
+	// BudgetUSD is the default SOFT lifetime spending cap for agents using this
+	// template, as a decimal USD string. Individual agents override it via their
+	// own spec.budgetUSD. Unset (default) means no lifetime cap.
+	// +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+	// +optional
+	BudgetUSD string `json:"budgetUSD,omitempty"`
+	// TaskBudgetUSD is the default HARD per-task spending cap for agents using this
+	// template, as a decimal USD string. Individual agents override it via their
+	// own spec.taskBudgetUSD. Unset (default) means tasks run without a per-task cap.
+	// +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+	// +optional
+	TaskBudgetUSD string `json:"taskBudgetUSD,omitempty"`
 	// AnthropicKeySecretRef is the absolute reference to the Anthropic API
 	// key secret. The operator mirrors this secret into every agent namespace
 	// and injects the ANTHROPIC_API_KEY env var into the pod automatically —

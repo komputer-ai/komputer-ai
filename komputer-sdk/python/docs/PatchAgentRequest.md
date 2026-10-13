@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
+**budget_usd** | **str** | BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \&quot;10.00\&quot;). An explicit \&quot;\&quot; clears the cap; omitting the field leaves it unchanged. | [optional] 
 **connectors** | **List[str]** | connector names to attach | [optional] 
 **delete_ttl** | **str** |  | [optional] 
 **disallowed_tools** | **List[str]** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
@@ -21,6 +22,7 @@ Name | Type | Description | Notes
 **sleep_ttl** | **str** | SleepTTL / DeleteTTL are Go duration strings (e.g. \&quot;30m\&quot;). An explicit \&quot;\&quot; clears the TTL; omitting the field leaves it unchanged. | [optional] 
 **storage** | [**V1alpha1StorageSpec**](V1alpha1StorageSpec.md) |  | [optional] 
 **system_prompt** | **str** | custom system prompt | [optional] 
+**task_budget_usd** | **str** |  | [optional] 
 **task_timeout** | **str** |  | [optional] 
 **template_ref** | **str** |  | [optional] 
 
