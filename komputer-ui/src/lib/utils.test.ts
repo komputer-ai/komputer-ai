@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { formatCost, formatRelativeTime, cronToHuman, formatToolDuration } from './utils';
+import { formatCost, formatRelativeTime, cronToHuman, formatToolDuration, isLongThinking } from './utils';
 
 // ─── formatCost ───────────────────────────────────────────────────────────────
 
@@ -150,5 +150,18 @@ describe("formatToolDuration", () => {
   it("switches to minutes and seconds from a minute up", () => {
     expect(formatToolDuration(60_000)).toBe("1m 0s");
     expect(formatToolDuration(125_400)).toBe("2m 5s");
+  });
+});
+
+describe("isLongThinking", () => {
+  it("treats short single-paragraph thinking as short", () => {
+    expect(isLongThinking("Let me check the config first.")).toBe(false);
+  });
+  it("treats thinking over the character threshold as long", () => {
+    expect(isLongThinking("x".repeat(321))).toBe(true);
+  });
+  it("treats thinking with more than three lines as long", () => {
+    expect(isLongThinking("a\nb\nc\nd")).toBe(true);
+    expect(isLongThinking("a\nb\nc")).toBe(false);
   });
 });
