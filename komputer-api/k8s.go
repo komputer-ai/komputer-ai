@@ -117,6 +117,44 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
 }
 
+// IdleWakeAgent wakes a sleeping agent WITHOUT running any task — the opposite of
+// WakeAgent, which always carries a (possibly empty-string) task. It leaves
+// spec.Instructions untouched and does not clear status.TaskStatus, so the pod the
+// operator builds for it starts in wake-idle mode rather than auto-running
+// Instructions (see shouldStartIdle in the operator's pod_builder.go).
+//
+// shouldStartIdle only starts a pod idle when TaskStatus is Complete or Error; an
+// agent slept before ever completing a task has TaskStatus=="" (would otherwise
+// auto-run). Since "nothing should run" is the entire point of an explicit idle
+// wake, that case is forced to Complete here.
+//
+// If the agent is not Sleeping, this is a no-op and the current agent is returned
+// unchanged — an idle wake is idempotent, not an error.
+func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerAgent, error) {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return nil, err
+	}
+	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		return agent, nil
+	}
+
+	original := agent.DeepCopy()
+	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
+	if agent.Status.TaskStatus == "" {
+		agent.Status.TaskStatus = komputerv1alpha1.AgentTaskComplete
+	}
+	// Waking is activity: restart the sleepTTL idle clock, same as WakeAgent.
+	wokeAt := metav1.Now()
+	agent.Status.LastActivityAt = &wokeAt
+	agent.Status.SleepExpiresAt = nil
+	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return nil, fmt.Errorf("failed to patch status: %w", err)
+	}
+	return agent, nil
+}
+
 // CreateAgentSecrets creates a K8s Secret with agent-specific secrets.
 // Keys are prefixed with SECRET_ (e.g. "GITHUB" becomes "SECRET_GITHUB").
 // Returns the secret name.
