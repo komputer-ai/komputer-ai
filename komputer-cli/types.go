@@ -26,7 +26,22 @@ type AgentResponse struct {
 	QueueReason     string            `json:"queueReason"`
 	AllowedTools    []string          `json:"allowedTools,omitempty"`
 	DisallowedTools []string          `json:"disallowedTools,omitempty"`
+	Storage         *StorageOverride  `json:"storage,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
+}
+
+// StorageOverride mirrors the operator's StorageSpec: PVC settings for an agent's
+// workspace, or an emptyDir when Ephemeral is true (no PVC at all).
+type StorageOverride struct {
+	Size             string `json:"size,omitempty"`
+	StorageClassName string `json:"storageClassName,omitempty"`
+	Ephemeral        *bool  `json:"ephemeral,omitempty"`
+}
+
+// IsEphemeral reports whether this storage override marks the agent's workspace as
+// ephemeral (emptyDir, no PVC). A nil receiver or unset field means "not ephemeral".
+func (s *StorageOverride) IsEphemeral() bool {
+	return s != nil && s.Ephemeral != nil && *s.Ephemeral
 }
 
 type AgentListResponse struct {
@@ -86,7 +101,7 @@ type ScheduleAgentSpec struct {
 	SystemPrompt    string            `json:"systemPrompt,omitempty"`
 	Priority        int32             `json:"priority,omitempty"`
 	PodSpec         map[string]any    `json:"podSpec,omitempty"`
-	Storage         map[string]string `json:"storage,omitempty"`
+	Storage         *StorageOverride  `json:"storage,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
 }
 

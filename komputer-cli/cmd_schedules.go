@@ -304,7 +304,7 @@ func registerScheduleCommands(root *cobra.Command) {
 				spec.AllowedTools, _ = cmd.Flags().GetStringSlice("allow-tool")
 				spec.DisallowedTools, _ = cmd.Flags().GetStringSlice("disallow-tool")
 				if storageSize != "" {
-					spec.Storage = map[string]string{"size": storageSize}
+					spec.Storage = &StorageOverride{Size: storageSize}
 				}
 				spec.PodSpec = buildPodSpecOverride(cpu, memLimit, image)
 
