@@ -53,6 +53,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},
+            "ephemeral": {"type": "boolean", "description": "Run with an emptyDir workspace instead of a PVC — no files, packages, or session survive past this pod. Good for true one-shot AutoDelete sub-agents. Cannot be combined with lifecycle='Sleep' or sleepTTL, and is immutable after creation."},
             "model": {"type": "string", "description": "Claude model override (optional)."},
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
             "systemPrompt": {"type": "string", "description": "Custom system prompt defining the sub-agent's behavior, persona, or constraints (optional)."},
@@ -93,6 +94,8 @@ async def create_agent(args):
         payload["deleteTTL"] = args["deleteTTL"]
     if args.get("taskTimeout"):
         payload["taskTimeout"] = args["taskTimeout"]
+    if args.get("ephemeral"):
+        payload["storage"] = {"ephemeral": True}
     if args.get("model"):
         payload["model"] = args["model"]
     if args.get("templateRef"):
@@ -1316,6 +1319,7 @@ async def list_templates(args):
                         "skills": {"type": "array", "items": {"type": "string"}, "description": "Skill refs to attach. Same format as memories."},
                         "connectors": {"type": "array", "items": {"type": "string"}, "description": "Connector refs to attach. Same format as memories."},
                         "storage_size": {"type": "string", "description": "PVC size for this agent before squad adoption, e.g. '20Gi'. Squads share one PVC per pod, so this is mostly relevant when the squad later breaks up."},
+                        "ephemeral": {"type": "boolean", "description": "Run this member with an emptyDir workspace instead of a PVC — wiped whenever the squad pod is rebuilt. Cannot be combined with lifecycle='Sleep' or sleepTTL, and is immutable after creation."},
                         "cpu": {"type": "string", "description": "CPU request/limit override, e.g. '2' or '500m'."},
                         "memory_limit": {"type": "string", "description": "Memory request/limit override, e.g. '4Gi'."},
                         "image": {"type": "string", "description": "Container image override, e.g. 'custom:latest'."},
@@ -1373,8 +1377,13 @@ async def create_squad(args):
             spec["skills"] = list(m["skills"])
         if m.get("connectors"):
             spec["connectors"] = list(m["connectors"])
-        if m.get("storage_size"):
-            spec["storage"] = {"size": m["storage_size"]}
+        if m.get("storage_size") or m.get("ephemeral"):
+            storage: dict = {}
+            if m.get("storage_size"):
+                storage["size"] = m["storage_size"]
+            if m.get("ephemeral"):
+                storage["ephemeral"] = True
+            spec["storage"] = storage
         if m.get("sleepTTL"):
             spec["sleepTTL"] = m["sleepTTL"]
         if m.get("deleteTTL"):
