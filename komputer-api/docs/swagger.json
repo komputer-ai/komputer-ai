@@ -8401,12 +8401,16 @@
         "v1alpha1.StorageSpec": {
             "type": "object",
             "properties": {
+                "ephemeral": {
+                    "description": "Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC:\nno PersistentVolumeClaim is created. The workspace lives exactly as long as the\npod — files, installed packages and the Claude session are permanently lost\nwhenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with\nLifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting\nits pod (the operator refuses to sleep an ephemeral agent for this reason).\n\nUnset (default) or false keeps today's behavior: every agent gets a PVC. Set it on\na KomputerAgentTemplate to make ephemeral the default for agents using it, or on an\nindividual agent to override its template either way. Immutable after agent\ncreation. An agent that already has a PVC keeps it even if later marked ephemeral —\nthe operator never deletes an existing PVC.\n+optional",
+                    "type": "boolean"
+                },
                 "size": {
-                    "description": "Size is the PVC storage size (e.g. \"5Gi\").\n+kubebuilder:default=\"5Gi\"",
+                    "description": "Size is the PVC storage size (e.g. \"5Gi\"). When Ephemeral is true, this is\ninstead used as the emptyDir's SizeLimit.\n+kubebuilder:default=\"5Gi\"",
                     "type": "string"
                 },
                 "storageClassName": {
-                    "description": "StorageClassName is the optional storage class name.\n+optional",
+                    "description": "StorageClassName is the optional storage class name. Ignored when Ephemeral is true.\n+optional",
                     "type": "string"
                 }
             }

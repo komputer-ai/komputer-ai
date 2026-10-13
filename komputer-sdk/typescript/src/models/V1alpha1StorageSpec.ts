@@ -20,14 +20,33 @@ import { mapValues } from '../runtime';
  */
 export interface V1alpha1StorageSpec {
     /**
-     * Size is the PVC storage size (e.g. "5Gi").
+     * Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC:
+     * no PersistentVolumeClaim is created. The workspace lives exactly as long as the
+     * pod — files, installed packages and the Claude session are permanently lost
+     * whenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with
+     * Lifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting
+     * its pod (the operator refuses to sleep an ephemeral agent for this reason).
+     * 
+     * Unset (default) or false keeps today's behavior: every agent gets a PVC. Set it on
+     * a KomputerAgentTemplate to make ephemeral the default for agents using it, or on an
+     * individual agent to override its template either way. Immutable after agent
+     * creation. An agent that already has a PVC keeps it even if later marked ephemeral —
+     * the operator never deletes an existing PVC.
+     * +optional
+     * @type {boolean}
+     * @memberof V1alpha1StorageSpec
+     */
+    ephemeral?: boolean;
+    /**
+     * Size is the PVC storage size (e.g. "5Gi"). When Ephemeral is true, this is
+     * instead used as the emptyDir's SizeLimit.
      * +kubebuilder:default="5Gi"
      * @type {string}
      * @memberof V1alpha1StorageSpec
      */
     size?: string;
     /**
-     * StorageClassName is the optional storage class name.
+     * StorageClassName is the optional storage class name. Ignored when Ephemeral is true.
      * +optional
      * @type {string}
      * @memberof V1alpha1StorageSpec
@@ -52,6 +71,7 @@ export function V1alpha1StorageSpecFromJSONTyped(json: any, ignoreDiscriminator:
     }
     return {
         
+        'ephemeral': json['ephemeral'] == null ? undefined : json['ephemeral'],
         'size': json['size'] == null ? undefined : json['size'],
         'storageClassName': json['storageClassName'] == null ? undefined : json['storageClassName'],
     };
@@ -68,6 +88,7 @@ export function V1alpha1StorageSpecToJSONTyped(value?: V1alpha1StorageSpec | nul
 
     return {
         
+        'ephemeral': value['ephemeral'],
         'size': value['size'],
         'storageClassName': value['storageClassName'],
     };

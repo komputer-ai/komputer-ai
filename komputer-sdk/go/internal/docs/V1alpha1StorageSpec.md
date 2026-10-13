@@ -4,8 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**Size** | Pointer to **string** | Size is the PVC storage size (e.g. \&quot;5Gi\&quot;). +kubebuilder:default&#x3D;\&quot;5Gi\&quot; | [optional] 
-**StorageClassName** | Pointer to **string** | StorageClassName is the optional storage class name. +optional | [optional] 
+**Ephemeral** | Pointer to **bool** | Ephemeral, when true, runs the agent&#39;s workspace as an emptyDir instead of a PVC: no PersistentVolumeClaim is created. The workspace lives exactly as long as the pod — files, installed packages and the Claude session are permanently lost whenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with Lifecycle&#x3D;Sleep and with sleepTTL, since both would sleep the agent by deleting its pod (the operator refuses to sleep an ephemeral agent for this reason).  Unset (default) or false keeps today&#39;s behavior: every agent gets a PVC. Set it on a KomputerAgentTemplate to make ephemeral the default for agents using it, or on an individual agent to override its template either way. Immutable after agent creation. An agent that already has a PVC keeps it even if later marked ephemeral — the operator never deletes an existing PVC. +optional | [optional] 
+**Size** | Pointer to **string** | Size is the PVC storage size (e.g. \&quot;5Gi\&quot;). When Ephemeral is true, this is instead used as the emptyDir&#39;s SizeLimit. +kubebuilder:default&#x3D;\&quot;5Gi\&quot; | [optional] 
+**StorageClassName** | Pointer to **string** | StorageClassName is the optional storage class name. Ignored when Ephemeral is true. +optional | [optional] 
 
 ## Methods
 
@@ -25,6 +26,31 @@ will change when the set of required properties is changed
 NewV1alpha1StorageSpecWithDefaults instantiates a new V1alpha1StorageSpec object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetEphemeral
+
+`func (o *V1alpha1StorageSpec) GetEphemeral() bool`
+
+GetEphemeral returns the Ephemeral field if non-nil, zero value otherwise.
+
+### GetEphemeralOk
+
+`func (o *V1alpha1StorageSpec) GetEphemeralOk() (*bool, bool)`
+
+GetEphemeralOk returns a tuple with the Ephemeral field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEphemeral
+
+`func (o *V1alpha1StorageSpec) SetEphemeral(v bool)`
+
+SetEphemeral sets Ephemeral field to given value.
+
+### HasEphemeral
+
+`func (o *V1alpha1StorageSpec) HasEphemeral() bool`
+
+HasEphemeral returns a boolean if a field has been set.
 
 ### GetSize
 
