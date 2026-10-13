@@ -244,6 +244,13 @@ func (c *Client) CancelAgentTask(ctx context.Context, name string) (map[string]s
 	return c.api.AgentsAPI.CancelAgentTask(ctx, name).Execute()
 }
 
+// WakeAgent wakes a sleeping agent without running any task, leaving its
+// instructions untouched. A no-op (returns the agent's current state) if the
+// agent is not sleeping.
+func (c *Client) WakeAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
+	return c.api.AgentsAPI.WakeAgent(ctx, name).Execute()
+}
+
 func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]interface{}, *http.Response, error) {
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }

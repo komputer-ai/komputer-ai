@@ -19,7 +19,7 @@ import {
   deleteSquad,
   listAgents,
   patchAgent,
-  createAgent,
+  wakeAgent,
 } from "@/lib/api";
 import type { Squad, AgentResponse } from "@/lib/types";
 
@@ -222,9 +222,7 @@ export default function SquadDetailPage() {
     setActionInProgress("wake");
     try {
       await Promise.allSettled(
-        squad.members.map((m) =>
-          createAgent({ name: m.name, instructions: "wake", namespace })
-        )
+        squad.members.map((m) => wakeAgent(m.name, namespace))
       );
       await fetchData();
     } finally {

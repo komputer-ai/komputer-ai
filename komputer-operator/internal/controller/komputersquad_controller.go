@@ -704,9 +704,11 @@ func (r *KomputerSquadReconciler) injectEphemeralContainer(ctx context.Context, 
 		agentPort = 8000
 	}
 	envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: fmt.Sprintf("%d", agentPort)})
-	// If this member is currently Sleeping, start the EC in wake-idle mode so it
-	// exposes its HTTP server without auto-running its previous instructions.
-	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+	// Start the EC in wake-idle mode — exposing its HTTP server without
+	// auto-running Instructions — when this member is still Sleeping (other
+	// siblings need their containers up, but a still-sleeping one must not
+	// restart) or when shouldStartIdle says its last task already finished.
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus, agent.Annotations) {
 		envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 	}
 	envVars = mergeEnvVars(baseContainer.Env, envVars)
@@ -870,10 +872,11 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		// AGENT_PORT tells the agent which port to bind. Squad members each get a
 		// unique port so they don't collide on the shared pod network namespace.
 		envVars = append(envVars, corev1.EnvVar{Name: "AGENT_PORT", Value: fmt.Sprintf("%d", agentPort)})
-		// If this member is currently Sleeping but the pod is being (re)built for a
-		// non-sleeping sibling, start the container in wake-idle mode so it exposes
-		// its HTTP server without auto-running its previous instructions.
-		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		// Start the container in wake-idle mode — exposing its HTTP server
+		// without auto-running Instructions — when this member is still
+		// Sleeping (the pod may be (re)built for a non-sleeping sibling) or
+		// when shouldStartIdle says its last task already finished.
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping || shouldStartIdle(agent.Status.TaskStatus, agent.Annotations) {
 			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_WAKE_IDLE", Value: "true"})
 		}
 		// Inject ANTHROPIC_API_KEY from the template's AnthropicKeySecretRef when

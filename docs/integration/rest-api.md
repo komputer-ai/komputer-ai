@@ -105,6 +105,16 @@ POST /api/v1/agents/:name/cancel?namespace=production
 
 Gracefully cancels the running task. The agent pod stays alive for future tasks.
 
+## Wake an Agent Idle
+
+```
+POST /api/v1/agents/:name/wake?namespace=production
+```
+
+Wakes a sleeping agent **without running any task** — unlike `POST /agents` (see "Create an Agent / Send a Task" above), which always carries a task, even an empty-string one. The pod comes up idle, instructions untouched, ready for a command later. A no-op if the agent isn't sleeping: returns `200 OK` with its current state rather than an error.
+
+**Response (200 OK):** the agent's `AgentResponse`, same shape as "Get Agent Details" above.
+
 ## Compact a Conversation
 
 Manually trigger compaction on the agent's active task. Older turns are summarized to free context space. Only works while the agent is actively running a task — returns `409 Conflict` otherwise.

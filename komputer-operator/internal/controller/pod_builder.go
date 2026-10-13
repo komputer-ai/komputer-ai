@@ -59,6 +59,39 @@ func buildToolPolicyEnvVars(spec *komputerv1alpha1.KomputerAgentSpec) []corev1.E
 	return envVars
 }
 
+// shouldStartIdle decides whether a pod (solo) or container (squad member)
+// being built for an agent should start in wake-idle mode — i.e. expose its
+// HTTP server via KOMPUTER_WAKE_IDLE=true without auto-running
+// spec.Instructions.
+//
+// The komputer.ai/wake-idle annotation (see AnnotationWakeIdle) always wins:
+// it means an explicit idle wake asked for "nothing should run", regardless
+// of what TaskStatus says — necessary because an agent can be annotated while
+// TaskStatus is still InProgress/Compacting too (e.g. it was idle-woken right
+// after an older task wrapped up but before the API got around to it).
+//
+// Otherwise, status.TaskStatus records what the agent was doing the last time
+// its pod existed, which is exactly what determines whether re-running
+// Instructions on a fresh pod is correct:
+//   - ""          : a freshly created agent, or a new task just patched into
+//     Instructions (see createOrTriggerAgent in komputer-api) —
+//     run it.
+//   - InProgress,
+//     Compacting  : the pod died mid-task — resume by re-running Instructions.
+//   - Complete,
+//     Error       : the last task already finished — nothing to run, start idle.
+func shouldStartIdle(taskStatus komputerv1alpha1.AgentTaskStatus, annotations map[string]string) bool {
+	if annotations[komputerv1alpha1.AnnotationWakeIdle] == "true" {
+		return true
+	}
+	switch taskStatus {
+	case komputerv1alpha1.AgentTaskComplete, komputerv1alpha1.AgentTaskError:
+		return true
+	default: // "", InProgress, Compacting
+		return false
+	}
+}
+
 func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) ([]corev1.EnvVar, error) {
 	log := logf.FromContext(ctx)
 	redis := config.Spec.Redis

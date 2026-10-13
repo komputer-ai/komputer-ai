@@ -117,6 +117,62 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
 }
 
+// IdleWakeAgent wakes a sleeping agent WITHOUT running any task — the opposite of
+// WakeAgent, which always carries a (possibly empty-string) task. It leaves
+// spec.Instructions and status.TaskStatus completely untouched, and instead sets
+// the komputer.ai/wake-idle annotation (komputerv1alpha1.AnnotationWakeIdle) to
+// mark the explicit "nothing should run" intent.
+//
+// TaskStatus can't carry this signal by itself: both "task just completed" and
+// "idle-woken" leave it at Complete/Error, but the operator treats those very
+// differently — Complete/Error + Lifecycle=Sleep (or AutoDelete) is ALSO its rule
+// for immediately re-sleeping (or deleting) the agent the moment its pod exists.
+// An earlier version of this method forced TaskStatus to Complete to make
+// shouldStartIdle start the pod idle; that broke the common case (most sleeping
+// agents are asleep BECAUSE of lifecycle Sleep) by making the operator re-sleep
+// the freshly woken pod on its very next reconcile. The annotation is what both
+// shouldStartIdle (start idle) and reconcileStatus (skip the immediate
+// Sleep/AutoDelete transition) now key off instead — see their doc comments.
+//
+// The annotation is cleared by the API worker's PatchAgentTaskStatus the moment
+// a real task actually starts.
+//
+// If the agent is not Sleeping, this is a no-op and the current agent is returned
+// unchanged, with no annotation set — an idle wake is idempotent, not an error.
+func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerAgent, error) {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return nil, err
+	}
+	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		return agent, nil
+	}
+
+	// Metadata patch: set the wake-idle annotation. Separate from the status patch
+	// below because annotations live on ObjectMeta, not the status subresource.
+	originalMeta := agent.DeepCopy()
+	if agent.Annotations == nil {
+		agent.Annotations = map[string]string{}
+	}
+	agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] = "true"
+	if err := k.client.Patch(ctx, agent, client.MergeFrom(originalMeta)); err != nil {
+		return nil, fmt.Errorf("failed to patch annotations: %w", err)
+	}
+
+	original := agent.DeepCopy()
+	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
+	// TaskStatus is deliberately left untouched — see the doc comment above.
+	// Waking is activity: restart the sleepTTL idle clock, same as WakeAgent.
+	wokeAt := metav1.Now()
+	agent.Status.LastActivityAt = &wokeAt
+	agent.Status.SleepExpiresAt = nil
+	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return nil, fmt.Errorf("failed to patch status: %w", err)
+	}
+	return agent, nil
+}
+
 // CreateAgentSecrets creates a K8s Secret with agent-specific secrets.
 // Keys are prefixed with SECRET_ (e.g. "GITHUB" becomes "SECRET_GITHUB").
 // Returns the secret name.
@@ -1744,5 +1800,25 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 		agent.Status.ModelContextWindow = contextWindow
 	}
 
-	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
+	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return err
+	}
+
+	// A real task starting is the single point that clears the wake-idle
+	// annotation (see komputerv1alpha1.AnnotationWakeIdle) — covering every way a
+	// task can start (forward, wake-with-task, schedules, manager tools), since
+	// they all funnel through this method. Deliberately NOT cleared on a steer
+	// (InProgress -> InProgress/Compacting): taskStatusStartsTask is false there,
+	// since the agent was already doing real work, not sitting idle-woken.
+	if taskStatusStartsTask(prevTaskStatus, agent.Status.TaskStatus) {
+		if _, annotated := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle]; annotated {
+			metaOriginal := agent.DeepCopy()
+			delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+			if err := k.client.Patch(ctx, agent, client.MergeFrom(metaOriginal)); err != nil {
+				return fmt.Errorf("failed to clear wake-idle annotation: %w", err)
+			}
+		}
+	}
+
+	return nil
 }

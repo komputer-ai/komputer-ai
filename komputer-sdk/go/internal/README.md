@@ -82,6 +82,7 @@ Class | Method | HTTP request | Description
 *AgentsAPI* | [**GetAgentEvents**](docs/AgentsAPI.md#getagentevents) | **Get** /agents/{name}/events | Get agent events
 *AgentsAPI* | [**ListAgents**](docs/AgentsAPI.md#listagents) | **Get** /agents | List agents
 *AgentsAPI* | [**PatchAgent**](docs/AgentsAPI.md#patchagent) | **Patch** /agents/{name} | Patch agent
+*AgentsAPI* | [**WakeAgent**](docs/AgentsAPI.md#wakeagent) | **Post** /agents/{name}/wake | Wake an agent idle
 *ConnectorsAPI* | [**CreateConnector**](docs/ConnectorsAPI.md#createconnector) | **Post** /connectors | Create connector
 *ConnectorsAPI* | [**DeleteConnector**](docs/ConnectorsAPI.md#deleteconnector) | **Delete** /connectors/{name} | Delete connector
 *ConnectorsAPI* | [**GetConnector**](docs/ConnectorsAPI.md#getconnector) | **Get** /connectors/{name} | Get connector details
