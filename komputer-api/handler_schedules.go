@@ -58,7 +58,14 @@ func scheduleAgentDefaults(cfg *komputerv1alpha1.AgentConfigSpec) {
 	if cfg.Role == "" {
 		cfg.Role = "worker"
 	}
-	if cfg.Lifecycle == "" {
+	// Default Lifecycle to Sleep so a scheduled agent's pod is reclaimed between runs
+	// — except for an agent the request itself marks ephemeral, which must never be
+	// slept (sleeping deletes the pod, which would wipe its emptyDir workspace). This
+	// only sees the request's own storage field; an agent that inherits ephemeral=true
+	// purely from its template still defaults to Sleep here and is instead caught by
+	// the ephemeral/lifecycle validation at the handler layer.
+	ephemeral := cfg.Storage != nil && cfg.Storage.Ephemeral != nil && *cfg.Storage.Ephemeral
+	if cfg.Lifecycle == "" && !ephemeral {
 		cfg.Lifecycle = komputerv1alpha1.AgentLifecycleSleep
 	}
 }
@@ -155,6 +162,22 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 		// against — every connector it names is a fresh attach.
 		if req.Agent != nil {
 			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Agent.Connectors, nil); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		// An ephemeral scheduled agent can never combine with Sleep lifecycle or a
+		// sleepTTL — sleeping deletes the pod, which would wipe an emptyDir workspace.
+		// Validated against the defaulted config (scheduleAgentDefaults runs again,
+		// harmlessly, when CreateSchedule actually builds the CR) since
+		// scheduleAgentDefaults would otherwise default an ephemeral agent's own
+		// unset Lifecycle straight into this same conflict.
+		if req.Agent != nil {
+			cfg := req.Agent.AgentConfigSpec.DeepCopy()
+			scheduleAgentDefaults(cfg)
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, *cfg)
+			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -409,6 +432,18 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 				existingConnectors = existing.Spec.Agent.Connectors
 			}
 			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Agent.Connectors, existingConnectors); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		// An ephemeral scheduled agent can never combine with Sleep lifecycle or a
+		// sleepTTL — see the identical check in createSchedule.
+		if req.Agent != nil {
+			cfg := req.Agent.AgentConfigSpec.DeepCopy()
+			scheduleAgentDefaults(cfg)
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, *cfg)
+			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

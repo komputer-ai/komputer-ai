@@ -229,6 +229,20 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
+		// An ephemeral inline member can never combine with Sleep lifecycle or a
+		// sleepTTL — sleeping deletes the squad pod, which would wipe an emptyDir
+		// workspace.
+		for _, m := range req.Members {
+			if m.Spec == nil {
+				continue
+			}
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, m.Spec.AgentConfigSpec)
+			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// Block team-up of running agents — the existing solo pod must be removed first.
 		// Sleeping the agent stops its pod (PVC kept) so the squad pod can adopt it cleanly.
 		for _, m := range req.Members {
@@ -361,6 +375,20 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 				continue
 			}
 			if err := validateBedrockModel(m.Spec.Model, true); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		// An ephemeral inline member can never combine with Sleep lifecycle or a
+		// sleepTTL — sleeping deletes the squad pod, which would wipe an emptyDir
+		// workspace.
+		for _, m := range req.Members {
+			if m.Spec == nil {
+				continue
+			}
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, m.Spec.AgentConfigSpec)
+			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -580,6 +608,17 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		// names is a fresh attach — reject if disabled.
 		if req.Spec != nil {
 			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Spec.Connectors, nil); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		// An ephemeral inline member can never combine with Sleep lifecycle or a
+		// sleepTTL — sleeping deletes the squad pod, which would wipe an emptyDir
+		// workspace.
+		if req.Spec != nil {
+			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, req.Spec.AgentConfigSpec)
+			if err := validateEphemeralStorage(effectiveEphemeral, string(req.Spec.Lifecycle), req.Spec.SleepTTL); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
