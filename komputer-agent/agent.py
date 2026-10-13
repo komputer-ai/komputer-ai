@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
 import httpx
@@ -74,6 +75,24 @@ def _fetch_context_window(model: str) -> int | None:
     except Exception as e:
         logging.warning(f"_fetch_context_window: failed for model={model}: {e}")
         return None
+
+
+def _pop_tool_duration_ms(starts: dict, tool_use_id, now: float | None = None) -> int | None:
+    """Milliseconds since the tool call started, consuming its start time.
+
+    Event timestamps only have one-second precision, so tool-call durations are
+    measured here instead: the start is recorded when tool_call is published and
+    read back when PostToolUse fires for the same tool_use_id. Returns None when
+    the start wasn't seen.
+    """
+    if tool_use_id is None:
+        return None
+    started = starts.pop(tool_use_id, None)
+    if started is None:
+        return None
+    if now is None:
+        now = time.monotonic()
+    return max(0, int(round((now - started) * 1000)))
 
 
 TOOL_OUTPUT_CAP = 1000
@@ -190,6 +209,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     # process_responses below; read inside pre_compact_hook via closure.
     last_usage = None
 
+    # tool_use_id -> monotonic start time, for tool-call durations (see _pop_tool_duration_ms).
+    tool_started: dict[str, float] = {}
+
     async def post_tool_hook(input, session_id, ctx):
         output, truncated = _serialize_tool_output(input.get("tool_response", ""))
         payload = {
@@ -199,6 +221,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         }
         if truncated:
             payload["output_truncated"] = True
+        duration_ms = _pop_tool_duration_ms(tool_started, input.get("tool_use_id"))
+        if duration_ms is not None:
+            payload["duration_ms"] = duration_ms
         publisher.publish("tool_result", payload)
         return {}
 
@@ -366,6 +391,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     elif isinstance(block, ThinkingBlock):
                         publisher.publish("thinking", {"content": block.thinking[:500], "usage": usage})
                     elif isinstance(block, ToolUseBlock):
+                        tool_started[block.id] = time.monotonic()
                         publisher.publish("tool_call", {
                             "id": block.id,
                             "tool": block.name,

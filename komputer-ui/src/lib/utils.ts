@@ -40,6 +40,20 @@ export function fmtDuration(d: string): string {
   return d.replace(/(\d+h)0m0s$/, "$1").replace(/(\d+m)0s$/, "$1") || d;
 }
 
+/**
+ * Formats a tool call's duration for the chat: "4.4s" under a minute, "2m 5s"
+ * from a minute up, and "<0.1s" for anything that rounds to zero.
+ */
+export function formatToolDuration(ms: number): string {
+  if (ms >= 60_000) {
+    const totalSeconds = Math.floor(ms / 1000);
+    return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+  }
+  const tenths = Math.round(ms / 100);
+  if (tenths === 0) return "<0.1s";
+  return `${(tenths / 10).toFixed(1)}s`;
+}
+
 export function cronToHuman(cron: string): string {
   const parts = cron.split(' ');
   if (parts.length !== 5) return cron;
