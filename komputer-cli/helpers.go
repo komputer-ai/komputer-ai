@@ -82,6 +82,9 @@ func printAgent(a AgentResponse) {
 	if a.TaskTimeout != "" {
 		row("Task Timeout:", a.TaskTimeout+expiryHint("cancels", a.TaskExpiresAt))
 	}
+	if a.TaskBudgetUSD != "" {
+		row("Task Budget:", "$"+a.TaskBudgetUSD+dimStyle.Render("  (hard cap, stops the task)"))
+	}
 	if a.Storage.IsEphemeral() {
 		row("Storage:", warnStyle.Render("Ephemeral (emptyDir, no PVC)"))
 	} else if a.Storage != nil && a.Storage.Size != "" {
@@ -90,8 +93,18 @@ func printAgent(a AgentResponse) {
 	if a.LastTaskCostUSD != "" {
 		row("Last Task Cost:", "$"+a.LastTaskCostUSD)
 	}
-	if a.TotalCostUSD != "" {
-		row("Total Cost:", "$"+a.TotalCostUSD)
+	if a.TotalCostUSD != "" || a.BudgetUSD != "" {
+		spend := "$" + a.TotalCostUSD
+		if a.TotalCostUSD == "" {
+			spend = "$0"
+		}
+		if a.BudgetUSD != "" {
+			spend = fmt.Sprintf("%s / $%s", spend, a.BudgetUSD)
+			if a.BudgetExhausted {
+				spend += "  " + errorStyle.Render("✗ Budget exhausted")
+			}
+		}
+		row("Total Cost:", spend)
 	}
 	row("Created:", a.CreatedAt)
 	if len(a.AllowedTools) > 0 {

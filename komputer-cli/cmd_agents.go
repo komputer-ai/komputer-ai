@@ -230,6 +230,12 @@ func registerAgentCommands(root *cobra.Command) {
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
 			}
+			if budget, _ := cmd.Flags().GetString("budget"); budget != "" {
+				body["budgetUSD"] = budget
+			}
+			if taskBudget, _ := cmd.Flags().GetString("task-budget"); taskBudget != "" {
+				body["taskBudgetUSD"] = taskBudget
+			}
 			if memFlags, _ := cmd.Flags().GetStringSlice("memory"); len(memFlags) > 0 {
 				body["memories"] = memFlags
 			}
@@ -323,6 +329,8 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	createCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	createCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	createCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
+	createCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
 	createCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	createCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
 	createCmd.Flags().StringSlice("allow-tool", nil, "Restrict agent to these tools (repeatable). REPLACES the default tool set, so re-list the built-ins you still need, e.g. --allow-tool Read --allow-tool Grep --allow-tool 'mcp__figma__*'")
@@ -370,6 +378,14 @@ func registerAgentCommands(root *cobra.Command) {
 			if cmd.Flags().Changed("task-timeout") {
 				v, _ := cmd.Flags().GetString("task-timeout")
 				body["taskTimeout"] = v
+			}
+			if cmd.Flags().Changed("budget") {
+				v, _ := cmd.Flags().GetString("budget")
+				body["budgetUSD"] = v
+			}
+			if cmd.Flags().Changed("task-budget") {
+				v, _ := cmd.Flags().GetString("task-budget")
+				body["taskBudgetUSD"] = v
 			}
 			if cmd.Flags().Changed("system-prompt") {
 				v, _ := cmd.Flags().GetString("system-prompt")
@@ -438,6 +454,8 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	updateCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	updateCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	updateCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty string clears it.")
+	updateCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty string clears it.")
 	updateCmd.Flags().String("system-prompt", "", "Custom system prompt (use empty string to clear)")
 	updateCmd.Flags().String("cpu", "", "Override CPU (e.g. 2 or 500m). Sets both requests and limits.")
 	updateCmd.Flags().String("memory-limit", "", "Override memory (e.g. 4Gi). Sets both requests and limits.")
@@ -756,6 +774,12 @@ func registerAgentCommands(root *cobra.Command) {
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
 			}
+			if budget, _ := cmd.Flags().GetString("budget"); budget != "" {
+				body["budgetUSD"] = budget
+			}
+			if taskBudget, _ := cmd.Flags().GetString("task-budget"); taskBudget != "" {
+				body["taskBudgetUSD"] = taskBudget
+			}
 			if secretFlags, _ := cmd.Flags().GetStringSlice("secret"); len(secretFlags) > 0 {
 				secrets := make(map[string]string)
 				for _, s := range secretFlags {
@@ -842,6 +866,8 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	configCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	configCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
+	configCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
 	configCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	configCmd.Flags().StringSlice("memory", nil, "Memory names to attach (repeatable, e.g. --memory k8s-debug)")
 	configCmd.Flags().StringSlice("skill", nil, "Skill names to attach (repeatable, e.g. --skill python-expert)")
@@ -1002,6 +1028,12 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
+			}
+			if budget, _ := cmd.Flags().GetString("budget"); budget != "" {
+				body["budgetUSD"] = budget
+			}
+			if taskBudget, _ := cmd.Flags().GetString("task-budget"); taskBudget != "" {
+				body["taskBudgetUSD"] = taskBudget
 			}
 			if sp, _ := cmd.Flags().GetString("system-prompt"); sp != "" {
 				body["systemPrompt"] = sp
@@ -1169,6 +1201,8 @@ func registerAgentCommands(root *cobra.Command) {
 	runCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	runCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	runCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
+	runCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
 	runCmd.Flags().String("system-prompt", "", "Custom system prompt to inject into the agent")
 	runCmd.Flags().Bool("ephemeral", false, "Run with an emptyDir workspace instead of a PVC. No persistence across pod restarts; cannot be combined with --lifecycle Sleep or --sleep-ttl. Immutable after creation.")
 	root.AddCommand(runCmd)
@@ -1344,6 +1378,12 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 				if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 					body["taskTimeout"] = ttimeout
+				}
+				if budget, _ := cmd.Flags().GetString("budget"); budget != "" {
+					body["budgetUSD"] = budget
+				}
+				if taskBudget, _ := cmd.Flags().GetString("task-budget"); taskBudget != "" {
+					body["taskBudgetUSD"] = taskBudget
 				}
 				if ephemeral, _ := cmd.Flags().GetBool("ephemeral"); ephemeral {
 					body["storage"] = map[string]interface{}{"ephemeral": true}
@@ -1594,6 +1634,8 @@ func registerAgentCommands(root *cobra.Command) {
 	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	chatCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
+	chatCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
+	chatCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
 	chatCmd.Flags().Bool("ephemeral", false, "Run with an emptyDir workspace instead of a PVC. No persistence across pod restarts; cannot be combined with --lifecycle Sleep or --sleep-ttl. Immutable after creation.")
 	root.AddCommand(chatCmd)
 }
