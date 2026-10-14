@@ -287,56 +287,57 @@ export default function AgentsPage() {
                   </SelectContent>
                 </Select>
               )}
-              <div className="flex items-center rounded-md border border-[var(--color-border)] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => changeView("cards")}
-                  aria-label="Cards view"
-                  aria-pressed={view === "cards"}
-                  className={cn(
-                    "flex items-center justify-center h-7 w-7 cursor-pointer transition-colors",
-                    view === "cards"
-                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
-                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-                  )}
-                >
-                  <LayoutGrid className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeView("table")}
-                  aria-label="Table view"
-                  aria-pressed={view === "table"}
-                  className={cn(
-                    "flex items-center justify-center h-7 w-7 cursor-pointer transition-colors border-l border-[var(--color-border)]",
-                    view === "table"
-                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
-                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-                  )}
-                >
-                  <Rows3 className="size-3.5" />
-                </button>
-              </div>
             </>
           }
         >
-          <div className="flex gap-1">
-            {STATUS_FILTERS.map((f) => (
-              <Button
-                key={f}
-                size="sm"
-                variant={statusFilter === f ? "primary" : "ghost"}
-                onClick={() => setStatusFilter(f)}
-                className={cn(
-                  "text-xs",
-                  statusFilter === f
-                    ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
-                    : "text-[var(--color-text-secondary)]"
-                )}
-              >
-                {f}
-              </Button>
-            ))}
+          <div className="flex items-center gap-3">
+            <div role="group" aria-label="View" className="relative flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-0.5">
+              {([
+                { v: "cards", label: "Cards view", Icon: LayoutGrid },
+                { v: "table", label: "Table view", Icon: Rows3 },
+              ] as const).map(({ v, label, Icon }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => changeView(v)}
+                  aria-label={label}
+                  aria-pressed={view === v}
+                  title={label}
+                  className={cn(
+                    "relative flex h-6 w-7 items-center justify-center rounded-[5px] cursor-pointer transition-colors",
+                    view === v ? "text-[var(--color-brand-blue-light)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  )}
+                >
+                  {view === v && (
+                    <motion.span
+                      layoutId="agents-view-pill"
+                      className="absolute inset-0 rounded-[5px] bg-[var(--color-brand-blue)]/15 ring-1 ring-[var(--color-brand-blue)]/30"
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  <Icon className="relative size-3.5" />
+                </button>
+              ))}
+            </div>
+            <span aria-hidden className="h-4 w-px bg-[var(--color-border)]" />
+            <div className="flex gap-1">
+              {STATUS_FILTERS.map((f) => (
+                <Button
+                  key={f}
+                  size="sm"
+                  variant={statusFilter === f ? "primary" : "ghost"}
+                  onClick={() => setStatusFilter(f)}
+                  className={cn(
+                    "text-xs",
+                    statusFilter === f
+                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
+                      : "text-[var(--color-text-secondary)]"
+                  )}
+                >
+                  {f}
+                </Button>
+              ))}
+            </div>
           </div>
         </ListFilterBar>
 
