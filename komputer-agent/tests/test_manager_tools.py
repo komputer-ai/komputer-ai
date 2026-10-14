@@ -480,21 +480,20 @@ async def test_list_squads_with_namespace(mock_api):
     assert not result.get("isError")
 
 
-def test_manager_server_registers_all_new_tools():
-    server_dict = manager_tools.create_manager_server()
-    # create_manager_server() returns a dict {"type": "sdk", "name": ..., "instance": <Server>}.
-    # The MCP Server stores tools in its ListToolsRequest handler; call it synchronously via asyncio.
-    import mcp.types
-    inst = server_dict["instance"]
-    handler = inst.request_handlers[mcp.types.ListToolsRequest]
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            handler(mcp.types.ListToolsRequest(method="tools/list"))
-        )
-    finally:
-        loop.close()
-    tool_names = {t.name for t in result.root.tools}
+def test_manager_server_registers_all_new_tools(monkeypatch):
+    # Capture the tools create_manager_server() hands to the SDK rather than
+    # introspecting the MCP Server's request handlers: those are mcp-library
+    # internals (keyed by request class in mcp 1.x, by method string in 2.x)
+    # and broke on the mcp 2.x upgrade without any production change.
+    captured = {}
+
+    def fake_create_sdk_mcp_server(name, tools, **kwargs):
+        captured["tools"] = tools
+        return {"type": "sdk", "name": name, "instance": None}
+
+    monkeypatch.setattr(manager_tools, "create_sdk_mcp_server", fake_create_sdk_mcp_server)
+    manager_tools.create_manager_server()
+    tool_names = {t.name for t in captured["tools"]}
 
     # Spot-check a representative sample from each category.
     expected = {

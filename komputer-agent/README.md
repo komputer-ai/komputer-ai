@@ -92,7 +92,7 @@ Uses the [Claude Agent SDK](https://pypi.org/project/claude-agent-sdk/) which wr
 - **Permission mode:** `bypassPermissions` (requires non-root user)
 - **Working directory:** `/workspace` (persistent via PVC)
 
-The SDK requires the `claude` CLI binary, which is installed via `npm install -g @anthropic-ai/claude-code` in the Dockerfile.
+The SDK bundles the Claude Code CLI as a native binary, so the image needs no Node.js or separate CLI install. The SDK (and with it the CLI) is pinned to an exact version in `requirements.txt` — bump it deliberately, since the CLI version decides which Claude models agents can use.
 
 ### Manager Agents
 
@@ -146,7 +146,6 @@ This allows manager agents to autonomously delegate work, form squads, build up 
 
 ```bash
 pip install -r requirements.txt
-npm install -g @anthropic-ai/claude-code
 
 # Create a config file
 echo '{"redis":{"address":"localhost:6379","db":0,"stream_prefix":"komputer-events"}}' > /tmp/config.json
