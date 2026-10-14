@@ -568,6 +568,38 @@ async def test_patch_agent_still_requires_a_field(mock_api):
     assert result.get("isError")
 
 
+def test_patch_agent_schema_exposes_remove_labels():
+    props = manager_tools.patch_agent.input_schema["properties"]
+    assert props["remove_labels"]["type"] == "array"
+    assert props["remove_labels"]["items"]["type"] == "string"
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_forwards_remove_labels(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler({"name": "a1", "remove_labels": ["team"]})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"removeLabels": ["team"]}
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_combines_labels_and_remove_labels(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler(
+        {"name": "a1", "labels": {"stage": "beta"}, "remove_labels": ["team"]}
+    )
+    assert not result.get("isError")
+    assert mock_api.last_json == {"labels": {"stage": "beta"}, "removeLabels": ["team"]}
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_omits_remove_labels_when_absent(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler({"name": "a1", "labels": {"team": "core"}})
+    assert not result.get("isError")
+    assert "removeLabels" not in mock_api.last_json
+
+
 def test_update_agent_schema_exposes_tool_policy():
     props = manager_tools.update_agent.input_schema["properties"]
     assert props["allowedTools"]["type"] == "array"

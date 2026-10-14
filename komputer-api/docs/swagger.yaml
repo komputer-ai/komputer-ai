@@ -644,6 +644,13 @@ definitions:
       priority:
         description: pointer so 0 vs unset is distinguishable
         type: integer
+      removeLabels:
+        description: |-
+          RemoveLabels are user label keys to remove. A key present in both Labels
+          and RemoveLabels is rejected as ambiguous.
+        items:
+          type: string
+        type: array
       secretRefs:
         description: full replacement list of K8s secret names
         items:

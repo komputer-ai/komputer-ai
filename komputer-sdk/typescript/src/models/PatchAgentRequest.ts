@@ -109,6 +109,13 @@ export interface PatchAgentRequest {
      */
     priority?: number;
     /**
+     * RemoveLabels are user label keys to remove. A key present in both Labels
+     * and RemoveLabels is rejected as ambiguous.
+     * @type {Array<string>}
+     * @memberof PatchAgentRequest
+     */
+    removeLabels?: Array<string>;
+    /**
      * full replacement list of K8s secret names
      * @type {Array<string>}
      * @memberof PatchAgentRequest
@@ -188,6 +195,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'model': json['model'] == null ? undefined : json['model'],
         'podSpec': json['podSpec'] == null ? undefined : V1PodSpecFromJSON(json['podSpec']),
         'priority': json['priority'] == null ? undefined : json['priority'],
+        'removeLabels': json['removeLabels'] == null ? undefined : json['removeLabels'],
         'secretRefs': json['secretRefs'] == null ? undefined : json['secretRefs'],
         'skills': json['skills'] == null ? undefined : json['skills'],
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
@@ -222,6 +230,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'model': value['model'],
         'podSpec': V1PodSpecToJSON(value['podSpec']),
         'priority': value['priority'],
+        'removeLabels': value['removeLabels'],
         'secretRefs': value['secretRefs'],
         'skills': value['skills'],
         'sleepTTL': value['sleepTTL'],

@@ -406,12 +406,15 @@ func registerAgentCommands(root *cobra.Command) {
 			if labelFlags, _ := cmd.Flags().GetStringArray("label"); len(labelFlags) > 0 {
 				body["labels"] = parseLabelFlags(labelFlags)
 			}
+			if removeLabelFlags, _ := cmd.Flags().GetStringArray("remove-label"); len(removeLabelFlags) > 0 {
+				body["removeLabels"] = removeLabelFlags
+			}
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, or --label.", 400)
+					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label.", 400)
 				}
-				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, or --label."))
+				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label."))
 				os.Exit(1)
 			}
 
@@ -462,6 +465,7 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("storage", "", "Override PVC storage size (e.g. 20Gi).")
 	updateCmd.Flags().String("image", "", "Override agent container image.")
 	updateCmd.Flags().StringArray("label", nil, "Label key=value to add/update (repeatable, e.g. --label team=core)")
+	updateCmd.Flags().StringArray("remove-label", nil, "Label key to remove (repeatable)")
 	root.AddCommand(updateCmd)
 
 	// ── get ──────────────────────────────────────────────────────────────

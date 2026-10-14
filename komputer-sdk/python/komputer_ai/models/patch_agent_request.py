@@ -41,6 +41,7 @@ class PatchAgentRequest(BaseModel):
     model: Optional[StrictStr] = None
     pod_spec: Optional[V1PodSpec] = Field(default=None, alias="podSpec")
     priority: Optional[StrictInt] = Field(default=None, description="pointer so 0 vs unset is distinguishable")
+    remove_labels: Optional[List[StrictStr]] = Field(default=None, description="RemoveLabels are user label keys to remove. A key present in both Labels and RemoveLabels is rejected as ambiguous.", alias="removeLabels")
     secret_refs: Optional[List[StrictStr]] = Field(default=None, description="full replacement list of K8s secret names", alias="secretRefs")
     skills: Optional[List[StrictStr]] = Field(default=None, description="skill names to attach")
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="SleepTTL / DeleteTTL are Go duration strings (e.g. \"30m\"). An explicit \"\" clears the TTL; omitting the field leaves it unchanged.", alias="sleepTTL")
@@ -49,7 +50,7 @@ class PatchAgentRequest(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "removeLabels", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -120,6 +121,7 @@ class PatchAgentRequest(BaseModel):
             "model": obj.get("model"),
             "podSpec": V1PodSpec.from_dict(obj["podSpec"]) if obj.get("podSpec") is not None else None,
             "priority": obj.get("priority"),
+            "removeLabels": obj.get("removeLabels"),
             "secretRefs": obj.get("secretRefs"),
             "skills": obj.get("skills"),
             "sleepTTL": obj.get("sleepTTL"),

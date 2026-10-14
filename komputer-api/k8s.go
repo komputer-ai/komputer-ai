@@ -589,6 +589,36 @@ func (k *K8sClient) MergeAgentLabels(ctx context.Context, ns, agentName string, 
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
+// UpdateAgentLabels applies label additions/overwrites (set) and removals
+// (remove) in a single patch, touching both Spec.Labels and ObjectMeta.Labels.
+// The metadata side must be patched directly here: the operator's reconcile
+// loop (mergeLabels in komputer-operator) overlays Spec.Labels onto
+// metadata.labels additively and never removes a key that disappears from
+// Spec.Labels, and the list endpoint's ?label= filter matches metadata labels —
+// so a spec-only removal would leave a stale label that keeps matching.
+// Removing a key that isn't present is a no-op, not an error.
+func (k *K8sClient) UpdateAgentLabels(ctx context.Context, ns, agentName string, set map[string]string, remove []string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: agentName, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	if agent.Spec.Labels == nil {
+		agent.Spec.Labels = map[string]string{}
+	}
+	for k2, v := range set {
+		agent.Spec.Labels[k2] = v
+	}
+	for _, k2 := range remove {
+		delete(agent.Spec.Labels, k2)
+		if agent.ObjectMeta.Labels != nil {
+			delete(agent.ObjectMeta.Labels, k2)
+		}
+	}
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
 // PatchAgentOverrides patches the podSpec and/or storage overrides on a KomputerAgent CR.
 func (k *K8sClient) PatchAgentOverrides(ctx context.Context, ns, agentName string, podSpec *corev1.PodSpec, storage *komputerv1alpha1.StorageSpec) error {
 	agent := &komputerv1alpha1.KomputerAgent{}

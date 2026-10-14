@@ -217,7 +217,9 @@ type PatchAgentOpts struct {
 	Memories        []string
 	Model           *string
 	PodSpec         *komputer.V1PodSpec
+	Labels          map[string]string
 	Priority        *int32
+	RemoveLabels    []string
 	SecretRefs      []string
 	Skills          []string
 	SleepTTL        *string
@@ -264,6 +266,12 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.Priority != nil {
 			req.Priority = o.Priority
+		}
+		if o.Labels != nil {
+			req.Labels = &o.Labels
+		}
+		if o.RemoveLabels != nil {
+			req.RemoveLabels = o.RemoveLabels
 		}
 		if o.SecretRefs != nil {
 			req.SecretRefs = o.SecretRefs
