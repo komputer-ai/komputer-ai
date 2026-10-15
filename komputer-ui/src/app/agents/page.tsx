@@ -380,6 +380,7 @@ export default function AgentsPage() {
         ) : view === "table" ? (
           <AgentTable
             agents={agents}
+            onChanged={refresh}
             onDelete={handleDelete}
             sort={apiSort}
             onSortChange={setApiSort}

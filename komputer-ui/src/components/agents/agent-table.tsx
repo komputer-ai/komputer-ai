@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Moon, Skull, Timer, Users, Zap } from "lucide-react";
+import { ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Loader2, Moon, Power, Skull, Timer, Users, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { AgentDeleteButton, agentKey } from "@/components/agents/agent-cards";
 import { useSquads } from "@/hooks/use-squads";
+import { sleepAgent, wakeAgent } from "@/lib/api";
 import { toggleTableSort, type AgentTableSortKey } from "@/lib/agent-list-query";
 import { shortModelLabel } from "@/lib/model-utils";
 import { cn, formatCost } from "@/lib/utils";
@@ -20,6 +22,8 @@ type AgentTableProps = {
   onSortChange: (sort: string) => void;
   selected?: Set<string>;
   onToggleSelect?: (key: string) => void;
+  /** Called after a row's Sleep/Wake action succeeds, to refresh the list. */
+  onChanged?: () => void;
 };
 
 // Same palette and icons as the cards view so both views read the same.
@@ -56,7 +60,7 @@ const COLUMNS: Column[] = [
   { key: "cost", label: "Cost", sortable: true, className: "w-[110px] text-right" },
   { key: "created", label: "Created", sortable: true, className: "w-[100px] hidden lg:table-cell" },
   { key: "lastActive", label: "Last active", sortable: true, className: "w-[110px] hidden lg:table-cell" },
-  { key: "lifecycle", label: "Lifecycle", sortable: false, className: "w-[120px] hidden xl:table-cell" },
+  { key: "lifecycle", label: "Lifecycle", sortable: false, className: "w-[140px] hidden xl:table-cell" },
 ];
 
 function SortHeader({ column, sort, onSortChange }: { column: Column; sort: string; onSortChange: (s: string) => void }) {
@@ -100,13 +104,59 @@ function SortHeader({ column, sort, onSortChange }: { column: Column; sort: stri
   );
 }
 
+// Wake for sleeping agents, Sleep for idle running ones; nothing otherwise
+// (busy agents can't be slept, and ephemeral ones have no workspace to keep).
+function SleepWakeButton({ agent, onChanged }: { agent: AgentResponse; onChanged?: () => void }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting";
+  const action =
+    agent.status === "Sleeping" ? "wake" : agent.status === "Running" && !busy && !agent.storage?.ephemeral ? "sleep" : null;
+  if (!action) return null;
+
+  const run = async () => {
+    setPending(true);
+    setError(null);
+    try {
+      if (action === "wake") await wakeAgent(agent.name, agent.namespace);
+      else await sleepAgent(agent.name, agent.namespace);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Failed to ${action}`);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const Icon = pending ? Loader2 : action === "wake" ? Power : Moon;
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={pending}
+      title={error ?? (action === "wake" ? `Wake ${agent.name}` : `Sleep ${agent.name} now`)}
+      className={cn(
+        "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-md border px-2 text-[11px] font-medium transition-colors cursor-pointer disabled:cursor-default",
+        error
+          ? "border-[var(--color-status-error)]/50 text-[var(--color-status-error)]"
+          : action === "wake"
+            ? "border-[var(--color-status-running)]/30 bg-[var(--color-status-running)]/10 text-[var(--color-status-running)] hover:bg-[var(--color-status-running)]/20"
+            : "border-[var(--color-border)] text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]",
+      )}
+    >
+      <Icon className={cn("size-3", pending && "animate-spin")} />
+      {action === "wake" ? "Wake" : "Sleep"}
+    </button>
+  );
+}
+
 function lifecyclePill(agent: AgentResponse) {
-  if (agent.lifecycle === "Sleep") return { icon: Moon, label: "Sleep" };
-  if (agent.lifecycle === "AutoDelete") return { icon: Timer, label: "Auto delete" };
+  if (agent.lifecycle === "Sleep") return { icon: Moon, label: "Sleeps after task" };
+  if (agent.lifecycle === "AutoDelete") return { icon: Timer, label: "Deletes after task" };
   return null;
 }
 
-export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onToggleSelect }: AgentTableProps) {
+export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onToggleSelect, onChanged }: AgentTableProps) {
   const router = useRouter();
   const { squads } = useSquads();
   const selectionMode = !!selected && selected.size > 0;
@@ -135,7 +185,7 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                 onSortChange={onSortChange}
               />
             ))}
-            <th scope="col" className="w-12 border-b border-[var(--color-border)]" aria-label="Actions" />
+            <th scope="col" className="w-[110px] border-b border-[var(--color-border)]" aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
@@ -341,7 +391,7 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                   {/* Lifecycle */}
                   <td className={cn(cell, "hidden xl:table-cell")}>
                     {lifecycle ? (
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[var(--color-surface-raised)] px-2 py-0.5 text-[11px] text-[var(--color-text-secondary)]">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[var(--color-text-secondary)]">
                         <lifecycle.icon className="size-3" />
                         {lifecycle.label}
                       </span>
@@ -352,13 +402,16 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
 
                   {/* Actions */}
                   <td className={cn(cell, "pr-3 text-right")}>
-                    <span className="inline-flex opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                    <span className="inline-flex items-center justify-end gap-1.5">
+                      <SleepWakeButton agent={agent} onChanged={onChanged} />
+                      <span className="inline-flex opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
                       <AgentDeleteButton
                         agentName={agent.name}
                         agentNamespace={agent.namespace}
                         squad={squad}
                         onConfirm={(opts) => onDelete(agent.name, agent.namespace, opts)}
                       />
+                      </span>
                     </span>
                   </td>
                 </motion.tr>
