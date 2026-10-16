@@ -39,6 +39,12 @@ type AgentConfigSpec struct {
 	// Model is the Claude model to use.
 	// +kubebuilder:default="claude-opus-5-5"
 	Model string `json:"model,omitempty"`
+	// Effort controls the Claude Agent SDK's reasoning effort: "low", "medium",
+	// "high", "xhigh", or "max". Empty (default) leaves it unset, so the CLI
+	// uses the model's own default effort ("auto").
+	// +kubebuilder:validation:Enum="";low;medium;high;xhigh;max
+	// +optional
+	Effort string `json:"effort,omitempty"`
 	// Role is "manager" or "worker". Managers get orchestration tools.
 	// Role is "manager" or "worker". Defaults to "manager" for top-level agents.
 	// Sub-agents created by managers are explicitly set to "worker".

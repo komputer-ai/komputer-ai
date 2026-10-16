@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **delete_expires_at** | **str** |  | [optional] 
 **delete_ttl** | **str** | absolute lifetime before auto-delete, e.g. \&quot;24h\&quot; | [optional] 
 **disallowed_tools** | **List[str]** | Tools removed from this agent | [optional] 
+**effort** | **str** | Effort is this agent&#39;s reasoning effort override (\&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, \&quot;max\&quot;). Empty means unset — the model&#39;s own default effort applies. | [optional] 
 **errors** | **List[str]** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **instructions** | **str** | User task (spec.instructions) | [optional] 
 **labels** | **Dict[str, str]** |  | [optional] 

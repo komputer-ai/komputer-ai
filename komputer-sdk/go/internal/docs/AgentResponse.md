@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **DeleteExpiresAt** | Pointer to **string** |  | [optional] 
 **DeleteTTL** | Pointer to **string** | absolute lifetime before auto-delete, e.g. \&quot;24h\&quot; | [optional] 
 **DisallowedTools** | Pointer to **[]string** | Tools removed from this agent | [optional] 
+**Effort** | Pointer to **string** | Effort is this agent&#39;s reasoning effort override (\&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, \&quot;max\&quot;). Empty means unset — the model&#39;s own default effort applies. | [optional] 
 **Errors** | Pointer to **[]string** | Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn&#39;t fully apply. | [optional] 
 **Instructions** | Pointer to **string** | User task (spec.instructions) | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
@@ -289,6 +290,31 @@ SetDisallowedTools sets DisallowedTools field to given value.
 `func (o *AgentResponse) HasDisallowedTools() bool`
 
 HasDisallowedTools returns a boolean if a field has been set.
+
+### GetEffort
+
+`func (o *AgentResponse) GetEffort() string`
+
+GetEffort returns the Effort field if non-nil, zero value otherwise.
+
+### GetEffortOk
+
+`func (o *AgentResponse) GetEffortOk() (*string, bool)`
+
+GetEffortOk returns a tuple with the Effort field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEffort
+
+`func (o *AgentResponse) SetEffort(v string)`
+
+SetEffort sets Effort field to given value.
+
+### HasEffort
+
+`func (o *AgentResponse) HasEffort() bool`
+
+HasEffort returns a boolean if a field has been set.
 
 ### GetErrors
 

@@ -11,6 +11,7 @@ Name | Type
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | [V1Duration](V1Duration.md)
 `disallowedTools` | Array&lt;string&gt;
+`effort` | string
 `labels` | { [key: string]: string; }
 `lifecycle` | [V1alpha1AgentLifecycle](V1alpha1AgentLifecycle.md)
 `memories` | Array&lt;string&gt;
@@ -39,6 +40,7 @@ const example = {
   "connectors": null,
   "deleteTTL": null,
   "disallowedTools": null,
+  "effort": null,
   "labels": null,
   "lifecycle": null,
   "memories": null,

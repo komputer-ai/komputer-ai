@@ -21,7 +21,7 @@ import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
 import type { ScheduleAgentSpec, TemplateResponse } from "@/lib/types";
-import { LIFECYCLES } from "@/lib/constants";
+import { LIFECYCLES, EFFORTS } from "@/lib/constants";
 import { fmtDuration } from "@/lib/utils";
 
 export interface AgentFormValues {
@@ -30,6 +30,8 @@ export interface AgentFormValues {
   instructions: string;
   systemPrompt: string;
   model: string;
+  /** Reasoning effort: "auto" (sentinel for unset/model default), "low", "medium", "high", "xhigh", or "max". */
+  effort: string;
   lifecycle: string;
   role: "manager" | "worker" | undefined;
   templateRef: string;
@@ -71,6 +73,7 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     instructions: "",
     systemPrompt: "",
     model: "claude-opus-5-5",
+    effort: "auto",
     lifecycle: "default",
     role: undefined,
     templateRef: "default",
@@ -258,6 +261,24 @@ export function AgentFieldsForm({
         <div className="flex flex-col gap-1.5">
           <ModelSelector value={values.model} onChange={(v) => patch("model", v)} />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Reasoning Effort</Label>
+          <Select value={values.effort} onValueChange={(v) => v && patch("effort", v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EFFORTS.map((e) => (
+                <SelectItem key={e.value} value={e.value}>
+                  {e.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <Label>Lifecycle</Label>
           <Select value={values.lifecycle} onValueChange={(v) => v && patch("lifecycle", v)}>
@@ -641,6 +662,7 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     name: values.name.trim(),
     instructions: values.instructions.trim(),
     model: values.model,
+    effort: values.effort !== "auto" ? values.effort : undefined,
     namespace: includeNamespace ? (values.namespace.trim() || undefined) : undefined,
     lifecycle: values.lifecycle === "default" ? "" : (values.lifecycle as "" | "Sleep" | "AutoDelete"),
     role: values.role || undefined,
@@ -676,6 +698,7 @@ export function buildScheduleAgentSpec(values: AgentFormValues): ScheduleAgentSp
   const base = buildCreateAgentRequest(values, { includeNamespace: false });
   return {
     model: base.model,
+    effort: base.effort,
     lifecycle: base.lifecycle,
     role: base.role,
     templateRef: base.templateRef,
@@ -711,6 +734,7 @@ export function agentFormValuesFromScheduleSpec(spec: ScheduleAgentSpec, namespa
   return makeDefaultAgentFormValues({
     namespace,
     model: spec.model ?? "",
+    effort: spec.effort || "auto",
     lifecycle: spec.lifecycle || "default",
     role,
     templateRef: spec.templateRef || "default",
@@ -753,6 +777,7 @@ export function buildAgentSpecForSquad(values: AgentFormValues): Record<string, 
     instructions: values.instructions.trim(),
     model: values.model,
   };
+  if (values.effort && values.effort !== "auto") spec.effort = values.effort;
   if (values.lifecycle && values.lifecycle !== "default") spec.lifecycle = values.lifecycle;
   if (values.role) spec.role = values.role;
   if (values.templateRef && values.templateRef !== "default") spec.templateRef = values.templateRef;

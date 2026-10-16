@@ -34,6 +34,8 @@ type AgentResponse struct {
 	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// Tools removed from this agent
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// Effort is this agent's reasoning effort override (\"low\", \"medium\", \"high\", \"xhigh\", \"max\"). Empty means unset — the model's own default effort applies.
+	Effort *string `json:"effort,omitempty"`
 	// Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.
 	Errors []string `json:"errors,omitempty"`
 	// User task (spec.instructions)
@@ -385,6 +387,38 @@ func (o *AgentResponse) HasDisallowedTools() bool {
 // SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
 func (o *AgentResponse) SetDisallowedTools(v []string) {
 	o.DisallowedTools = v
+}
+
+// GetEffort returns the Effort field value if set, zero value otherwise.
+func (o *AgentResponse) GetEffort() string {
+	if o == nil || IsNil(o.Effort) {
+		var ret string
+		return ret
+	}
+	return *o.Effort
+}
+
+// GetEffortOk returns a tuple with the Effort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetEffortOk() (*string, bool) {
+	if o == nil || IsNil(o.Effort) {
+		return nil, false
+	}
+	return o.Effort, true
+}
+
+// HasEffort returns a boolean if a field has been set.
+func (o *AgentResponse) HasEffort() bool {
+	if o != nil && !IsNil(o.Effort) {
+		return true
+	}
+
+	return false
+}
+
+// SetEffort gets a reference to the given string and assigns it to the Effort field.
+func (o *AgentResponse) SetEffort(v string) {
+	o.Effort = &v
 }
 
 // GetErrors returns the Errors field value if set, zero value otherwise.
@@ -1447,6 +1481,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
+	}
+	if !IsNil(o.Effort) {
+		toSerialize["effort"] = o.Effort
 	}
 	if !IsNil(o.Errors) {
 		toSerialize["errors"] = o.Errors

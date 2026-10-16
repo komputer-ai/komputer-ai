@@ -112,6 +112,16 @@ export interface V1alpha1ScheduleAgentSpec {
      */
     disallowedTools?: Array<string>;
     /**
+     * Effort controls the Claude Agent SDK's reasoning effort: "low", "medium",
+     * "high", "xhigh", or "max". Empty (default) leaves it unset, so the CLI
+     * uses the model's own default effort ("auto").
+     * +kubebuilder:validation:Enum="";low;medium;high;xhigh;max
+     * +optional
+     * @type {string}
+     * @memberof V1alpha1ScheduleAgentSpec
+     */
+    effort?: string;
+    /**
      * Labels are user-defined key=value labels attached to this agent and
      * propagated to all child resources (Pod, PVC, ConfigMap, Service).
      * Keys starting with "komputer.ai/" are reserved for system labels and
@@ -285,6 +295,7 @@ export function V1alpha1ScheduleAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : V1DurationFromJSON(json['deleteTTL']),
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
+        'effort': json['effort'] == null ? undefined : json['effort'],
         'labels': json['labels'] == null ? undefined : json['labels'],
         'lifecycle': json['lifecycle'] == null ? undefined : V1alpha1AgentLifecycleFromJSON(json['lifecycle']),
         'memories': json['memories'] == null ? undefined : json['memories'],
@@ -319,6 +330,7 @@ export function V1alpha1ScheduleAgentSpecToJSONTyped(value?: V1alpha1ScheduleAge
         'connectors': value['connectors'],
         'deleteTTL': V1DurationToJSON(value['deleteTTL']),
         'disallowedTools': value['disallowedTools'],
+        'effort': value['effort'],
         'labels': value['labels'],
         'lifecycle': V1alpha1AgentLifecycleToJSON(value['lifecycle']),
         'memories': value['memories'],

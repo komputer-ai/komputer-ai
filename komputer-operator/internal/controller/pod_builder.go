@@ -102,6 +102,7 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 		{Name: "KOMPUTER_INTERNAL_SYSTEM_PROMPT", Value: agent.Spec.InternalSystemPrompt},
 		{Name: "KOMPUTER_SYSTEM_PROMPT", Value: agent.Spec.SystemPrompt},
 		{Name: "KOMPUTER_MODEL", Value: agent.Spec.Model},
+		{Name: "KOMPUTER_EFFORT", Value: agent.Spec.Effort},
 		{Name: "KOMPUTER_AGENT_NAME", Value: agent.Name},
 		{Name: "KOMPUTER_NAMESPACE", Value: agent.Namespace},
 		{Name: "CLAUDE_CONFIG_DIR", Value: "/workspace/.claude"},

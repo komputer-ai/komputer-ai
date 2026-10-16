@@ -345,7 +345,7 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			// Confirmed not busy above (TaskStatus != InProgress), so this is a new
 			// task — patch spec.Instructions first so a pod reschedule re-runs this
 			// scheduled run instead of stale creation-time instructions.
-			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 				Logger.Warnw("manual trigger: failed to patch instructions before forwarding", "agent", agentName, "error", err)
 			}
 			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(ctx, ns, agent.Spec.AgentConfigSpec)

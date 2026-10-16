@@ -25,7 +25,7 @@ import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
-import { LIFECYCLES } from "@/lib/constants";
+import { LIFECYCLES, EFFORTS } from "@/lib/constants";
 import { Textarea } from "@/components/kit/textarea";
 import { Input } from "@/components/kit/input";
 import { Label } from "@/components/kit/label";
@@ -443,6 +443,11 @@ export default function AgentDetailPage() {
                 <Badge variant="outline" className="text-xs font-mono">
                   {agent.model}
                 </Badge>
+                {agent.effort && (
+                  <Badge variant="secondary" className="text-xs">
+                    Effort: {agent.effort}
+                  </Badge>
+                )}
                 {agent.lifecycle && (
                   <Badge variant="secondary" className="text-xs">
                     {agent.lifecycle}
@@ -892,6 +897,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   onSaved: (updated?: AgentResponse) => void;
 }) {
   const [model, setModel] = useState(agent.model);
+  const [effort, setEffort] = useState<string>(agent.effort || "auto");
   const [lifecycle, setLifecycle] = useState<string>(agent.lifecycle || "default");
   // TTLs round-trip as Go duration strings; show the compact form so editing "30m"
   // doesn't turn into "30m0s" on every save.
@@ -947,6 +953,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   }, [agentNs, showAllSecrets]);
 
   const agentLifecycle = agent.lifecycle || "default";
+  const agentEffort = agent.effort || "auto";
   const memoriesChanged = JSON.stringify(agentMemories.sort()) !== JSON.stringify((agent.memories ?? []).sort());
   const skillsChanged = JSON.stringify(agentSkills.sort()) !== JSON.stringify((agent.skills ?? []).sort());
   const connectorsChanged = JSON.stringify(agentConnectors.sort()) !== JSON.stringify((agent.connectors ?? []).sort());
@@ -963,7 +970,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const labelsInvalid = hasLabelErrors(labelErrors);
   const labelDiff = diffLabels(agent.labels, labelRows);
   const labelsChanged = Object.keys(labelDiff.labels).length > 0 || labelDiff.removeLabels.length > 0;
-  const hasChanges = labelsChanged || model !== agent.model || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
+  const hasChanges = labelsChanged || model !== agent.model || effort !== agentEffort || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -972,6 +979,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     try {
       const patch: Record<string, unknown> = {};
       if (model !== agent.model) patch.model = model;
+      if (effort !== agentEffort) patch.effort = effort === "auto" ? "" : effort;
       if (lifecycle !== agentLifecycle) patch.lifecycle = lifecycle === "default" ? "" : lifecycle;
       if (secretsChanged) patch.secretRefs = agentSecretRefs;
       if (memoriesChanged) patch.memories = agentMemories;
@@ -1059,6 +1067,20 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       <div className="flex flex-col gap-1.5">
         <Label>Model</Label>
         <ModelSelector value={model} onChange={(v) => setModel(v)} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Reasoning Effort</Label>
+        <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EFFORTS.map((e) => (
+              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex flex-col gap-1.5">

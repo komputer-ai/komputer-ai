@@ -34,6 +34,7 @@ class PatchAgentRequest(BaseModel):
     connectors: Optional[List[StrictStr]] = Field(default=None, description="connector names to attach")
     delete_ttl: Optional[StrictStr] = Field(default=None, alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; an explicit [] clears the list.", alias="disallowedTools")
+    effort: Optional[StrictStr] = Field(default=None, description="Effort is \"low\", \"medium\", \"high\", \"xhigh\", \"max\", or \"\" to clear back to unset (model default). Omitting the field leaves it unchanged.")
     instructions: Optional[StrictStr] = None
     labels: Optional[Dict[str, StrictStr]] = None
     lifecycle: Optional[StrictStr] = None
@@ -50,7 +51,7 @@ class PatchAgentRequest(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "removeLabels", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "removeLabels", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -114,6 +115,7 @@ class PatchAgentRequest(BaseModel):
             "connectors": obj.get("connectors"),
             "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
+            "effort": obj.get("effort"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
             "lifecycle": obj.get("lifecycle"),

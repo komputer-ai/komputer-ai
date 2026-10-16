@@ -67,6 +67,13 @@ export interface PatchAgentRequest {
      */
     disallowedTools?: Array<string>;
     /**
+     * Effort is "low", "medium", "high", "xhigh", "max", or "" to clear back to
+     * unset (model default). Omitting the field leaves it unchanged.
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
+    effort?: string;
+    /**
      * 
      * @type {string}
      * @memberof PatchAgentRequest
@@ -188,6 +195,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
+        'effort': json['effort'] == null ? undefined : json['effort'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
@@ -223,6 +231,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
+        'effort': value['effort'],
         'instructions': value['instructions'],
         'labels': value['labels'],
         'lifecycle': value['lifecycle'],

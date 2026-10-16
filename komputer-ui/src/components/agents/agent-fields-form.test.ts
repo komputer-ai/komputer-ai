@@ -41,6 +41,33 @@ describe("buildScheduleAgentSpec", () => {
   });
 });
 
+describe("effort", () => {
+  it("defaults to the 'auto' sentinel, which maps to unset everywhere", () => {
+    const values = makeDefaultAgentFormValues();
+    expect(values.effort).toBe("auto");
+    expect(buildCreateAgentRequest(values).effort).toBeUndefined();
+    expect(buildScheduleAgentSpec(values).effort).toBeUndefined();
+    expect(buildAgentSpecForSquad(values).effort).toBeUndefined();
+  });
+
+  it("passes a concrete effort value through to every payload builder", () => {
+    const values = makeDefaultAgentFormValues({ effort: "xhigh" });
+    expect(buildCreateAgentRequest(values).effort).toBe("xhigh");
+    expect(buildScheduleAgentSpec(values).effort).toBe("xhigh");
+    expect(buildAgentSpecForSquad(values).effort).toBe("xhigh");
+  });
+
+  it("round-trips an existing schedule's effort back into the 'auto' sentinel when unset", () => {
+    const v = agentFormValuesFromScheduleSpec({}, "default");
+    expect(v.effort).toBe("auto");
+  });
+
+  it("round-trips an existing schedule's concrete effort value", () => {
+    const v = agentFormValuesFromScheduleSpec({ effort: "low" }, "default");
+    expect(v.effort).toBe("low");
+  });
+});
+
 describe("buildCreateAgentRequest", () => {
   it("includes tool policy when set", () => {
     const req = buildCreateAgentRequest(

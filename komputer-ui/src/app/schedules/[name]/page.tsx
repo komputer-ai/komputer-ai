@@ -783,6 +783,7 @@ export default function ScheduleDetailPage() {
               {(
                 [
                   ["Model", agentSpec.model, true],
+                  ["Effort", agentSpec.effort, false],
                   ["Role", agentSpec.role, false],
                   ["Lifecycle", agentSpec.lifecycle, false],
                   ["Template", agentSpec.templateRef, true],

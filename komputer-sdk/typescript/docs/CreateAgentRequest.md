@@ -11,6 +11,7 @@ Name | Type
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | string
 `disallowedTools` | Array&lt;string&gt;
+`effort` | string
 `instructions` | string
 `labels` | { [key: string]: string; }
 `lifecycle` | string
@@ -43,6 +44,7 @@ const example = {
   "connectors": null,
   "deleteTTL": null,
   "disallowedTools": null,
+  "effort": null,
   "instructions": null,
   "labels": null,
   "lifecycle": null,

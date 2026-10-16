@@ -31,6 +31,8 @@ type CreateAgentRequest struct {
 	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// Effort sets the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty means unset, so the model's own default effort applies.
+	Effort *string `json:"effort,omitempty"`
 	Instructions string `json:"instructions"`
 	// Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.
 	Labels *map[string]string `json:"labels,omitempty"`
@@ -244,6 +246,38 @@ func (o *CreateAgentRequest) HasDisallowedTools() bool {
 // SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
 func (o *CreateAgentRequest) SetDisallowedTools(v []string) {
 	o.DisallowedTools = v
+}
+
+// GetEffort returns the Effort field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetEffort() string {
+	if o == nil || IsNil(o.Effort) {
+		var ret string
+		return ret
+	}
+	return *o.Effort
+}
+
+// GetEffortOk returns a tuple with the Effort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetEffortOk() (*string, bool) {
+	if o == nil || IsNil(o.Effort) {
+		return nil, false
+	}
+	return o.Effort, true
+}
+
+// HasEffort returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasEffort() bool {
+	if o != nil && !IsNil(o.Effort) {
+		return true
+	}
+
+	return false
+}
+
+// SetEffort gets a reference to the given string and assigns it to the Effort field.
+func (o *CreateAgentRequest) SetEffort(v string) {
+	o.Effort = &v
 }
 
 // GetInstructions returns the Instructions field value
@@ -862,6 +896,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
+	}
+	if !IsNil(o.Effort) {
+		toSerialize["effort"] = o.Effort
 	}
 	toSerialize["instructions"] = o.Instructions
 	if !IsNil(o.Labels) {

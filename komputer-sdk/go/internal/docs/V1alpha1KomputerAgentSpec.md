@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **Connectors** | Pointer to **[]string** | Connectors is a list of KomputerConnector names to attach to this agent. Names can be \&quot;name\&quot; (same namespace) or \&quot;namespace/name\&quot; (cross-namespace). +optional | [optional] 
 **DeleteTTL** | Pointer to [**V1Duration**](V1Duration.md) | DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template&#39;s deleteTTL when set. +optional | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. +optional | [optional] 
+**Effort** | Pointer to **string** | Effort controls the Claude Agent SDK&#39;s reasoning effort: \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, or \&quot;max\&quot;. Empty (default) leaves it unset, so the CLI uses the model&#39;s own default effort (\&quot;auto\&quot;). +kubebuilder:validation:Enum&#x3D;\&quot;\&quot;;low;medium;high;xhigh;max +optional | [optional] 
 **Instructions** | Pointer to **string** | Instructions is the user&#39;s task for the Claude agent. | [optional] 
 **InternalSystemPrompt** | Pointer to **string** | InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional | [optional] 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \&quot;komputer.ai/\&quot; are reserved for system labels and should not be set directly through the API. +optional | [optional] 
@@ -171,6 +172,31 @@ SetDisallowedTools sets DisallowedTools field to given value.
 `func (o *V1alpha1KomputerAgentSpec) HasDisallowedTools() bool`
 
 HasDisallowedTools returns a boolean if a field has been set.
+
+### GetEffort
+
+`func (o *V1alpha1KomputerAgentSpec) GetEffort() string`
+
+GetEffort returns the Effort field if non-nil, zero value otherwise.
+
+### GetEffortOk
+
+`func (o *V1alpha1KomputerAgentSpec) GetEffortOk() (*string, bool)`
+
+GetEffortOk returns a tuple with the Effort field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEffort
+
+`func (o *V1alpha1KomputerAgentSpec) SetEffort(v string)`
+
+SetEffort sets Effort field to given value.
+
+### HasEffort
+
+`func (o *V1alpha1KomputerAgentSpec) HasEffort() bool`
+
+HasEffort returns a boolean if a field has been set.
 
 ### GetInstructions
 

@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **Connectors** | Pointer to **[]string** | optional KomputerConnector names to attach | [optional] 
 **DeleteTTL** | Pointer to **string** | DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \&quot;24h\&quot;). Absolute — it does not reset on wake. Empty means never auto-delete. | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards. | [optional] 
+**Effort** | Pointer to **string** | Effort sets the Claude Agent SDK&#39;s reasoning effort: \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, or \&quot;max\&quot;. Empty means unset, so the model&#39;s own default effort applies. | [optional] 
 **Instructions** | **string** |  | 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
 **Lifecycle** | Pointer to **string** | \&quot;\&quot;, \&quot;Sleep\&quot;, or \&quot;AutoDelete\&quot; | [optional] 
@@ -172,6 +173,31 @@ SetDisallowedTools sets DisallowedTools field to given value.
 `func (o *CreateAgentRequest) HasDisallowedTools() bool`
 
 HasDisallowedTools returns a boolean if a field has been set.
+
+### GetEffort
+
+`func (o *CreateAgentRequest) GetEffort() string`
+
+GetEffort returns the Effort field if non-nil, zero value otherwise.
+
+### GetEffortOk
+
+`func (o *CreateAgentRequest) GetEffortOk() (*string, bool)`
+
+GetEffortOk returns a tuple with the Effort field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEffort
+
+`func (o *CreateAgentRequest) SetEffort(v string)`
+
+SetEffort sets Effort field to given value.
+
+### HasEffort
+
+`func (o *CreateAgentRequest) HasEffort() bool`
+
+HasEffort returns a boolean if a field has been set.
 
 ### GetInstructions
 

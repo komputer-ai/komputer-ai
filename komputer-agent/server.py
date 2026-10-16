@@ -63,6 +63,7 @@ def configure(publisher, model: str):
 class TaskRequest(BaseModel):
     instructions: str
     model: Optional[str] = None
+    effort: Optional[str] = None
     lifecycle: Optional[str] = None
     internal_system_prompt: Optional[str] = None
     system_prompt: Optional[str] = None
@@ -75,6 +76,7 @@ class TaskRequest(BaseModel):
 
 class ConfigRequest(BaseModel):
     model: Optional[str] = None
+    effort: Optional[str] = None
     lifecycle: Optional[str] = None
     role: Optional[str] = None
     instructions: Optional[str] = None
@@ -189,7 +191,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
     # Agent is idle — start a new session as normal.
 
     # Apply any config overrides from the task request before starting.
-    config_updates = {k: v for k, v in {"model": req.model, "lifecycle": req.lifecycle}.items() if v is not None}
+    config_updates = {k: v for k, v in {"model": req.model, "effort": req.effort, "lifecycle": req.lifecycle}.items() if v is not None}
     if config_updates:
         agent_config.apply(config_updates)
 
@@ -197,6 +199,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
 
     cfg = agent_config.load()
     task_model = cfg["model"]
+    task_effort = cfg.get("effort") or None
 
     def run_with_lock():
         global _current_task, _current_loop
@@ -209,6 +212,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
             _current_task = loop.create_task(run_agent(
                 req.instructions, task_model, _publisher,
                 system_prompt=combined_system_prompt, task_budget_usd=req.task_budget_usd,
+                effort=task_effort,
             ))
             try:
                 loop.run_until_complete(_current_task)
@@ -451,6 +455,7 @@ async def compact_task(req: CompactRequest, background_tasks: BackgroundTasks):
 
     cfg = agent_config.load()
     task_model = cfg["model"]
+    task_effort = cfg.get("effort") or None
 
     def run_compact_with_lock():
         global _current_task, _current_loop
@@ -458,7 +463,7 @@ async def compact_task(req: CompactRequest, background_tasks: BackgroundTasks):
             loop = asyncio.new_event_loop()
             state.active_loop = loop
             _current_loop = loop
-            _current_task = loop.create_task(run_agent(slash, task_model, _publisher))
+            _current_task = loop.create_task(run_agent(slash, task_model, _publisher, effort=task_effort))
             try:
                 loop.run_until_complete(_current_task)
             except asyncio.CancelledError:

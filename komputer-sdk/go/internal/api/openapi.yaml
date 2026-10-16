@@ -2585,6 +2585,7 @@ components:
           role: role
           templateRef: templateRef
           taskTimeout: "{}"
+          effort: effort
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -2666,6 +2667,7 @@ components:
           - connectors
           sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
+          effort: effort
           lastActivityAt: lastActivityAt
           storage:
             size: size
@@ -3344,6 +3346,7 @@ components:
           - connectors
           sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
+          effort: effort
           lastActivityAt: lastActivityAt
           storage:
             size: size
@@ -4050,6 +4053,7 @@ components:
         - connectors
         sleepExpiresAt: sleepExpiresAt
         totalCostUSD: totalCostUSD
+        effort: effort
         lastActivityAt: lastActivityAt
         storage:
           size: size
@@ -4762,6 +4766,11 @@ components:
           items:
             type: string
           type: array
+        effort:
+          description: |-
+            Effort is this agent's reasoning effort override ("low", "medium", "high",
+            "xhigh", "max"). Empty means unset — the model's own default effort applies.
+          type: string
         errors:
           description: |-
             Errors are non-fatal failures that occurred during the request (e.g. CR was patched
@@ -5008,14 +5017,29 @@ components:
         - connectors
         role: role
         templateRef: templateRef
-        taskTimeout: taskTimeout
-        secretRefs:
-        - secretRefs
-        - secretRefs
+        effort: effort
         storage:
           size: size
           storageClassName: storageClassName
           ephemeral: true
+        lifecycle: lifecycle
+        skills:
+        - skills
+        - skills
+        budgetUSD: budgetUSD
+        disallowedTools:
+        - disallowedTools
+        - disallowedTools
+        memories:
+        - memories
+        - memories
+        model: model
+        taskBudgetUSD: taskBudgetUSD
+        deleteTTL: deleteTTL
+        taskTimeout: taskTimeout
+        secretRefs:
+        - secretRefs
+        - secretRefs
         podSpec:
           dnsPolicy: "{}"
           nodeName: nodeName
@@ -5639,28 +5663,14 @@ components:
         priority: 0
         labels:
           key: labels
-        lifecycle: lifecycle
-        skills:
-        - skills
-        - skills
         sleepTTL: sleepTTL
         systemPrompt: systemPrompt
-        budgetUSD: budgetUSD
-        disallowedTools:
-        - disallowedTools
-        - disallowedTools
         officeManager: officeManager
-        memories:
-        - memories
-        - memories
         name: name
         namespace: namespace
-        model: model
-        taskBudgetUSD: taskBudgetUSD
         allowedTools:
         - allowedTools
         - allowedTools
-        deleteTTL: deleteTTL
       properties:
         allowedTools:
           description: |-
@@ -5694,6 +5704,12 @@ components:
           items:
             type: string
           type: array
+        effort:
+          description: |-
+            Effort sets the Claude Agent SDK's reasoning effort: "low", "medium",
+            "high", "xhigh", or "max". Empty means unset, so the model's own default
+            effort applies.
+          type: string
         instructions:
           type: string
         labels:
@@ -5846,6 +5862,7 @@ components:
           role: role
           templateRef: templateRef
           taskTimeout: "{}"
+          effort: effort
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -5955,6 +5972,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -5994,6 +6012,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -6192,6 +6211,7 @@ components:
         - connectors
         templateRef: templateRef
         taskTimeout: taskTimeout
+        effort: effort
         secretRefs:
         - secretRefs
         - secretRefs
@@ -6870,6 +6890,11 @@ components:
           items:
             type: string
           type: array
+        effort:
+          description: |-
+            Effort is "low", "medium", "high", "xhigh", "max", or "" to clear back to
+            unset (model default). Omitting the field leaves it unchanged.
+          type: string
         instructions:
           type: string
         labels:
@@ -6945,6 +6970,7 @@ components:
           role: role
           templateRef: templateRef
           taskTimeout: "{}"
+          effort: effort
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -7018,6 +7044,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -7057,6 +7084,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -7107,6 +7135,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -7162,6 +7191,7 @@ components:
             role: role
             templateRef: templateRef
             taskTimeout: "{}"
+            effort: effort
             storage: "{}"
             podSpec: "{}"
             priority: 0
@@ -7225,6 +7255,7 @@ components:
           role: role
           templateRef: templateRef
           taskTimeout: "{}"
+          effort: effort
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -13984,6 +14015,7 @@ components:
         role: role
         templateRef: templateRef
         taskTimeout: "{}"
+        effort: effort
         storage: "{}"
         podSpec: "{}"
         priority: 0
@@ -14075,6 +14107,14 @@ components:
           items:
             type: string
           type: array
+        effort:
+          description: |-
+            Effort controls the Claude Agent SDK's reasoning effort: "low", "medium",
+            "high", "xhigh", or "max". Empty (default) leaves it unset, so the CLI
+            uses the model's own default effort ("auto").
+            +kubebuilder:validation:Enum="";low;medium;high;xhigh;max
+            +optional
+          type: string
         instructions:
           description: Instructions is the user's task for the Claude agent.
           type: string
@@ -14238,6 +14278,7 @@ components:
           role: role
           templateRef: templateRef
           taskTimeout: "{}"
+          effort: effort
           storage: "{}"
           podSpec: "{}"
           priority: 0
@@ -14301,6 +14342,7 @@ components:
         role: role
         templateRef: templateRef
         taskTimeout: "{}"
+        effort: effort
         storage: "{}"
         podSpec: "{}"
         priority: 0
@@ -14390,6 +14432,14 @@ components:
           items:
             type: string
           type: array
+        effort:
+          description: |-
+            Effort controls the Claude Agent SDK's reasoning effort: "low", "medium",
+            "high", "xhigh", or "max". Empty (default) leaves it unset, so the CLI
+            uses the model's own default effort ("auto").
+            +kubebuilder:validation:Enum="";low;medium;high;xhigh;max
+            +optional
+          type: string
         labels:
           additionalProperties:
             type: string

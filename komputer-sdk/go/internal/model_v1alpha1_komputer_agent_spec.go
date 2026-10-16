@@ -29,6 +29,8 @@ type V1alpha1KomputerAgentSpec struct {
 	DeleteTTL *V1Duration `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// Effort controls the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty (default) leaves it unset, so the CLI uses the model's own default effort (\"auto\"). +kubebuilder:validation:Enum=\"\";low;medium;high;xhigh;max +optional
+	Effort *string `json:"effort,omitempty"`
 	// Instructions is the user's task for the Claude agent.
 	Instructions *string `json:"instructions,omitempty"`
 	// InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional
@@ -242,6 +244,38 @@ func (o *V1alpha1KomputerAgentSpec) HasDisallowedTools() bool {
 // SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
 func (o *V1alpha1KomputerAgentSpec) SetDisallowedTools(v []string) {
 	o.DisallowedTools = v
+}
+
+// GetEffort returns the Effort field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetEffort() string {
+	if o == nil || IsNil(o.Effort) {
+		var ret string
+		return ret
+	}
+	return *o.Effort
+}
+
+// GetEffortOk returns a tuple with the Effort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetEffortOk() (*string, bool) {
+	if o == nil || IsNil(o.Effort) {
+		return nil, false
+	}
+	return o.Effort, true
+}
+
+// HasEffort returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasEffort() bool {
+	if o != nil && !IsNil(o.Effort) {
+		return true
+	}
+
+	return false
+}
+
+// SetEffort gets a reference to the given string and assigns it to the Effort field.
+func (o *V1alpha1KomputerAgentSpec) SetEffort(v string) {
+	o.Effort = &v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -844,6 +878,9 @@ func (o V1alpha1KomputerAgentSpec) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
+	}
+	if !IsNil(o.Effort) {
+		toSerialize["effort"] = o.Effort
 	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions

@@ -3084,6 +3084,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "effort": {
+                    "description": "Effort is this agent's reasoning effort override (\"low\", \"medium\", \"high\",\n\"xhigh\", \"max\"). Empty means unset — the model's own default effort applies.",
+                    "type": "string"
+                },
                 "errors": {
                     "description": "Errors are non-fatal failures that occurred during the request (e.g. CR was patched\nbut live-pod sync failed). The CR change still took effect; the UI can surface these\nas toasts so the user knows something didn't fully apply.",
                     "type": "array",
@@ -3335,6 +3339,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "effort": {
+                    "description": "Effort sets the Claude Agent SDK's reasoning effort: \"low\", \"medium\",\n\"high\", \"xhigh\", or \"max\". Empty means unset, so the model's own default\neffort applies.",
+                    "type": "string"
                 },
                 "instructions": {
                     "type": "string"
@@ -3727,6 +3735,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "effort": {
+                    "description": "Effort is \"low\", \"medium\", \"high\", \"xhigh\", \"max\", or \"\" to clear back to\nunset (model default). Omitting the field leaves it unchanged.",
+                    "type": "string"
                 },
                 "instructions": {
                     "type": "string"
@@ -8379,6 +8391,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "effort": {
+                    "description": "Effort controls the Claude Agent SDK's reasoning effort: \"low\", \"medium\",\n\"high\", \"xhigh\", or \"max\". Empty (default) leaves it unset, so the CLI\nuses the model's own default effort (\"auto\").\n+kubebuilder:validation:Enum=\"\";low;medium;high;xhigh;max\n+optional",
+                    "type": "string"
+                },
                 "instructions": {
                     "description": "Instructions is the user's task for the Claude agent.",
                     "type": "string"
@@ -8552,6 +8568,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "effort": {
+                    "description": "Effort controls the Claude Agent SDK's reasoning effort: \"low\", \"medium\",\n\"high\", \"xhigh\", or \"max\". Empty (default) leaves it unset, so the CLI\nuses the model's own default effort (\"auto\").\n+kubebuilder:validation:Enum=\"\";low;medium;high;xhigh;max\n+optional",
+                    "type": "string"
                 },
                 "labels": {
                     "description": "Labels are user-defined key=value labels attached to this agent and\npropagated to all child resources (Pod, PVC, ConfigMap, Service).\nKeys starting with \"komputer.ai/\" are reserved for system labels and\nshould not be set directly through the API.\n+optional",

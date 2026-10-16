@@ -57,6 +57,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "taskBudgetUSD": {"type": "string", "description": "Hard per-task spending cap in USD, e.g. '2.50'. The task stops the instant it is exceeded, mid-task. Omit for no cap."},
             "ephemeral": {"type": "boolean", "description": "Run with an emptyDir workspace instead of a PVC — no files, packages, or session survive past this pod. Good for true one-shot AutoDelete sub-agents. Cannot be combined with lifecycle='Sleep' or sleepTTL, and is immutable after creation."},
             "model": {"type": "string", "description": "Claude model override (optional)."},
+            "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override (optional). Higher trades cost/speed for depth. Omit to use the model's own default effort."},
             "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
             "systemPrompt": {"type": "string", "description": "Custom system prompt defining the sub-agent's behavior, persona, or constraints (optional)."},
             "priority": {"type": "integer", "description": "Queue priority. Higher = admitted first when the template's maxConcurrentAgents cap is reached. Default: 0."},
@@ -104,6 +105,8 @@ async def create_agent(args):
         payload["storage"] = {"ephemeral": True}
     if args.get("model"):
         payload["model"] = args["model"]
+    if args.get("effort"):
+        payload["effort"] = args["effort"]
     if args.get("templateRef"):
         payload["templateRef"] = args["templateRef"]
     if args.get("systemPrompt"):
@@ -142,6 +145,7 @@ async def create_agent(args):
             "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules)."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. Default: 'worker'."},
             "model": {"type": "string", "description": "Claude model override."},
+            "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override (optional). Omit to use the model's own default effort."},
             "skills": {"type": "array", "items": {"type": "string"}, "description": "KomputerSkill names to attach to the scheduled agent."},
             "memories": {"type": "array", "items": {"type": "string"}, "description": "KomputerMemory names to attach to the scheduled agent."},
             "connectors": {"type": "array", "items": {"type": "string"}, "description": "KomputerConnector names to attach, giving the agent that connector's MCP tools."},
@@ -178,6 +182,8 @@ async def schedule_agent(args):
         }
         if args.get("model"):
             agent_spec["model"] = args["model"]
+        if args.get("effort"):
+            agent_spec["effort"] = args["effort"]
         if args.get("skills"):
             agent_spec["skills"] = args["skills"]
         if args.get("memories"):
@@ -492,6 +498,7 @@ async def attach_skill(args):
             "name": {"type": "string", "description": "Sub-agent name (as passed to create_agent)."},
             "instructions": {"type": "string", "description": "New task instructions (optional)."},
             "model": {"type": "string", "description": "Override Claude model (optional)."},
+            "effort": {"type": "string", "enum": ["", "low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override. Empty string clears it back to the model's own default effort."},
             "systemPrompt": {"type": "string", "description": "Replace the sub-agent's system prompt (persona/role/constraints). Empty string clears the override and reverts to the template default."},
             "cpu": {"type": "string", "description": "CPU (e.g. '2' or '500m'). Sets both requests and limits. Empty string clears the resources override."},
             "memory": {"type": "string", "description": "Memory (e.g. '4Gi'). Sets both requests and limits. Empty string clears the resources override."},
@@ -518,6 +525,9 @@ async def update_agent(args):
         payload["instructions"] = args["instructions"]
     if args.get("model"):
         payload["model"] = args["model"]
+    # Presence check, not truthiness, so an explicit "" clears effort back to unset.
+    if "effort" in args:
+        payload["effort"] = args["effort"]
     if "systemPrompt" in args:
         payload["systemPrompt"] = args["systemPrompt"]
     # Presence check, not truthiness, so an empty array clears the list.
@@ -1331,6 +1341,7 @@ async def list_templates(args):
                         "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
                         "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
                         "model": {"type": "string", "description": "Claude model override (optional)."},
+                        "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override for this member (optional). Omit to use the model's own default effort."},
                         "templateRef": {"type": "string", "description": "Pod template name (optional, defaults to 'default')."},
                         "systemPrompt": {"type": "string", "description": "Custom system prompt for this agent (optional)."},
                         "priority": {"type": "integer", "description": "Queue priority. Higher = admitted first under template caps. Default: 0."},
@@ -1381,6 +1392,8 @@ async def create_squad(args):
             "instructions": instructions.strip(),
             "model": m.get("model") or "claude-opus-5-5",
         }
+        if m.get("effort"):
+            spec["effort"] = m["effort"]
         if m.get("role"):
             spec["role"] = m["role"]
         if m.get("lifecycle"):

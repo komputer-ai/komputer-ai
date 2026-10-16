@@ -17,6 +17,10 @@ def _defaults_from_env() -> dict:
     """Build initial config from environment variables."""
     return {
         "model": os.getenv("KOMPUTER_MODEL", "claude-opus-5-5"),
+        # Reasoning effort override ("low"/"medium"/"high"/"xhigh"/"max"). Empty
+        # (default) means unset, so ClaudeAgentOptions.effort is left as None and
+        # the CLI uses the model's own default effort.
+        "effort": os.getenv("KOMPUTER_EFFORT", ""),
         "lifecycle": os.getenv("KOMPUTER_LIFECYCLE", ""),
         "role": os.getenv("KOMPUTER_ROLE", "manager"),
         "instructions": os.getenv("KOMPUTER_INSTRUCTIONS", ""),

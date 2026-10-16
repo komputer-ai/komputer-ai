@@ -190,6 +190,7 @@ func registerAgentCommands(root *cobra.Command) {
 			jsonMode, _ := cmd.Flags().GetBool("json")
 			ep := resolveEndpoint(cmd)
 			model, _ := cmd.Flags().GetString("model")
+			effort, _ := cmd.Flags().GetString("effort")
 			templateRef, _ := cmd.Flags().GetString("template")
 
 			ns, _ := cmd.Flags().GetString("namespace")
@@ -201,6 +202,9 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if model != "" {
 				body["model"] = model
+			}
+			if effort != "" {
+				body["effort"] = effort
 			}
 			if templateRef != "" {
 				body["templateRef"] = templateRef
@@ -323,6 +327,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	createCmd.Flags().String("model", "", "Claude model to use")
+	createCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max (empty for model default)")
 	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	createCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
@@ -358,6 +363,10 @@ func registerAgentCommands(root *cobra.Command) {
 			if cmd.Flags().Changed("model") {
 				v, _ := cmd.Flags().GetString("model")
 				body["model"] = v
+			}
+			if cmd.Flags().Changed("effort") {
+				v, _ := cmd.Flags().GetString("effort")
+				body["effort"] = v
 			}
 			if cmd.Flags().Changed("instructions") {
 				v, _ := cmd.Flags().GetString("instructions")
@@ -412,9 +421,9 @@ func registerAgentCommands(root *cobra.Command) {
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label.", 400)
+					dieJSON("No fields provided. Use --model, --effort, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label.", 400)
 				}
-				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label."))
+				fmt.Println(errorStyle.Render("No fields provided. Use --model, --effort, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label."))
 				os.Exit(1)
 			}
 
@@ -452,6 +461,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	updateCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
+	updateCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max. Empty string clears it back to model default.")
 	updateCmd.Flags().String("instructions", "", "New task instructions")
 	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
@@ -809,6 +819,10 @@ func registerAgentCommands(root *cobra.Command) {
 			if model, _ := cmd.Flags().GetString("model"); model != "" {
 				body["model"] = model
 			}
+			if cmd.Flags().Changed("effort") {
+				effort, _ := cmd.Flags().GetString("effort")
+				body["effort"] = effort
+			}
 			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
 				body["lifecycle"] = lc
 			}
@@ -869,9 +883,9 @@ func registerAgentCommands(root *cobra.Command) {
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags.", 400)
+					dieJSON("No settings provided. Use --model, --effort, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags.", 400)
 				}
-				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags."))
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --effort, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags."))
 				os.Exit(1)
 			}
 
@@ -909,6 +923,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	configCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
+	configCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max. Empty string clears it back to model default.")
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")

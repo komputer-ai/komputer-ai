@@ -82,6 +82,7 @@ type CreateAgentOpts struct {
 	Connectors      []string
 	DeleteTTL       *string
 	DisallowedTools []string
+	Effort          *string
 	Lifecycle       *string
 	Memories        []string
 	Model           *string
@@ -121,6 +122,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.DisallowedTools != nil {
 			req.DisallowedTools = o.DisallowedTools
+		}
+		if o.Effort != nil {
+			req.Effort = o.Effort
 		}
 		if o.Lifecycle != nil {
 			req.Lifecycle = o.Lifecycle
@@ -181,6 +185,7 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 				BudgetUSD:       o.BudgetUSD,
 				Connectors:      o.Connectors,
 				DisallowedTools: o.DisallowedTools,
+				Effort:          o.Effort,
 				Instructions:    &instructions,
 				Lifecycle:       o.Lifecycle,
 				Memories:        o.Memories,
@@ -212,6 +217,7 @@ type PatchAgentOpts struct {
 	Connectors      []string
 	DeleteTTL       *string
 	DisallowedTools []string
+	Effort          *string
 	Instructions    *string
 	Lifecycle       *string
 	Memories        []string
@@ -248,6 +254,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.DisallowedTools != nil {
 			req.DisallowedTools = o.DisallowedTools
+		}
+		if o.Effort != nil {
+			req.Effort = o.Effort
 		}
 		if o.Instructions != nil {
 			req.Instructions = o.Instructions

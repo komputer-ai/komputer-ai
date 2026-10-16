@@ -185,7 +185,7 @@ def _resolve_task_budget_usd(task_budget_usd: float | None) -> float | None:
         return None
 
 
-async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None, task_budget_usd: float | None = None):
+async def run_agent(instructions: str, model: str, publisher, system_prompt: str = None, task_budget_usd: float | None = None, effort: str | None = None):
     """Run a Claude agent with the given instructions using the Claude Agent SDK."""
     import state
     state.interrupted = False
@@ -282,6 +282,12 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     # Set system prompt via SDK (replaces previous system prompt, doesn't accumulate in history)
     if system_prompt:
         options.system_prompt = system_prompt
+
+    # Reasoning effort override. Left unset (None/"") keeps ClaudeAgentOptions.effort
+    # at its default of None, so the CLI never receives --effort and uses the
+    # model's own default effort ("auto") — this must stay the default behavior.
+    if effort:
+        options.effort = effort
 
     # Register MCP servers: manager tools + connectors from KOMPUTER_MCP_SERVERS env.
     mcp_servers = {}

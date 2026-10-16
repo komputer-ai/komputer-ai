@@ -28,6 +28,8 @@ type PatchAgentRequest struct {
 	DeleteTTL *string `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools; an explicit [] clears the list.
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// Effort is \"low\", \"medium\", \"high\", \"xhigh\", \"max\", or \"\" to clear back to unset (model default). Omitting the field leaves it unchanged.
+	Effort *string `json:"effort,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
 	Labels *map[string]string `json:"labels,omitempty"`
 	Lifecycle *string `json:"lifecycle,omitempty"`
@@ -228,6 +230,38 @@ func (o *PatchAgentRequest) HasDisallowedTools() bool {
 // SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
 func (o *PatchAgentRequest) SetDisallowedTools(v []string) {
 	o.DisallowedTools = v
+}
+
+// GetEffort returns the Effort field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetEffort() string {
+	if o == nil || IsNil(o.Effort) {
+		var ret string
+		return ret
+	}
+	return *o.Effort
+}
+
+// GetEffortOk returns a tuple with the Effort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetEffortOk() (*string, bool) {
+	if o == nil || IsNil(o.Effort) {
+		return nil, false
+	}
+	return o.Effort, true
+}
+
+// HasEffort returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasEffort() bool {
+	if o != nil && !IsNil(o.Effort) {
+		return true
+	}
+
+	return false
+}
+
+// SetEffort gets a reference to the given string and assigns it to the Effort field.
+func (o *PatchAgentRequest) SetEffort(v string) {
+	o.Effort = &v
 }
 
 // GetInstructions returns the Instructions field value if set, zero value otherwise.
@@ -766,6 +800,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
+	}
+	if !IsNil(o.Effort) {
+		toSerialize["effort"] = o.Effort
 	}
 	if !IsNil(o.Instructions) {
 		toSerialize["instructions"] = o.Instructions

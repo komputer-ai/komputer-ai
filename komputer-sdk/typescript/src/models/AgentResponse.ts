@@ -96,6 +96,13 @@ export interface AgentResponse {
      */
     disallowedTools?: Array<string>;
     /**
+     * Effort is this agent's reasoning effort override ("low", "medium", "high",
+     * "xhigh", "max"). Empty means unset — the model's own default effort applies.
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    effort?: string;
+    /**
      * Errors are non-fatal failures that occurred during the request (e.g. CR was patched
      * but live-pod sync failed). The CR change still took effect; the UI can surface these
      * as toasts so the user knows something didn't fully apply.
@@ -322,6 +329,7 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'deleteExpiresAt': json['deleteExpiresAt'] == null ? undefined : json['deleteExpiresAt'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
+        'effort': json['effort'] == null ? undefined : json['effort'],
         'errors': json['errors'] == null ? undefined : json['errors'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -377,6 +385,7 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'deleteExpiresAt': value['deleteExpiresAt'],
         'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
+        'effort': value['effort'],
         'errors': value['errors'],
         'instructions': value['instructions'],
         'labels': value['labels'],
