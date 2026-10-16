@@ -38,6 +38,7 @@ class AgentResponse(BaseModel):
     delete_expires_at: Optional[StrictStr] = Field(default=None, alias="deleteExpiresAt")
     delete_ttl: Optional[StrictStr] = Field(default=None, description="absolute lifetime before auto-delete, e.g. \"24h\"", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools removed from this agent", alias="disallowedTools")
+    effort: Optional[StrictStr] = Field(default=None, description="Effort is this agent's reasoning effort override (\"low\", \"medium\", \"high\", \"xhigh\", \"max\"). Empty means unset — the model's own default effort applies.")
     errors: Optional[List[StrictStr]] = Field(default=None, description="Errors are non-fatal failures that occurred during the request (e.g. CR was patched but live-pod sync failed). The CR change still took effect; the UI can surface these as toasts so the user knows something didn't fully apply.")
     instructions: Optional[StrictStr] = Field(default=None, description="User task (spec.instructions)")
     labels: Optional[Dict[str, StrictStr]] = None
@@ -70,7 +71,7 @@ class AgentResponse(BaseModel):
     task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -138,6 +139,7 @@ class AgentResponse(BaseModel):
             "deleteExpiresAt": obj.get("deleteExpiresAt"),
             "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
+            "effort": obj.get("effort"),
             "errors": obj.get("errors"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),

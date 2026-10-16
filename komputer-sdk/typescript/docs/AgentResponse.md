@@ -15,6 +15,7 @@ Name | Type
 `deleteExpiresAt` | string
 `deleteTTL` | string
 `disallowedTools` | Array&lt;string&gt;
+`effort` | string
 `errors` | Array&lt;string&gt;
 `instructions` | string
 `labels` | { [key: string]: string; }
@@ -64,6 +65,7 @@ const example = {
   "deleteExpiresAt": null,
   "deleteTTL": null,
   "disallowedTools": null,
+  "effort": null,
   "errors": null,
   "instructions": null,
   "labels": null,

@@ -18,16 +18,20 @@ import (
 )
 
 type CreateAgentRequest struct {
-	Name         string   `json:"name" binding:"required"`
-	Instructions string   `json:"instructions" binding:"required"`
-	Model        string   `json:"model"`
-	TemplateRef  string   `json:"templateRef"`
-	Role         string   `json:"role"`       // "manager" or "" (default manager)
-	Namespace    string   `json:"namespace"`  // optional, defaults to server default
-	SecretRefs   []string `json:"secretRefs"` // names of existing K8s Secrets to attach
-	Memories     []string `json:"memories"`   // optional KomputerMemory names to attach
-	Skills       []string `json:"skills"`     // optional KomputerSkill names to attach
-	Connectors   []string `json:"connectors"` // optional KomputerConnector names to attach
+	Name         string `json:"name" binding:"required"`
+	Instructions string `json:"instructions" binding:"required"`
+	Model        string `json:"model"`
+	// Effort sets the Claude Agent SDK's reasoning effort: "low", "medium",
+	// "high", "xhigh", or "max". Empty means unset, so the model's own default
+	// effort applies.
+	Effort      string   `json:"effort,omitempty"`
+	TemplateRef string   `json:"templateRef"`
+	Role        string   `json:"role"`       // "manager" or "" (default manager)
+	Namespace   string   `json:"namespace"`  // optional, defaults to server default
+	SecretRefs  []string `json:"secretRefs"` // names of existing K8s Secrets to attach
+	Memories    []string `json:"memories"`   // optional KomputerMemory names to attach
+	Skills      []string `json:"skills"`     // optional KomputerSkill names to attach
+	Connectors  []string `json:"connectors"` // optional KomputerConnector names to attach
 	// AllowedTools restricts the agent to exactly these tools. REPLACES the default
 	// built-in set rather than extending it, and connector tools are not auto-added.
 	// Supports wildcards, e.g. "mcp__figma__*". Empty keeps default behavior.
@@ -67,9 +71,12 @@ type CreateAgentRequest struct {
 }
 
 type AgentResponse struct {
-	Name            string `json:"name"`
-	Namespace       string `json:"namespace"`
-	Model           string `json:"model"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Model     string `json:"model"`
+	// Effort is this agent's reasoning effort override ("low", "medium", "high",
+	// "xhigh", "max"). Empty means unset — the model's own default effort applies.
+	Effort          string `json:"effort,omitempty"`
 	Status          string `json:"status"`
 	TaskStatus      string `json:"taskStatus,omitempty"`
 	LastTaskMessage string `json:"lastTaskMessage,omitempty"`
@@ -349,7 +356,10 @@ func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 }
 
 type PatchAgentRequest struct {
-	Model        *string   `json:"model,omitempty"`
+	Model *string `json:"model,omitempty"`
+	// Effort is "low", "medium", "high", "xhigh", "max", or "" to clear back to
+	// unset (model default). Omitting the field leaves it unchanged.
+	Effort       *string   `json:"effort,omitempty"`
 	Lifecycle    *string   `json:"lifecycle,omitempty"`
 	Instructions *string   `json:"instructions,omitempty"`
 	TemplateRef  *string   `json:"templateRef,omitempty"`
@@ -373,9 +383,9 @@ type PatchAgentRequest struct {
 	BudgetUSD     *string                       `json:"budgetUSD,omitempty"`
 	TaskBudgetUSD *string                       `json:"taskBudgetUSD,omitempty"`
 	Priority      *int32                        `json:"priority,omitempty"` // pointer so 0 vs unset is distinguishable
-	PodSpec     *corev1.PodSpec               `json:"podSpec,omitempty"`
-	Storage     *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
-	Labels      map[string]string             `json:"labels,omitempty"`
+	PodSpec       *corev1.PodSpec               `json:"podSpec,omitempty"`
+	Storage       *komputerv1alpha1.StorageSpec `json:"storage,omitempty"`
+	Labels        map[string]string             `json:"labels,omitempty"`
 	// RemoveLabels are user label keys to remove. A key present in both Labels
 	// and RemoveLabels is rejected as ambiguous.
 	RemoveLabels []string `json:"removeLabels,omitempty"`
@@ -492,6 +502,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		if err := validateEffort(req.Effort); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
 		// An ephemeral workspace (no PVC) can never be combined with Sleep/sleepTTL —
 		// sleeping deletes the pod, which would wipe it. For a new agent this checks
@@ -563,6 +577,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Name:               existing.Name,
 					Namespace:          existing.Namespace,
 					Model:              existing.Spec.Model,
+					Effort:             existing.Spec.Effort,
 					Status:             "Pending",
 					Lifecycle:          string(existing.Spec.Lifecycle),
 					LastTaskCostUSD:    existing.Status.LastTaskCostUSD,
@@ -616,7 +631,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					agentActionsTotal.WithLabelValues("wake", "error").Inc()
 					return
 				}
-				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 					Logger.Warnw("failed to patch instructions before forwarding new task", "agent_name", req.Name, "error", err)
 				}
 			}
@@ -655,7 +670,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// silently clear an existing one, since callers routinely send just
 			// name + instructions.
 			if sleepTTL != nil || deleteTTL != nil || taskTimeout != nil || budgetUSD != "" || taskBudgetUSD != "" {
-				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil,
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil, nil,
 					TTLUpdate{Set: sleepTTL != nil, Value: sleepTTL},
 					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL},
 					TTLUpdate{Set: taskTimeout != nil, Value: taskTimeout},
@@ -671,6 +686,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Name:               existing.Name,
 				Namespace:          existing.Namespace,
 				Model:              existing.Spec.Model,
+				Effort:             existing.Spec.Effort,
 				Status:             string(existing.Status.Phase),
 				TaskStatus:         string(existing.Status.TaskStatus),
 				LastTaskMessage:    existing.Status.LastTaskMessage,
@@ -735,6 +751,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				TemplateRef:     req.TemplateRef,
 				SystemPrompt:    req.SystemPrompt,
 				Model:           req.Model,
+				Effort:          req.Effort,
 				Role:            role,
 				Secrets:         req.SecretRefs,
 				Skills:          req.Skills,
@@ -769,6 +786,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
 			Status:             "Pending",
 			Lifecycle:          string(agent.Spec.Lifecycle),
 			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
@@ -1000,6 +1018,7 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
 			Status:             string(agent.Status.Phase),
 			TaskStatus:         string(agent.Status.TaskStatus),
 			LastTaskMessage:    agent.Status.LastTaskMessage,
@@ -1081,6 +1100,7 @@ func sleepAgent(k8s *K8sClient) gin.HandlerFunc {
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
 			Status:             string(agent.Status.Phase),
 			TaskStatus:         string(agent.Status.TaskStatus),
 			LastTaskMessage:    agent.Status.LastTaskMessage,
@@ -1141,6 +1161,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
 			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
 			Status:             string(agent.Status.Phase),
 			TaskStatus:         string(agent.Status.TaskStatus),
 			LastTaskMessage:    agent.Status.LastTaskMessage,
@@ -1347,6 +1368,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				Name:               a.Name,
 				Namespace:          a.Namespace,
 				Model:              a.Spec.Model,
+				Effort:             a.Spec.Effort,
 				Status:             string(a.Status.Phase),
 				TaskStatus:         string(a.Status.TaskStatus),
 				LastTaskMessage:    a.Status.LastTaskMessage,
@@ -1424,13 +1446,19 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
+		if req.Model == nil && req.Effort == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
 		// On Bedrock, reject a friendly model override before it reaches the SDK.
 		if req.Model != nil {
 			if err := validateBedrockModel(*req.Model, false); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		if req.Effort != nil {
+			if err := validateEffort(*req.Effort); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -1512,7 +1540,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1. Patch CR spec first — this is the source of truth.
-		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout, budgetUSD, taskBudgetUSD); err != nil {
+		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Effort, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout, budgetUSD, taskBudgetUSD); err != nil {
 			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
@@ -1622,6 +1650,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if err == nil && agent.Status.PodName != "" && agent.Status.Phase == "Running" {
 			type agentConfigPayload struct {
 				Model        *string                 `json:"model,omitempty"`
+				Effort       *string                 `json:"effort,omitempty"`
 				Lifecycle    *string                 `json:"lifecycle,omitempty"`
 				Instructions *string                 `json:"instructions,omitempty"`
 				TemplateRef  *string                 `json:"templateRef,omitempty"`
@@ -1630,6 +1659,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			payload := agentConfigPayload{
 				Model:        req.Model,
+				Effort:       req.Effort,
 				Lifecycle:    req.Lifecycle,
 				Instructions: req.Instructions,
 				TemplateRef:  req.TemplateRef,
@@ -1645,7 +1675,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			}
 			// Skip if payload has no fields the agent's /config endpoint understands
 			// (e.g. only skills/memories changed — those are applied separately above).
-			hasPayloadFields := payload.Model != nil || payload.Lifecycle != nil ||
+			hasPayloadFields := payload.Model != nil || payload.Effort != nil || payload.Lifecycle != nil ||
 				payload.Instructions != nil || payload.TemplateRef != nil ||
 				payload.Secrets != nil || payload.McpServers != nil
 			configPayload, _ := json.Marshal(payload)
@@ -1684,6 +1714,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Name:               updated.Name,
 			Namespace:          updated.Namespace,
 			Model:              updated.Spec.Model,
+			Effort:             updated.Spec.Effort,
 			Status:             string(updated.Status.Phase),
 			TaskStatus:         string(updated.Status.TaskStatus),
 			LastTaskMessage:    updated.Status.LastTaskMessage,

@@ -69,6 +69,9 @@ func printAgent(a AgentResponse) {
 	row("Phase:", phaseBadge)
 	row("Task:", taskBadge)
 	row("Model:", a.Model)
+	if a.Effort != "" {
+		row("Effort:", a.Effort)
+	}
 	row("Namespace:", a.Namespace)
 	if a.Lifecycle != "" {
 		row("Lifecycle:", a.Lifecycle)

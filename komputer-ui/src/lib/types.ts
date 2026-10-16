@@ -17,6 +17,8 @@ export interface AgentResponse {
   name: string;
   namespace: string;
   model: string;
+  /** Reasoning effort override ('low'|'medium'|'high'|'xhigh'|'max'). Empty/unset means the model's own default effort. */
+  effort?: string;
   status: AgentStatus;
   taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
@@ -118,6 +120,7 @@ export interface OfficeListResponse {
  */
 export interface ScheduleAgentSpec {
   model?: string;
+  effort?: string;
   lifecycle?: string;
   role?: string;
   templateRef?: string;
@@ -193,6 +196,7 @@ export interface CreateAgentRequest {
   name: string;
   instructions: string;
   model?: string;
+  effort?: string;
   templateRef?: string;
   role?: 'manager' | 'worker';
   namespace?: string;
@@ -234,6 +238,7 @@ export interface CreateScheduleRequest {
 
 export interface PatchAgentRequest {
   model?: string;
+  effort?: string;
   lifecycle?: string;
   instructions?: string;
   templateRef?: string;

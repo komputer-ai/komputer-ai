@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **Connectors** | Pointer to **[]string** | connector names to attach | [optional] 
 **DeleteTTL** | Pointer to **string** |  | [optional] 
 **DisallowedTools** | Pointer to **[]string** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
+**Effort** | Pointer to **string** | Effort is \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, \&quot;max\&quot;, or \&quot;\&quot; to clear back to unset (model default). Omitting the field leaves it unchanged. | [optional] 
 **Instructions** | Pointer to **string** |  | [optional] 
 **Labels** | Pointer to **map[string]string** |  | [optional] 
 **Lifecycle** | Pointer to **string** |  | [optional] 
@@ -169,6 +170,31 @@ SetDisallowedTools sets DisallowedTools field to given value.
 `func (o *PatchAgentRequest) HasDisallowedTools() bool`
 
 HasDisallowedTools returns a boolean if a field has been set.
+
+### GetEffort
+
+`func (o *PatchAgentRequest) GetEffort() string`
+
+GetEffort returns the Effort field if non-nil, zero value otherwise.
+
+### GetEffortOk
+
+`func (o *PatchAgentRequest) GetEffortOk() (*string, bool)`
+
+GetEffortOk returns a tuple with the Effort field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEffort
+
+`func (o *PatchAgentRequest) SetEffort(v string)`
+
+SetEffort sets Effort field to given value.
+
+### HasEffort
+
+`func (o *PatchAgentRequest) HasEffort() bool`
+
+HasEffort returns a boolean if a field has been set.
 
 ### GetInstructions
 

@@ -665,3 +665,104 @@ async def test_schedule_agent_omits_unset_config(mock_api):
     for key in ("skills", "memories", "connectors", "systemPrompt",
                 "allowedTools", "disallowedTools"):
         assert key not in agent, f"{key} must be omitted when unset"
+
+
+# --- effort (issue #185) ---
+
+def test_create_agent_schema_exposes_effort():
+    props = manager_tools.create_agent.input_schema["properties"]
+    assert props["effort"]["type"] == "string"
+    assert set(props["effort"]["enum"]) == {"low", "medium", "high", "xhigh", "max"}
+
+
+def test_update_agent_schema_exposes_effort():
+    props = manager_tools.update_agent.input_schema["properties"]
+    assert props["effort"]["type"] == "string"
+    # "" must be a valid enum value on update_agent — it's how a manager clears
+    # effort back to the model's own default.
+    assert set(props["effort"]["enum"]) == {"", "low", "medium", "high", "xhigh", "max"}
+
+
+def test_schedule_agent_schema_exposes_effort():
+    props = manager_tools.schedule_agent.input_schema["properties"]
+    assert props["effort"]["type"] == "string"
+    assert set(props["effort"]["enum"]) == {"low", "medium", "high", "xhigh", "max"}
+
+
+def test_create_squad_schema_exposes_member_effort():
+    props = manager_tools.create_squad.input_schema["properties"]
+    member_props = props["members"]["items"]["properties"]
+    assert member_props["effort"]["type"] == "string"
+    assert set(member_props["effort"]["enum"]) == {"low", "medium", "high", "xhigh", "max"}
+
+
+@pytest.mark.asyncio
+async def test_create_agent_forwards_effort(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "deep-thinker"})
+    result = await manager_tools.create_agent.handler({
+        "name": "deep-thinker",
+        "instructions": "think hard",
+        "effort": "xhigh",
+    })
+    assert not result.get("isError")
+    assert mock_api.last_json["effort"] == "xhigh"
+
+
+@pytest.mark.asyncio
+async def test_create_agent_omits_effort_when_absent(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "plain"})
+    result = await manager_tools.create_agent.handler(
+        {"name": "plain", "instructions": "normal work"}
+    )
+    assert not result.get("isError")
+    assert "effort" not in mock_api.last_json
+
+
+@pytest.mark.asyncio
+async def test_update_agent_forwards_effort(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.update_agent.handler({"name": "a1", "effort": "low"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"effort": "low"}
+
+
+@pytest.mark.asyncio
+async def test_update_agent_clears_effort_with_empty_string(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.update_agent.handler({"name": "a1", "effort": ""})
+    assert not result.get("isError")
+    # An explicit "" must survive to the API so it can clear back to unset/auto.
+    assert mock_api.last_json == {"effort": ""}
+
+
+@pytest.mark.asyncio
+async def test_update_agent_omits_effort_when_absent(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.update_agent.handler({"name": "a1", "instructions": "new work"})
+    assert not result.get("isError")
+    assert "effort" not in mock_api.last_json
+
+
+@pytest.mark.asyncio
+async def test_schedule_agent_forwards_effort(mock_api):
+    mock_api.set("POST", "/api/v1/schedules", {"name": "nightly"})
+    result = await manager_tools.schedule_agent.handler({
+        "name": "nightly",
+        "schedule": "0 9 * * *",
+        "instructions": "report",
+        "effort": "high",
+    })
+    assert not result.get("isError")
+    assert mock_api.last_json["agent"]["effort"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_schedule_agent_omits_effort_when_absent(mock_api):
+    mock_api.set("POST", "/api/v1/schedules", {"name": "plain"})
+    await manager_tools.schedule_agent.handler({
+        "name": "plain",
+        "schedule": "0 9 * * *",
+        "instructions": "report",
+    })
+    agent = mock_api.last_json.get("agent", {})
+    assert "effort" not in agent

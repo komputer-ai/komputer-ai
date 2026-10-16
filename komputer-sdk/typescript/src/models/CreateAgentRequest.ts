@@ -72,6 +72,14 @@ export interface CreateAgentRequest {
      */
     disallowedTools?: Array<string>;
     /**
+     * Effort sets the Claude Agent SDK's reasoning effort: "low", "medium",
+     * "high", "xhigh", or "max". Empty means unset, so the model's own default
+     * effort applies.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    effort?: string;
+    /**
      * 
      * @type {string}
      * @memberof CreateAgentRequest
@@ -218,6 +226,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
+        'effort': json['effort'] == null ? undefined : json['effort'],
         'instructions': json['instructions'],
         'labels': json['labels'] == null ? undefined : json['labels'],
         'lifecycle': json['lifecycle'] == null ? undefined : json['lifecycle'],
@@ -256,6 +265,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],
         'disallowedTools': value['disallowedTools'],
+        'effort': value['effort'],
         'instructions': value['instructions'],
         'labels': value['labels'],
         'lifecycle': value['lifecycle'],

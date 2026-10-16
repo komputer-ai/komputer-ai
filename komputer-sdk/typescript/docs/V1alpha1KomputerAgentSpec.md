@@ -11,6 +11,7 @@ Name | Type
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | [V1Duration](V1Duration.md)
 `disallowedTools` | Array&lt;string&gt;
+`effort` | string
 `instructions` | string
 `internalSystemPrompt` | string
 `labels` | { [key: string]: string; }
@@ -42,6 +43,7 @@ const example = {
   "connectors": null,
   "deleteTTL": null,
   "disallowedTools": null,
+  "effort": null,
   "instructions": null,
   "internalSystemPrompt": null,
   "labels": null,

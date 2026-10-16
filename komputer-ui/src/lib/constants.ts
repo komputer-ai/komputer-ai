@@ -15,6 +15,15 @@ export const MODELS = [
   { value: "claude-sonnet-4-6", label: "claude-sonnet-4-6" },
 ];
 
+export const EFFORTS = [
+  { value: "auto", label: "Auto (model default)" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra High" },
+  { value: "max", label: "Max" },
+];
+
 export const LIFECYCLES = [
   { value: "default", label: "Default — keep running" },
   { value: "Sleep", label: "Sleep — preserve workspace" },

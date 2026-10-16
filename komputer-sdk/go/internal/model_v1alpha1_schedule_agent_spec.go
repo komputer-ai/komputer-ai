@@ -29,6 +29,8 @@ type V1alpha1ScheduleAgentSpec struct {
 	DeleteTTL *V1Duration `json:"deleteTTL,omitempty"`
 	// DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// Effort controls the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty (default) leaves it unset, so the CLI uses the model's own default effort (\"auto\"). +kubebuilder:validation:Enum=\"\";low;medium;high;xhigh;max +optional
+	Effort *string `json:"effort,omitempty"`
 	// Labels are user-defined key=value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \"komputer.ai/\" are reserved for system labels and should not be set directly through the API. +optional
 	Labels *map[string]string `json:"labels,omitempty"`
 	// Lifecycle controls what happens after task completion. Empty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC, \"AutoDelete\" deletes the entire agent after task completion. +kubebuilder:validation:Enum=\"\";Sleep;AutoDelete +optional
@@ -236,6 +238,38 @@ func (o *V1alpha1ScheduleAgentSpec) HasDisallowedTools() bool {
 // SetDisallowedTools gets a reference to the given []string and assigns it to the DisallowedTools field.
 func (o *V1alpha1ScheduleAgentSpec) SetDisallowedTools(v []string) {
 	o.DisallowedTools = v
+}
+
+// GetEffort returns the Effort field value if set, zero value otherwise.
+func (o *V1alpha1ScheduleAgentSpec) GetEffort() string {
+	if o == nil || IsNil(o.Effort) {
+		var ret string
+		return ret
+	}
+	return *o.Effort
+}
+
+// GetEffortOk returns a tuple with the Effort field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1ScheduleAgentSpec) GetEffortOk() (*string, bool) {
+	if o == nil || IsNil(o.Effort) {
+		return nil, false
+	}
+	return o.Effort, true
+}
+
+// HasEffort returns a boolean if a field has been set.
+func (o *V1alpha1ScheduleAgentSpec) HasEffort() bool {
+	if o != nil && !IsNil(o.Effort) {
+		return true
+	}
+
+	return false
+}
+
+// SetEffort gets a reference to the given string and assigns it to the Effort field.
+func (o *V1alpha1ScheduleAgentSpec) SetEffort(v string) {
+	o.Effort = &v
 }
 
 // GetLabels returns the Labels field value if set, zero value otherwise.
@@ -742,6 +776,9 @@ func (o V1alpha1ScheduleAgentSpec) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DisallowedTools) {
 		toSerialize["disallowedTools"] = o.DisallowedTools
+	}
+	if !IsNil(o.Effort) {
+		toSerialize["effort"] = o.Effort
 	}
 	if !IsNil(o.Labels) {
 		toSerialize["labels"] = o.Labels

@@ -36,6 +36,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     connectors: Optional[List[StrictStr]] = Field(default=None, description="Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional")
     delete_ttl: Optional[V1Duration] = Field(default=None, description="DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template's deleteTTL when set. +optional", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools from the agent. Purely subtractive: the default built-ins and all connector tools remain available except what is named here. Takes precedence over AllowedTools. Supports wildcards, e.g. \"mcp__figma__*\". +optional", alias="disallowedTools")
+    effort: Optional[StrictStr] = Field(default=None, description="Effort controls the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty (default) leaves it unset, so the CLI uses the model's own default effort (\"auto\"). +kubebuilder:validation:Enum=\"\";low;medium;high;xhigh;max +optional")
     instructions: Optional[StrictStr] = Field(default=None, description="Instructions is the user's task for the Claude agent.")
     internal_system_prompt: Optional[StrictStr] = Field(default=None, description="InternalSystemPrompt is the built-in system prompt set by the API (role prompt + memories). +optional", alias="internalSystemPrompt")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \"komputer.ai/\" are reserved for system labels and should not be set directly through the API. +optional")
@@ -54,7 +55,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). Passed to the Claude Agent SDK as max_budget_usd for each task the agent runs: the SDK itself stops the task the instant this is exceeded, wherever it is mid-task, returning an error_max_budget_usd result. Unlike BudgetUSD this is enforced inside the running task rather than by refusing to start one.  Unset (default) means tasks run without a per-task cap. Overrides the template's taskBudgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional", alias="taskBudgetUSD")
     task_timeout: Optional[V1Duration] = Field(default=None, description="TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, description="TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"", alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -127,6 +128,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
             "connectors": obj.get("connectors"),
             "deleteTTL": V1Duration.from_dict(obj["deleteTTL"]) if obj.get("deleteTTL") is not None else None,
             "disallowedTools": obj.get("disallowedTools"),
+            "effort": obj.get("effort"),
             "instructions": obj.get("instructions"),
             "internalSystemPrompt": obj.get("internalSystemPrompt"),
             "labels": obj.get("labels"),

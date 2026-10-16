@@ -6,6 +6,7 @@ type AgentResponse struct {
 	Name            string            `json:"name"`
 	Namespace       string            `json:"namespace"`
 	Model           string            `json:"model"`
+	Effort          string            `json:"effort,omitempty"`
 	Status          string            `json:"status"`
 	TaskStatus      string            `json:"taskStatus"`
 	LastTaskMessage string            `json:"lastTaskMessage"`
@@ -92,6 +93,7 @@ type OfficeListResponse struct {
 // Secrets), not "secretRefs".
 type ScheduleAgentSpec struct {
 	Model           string            `json:"model,omitempty"`
+	Effort          string            `json:"effort,omitempty"`
 	Lifecycle       string            `json:"lifecycle,omitempty"`
 	Role            string            `json:"role,omitempty"`
 	TemplateRef     string            `json:"templateRef,omitempty"`

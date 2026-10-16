@@ -34,6 +34,7 @@ class CreateAgentRequest(BaseModel):
     connectors: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerConnector names to attach")
     delete_ttl: Optional[StrictStr] = Field(default=None, description="DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.", alias="deleteTTL")
     disallowed_tools: Optional[List[StrictStr]] = Field(default=None, description="DisallowedTools removes these tools; everything else stays available. Takes precedence over AllowedTools. Supports wildcards.", alias="disallowedTools")
+    effort: Optional[StrictStr] = Field(default=None, description="Effort sets the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty means unset, so the model's own default effort applies.")
     instructions: StrictStr
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.")
     lifecycle: Optional[StrictStr] = Field(default=None, description="\"\", \"Sleep\", or \"AutoDelete\"")
@@ -53,7 +54,7 @@ class CreateAgentRequest(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). The SDK stops a task the instant it is exceeded, mid-task. Empty means tasks run without a per-task cap.", alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, description="TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit.", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -117,6 +118,7 @@ class CreateAgentRequest(BaseModel):
             "connectors": obj.get("connectors"),
             "deleteTTL": obj.get("deleteTTL"),
             "disallowedTools": obj.get("disallowedTools"),
+            "effort": obj.get("effort"),
             "instructions": obj.get("instructions"),
             "labels": obj.get("labels"),
             "lifecycle": obj.get("lifecycle"),

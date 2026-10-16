@@ -112,6 +112,16 @@ export interface V1alpha1KomputerAgentSpec {
      */
     disallowedTools?: Array<string>;
     /**
+     * Effort controls the Claude Agent SDK's reasoning effort: "low", "medium",
+     * "high", "xhigh", or "max". Empty (default) leaves it unset, so the CLI
+     * uses the model's own default effort ("auto").
+     * +kubebuilder:validation:Enum="";low;medium;high;xhigh;max
+     * +optional
+     * @type {string}
+     * @memberof V1alpha1KomputerAgentSpec
+     */
+    effort?: string;
+    /**
      * Instructions is the user's task for the Claude agent.
      * @type {string}
      * @memberof V1alpha1KomputerAgentSpec
@@ -306,6 +316,7 @@ export function V1alpha1KomputerAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : V1DurationFromJSON(json['deleteTTL']),
         'disallowedTools': json['disallowedTools'] == null ? undefined : json['disallowedTools'],
+        'effort': json['effort'] == null ? undefined : json['effort'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'internalSystemPrompt': json['internalSystemPrompt'] == null ? undefined : json['internalSystemPrompt'],
         'labels': json['labels'] == null ? undefined : json['labels'],
@@ -343,6 +354,7 @@ export function V1alpha1KomputerAgentSpecToJSONTyped(value?: V1alpha1KomputerAge
         'connectors': value['connectors'],
         'deleteTTL': V1DurationToJSON(value['deleteTTL']),
         'disallowedTools': value['disallowedTools'],
+        'effort': value['effort'],
         'instructions': value['instructions'],
         'internalSystemPrompt': value['internalSystemPrompt'],
         'labels': value['labels'],

@@ -257,6 +257,7 @@ func registerScheduleCommands(root *cobra.Command) {
 			keepAgents, _ := cmd.Flags().GetBool("keep-agents")
 			agent, _ := cmd.Flags().GetString("agent")
 			model, _ := cmd.Flags().GetString("model")
+			effort, _ := cmd.Flags().GetString("effort")
 			lifecycle, _ := cmd.Flags().GetString("lifecycle")
 			ns, _ := cmd.Flags().GetString("namespace")
 
@@ -291,6 +292,7 @@ func registerScheduleCommands(root *cobra.Command) {
 
 				spec := &ScheduleAgentSpec{
 					Model:        model,
+					Effort:       effort,
 					Lifecycle:    lifecycle,
 					Role:         role,
 					TemplateRef:  templateRef,
@@ -376,6 +378,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCreateCmd.Flags().Bool("keep-agents", false, "Keep agents alive when schedule auto-deletes")
 	scheduleCreateCmd.Flags().String("agent", "", "Reference existing agent instead of creating one")
 	scheduleCreateCmd.Flags().String("model", "", "Claude model")
+	scheduleCreateCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max (empty for model default)")
 	scheduleCreateCmd.Flags().String("lifecycle", "Sleep", "Agent lifecycle (default: Sleep)")
 	scheduleCreateCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	scheduleCreateCmd.Flags().String("role", "", "Agent role: worker (default for schedules) or manager")
@@ -568,6 +571,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleUpdateCmd.Flags().Bool("suspended", false, "Toggle suspended state (paused without deletion)")
 	scheduleUpdateCmd.Flags().String("agent", "", "Target an existing agent by name (clears inline template)")
 	scheduleUpdateCmd.Flags().String("model", "", "Agent template: Claude model")
+	scheduleUpdateCmd.Flags().String("effort", "", "Agent template: reasoning effort (low, medium, high, xhigh, max; empty for model default)")
 	scheduleUpdateCmd.Flags().String("lifecycle", "", "Agent template: lifecycle (Sleep, AutoDelete, or empty)")
 	scheduleUpdateCmd.Flags().String("role", "", "Agent template: role")
 	scheduleUpdateCmd.Flags().String("template-ref", "", "Agent template: KomputerAgentTemplate ref")
@@ -602,7 +606,7 @@ func registerScheduleCommands(root *cobra.Command) {
 // TestScheduleFlagsAreClassified, which fails when a new flag lands in neither.
 var (
 	scheduleAgentConfigFlags = []string{
-		"model", "lifecycle", "role", "template", "template-ref", "system-prompt",
+		"model", "effort", "lifecycle", "role", "template", "template-ref", "system-prompt",
 		"secret", "skill", "memory", "connector", "allow-tool", "disallow-tool",
 		"priority", "cpu", "memory-limit", "storage", "image", "label",
 	}
@@ -698,6 +702,7 @@ func buildScheduleUpdateBody(cmd *cobra.Command, existingAgent map[string]interf
 	agentChanged := false
 	for _, f := range []struct{ flag, key string }{
 		{"model", "model"},
+		{"effort", "effort"},
 		{"lifecycle", "lifecycle"},
 		{"role", "role"},
 		{"template-ref", "templateRef"},

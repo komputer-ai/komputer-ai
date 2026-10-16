@@ -98,6 +98,7 @@ def main():
 
     cfg = config.load()
     model = cfg["model"]
+    effort = cfg.get("effort") or None
 
     redis_config = load_redis_config()
 
@@ -120,7 +121,7 @@ def main():
         with state.busy:
             try:
                 state.active_loop.run_until_complete(
-                    run_agent(instructions, model, publisher, system_prompt=combined_system_prompt)
+                    run_agent(instructions, model, publisher, system_prompt=combined_system_prompt, effort=effort)
                 )
             except asyncio.CancelledError:
                 publisher.publish("task_cancelled", {"reason": "Cancelled by signal"})

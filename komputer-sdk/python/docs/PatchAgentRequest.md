@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **connectors** | **List[str]** | connector names to attach | [optional] 
 **delete_ttl** | **str** |  | [optional] 
 **disallowed_tools** | **List[str]** | DisallowedTools removes these tools; an explicit [] clears the list. | [optional] 
+**effort** | **str** | Effort is \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, \&quot;max\&quot;, or \&quot;\&quot; to clear back to unset (model default). Omitting the field leaves it unchanged. | [optional] 
 **instructions** | **str** |  | [optional] 
 **labels** | **Dict[str, str]** |  | [optional] 
 **lifecycle** | **str** |  | [optional] 
