@@ -421,9 +421,9 @@ func registerAgentCommands(root *cobra.Command) {
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label.", 400)
+					dieJSON("No fields provided. Use --model, --effort, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label.", 400)
 				}
-				fmt.Println(errorStyle.Render("No fields provided. Use --model, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label."))
+				fmt.Println(errorStyle.Render("No fields provided. Use --model, --effort, --instructions, --cpu, --memory-limit, --storage, --image, --label, or --remove-label."))
 				os.Exit(1)
 			}
 
@@ -819,7 +819,8 @@ func registerAgentCommands(root *cobra.Command) {
 			if model, _ := cmd.Flags().GetString("model"); model != "" {
 				body["model"] = model
 			}
-			if effort, _ := cmd.Flags().GetString("effort"); effort != "" {
+			if cmd.Flags().Changed("effort") {
+				effort, _ := cmd.Flags().GetString("effort")
 				body["effort"] = effort
 			}
 			if lc, _ := cmd.Flags().GetString("lifecycle"); lc != "" {
@@ -882,9 +883,9 @@ func registerAgentCommands(root *cobra.Command) {
 
 			if len(body) == 0 {
 				if jsonMode {
-					dieJSON("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags.", 400)
+					dieJSON("No settings provided. Use --model, --effort, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags.", 400)
 				}
-				fmt.Println(errorStyle.Render("No settings provided. Use --model, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags."))
+				fmt.Println(errorStyle.Render("No settings provided. Use --model, --effort, --lifecycle, --secret, --memory, --skill, --system-prompt, --priority, or --ephemeral flags."))
 				os.Exit(1)
 			}
 
@@ -922,7 +923,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	configCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
-	configCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max (empty for model default)")
+	configCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max. Empty string clears it back to model default.")
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
