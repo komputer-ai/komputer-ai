@@ -446,11 +446,11 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_agent_cost_breakdown**
-> CostBreakdownResponse get_agent_cost_breakdown(name, refresh=refresh)
+> CostBreakdownResponse get_agent_cost_breakdown(name, refresh=refresh, limit=limit, events=events)
 
 Get agent cost breakdown
 
-Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
 
 ### Example
 
@@ -474,10 +474,12 @@ with komputer_ai.ApiClient(configuration) as api_client:
     api_instance = komputer_ai.AgentsApi(api_client)
     name = 'name_example' # str | Agent name
     refresh = True # bool | Bypass the 5-minute cache (optional)
+    limit = 56 # int | Return only the most recent N tasks (0 or unset returns all) (optional)
+    events = True # bool | Include each task's events (returns at most the 50 most recent tasks) (optional)
 
     try:
         # Get agent cost breakdown
-        api_response = api_instance.get_agent_cost_breakdown(name, refresh=refresh)
+        api_response = api_instance.get_agent_cost_breakdown(name, refresh=refresh, limit=limit, events=events)
         print("The response of AgentsApi->get_agent_cost_breakdown:\n")
         pprint(api_response)
     except Exception as e:
@@ -493,6 +495,8 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **name** | **str**| Agent name | 
  **refresh** | **bool**| Bypass the 5-minute cache | [optional] 
+ **limit** | **int**| Return only the most recent N tasks (0 or unset returns all) | [optional] 
+ **events** | **bool**| Include each task&#39;s events (returns at most the 50 most recent tasks) | [optional] 
 
 ### Return type
 
@@ -512,6 +516,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | Cost breakdown |  -  |
+**400** | Invalid query parameter |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

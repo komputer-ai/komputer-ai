@@ -439,7 +439,8 @@ paths:
   /agents/{name}/cost:
     get:
       description: "Returns per-task costs for an agent, computed from its event history.\
-        \ Cached for 5 minutes unless refresh=true."
+        \ Cached for 5 minutes unless refresh=true. totalCost and taskCount always\
+        \ cover every task."
       operationId: getAgentCostBreakdown
       parameters:
       - description: Agent name
@@ -458,6 +459,23 @@ paths:
         schema:
           type: boolean
         style: form
+      - description: Return only the most recent N tasks (0 or unset returns all)
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: Include each task's events (returns at most the 50 most recent
+          tasks)
+        explode: true
+        in: query
+        name: events
+        required: false
+        schema:
+          type: boolean
+        style: form
       responses:
         "200":
           content:
@@ -465,6 +483,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/CostBreakdownResponse"
           description: Cost breakdown
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Invalid query parameter
         "500":
           content:
             application/json:
@@ -4947,15 +4973,16 @@ components:
         - completedAt: completedAt
           cacheCreateTokens: 6
           costUSD: 5.962133916683182
-          index: 2
+          index: 7
           startedAt: startedAt
-          inputTokens: 7
-          turns: 3
+          eventCount: 2
+          inputTokens: 9
+          turns: 2
           cacheReadTokens: 1
           instruction: instruction
           steer: true
           durationMs: 5
-          outputTokens: 9
+          outputTokens: 3
           events:
           - payload:
               key: ""
@@ -4972,15 +4999,16 @@ components:
         - completedAt: completedAt
           cacheCreateTokens: 6
           costUSD: 5.962133916683182
-          index: 2
+          index: 7
           startedAt: startedAt
-          inputTokens: 7
-          turns: 3
+          eventCount: 2
+          inputTokens: 9
+          turns: 2
           cacheReadTokens: 1
           instruction: instruction
           steer: true
           durationMs: 5
-          outputTokens: 9
+          outputTokens: 3
           events:
           - payload:
               key: ""
@@ -4994,7 +5022,7 @@ components:
             agentName: agentName
             type: type
             timestamp: timestamp
-        totalCost: 2.027123023002322
+        totalCost: 4.145608029883936
       properties:
         agent:
           type: string
@@ -5007,6 +5035,8 @@ components:
             $ref: "#/components/schemas/TaskBreakdown"
           type: array
         totalCost:
+          description: "TotalCost and TaskCount cover every task, even when limit\
+            \ trims Tasks."
           type: number
       type: object
     CreateAgentRequest:
@@ -7553,15 +7583,16 @@ components:
         completedAt: completedAt
         cacheCreateTokens: 6
         costUSD: 5.962133916683182
-        index: 2
+        index: 7
         startedAt: startedAt
-        inputTokens: 7
-        turns: 3
+        eventCount: 2
+        inputTokens: 9
+        turns: 2
         cacheReadTokens: 1
         instruction: instruction
         steer: true
         durationMs: 5
-        outputTokens: 9
+        outputTokens: 3
         events:
         - payload:
             key: ""
@@ -7586,7 +7617,11 @@ components:
           type: number
         durationMs:
           type: integer
+        eventCount:
+          description: EventCount is the number of history events in this task.
+          type: integer
         events:
+          description: Events is set only when the request passes events=true.
           items:
             $ref: "#/components/schemas/AgentEvent"
           type: array

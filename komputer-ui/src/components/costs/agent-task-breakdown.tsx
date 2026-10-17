@@ -213,7 +213,7 @@ export function AgentTaskBreakdown({ agents }: { agents: AgentResponse[] }) {
                         params.set("taskFrom", task.startedAt);
                         if (task.completedAt) params.set("taskTo", task.completedAt);
                         // Pass event count so we fetch just enough + a small buffer
-                        params.set("taskEvents", String(task.events?.length ?? 50));
+                        params.set("taskEvents", String(task.eventCount ?? task.events?.length ?? 50));
                         const agentNs = agents.find((a) => a.name === selectedAgent)?.namespace;
                         router.push(
                           namespacedHref(`/agents/${selectedAgent}?${params.toString()}`, agentNs),

@@ -23,6 +23,7 @@ type CostBreakdownResponse struct {
 	CachedAt *string `json:"cachedAt,omitempty"`
 	TaskCount *int32 `json:"taskCount,omitempty"`
 	Tasks []TaskBreakdown `json:"tasks,omitempty"`
+	// TotalCost and TaskCount cover every task, even when limit trims Tasks.
 	TotalCost *float32 `json:"totalCost,omitempty"`
 }
 

@@ -58,7 +58,13 @@ export interface TaskBreakdown {
      */
     durationMs?: number;
     /**
-     * 
+     * EventCount is the number of history events in this task.
+     * @type {number}
+     * @memberof TaskBreakdown
+     */
+    eventCount?: number;
+    /**
+     * Events is set only when the request passes events=true.
      * @type {Array<AgentEvent>}
      * @memberof TaskBreakdown
      */
@@ -129,6 +135,7 @@ export function TaskBreakdownFromJSONTyped(json: any, ignoreDiscriminator: boole
         'completedAt': json['completedAt'] == null ? undefined : json['completedAt'],
         'costUSD': json['costUSD'] == null ? undefined : json['costUSD'],
         'durationMs': json['durationMs'] == null ? undefined : json['durationMs'],
+        'eventCount': json['eventCount'] == null ? undefined : json['eventCount'],
         'events': json['events'] == null ? undefined : ((json['events'] as Array<any>).map(AgentEventFromJSON)),
         'index': json['index'] == null ? undefined : json['index'],
         'inputTokens': json['inputTokens'] == null ? undefined : json['inputTokens'],
@@ -156,6 +163,7 @@ export function TaskBreakdownToJSONTyped(value?: TaskBreakdown | null, ignoreDis
         'completedAt': value['completedAt'],
         'costUSD': value['costUSD'],
         'durationMs': value['durationMs'],
+        'eventCount': value['eventCount'],
         'events': value['events'] == null ? undefined : ((value['events'] as Array<any>).map(AgentEventToJSON)),
         'index': value['index'],
         'inputTokens': value['inputTokens'],

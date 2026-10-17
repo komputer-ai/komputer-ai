@@ -11,6 +11,7 @@ Name | Type
 `completedAt` | string
 `costUSD` | number
 `durationMs` | number
+`eventCount` | number
 `events` | [Array&lt;AgentEvent&gt;](AgentEvent.md)
 `index` | number
 `inputTokens` | number
@@ -32,6 +33,7 @@ const example = {
   "completedAt": null,
   "costUSD": null,
   "durationMs": null,
+  "eventCount": null,
   "events": null,
   "index": null,
   "inputTokens": null,

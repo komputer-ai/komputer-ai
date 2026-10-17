@@ -24,6 +24,9 @@ type TaskBreakdown struct {
 	CompletedAt *string `json:"completedAt,omitempty"`
 	CostUSD *float32 `json:"costUSD,omitempty"`
 	DurationMs *int32 `json:"durationMs,omitempty"`
+	// EventCount is the number of history events in this task.
+	EventCount *int32 `json:"eventCount,omitempty"`
+	// Events is set only when the request passes events=true.
 	Events []AgentEvent `json:"events,omitempty"`
 	Index *int32 `json:"index,omitempty"`
 	InputTokens *int32 `json:"inputTokens,omitempty"`
@@ -209,6 +212,38 @@ func (o *TaskBreakdown) HasDurationMs() bool {
 // SetDurationMs gets a reference to the given int32 and assigns it to the DurationMs field.
 func (o *TaskBreakdown) SetDurationMs(v int32) {
 	o.DurationMs = &v
+}
+
+// GetEventCount returns the EventCount field value if set, zero value otherwise.
+func (o *TaskBreakdown) GetEventCount() int32 {
+	if o == nil || IsNil(o.EventCount) {
+		var ret int32
+		return ret
+	}
+	return *o.EventCount
+}
+
+// GetEventCountOk returns a tuple with the EventCount field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskBreakdown) GetEventCountOk() (*int32, bool) {
+	if o == nil || IsNil(o.EventCount) {
+		return nil, false
+	}
+	return o.EventCount, true
+}
+
+// HasEventCount returns a boolean if a field has been set.
+func (o *TaskBreakdown) HasEventCount() bool {
+	if o != nil && !IsNil(o.EventCount) {
+		return true
+	}
+
+	return false
+}
+
+// SetEventCount gets a reference to the given int32 and assigns it to the EventCount field.
+func (o *TaskBreakdown) SetEventCount(v int32) {
+	o.EventCount = &v
 }
 
 // GetEvents returns the Events field value if set, zero value otherwise.
@@ -491,6 +526,9 @@ func (o TaskBreakdown) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.DurationMs) {
 		toSerialize["durationMs"] = o.DurationMs
+	}
+	if !IsNil(o.EventCount) {
+		toSerialize["eventCount"] = o.EventCount
 	}
 	if !IsNil(o.Events) {
 		toSerialize["events"] = o.Events

@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **cached_at** | **str** |  | [optional] 
 **task_count** | **int** |  | [optional] 
 **tasks** | [**List[TaskBreakdown]**](TaskBreakdown.md) |  | [optional] 
-**total_cost** | **float** |  | [optional] 
+**total_cost** | **float** | TotalCost and TaskCount cover every task, even when limit trims Tasks. | [optional] 
 
 ## Example
 

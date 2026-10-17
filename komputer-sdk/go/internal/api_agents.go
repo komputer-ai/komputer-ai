@@ -852,11 +852,25 @@ type ApiGetAgentCostBreakdownRequest struct {
 	ApiService *AgentsAPIService
 	name string
 	refresh *bool
+	limit *int32
+	events *bool
 }
 
 // Bypass the 5-minute cache
 func (r ApiGetAgentCostBreakdownRequest) Refresh(refresh bool) ApiGetAgentCostBreakdownRequest {
 	r.refresh = &refresh
+	return r
+}
+
+// Return only the most recent N tasks (0 or unset returns all)
+func (r ApiGetAgentCostBreakdownRequest) Limit(limit int32) ApiGetAgentCostBreakdownRequest {
+	r.limit = &limit
+	return r
+}
+
+// Include each task&#39;s events (returns at most the 50 most recent tasks)
+func (r ApiGetAgentCostBreakdownRequest) Events(events bool) ApiGetAgentCostBreakdownRequest {
+	r.events = &events
 	return r
 }
 
@@ -867,7 +881,7 @@ func (r ApiGetAgentCostBreakdownRequest) Execute() (*CostBreakdownResponse, *htt
 /*
 GetAgentCostBreakdown Get agent cost breakdown
 
-Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param name Agent name
@@ -905,6 +919,12 @@ func (a *AgentsAPIService) GetAgentCostBreakdownExecute(r ApiGetAgentCostBreakdo
 
 	if r.refresh != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "refresh", r.refresh, "form", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "form", "")
+	}
+	if r.events != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "events", r.events, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -944,6 +964,17 @@ func (a *AgentsAPIService) GetAgentCostBreakdownExecute(r ApiGetAgentCostBreakdo
 		newErr := &GenericOpenAPIError{
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v map[string]string
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+					newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 500 {
 			var v map[string]string

@@ -32,7 +32,7 @@ class CostBreakdownResponse(BaseModel):
     cached_at: Optional[StrictStr] = Field(default=None, alias="cachedAt")
     task_count: Optional[StrictInt] = Field(default=None, alias="taskCount")
     tasks: Optional[List[TaskBreakdown]] = None
-    total_cost: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, alias="totalCost")
+    total_cost: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="TotalCost and TaskCount cover every task, even when limit trims Tasks.", alias="totalCost")
     __properties: ClassVar[List[str]] = ["agent", "cachedAt", "taskCount", "tasks", "totalCost"]
 
     model_config = ConfigDict(

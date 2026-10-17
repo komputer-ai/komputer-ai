@@ -306,6 +306,8 @@ definitions:
           $ref: '#/definitions/main.TaskBreakdown'
         type: array
       totalCost:
+        description: TotalCost and TaskCount cover every task, even when limit trims
+          Tasks.
         type: number
     type: object
   main.CreateAgentRequest:
@@ -896,7 +898,11 @@ definitions:
         type: number
       durationMs:
         type: integer
+      eventCount:
+        description: EventCount is the number of history events in this task.
+        type: integer
       events:
+        description: Events is set only when the request passes events=true.
         items:
           $ref: '#/definitions/main.AgentEvent'
         type: array
@@ -7083,7 +7089,8 @@ paths:
   /agents/{name}/cost:
     get:
       description: Returns per-task costs for an agent, computed from its event history.
-        Cached for 5 minutes unless refresh=true.
+        Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover
+        every task.
       operationId: getAgentCostBreakdown
       parameters:
       - description: Agent name
@@ -7095,6 +7102,15 @@ paths:
         in: query
         name: refresh
         type: boolean
+      - description: Return only the most recent N tasks (0 or unset returns all)
+        in: query
+        name: limit
+        type: integer
+      - description: Include each task's events (returns at most the 50 most recent
+          tasks)
+        in: query
+        name: events
+        type: boolean
       produces:
       - application/json
       responses:
@@ -7102,6 +7118,12 @@ paths:
           description: Cost breakdown
           schema:
             $ref: '#/definitions/main.CostBreakdownResponse'
+        "400":
+          description: Invalid query parameter
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal error
           schema:

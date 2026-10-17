@@ -52,7 +52,7 @@ export interface CostBreakdownResponse {
      */
     tasks?: Array<TaskBreakdown>;
     /**
-     * 
+     * TotalCost and TaskCount cover every task, even when limit trims Tasks.
      * @type {number}
      * @memberof CostBreakdownResponse
      */

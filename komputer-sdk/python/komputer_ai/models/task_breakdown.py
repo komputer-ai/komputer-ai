@@ -33,7 +33,8 @@ class TaskBreakdown(BaseModel):
     completed_at: Optional[StrictStr] = Field(default=None, alias="completedAt")
     cost_usd: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, alias="costUSD")
     duration_ms: Optional[StrictInt] = Field(default=None, alias="durationMs")
-    events: Optional[List[AgentEvent]] = None
+    event_count: Optional[StrictInt] = Field(default=None, description="EventCount is the number of history events in this task.", alias="eventCount")
+    events: Optional[List[AgentEvent]] = Field(default=None, description="Events is set only when the request passes events=true.")
     index: Optional[StrictInt] = None
     input_tokens: Optional[StrictInt] = Field(default=None, alias="inputTokens")
     instruction: Optional[StrictStr] = None
@@ -41,7 +42,7 @@ class TaskBreakdown(BaseModel):
     started_at: Optional[StrictStr] = Field(default=None, alias="startedAt")
     steer: Optional[StrictBool] = None
     turns: Optional[StrictInt] = None
-    __properties: ClassVar[List[str]] = ["cacheCreateTokens", "cacheReadTokens", "completedAt", "costUSD", "durationMs", "events", "index", "inputTokens", "instruction", "outputTokens", "startedAt", "steer", "turns"]
+    __properties: ClassVar[List[str]] = ["cacheCreateTokens", "cacheReadTokens", "completedAt", "costUSD", "durationMs", "eventCount", "events", "index", "inputTokens", "instruction", "outputTokens", "startedAt", "steer", "turns"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -106,6 +107,7 @@ class TaskBreakdown(BaseModel):
             "completedAt": obj.get("completedAt"),
             "costUSD": obj.get("costUSD"),
             "durationMs": obj.get("durationMs"),
+            "eventCount": obj.get("eventCount"),
             "events": [AgentEvent.from_dict(_item) for _item in obj["events"]] if obj.get("events") is not None else None,
             "index": obj.get("index"),
             "inputTokens": obj.get("inputTokens"),
