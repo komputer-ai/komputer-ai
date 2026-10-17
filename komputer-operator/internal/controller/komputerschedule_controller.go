@@ -27,11 +27,13 @@ import (
 
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -60,13 +62,17 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		return ctrl.Result{}, err
 	}
+	// Snapshot for patchScheduleStatus: every status write below diffs against this,
+	// so a reconcile that recomputes the same status (the 15s completion poll, a
+	// re-trigger from an owned agent) sends nothing to the API server.
+	base := schedule.DeepCopy()
 
 	// 2. If suspended or being deleted, set phase Suspended, clear nextRunTime
 	if schedule.Spec.Suspended || !schedule.DeletionTimestamp.IsZero() {
 		schedule.Status.Phase = komputerv1alpha1.SchedulePhaseSuspended
 		schedule.Status.NextRunTime = nil
 		schedule.Status.Message = "Schedule is suspended"
-		if err := r.Status().Update(ctx, schedule); err != nil {
+		if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -74,7 +80,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// 3. If lastRunStatus is InProgress, check if the agent finished
 	if schedule.Status.LastRunStatus == "InProgress" {
-		return r.reconcileAgentCompletion(ctx, schedule)
+		return r.reconcileAgentCompletion(ctx, base, schedule)
 	}
 
 	// 4. Parse the cron expression
@@ -82,7 +88,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if _, err := cronParser.Parse(schedule.Spec.Schedule); err != nil {
 		schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
 		schedule.Status.Message = fmt.Sprintf("Invalid cron expression: %v", err)
-		if statusErr := r.Status().Update(ctx, schedule); statusErr != nil {
+		if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
 		return ctrl.Result{}, nil
@@ -105,7 +111,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if err != nil {
 			schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
 			schedule.Status.Message = fmt.Sprintf("Failed to compute next run time: %v", err)
-			if statusErr := r.Status().Update(ctx, schedule); statusErr != nil {
+			if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
 				return ctrl.Result{}, statusErr
 			}
 			return ctrl.Result{}, nil
@@ -120,7 +126,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	now := time.Now().UTC()
 	if now.Before(schedule.Status.NextRunTime.Time) {
 		delay := schedule.Status.NextRunTime.Time.Sub(now)
-		if err := r.Status().Update(ctx, schedule); err != nil {
+		if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 			return ctrl.Result{}, err
 		}
 		log.Info("Waiting for next run time", "nextRunTime", schedule.Status.NextRunTime.Time, "delay", delay)
@@ -150,7 +156,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			// Agent doesn't exist + spec.AgentName set: error
 			schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
 			schedule.Status.Message = fmt.Sprintf("Referenced agent %q not found", agentName)
-			if statusErr := r.Status().Update(ctx, schedule); statusErr != nil {
+			if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
 				return ctrl.Result{}, statusErr
 			}
 			return ctrl.Result{}, nil
@@ -171,7 +177,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				schedule.Status.NextRunTime = nextTime
 				schedule.Status.Message = "Skipped: agent was busy"
 			}
-			if err := r.Status().Update(ctx, schedule); err != nil {
+			if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 				return ctrl.Result{}, err
 			}
 			if schedule.Status.NextRunTime != nil {
@@ -195,7 +201,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				schedule.Status.NextRunTime = nextTime
 				schedule.Status.Message = fmt.Sprintf("Skipped: agent budget exhausted (spent $%s of $%s)", agent.Status.TotalCostUSD, budget)
 			}
-			if err := r.Status().Update(ctx, schedule); err != nil {
+			if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 				return ctrl.Result{}, err
 			}
 			if schedule.Status.NextRunTime != nil {
@@ -215,10 +221,11 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err := r.Get(ctx, types.NamespacedName{Name: agentName, Namespace: schedule.Namespace}, agent); err != nil {
 				return ctrl.Result{}, err
 			}
-			agent.Status.Phase = komputerv1alpha1.AgentPhasePending
-			agent.Status.TaskStatus = ""
-			agent.Status.LastTaskMessage = ""
-			if err := r.Status().Update(ctx, agent); err != nil {
+			woken := agent.DeepCopy()
+			woken.Status.Phase = komputerv1alpha1.AgentPhasePending
+			woken.Status.TaskStatus = ""
+			woken.Status.LastTaskMessage = ""
+			if err := r.Status().Patch(ctx, woken, client.MergeFromWithOptions(agent, client.MergeFromWithOptimisticLock{})); err != nil {
 				log.Error(err, "Failed to wake sleeping agent", "agent", agentName)
 				return ctrl.Result{}, err
 			}
@@ -312,7 +319,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		schedule.Status.Message = ""
 	}
 
-	if err := r.Status().Update(ctx, schedule); err != nil {
+	if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -354,7 +361,7 @@ func buildScheduledAgent(schedule *komputerv1alpha1.KomputerSchedule, agentName 
 }
 
 // reconcileAgentCompletion checks if the triggered agent has finished its task.
-func (r *KomputerScheduleReconciler) reconcileAgentCompletion(ctx context.Context, schedule *komputerv1alpha1.KomputerSchedule) (ctrl.Result, error) {
+func (r *KomputerScheduleReconciler) reconcileAgentCompletion(ctx context.Context, base, schedule *komputerv1alpha1.KomputerSchedule) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	agent := &komputerv1alpha1.KomputerAgent{}
@@ -367,7 +374,7 @@ func (r *KomputerScheduleReconciler) reconcileAgentCompletion(ctx context.Contex
 		schedule.Status.SuccessfulRuns++
 		schedule.Status.LastRunStatus = "Success"
 		schedule.Status.Message = "Agent completed and was auto-deleted"
-		return r.handlePostCompletion(ctx, schedule)
+		return r.handlePostCompletion(ctx, base, schedule)
 	}
 	if agentErr != nil {
 		return ctrl.Result{}, agentErr
@@ -391,17 +398,17 @@ func (r *KomputerScheduleReconciler) reconcileAgentCompletion(ctx context.Contex
 				schedule.Status.TotalCostUSD = fmt.Sprintf("%.4f", currentTotal)
 			}
 		}
-		return r.handlePostCompletion(ctx, schedule)
+		return r.handlePostCompletion(ctx, base, schedule)
 
 	case komputerv1alpha1.AgentTaskError:
 		schedule.Status.FailedRuns++
 		schedule.Status.LastRunStatus = "Failed"
 		schedule.Status.Message = fmt.Sprintf("Agent error: %s", agent.Status.LastTaskMessage)
-		return r.handlePostCompletion(ctx, schedule)
+		return r.handlePostCompletion(ctx, base, schedule)
 
 	default:
 		// Still in progress, requeue
-		if err := r.Status().Update(ctx, schedule); err != nil {
+		if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
@@ -409,7 +416,7 @@ func (r *KomputerScheduleReconciler) reconcileAgentCompletion(ctx context.Contex
 }
 
 // handlePostCompletion handles autoDelete logic and computes next run time after completion.
-func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, schedule *komputerv1alpha1.KomputerSchedule) (ctrl.Result, error) {
+func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, base, schedule *komputerv1alpha1.KomputerSchedule) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	if schedule.Spec.AutoDelete {
@@ -426,8 +433,9 @@ func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, s
 					}
 				}
 				if len(filtered) != len(agent.OwnerReferences) {
+					original := agent.DeepCopy()
 					agent.OwnerReferences = filtered
-					if err := r.Update(ctx, agent); err != nil {
+					if err := r.Patch(ctx, agent, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 						log.Error(err, "Failed to remove ownerReference from agent", "agent", agent.Name)
 						return ctrl.Result{}, err
 					}
@@ -452,19 +460,35 @@ func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, s
 	if err != nil {
 		schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
 		schedule.Status.Message = fmt.Sprintf("Failed to compute next run time: %v", err)
-		if statusErr := r.Status().Update(ctx, schedule); statusErr != nil {
+		if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
 		return ctrl.Result{}, nil
 	}
 	schedule.Status.NextRunTime = nextTime
 
-	if err := r.Status().Update(ctx, schedule); err != nil {
+	if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	delay := nextTime.Time.Sub(now)
 	return ctrl.Result{RequeueAfter: delay}, nil
+}
+
+// patchScheduleStatus writes schedule.Status only when it differs from base, as a
+// merge patch on the status subresource. The optimistic lock keeps the conflict
+// semantics Status().Update had: RunCount and the cost totals are read-modify-write,
+// so a write computed from a stale cache must fail and retry rather than land.
+// On success base is advanced so a later write in the same reconcile diffs from it.
+func (r *KomputerScheduleReconciler) patchScheduleStatus(ctx context.Context, base, schedule *komputerv1alpha1.KomputerSchedule) error {
+	if equality.Semantic.DeepEqual(base.Status, schedule.Status) {
+		return nil
+	}
+	if err := r.Status().Patch(ctx, schedule, client.MergeFromWithOptions(base, client.MergeFromWithOptimisticLock{})); err != nil {
+		return err
+	}
+	schedule.DeepCopyInto(base)
+	return nil
 }
 
 // getAPIURL returns the API URL. See getKomputerAPIURL.
@@ -501,6 +525,6 @@ func computeNextRunTime(cronExpr, timezone string, after time.Time) (*metav1.Tim
 func (r *KomputerScheduleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&komputerv1alpha1.KomputerSchedule{}).
-		Owns(&komputerv1alpha1.KomputerAgent{}).
+		Owns(&komputerv1alpha1.KomputerAgent{}, builder.WithPredicates(ignoreAgentProgressUpdates)).
 		Complete(r)
 }

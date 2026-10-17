@@ -23,10 +23,12 @@ import (
 	"strconv"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -276,6 +278,11 @@ func (r *KomputerOfficeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		office.Status.CreatedAt = &now
 	}
 
+	// Every agent event in the office re-runs this reconcile; most leave the
+	// aggregate unchanged, and an empty patch is still a request.
+	if equality.Semantic.DeepEqual(original.Status, office.Status) {
+		return ctrl.Result{}, nil
+	}
 	if err := r.Status().Patch(ctx, office, client.MergeFrom(original)); err != nil {
 		log.Error(err, "Failed to update office status")
 		return ctrl.Result{}, err
@@ -298,7 +305,7 @@ func hasOwnerReference(child metav1.Object, owner metav1.Object) bool {
 func (r *KomputerOfficeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&komputerv1alpha1.KomputerOffice{}).
-		Owns(&komputerv1alpha1.KomputerAgent{}).
+		Owns(&komputerv1alpha1.KomputerAgent{}, builder.WithPredicates(ignoreAgentProgressUpdates)).
 		Watches(&komputerv1alpha1.KomputerAgent{}, handler.EnqueueRequestsFromMapFunc(
 			func(ctx context.Context, obj client.Object) []ctrl.Request {
 				// When any agent changes, if it has an office label, reconcile that office.
@@ -314,6 +321,6 @@ func (r *KomputerOfficeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					},
 				}}
 			},
-		)).
+		), builder.WithPredicates(ignoreAgentProgressUpdates)).
 		Complete(r)
 }
