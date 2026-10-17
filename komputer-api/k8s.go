@@ -13,6 +13,7 @@ import (
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,6 +54,8 @@ type K8sClient struct {
 	clientset        *kubernetes.Clientset
 	restConfig       *rest.Config
 	defaultNamespace string
+	// progress coalesces the worker's per-event status writes; see progress_coalesce.go.
+	progress progressCoalescer
 }
 
 func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
@@ -115,6 +118,8 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 	wokeAt := metav1.Now()
 	agent.Status.LastActivityAt = &wokeAt
 	agent.Status.SleepExpiresAt = nil
+	// TaskStatus was just reset out of band; the coalescer's memory of it is stale.
+	k.progress.forget(ns, name)
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
 }
 
@@ -2035,6 +2040,14 @@ func taskStatusStartsTask(prev, next komputerv1alpha1.AgentTaskStatus) bool {
 	return !agentTaskInProgress(prev) && agentTaskInProgress(next)
 }
 
+// statusChangedBeyondActivity reports whether two statuses differ in anything other
+// than LastActivityAt.
+func statusChangedBeyondActivity(a, b *komputerv1alpha1.KomputerAgentStatus) bool {
+	ac, bc := a.DeepCopy(), b.DeepCopy()
+	ac.LastActivityAt, bc.LastActivityAt = nil, nil
+	return !equality.Semantic.DeepEqual(ac, bc)
+}
+
 func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
@@ -2072,6 +2085,13 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	}
 	if contextWindow > 0 {
 		agent.Status.ModelContextWindow = contextWindow
+	}
+
+	// LastActivityAt always moves, so compare everything else: an event that changes
+	// nothing but the activity clock inside the coalescing window is not worth a write.
+	if !statusChangedBeyondActivity(&original.Status, &agent.Status) &&
+		original.Status.LastActivityAt != nil && now.Sub(original.Status.LastActivityAt.Time) < activityCoalesceWindow {
+		return nil
 	}
 
 	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {

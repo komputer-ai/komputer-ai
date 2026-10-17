@@ -25,6 +25,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -1020,10 +1022,16 @@ func (r *KomputerAgentReconciler) clearSleepRequestAnnotations(ctx context.Conte
 
 // updateStatus uses variadic extras pattern for status updates.
 // Uses Patch instead of Update to avoid optimistic concurrency conflicts.
+// Skips the call entirely when the extras leave the status unchanged: an empty
+// merge patch is still a request (and an audit event), and reconcileStatus calls
+// this on every reconcile with values that are almost always already in place.
 func (r *KomputerAgentReconciler) updateStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, extras ...func(*komputerv1alpha1.KomputerAgentStatus)) error {
 	original := agent.DeepCopy()
 	for _, fn := range extras {
 		fn(&agent.Status)
+	}
+	if equality.Semantic.DeepEqual(original.Status, agent.Status) {
+		return nil
 	}
 	return r.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
@@ -1031,7 +1039,7 @@ func (r *KomputerAgentReconciler) updateStatus(ctx context.Context, agent *kompu
 // SetupWithManager sets up the controller with the Manager.
 func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&komputerv1alpha1.KomputerAgent{}).
+		For(&komputerv1alpha1.KomputerAgent{}, builder.WithPredicates(ignoreAgentProgressUpdates)).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.ConfigMap{}).
@@ -1055,7 +1063,7 @@ func (r *KomputerAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return reqs
 			}),
 		).
-		Watches(&komputerv1alpha1.KomputerAgent{}, handler.EnqueueRequestsFromMapFunc(r.enqueueQueuedSiblings)).
+		Watches(&komputerv1alpha1.KomputerAgent{}, handler.EnqueueRequestsFromMapFunc(r.enqueueQueuedSiblings), builder.WithPredicates(ignoreAgentProgressUpdates)).
 		Watches(&komputerv1alpha1.KomputerAgentTemplate{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForTemplate)).
 		Watches(&komputerv1alpha1.KomputerAgentClusterTemplate{}, handler.EnqueueRequestsFromMapFunc(r.enqueueAgentsForTemplate)).
 		// Source-secret watch: when a secret referenced by a template's AnthropicKeySecretRef

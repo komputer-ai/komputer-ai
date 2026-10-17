@@ -214,7 +214,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 					taskStatus, lastMessage := mapEventToTaskStatus(event)
 					if taskStatus != "" {
 						sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
-						if err := k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
+						if err := k8s.PatchAgentTaskEvent(ctx, event.Type, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
 							Logger.Errorw("failed to patch task status", "agent_name", event.AgentName, "error", err)
 						}
 					}
@@ -395,7 +395,7 @@ func claimPendingMessages(ctx context.Context, rdb *redis.Client, stream string,
 				taskStatus, lastMessage := mapEventToTaskStatus(event)
 				if taskStatus != "" {
 					sessionID, costUSD, totalTokens, contextWindow := extractTaskAccounting(event)
-					k8s.PatchAgentTaskStatus(ctx, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow)
+					k8s.PatchAgentTaskEvent(ctx, event.Type, event.Namespace, event.AgentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow)
 				}
 
 				rdb.XAck(ctx, stream, consumerGroup, msg.ID)
