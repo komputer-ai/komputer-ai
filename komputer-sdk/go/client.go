@@ -338,8 +338,22 @@ func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]in
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }
 
-func (c *Client) GetAgentCostBreakdown(ctx context.Context, name string) (*komputer.CostBreakdownResponse, *http.Response, error) {
-	return c.api.AgentsAPI.GetAgentCostBreakdown(ctx, name).Execute()
+type GetAgentCostBreakdownOpts struct {
+	Limit  *int32 // most recent N tasks; nil or 0 returns all
+	Events *bool  // include each task's events (at most the 50 most recent tasks)
+}
+
+func (c *Client) GetAgentCostBreakdown(ctx context.Context, name string, opts ...GetAgentCostBreakdownOpts) (*komputer.CostBreakdownResponse, *http.Response, error) {
+	req := c.api.AgentsAPI.GetAgentCostBreakdown(ctx, name)
+	if len(opts) > 0 {
+		if opts[0].Limit != nil {
+			req = req.Limit(*opts[0].Limit)
+		}
+		if opts[0].Events != nil {
+			req = req.Events(*opts[0].Events)
+		}
+	}
+	return req.Execute()
 }
 
 type CompactAgentTaskOpts struct {

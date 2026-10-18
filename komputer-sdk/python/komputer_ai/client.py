@@ -102,8 +102,8 @@ class KomputerClient:
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
 
-    def get_agent_cost_breakdown(self, name: str):
-        return self.agents.get_agent_cost_breakdown(name)
+    def get_agent_cost_breakdown(self, name: str, *, limit: Optional[int] = None, events: Optional[bool] = None):
+        return self.agents.get_agent_cost_breakdown(name, limit=limit, events=events)
 
     def compact_agent_task(self, name: str, *, instructions: Optional[str] = None):
         return self.agents.compact_agent_task(name, request=CompactAgentRequest(instructions=instructions))

@@ -101,8 +101,8 @@ export class KomputerClient {
     return this._agents.getAgentEvents({ name });
   }
 
-  async getAgentCostBreakdown(name: string) {
-    return this._agents.getAgentCostBreakdown({ name });
+  async getAgentCostBreakdown(name: string, opts?: { limit?: number; events?: boolean }) {
+    return this._agents.getAgentCostBreakdown({ name, ...opts });
   }
 
   async compactAgentTask(params: { name: string; instructions?: string }) {

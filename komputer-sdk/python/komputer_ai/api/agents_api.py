@@ -1780,6 +1780,8 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         refresh: Annotated[Optional[StrictBool], Field(description="Bypass the 5-minute cache")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Return only the most recent N tasks (0 or unset returns all)")] = None,
+        events: Annotated[Optional[StrictBool], Field(description="Include each task's events (returns at most the 50 most recent tasks)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1795,12 +1797,16 @@ class AgentsApi:
     ) -> CostBreakdownResponse:
         """Get agent cost breakdown
 
-        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
 
         :param name: Agent name (required)
         :type name: str
         :param refresh: Bypass the 5-minute cache
         :type refresh: bool
+        :param limit: Return only the most recent N tasks (0 or unset returns all)
+        :type limit: int
+        :param events: Include each task's events (returns at most the 50 most recent tasks)
+        :type events: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1826,6 +1832,8 @@ class AgentsApi:
         _param = self._get_agent_cost_breakdown_serialize(
             name=name,
             refresh=refresh,
+            limit=limit,
+            events=events,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1834,6 +1842,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "CostBreakdownResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1852,6 +1861,8 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         refresh: Annotated[Optional[StrictBool], Field(description="Bypass the 5-minute cache")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Return only the most recent N tasks (0 or unset returns all)")] = None,
+        events: Annotated[Optional[StrictBool], Field(description="Include each task's events (returns at most the 50 most recent tasks)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1867,12 +1878,16 @@ class AgentsApi:
     ) -> ApiResponse[CostBreakdownResponse]:
         """Get agent cost breakdown
 
-        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
 
         :param name: Agent name (required)
         :type name: str
         :param refresh: Bypass the 5-minute cache
         :type refresh: bool
+        :param limit: Return only the most recent N tasks (0 or unset returns all)
+        :type limit: int
+        :param events: Include each task's events (returns at most the 50 most recent tasks)
+        :type events: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1898,6 +1913,8 @@ class AgentsApi:
         _param = self._get_agent_cost_breakdown_serialize(
             name=name,
             refresh=refresh,
+            limit=limit,
+            events=events,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1906,6 +1923,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "CostBreakdownResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1924,6 +1942,8 @@ class AgentsApi:
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
         refresh: Annotated[Optional[StrictBool], Field(description="Bypass the 5-minute cache")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="Return only the most recent N tasks (0 or unset returns all)")] = None,
+        events: Annotated[Optional[StrictBool], Field(description="Include each task's events (returns at most the 50 most recent tasks)")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1939,12 +1959,16 @@ class AgentsApi:
     ) -> RESTResponseType:
         """Get agent cost breakdown
 
-        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+        Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
 
         :param name: Agent name (required)
         :type name: str
         :param refresh: Bypass the 5-minute cache
         :type refresh: bool
+        :param limit: Return only the most recent N tasks (0 or unset returns all)
+        :type limit: int
+        :param events: Include each task's events (returns at most the 50 most recent tasks)
+        :type events: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1970,6 +1994,8 @@ class AgentsApi:
         _param = self._get_agent_cost_breakdown_serialize(
             name=name,
             refresh=refresh,
+            limit=limit,
+            events=events,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1978,6 +2004,7 @@ class AgentsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "CostBreakdownResponse",
+            '400': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -1991,6 +2018,8 @@ class AgentsApi:
         self,
         name,
         refresh,
+        limit,
+        events,
         _request_auth,
         _content_type,
         _headers,
@@ -2018,6 +2047,14 @@ class AgentsApi:
         if refresh is not None:
             
             _query_params.append(('refresh', refresh))
+            
+        if limit is not None:
+            
+            _query_params.append(('limit', limit))
+            
+        if events is not None:
+            
+            _query_params.append(('events', events))
             
         # process the header parameters
         # process the form parameters

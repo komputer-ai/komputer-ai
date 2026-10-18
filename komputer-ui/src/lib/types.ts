@@ -456,7 +456,9 @@ export interface TaskBreakdown {
   cacheReadTokens: number;
   cacheCreateTokens: number;
   steer?: boolean;
-  events: AgentEvent[];
+  eventCount: number;
+  // Only set when requested with events=true.
+  events?: AgentEvent[];
 }
 
 export interface CostBreakdownResponse {

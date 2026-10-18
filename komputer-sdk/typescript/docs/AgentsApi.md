@@ -452,11 +452,11 @@ No authorization required
 
 ## getAgentCostBreakdown
 
-> CostBreakdownResponse getAgentCostBreakdown(name, refresh)
+> CostBreakdownResponse getAgentCostBreakdown(name, refresh, limit, events)
 
 Get agent cost breakdown
 
-Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh&#x3D;true.
+Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh&#x3D;true. totalCost and taskCount always cover every task.
 
 ### Example
 
@@ -476,6 +476,10 @@ async function example() {
     name: name_example,
     // boolean | Bypass the 5-minute cache (optional)
     refresh: true,
+    // number | Return only the most recent N tasks (0 or unset returns all) (optional)
+    limit: 56,
+    // boolean | Include each task\'s events (returns at most the 50 most recent tasks) (optional)
+    events: true,
   } satisfies GetAgentCostBreakdownRequest;
 
   try {
@@ -497,6 +501,8 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **refresh** | `boolean` | Bypass the 5-minute cache | [Optional] [Defaults to `undefined`] |
+| **limit** | `number` | Return only the most recent N tasks (0 or unset returns all) | [Optional] [Defaults to `undefined`] |
+| **events** | `boolean` | Include each task\&#39;s events (returns at most the 50 most recent tasks) | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -516,6 +522,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **200** | Cost breakdown |  -  |
+| **400** | Invalid query parameter |  -  |
 | **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

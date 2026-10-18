@@ -449,7 +449,7 @@ No authorization required
 
 ## GetAgentCostBreakdown
 
-> CostBreakdownResponse GetAgentCostBreakdown(ctx, name).Refresh(refresh).Execute()
+> CostBreakdownResponse GetAgentCostBreakdown(ctx, name).Refresh(refresh).Limit(limit).Events(events).Execute()
 
 Get agent cost breakdown
 
@@ -470,10 +470,12 @@ import (
 func main() {
 	name := "name_example" // string | Agent name
 	refresh := true // bool | Bypass the 5-minute cache (optional)
+	limit := int32(56) // int32 | Return only the most recent N tasks (0 or unset returns all) (optional)
+	events := true // bool | Include each task's events (returns at most the 50 most recent tasks) (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.GetAgentCostBreakdown(context.Background(), name).Refresh(refresh).Execute()
+	resp, r, err := apiClient.AgentsAPI.GetAgentCostBreakdown(context.Background(), name).Refresh(refresh).Limit(limit).Events(events).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.GetAgentCostBreakdown``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -500,6 +502,8 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **refresh** | **bool** | Bypass the 5-minute cache | 
+ **limit** | **int32** | Return only the most recent N tasks (0 or unset returns all) | 
+ **events** | **bool** | Include each task&#39;s events (returns at most the 50 most recent tasks) | 
 
 ### Return type
 

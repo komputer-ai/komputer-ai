@@ -9,7 +9,8 @@ Name | Type | Description | Notes
 **CompletedAt** | Pointer to **string** |  | [optional] 
 **CostUSD** | Pointer to **float32** |  | [optional] 
 **DurationMs** | Pointer to **int32** |  | [optional] 
-**Events** | Pointer to [**[]AgentEvent**](AgentEvent.md) |  | [optional] 
+**EventCount** | Pointer to **int32** | EventCount is the number of history events in this task. | [optional] 
+**Events** | Pointer to [**[]AgentEvent**](AgentEvent.md) | Events is set only when the request passes events&#x3D;true. | [optional] 
 **Index** | Pointer to **int32** |  | [optional] 
 **InputTokens** | Pointer to **int32** |  | [optional] 
 **Instruction** | Pointer to **string** |  | [optional] 
@@ -161,6 +162,31 @@ SetDurationMs sets DurationMs field to given value.
 `func (o *TaskBreakdown) HasDurationMs() bool`
 
 HasDurationMs returns a boolean if a field has been set.
+
+### GetEventCount
+
+`func (o *TaskBreakdown) GetEventCount() int32`
+
+GetEventCount returns the EventCount field if non-nil, zero value otherwise.
+
+### GetEventCountOk
+
+`func (o *TaskBreakdown) GetEventCountOk() (*int32, bool)`
+
+GetEventCountOk returns a tuple with the EventCount field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEventCount
+
+`func (o *TaskBreakdown) SetEventCount(v int32)`
+
+SetEventCount sets EventCount field to given value.
+
+### HasEventCount
+
+`func (o *TaskBreakdown) HasEventCount() bool`
+
+HasEventCount returns a boolean if a field has been set.
 
 ### GetEvents
 

@@ -71,6 +71,8 @@ export interface GetAgentRequest {
 export interface GetAgentCostBreakdownRequest {
     name: string;
     refresh?: boolean;
+    limit?: number;
+    events?: boolean;
 }
 
 export interface GetAgentEventsRequest {
@@ -440,6 +442,14 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['refresh'] = requestParameters['refresh'];
         }
 
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['events'] != null) {
+            queryParameters['events'] = requestParameters['events'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -455,7 +465,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
      * Get agent cost breakdown
      */
     async getAgentCostBreakdownRaw(requestParameters: GetAgentCostBreakdownRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CostBreakdownResponse>> {
@@ -466,7 +476,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.
+     * Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.
      * Get agent cost breakdown
      */
     async getAgentCostBreakdown(requestParameters: GetAgentCostBreakdownRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CostBreakdownResponse> {

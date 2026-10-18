@@ -269,3 +269,35 @@ func ListAgentStreams(ctx context.Context, rdb *redis.Client, streamPrefix strin
 	}
 	return names, nil
 }
+
+// historyPageSize bounds how many raw history entries one LRANGE holds in memory.
+const historyPageSize = 200
+
+// ForEachAgentEvent streams the agent's whole history list to fn in LRANGE pages,
+// so callers that fold over every event never hold the full list in memory.
+func ForEachAgentEvent(ctx context.Context, rdb *redis.Client, agentName string, fn func(AgentEvent)) error {
+	historyKey := fmt.Sprintf("komputer-history:%s", agentName)
+	return foldHistoryPages(func(start, stop int64) ([]string, error) {
+		return rdb.LRange(ctx, historyKey, start, stop).Result()
+	}, historyPageSize, fn)
+}
+
+// foldHistoryPages reads a list page by page through lrange and decodes each entry for fn.
+func foldHistoryPages(lrange func(start, stop int64) ([]string, error), pageSize int64, fn func(AgentEvent)) error {
+	for start := int64(0); ; start += pageSize {
+		vals, err := lrange(start, start+pageSize-1)
+		if err != nil {
+			return fmt.Errorf("lrange: %w", err)
+		}
+		for _, raw := range vals {
+			var ev AgentEvent
+			if err := json.Unmarshal([]byte(raw), &ev); err != nil {
+				continue
+			}
+			fn(ev)
+		}
+		if int64(len(vals)) < pageSize {
+			return nil
+		}
+	}
+}

@@ -487,7 +487,7 @@ const docTemplate = `{
         },
         "/agents/{name}/cost": {
             "get": {
-                "description": "Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true.",
+                "description": "Returns per-task costs for an agent, computed from its event history. Cached for 5 minutes unless refresh=true. totalCost and taskCount always cover every task.",
                 "produces": [
                     "application/json"
                 ],
@@ -509,6 +509,18 @@ const docTemplate = `{
                         "description": "Bypass the 5-minute cache",
                         "name": "refresh",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Return only the most recent N tasks (0 or unset returns all)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include each task's events (returns at most the 50 most recent tasks)",
+                        "name": "events",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -516,6 +528,15 @@ const docTemplate = `{
                         "description": "Cost breakdown",
                         "schema": {
                             "$ref": "#/definitions/main.CostBreakdownResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameter",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -3300,6 +3321,7 @@ const docTemplate = `{
                     }
                 },
                 "totalCost": {
+                    "description": "TotalCost and TaskCount cover every task, even when limit trims Tasks.",
                     "type": "number"
                 }
             }
@@ -4121,7 +4143,12 @@ const docTemplate = `{
                 "durationMs": {
                     "type": "integer"
                 },
+                "eventCount": {
+                    "description": "EventCount is the number of history events in this task.",
+                    "type": "integer"
+                },
                 "events": {
+                    "description": "Events is set only when the request passes events=true.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/main.AgentEvent"

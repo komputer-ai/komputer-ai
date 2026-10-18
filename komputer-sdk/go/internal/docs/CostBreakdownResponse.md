@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **CachedAt** | Pointer to **string** |  | [optional] 
 **TaskCount** | Pointer to **int32** |  | [optional] 
 **Tasks** | Pointer to [**[]TaskBreakdown**](TaskBreakdown.md) |  | [optional] 
-**TotalCost** | Pointer to **float32** |  | [optional] 
+**TotalCost** | Pointer to **float32** | TotalCost and TaskCount cover every task, even when limit trims Tasks. | [optional] 
 
 ## Methods
 
