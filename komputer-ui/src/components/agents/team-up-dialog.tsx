@@ -51,6 +51,7 @@ export function TeamUpDialog({
   const [agentSearch, setAgentSearch] = useState("");
 
   const filteredAgents = agents.filter((a) => {
+    if (a.status === "Archived") return false; // read-only records can't join a squad
     const q = agentSearch.trim().toLowerCase();
     if (!q) return true;
     return a.name.toLowerCase().includes(q) || a.namespace.toLowerCase().includes(q);

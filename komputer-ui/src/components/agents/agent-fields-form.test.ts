@@ -112,6 +112,13 @@ describe("buildAgentSpecForSquad ephemeral storage", () => {
   });
 });
 
+describe("buildCreateAgentRequest", () => {
+  it("passes the Archive lifecycle through", () => {
+    const req = buildCreateAgentRequest(makeDefaultAgentFormValues({ lifecycle: "Archive" }));
+    expect(req.lifecycle).toBe("Archive");
+  });
+});
+
 describe("agentFormValuesFromScheduleSpec", () => {
   const spec: ScheduleAgentSpec = {
     model: "claude-opus-4-6",

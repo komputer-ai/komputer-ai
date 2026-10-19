@@ -28,4 +28,5 @@ export const LIFECYCLES = [
   { value: "default", label: "Default — keep running" },
   { value: "Sleep", label: "Sleep — preserve workspace" },
   { value: "AutoDelete", label: "Auto Delete — one-shot" },
+  { value: "Archive", label: "Archive — one-shot, keep record" },
 ];

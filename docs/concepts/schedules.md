@@ -59,7 +59,7 @@ The full set:
 | `connectors` | [Connectors](./connectors.md) to attach |
 | `allowedTools` | Restrict to an explicit tool list (see [Tool permissions](./agents.md#tool-permissions)) |
 | `disallowedTools` | Remove specific tools |
-| `lifecycle` | `""`, `Sleep`, or `AutoDelete` |
+| `lifecycle` | `""`, `Sleep`, or `AutoDelete` (`Archive` isn't supported: every run reuses one agent) |
 | `priority` | Admission order under a template's concurrency cap |
 | `podSpec` | Pod overrides (resources, image, env) |
 | `storage` | PVC size and storage class |

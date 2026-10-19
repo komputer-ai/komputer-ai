@@ -753,6 +753,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated agent |  -  |
 **400** | Bad request |  -  |
+**409** | Agent is archived (only labels and deleteTTL can change) |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -826,7 +827,7 @@ No authorization required
 **200** | Agent sleeping (or already asleep) |  -  |
 **400** | Ephemeral-workspace agents can&#39;t sleep |  -  |
 **404** | Agent not found |  -  |
-**409** | Agent is running a task |  -  |
+**409** | Agent is running a task, or is archived |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -899,6 +900,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Agent woken (or already awake) |  -  |
 **404** | Agent not found |  -  |
+**409** | Agent is archived |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

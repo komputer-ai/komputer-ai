@@ -409,7 +409,7 @@ name=$(komputer create my-agent "Do something" --json | jq -r '.name')
 | `--secret KEY=VALUE` | Pass secrets to the agent (repeatable, on create/run) |
 | `--memory <name>` | Attach a KomputerMemory by name (repeatable, on create/run/config) |
 | `--skill <name>` | Attach a KomputerSkill by name (repeatable, on create/run/config) |
-| `--lifecycle <mode>` | Agent lifecycle: `Sleep` or `AutoDelete` (on create/run/chat) |
+| `--lifecycle <mode>` | Agent lifecycle: `Sleep`, `AutoDelete`, or `Archive` (on create/run/chat) |
 | `--system-prompt <text>` | Custom system prompt for the agent (on create/run/config) |
 | `--priority <int>` | Queue priority — higher = admitted first when the template's `maxConcurrentAgents` is reached. Default 0 (on create/update) |
 | `--cpu <quantity>` | Override agent container CPU, sets both requests and limits (on create/update) |

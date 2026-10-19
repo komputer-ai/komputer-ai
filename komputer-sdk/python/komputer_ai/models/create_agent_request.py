@@ -37,7 +37,7 @@ class CreateAgentRequest(BaseModel):
     effort: Optional[StrictStr] = Field(default=None, description="Effort sets the Claude Agent SDK's reasoning effort: \"low\", \"medium\", \"high\", \"xhigh\", or \"max\". Empty means unset, so the model's own default effort applies.")
     instructions: StrictStr
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.")
-    lifecycle: Optional[StrictStr] = Field(default=None, description="\"\", \"Sleep\", or \"AutoDelete\"")
+    lifecycle: Optional[StrictStr] = Field(default=None, description="\"\", \"Sleep\", \"AutoDelete\", or \"Archive\"")
     memories: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerMemory names to attach")
     model: Optional[StrictStr] = None
     name: StrictStr

@@ -330,6 +330,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "409": {
+                        "description": "Agent is archived (only labels and deleteTTL can change)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal error",
                         "schema": {
@@ -683,7 +692,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Agent is running a task",
+                        "description": "Agent is running a task, or is archived",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -738,6 +747,15 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Agent not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Agent is archived",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3377,7 +3395,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "\"\", \"Sleep\", or \"AutoDelete\"",
+                    "description": "\"\", \"Sleep\", \"AutoDelete\", or \"Archive\"",
                     "type": "string"
                 },
                 "memories": {
@@ -8374,12 +8392,14 @@ const docTemplate = `{
             "enum": [
                 "",
                 "Sleep",
-                "AutoDelete"
+                "AutoDelete",
+                "Archive"
             ],
             "x-enum-varnames": [
                 "AgentLifecycleDefault",
                 "AgentLifecycleSleep",
-                "AgentLifecycleAutoDelete"
+                "AgentLifecycleAutoDelete",
+                "AgentLifecycleArchive"
             ]
         },
         "v1alpha1.KomputerAgentSpec": {
@@ -8438,7 +8458,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"
@@ -8608,7 +8628,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"

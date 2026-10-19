@@ -761,6 +761,7 @@ export default function ScheduleDetailPage() {
                       active={editingDetails}
                       hideNameAndNamespace
                       hideInstructions
+                      hideArchive
                       idPrefix="sched-edit"
                     />
                   </div>

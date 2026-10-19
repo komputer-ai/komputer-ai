@@ -53,7 +53,7 @@ Create a new agent or send a task to an existing one (upsert by name).
 | `model` | string | no | `claude-opus-5-5` | Claude model to use |
 | `templateRef` | string | no | `default` | Pod template name |
 | `role` | string | no | `manager` | `manager` (gets orchestration tools) or `worker` |
-| `lifecycle` | string | no | `""` | `""` (pod stays running), `Sleep` (delete pod, keep PVC), `AutoDelete` (delete everything) |
+| `lifecycle` | string | no | `""` | `""` (pod stays running), `Sleep` (delete pod, keep PVC), `AutoDelete` (delete everything), `Archive` (delete pod + PVC, keep the agent as a read-only record) |
 | `namespace` | string | no | server default | Target Kubernetes namespace |
 | `secrets` | object | no | — | Key-value pairs (e.g. `{"GITHUB": "ghp_xxx"}`) |
 
@@ -137,7 +137,7 @@ List all agents in a namespace.
 | `model` | Claude model |
 | `status` | Pod phase: `Pending`, `Running`, `Sleeping`, `Succeeded`, `Failed` |
 | `taskStatus` | Agent activity: `InProgress`, `Complete`, `Error`, or empty |
-| `lifecycle` | Lifecycle mode: `""`, `Sleep`, or `AutoDelete` |
+| `lifecycle` | Lifecycle mode: `""`, `Sleep`, `AutoDelete`, or `Archive` |
 | `lastTaskMessage` | Most recent event summary (e.g. "Calling Bash", "Task completed") |
 | `createdAt` | ISO 8601 creation timestamp |
 

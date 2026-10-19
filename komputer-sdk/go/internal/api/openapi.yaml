@@ -299,6 +299,14 @@ paths:
                   type: string
                 type: object
           description: Bad request
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent is archived (only labels and deleteTTL can change)
         "500":
           content:
             application/json:
@@ -639,7 +647,7 @@ paths:
                 additionalProperties:
                   type: string
                 type: object
-          description: Agent is running a task
+          description: "Agent is running a task, or is archived"
         "500":
           content:
             application/json:
@@ -688,6 +696,14 @@ paths:
                   type: string
                 type: object
           description: Agent not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent is archived
         "500":
           content:
             application/json:
@@ -5751,7 +5767,7 @@ components:
             "komputer.ai/personal-agent" which is allow-listed.
           type: object
         lifecycle:
-          description: "\"\", \"Sleep\", or \"AutoDelete\""
+          description: "\"\", \"Sleep\", \"AutoDelete\", or \"Archive\""
           type: string
         memories:
           description: optional KomputerMemory names to attach
@@ -14036,11 +14052,13 @@ components:
       - ""
       - Sleep
       - AutoDelete
+      - Archive
       type: string
       x-enum-varnames:
       - AgentLifecycleDefault
       - AgentLifecycleSleep
       - AgentLifecycleAutoDelete
+      - AgentLifecycleArchive
     v1alpha1.KomputerAgentSpec:
       example:
         instructions: instructions
@@ -14174,8 +14192,9 @@ components:
           description: |-
             Lifecycle controls what happens after task completion.
             Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-            "AutoDelete" deletes the entire agent after task completion.
-            +kubebuilder:validation:Enum="";Sleep;AutoDelete
+            "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+            the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+            +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
             +optional
           type: object
         memories:
@@ -14491,8 +14510,9 @@ components:
           description: |-
             Lifecycle controls what happens after task completion.
             Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-            "AutoDelete" deletes the entire agent after task completion.
-            +kubebuilder:validation:Enum="";Sleep;AutoDelete
+            "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+            the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+            +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
             +optional
           type: object
         memories:

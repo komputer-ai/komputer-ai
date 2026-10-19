@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 **Effort** | Pointer to **string** | Effort sets the Claude Agent SDK&#39;s reasoning effort: \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, or \&quot;max\&quot;. Empty means unset, so the model&#39;s own default effort applies. | [optional] 
 **Instructions** | **string** |  | 
 **Labels** | Pointer to **map[string]string** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
-**Lifecycle** | Pointer to **string** | \&quot;\&quot;, \&quot;Sleep\&quot;, or \&quot;AutoDelete\&quot; | [optional] 
+**Lifecycle** | Pointer to **string** | \&quot;\&quot;, \&quot;Sleep\&quot;, \&quot;AutoDelete\&quot;, or \&quot;Archive\&quot; | [optional] 
 **Memories** | Pointer to **[]string** | optional KomputerMemory names to attach | [optional] 
 **Model** | Pointer to **string** |  | [optional] 
 **Name** | **string** |  | 

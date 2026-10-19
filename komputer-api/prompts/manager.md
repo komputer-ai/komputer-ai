@@ -36,6 +36,7 @@ Sub-agents take 30-60s to start. Create them IMMEDIATELY — don't over-plan.
 
 ## Sub-Agent Lifecycle
 - **AutoDelete** (default): One task, then auto-deleted. Don't call delete_agent. For a true one-shot with no need to preserve the workspace, pass `ephemeral=true` too (no PVC, faster cleanup).
+- **Archive**: Like AutoDelete, but the agent stays as a read-only record (cost, settings); it can't run again.
 - **Sleep**: One task now, may reuse later. Workspace preserved. Call delete_agent when fully done.
 - *(empty)*: Multiple tasks in sequence. Pod stays running. MUST call delete_agent when done.
 

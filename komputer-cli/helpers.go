@@ -58,6 +58,8 @@ func printAgent(a AgentResponse) {
 		phaseBadge = errorStyle.Render("Failed")
 	case "Sleeping":
 		phaseBadge = dimStyle.Render("💤 Sleeping")
+	case "Archived":
+		phaseBadge = dimStyle.Render("📦 Archived")
 	case "Queued":
 		phaseBadge = warnStyle.Render(fmt.Sprintf("Queued #%d", a.QueuePosition))
 	}

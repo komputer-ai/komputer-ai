@@ -39,7 +39,7 @@ type CreateAgentRequest struct {
 	// DisallowedTools removes these tools; everything else stays available.
 	// Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools"`
-	Lifecycle       string   `json:"lifecycle"` // "", "Sleep", or "AutoDelete"
+	Lifecycle       string   `json:"lifecycle"` // "", "Sleep", "AutoDelete", or "Archive"
 	// SleepTTL puts the agent to sleep after this long with no activity, as a Go
 	// duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
 	SleepTTL string `json:"sleepTTL,omitempty"`
@@ -494,6 +494,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent: " + err.Error()})
 			return
 		}
+		if existing != nil && agentArchived(existing) {
+			c.JSON(http.StatusConflict, gin.H{"error": ErrAgentArchived.Error()})
+			return
+		}
 
 		// On Bedrock, reject friendly model names before they reach the SDK. A new
 		// agent requires a valid model (empty would fall back to a friendly default);
@@ -557,6 +561,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				}
 				if err := k8s.WakeAgent(c.Request.Context(), ns, req.Name, instructions, buildInternalSystemPrompt(wakeMemories), wakeSystemPrompt, req.Model, req.Lifecycle); err != nil {
 					agentActionsTotal.WithLabelValues("wake", "error").Inc()
+					if err == ErrAgentArchived {
+						c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+						return
+					}
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 					return
 				}
@@ -646,7 +654,9 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				forwardSystemPrompt = existing.Spec.SystemPrompt
 			}
 			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(c.Request.Context(), ns, existing.Spec.AgentConfigSpec)
-			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt, effectiveTaskBudget)
+			cw, err := forwardWithLifecycleChange(c.Request.Context(), k8s, existing, req.Lifecycle, func() (int64, error) {
+				return k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt, effectiveTaskBudget)
+			})
 			if err != nil {
 				agentActionsTotal.WithLabelValues("wake", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
@@ -655,13 +665,6 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if cw > 0 {
 				if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, req.Name, cw); patchErr != nil {
 					Logger.Warnw("failed to patch context window", "agent_name", req.Name, "error", patchErr)
-				}
-			}
-
-			// Update lifecycle if changed
-			if req.Lifecycle != "" && req.Lifecycle != string(existing.Spec.Lifecycle) {
-				if err := k8s.PatchAgentLifecycle(c.Request.Context(), ns, req.Name, req.Lifecycle); err != nil {
-					Logger.Warnw("failed to patch lifecycle", "agent_name", req.Name, "error", err)
 				}
 			}
 
@@ -993,6 +996,7 @@ func cancelAgentTask(k8s *K8sClient) gin.HandlerFunc {
 // @Param namespace query string false "Kubernetes namespace"
 // @Success 200 {object} AgentResponse "Agent woken (or already awake)"
 // @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent is archived"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents/{name}/wake [post]
 func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
@@ -1008,6 +1012,10 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 			agentActionsTotal.WithLabelValues("idle_wake", "error").Inc()
+			if err == ErrAgentArchived {
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to wake agent: " + err.Error()})
 			return
 		}
@@ -1067,7 +1075,7 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Success 200 {object} AgentResponse "Agent sleeping (or already asleep)"
 // @Failure 400 {object} map[string]string "Ephemeral-workspace agents can't sleep"
 // @Failure 404 {object} map[string]string "Agent not found"
-// @Failure 409 {object} map[string]string "Agent is running a task"
+// @Failure 409 {object} map[string]string "Agent is running a task, or is archived"
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /agents/{name}/sleep [post]
 func sleepAgent(k8s *K8sClient) gin.HandlerFunc {
@@ -1084,6 +1092,9 @@ func sleepAgent(k8s *K8sClient) gin.HandlerFunc {
 			case err == ErrAgentBusy:
 				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
 				c.JSON(http.StatusConflict, gin.H{"error": "agent is running a task; cancel it first"})
+			case err == ErrAgentArchived:
+				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			case err == ErrAgentEphemeral:
 				agentActionsTotal.WithLabelValues("sleep_now", "error").Inc()
 				c.JSON(http.StatusBadRequest, gin.H{"error": ErrAgentEphemeral.Error()})
@@ -1434,6 +1445,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 // @Success 200 {object} AgentResponse "Updated agent"
 // @Failure 400 {object} map[string]string "Bad request"
 // @Failure 500 {object} map[string]string "Internal error"
+// @Failure 409 {object} map[string]string "Agent is archived (only labels and deleteTTL can change)"
 // @Router /agents/{name} [patch]
 func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1460,6 +1472,12 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if req.Effort != nil {
 			if err := validateEffort(*req.Effort); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentArchived(target) {
+			if err := validateArchivedPatch(req); err != nil {
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 				return
 			}
 		}

@@ -34,6 +34,7 @@ komputer create data-processor "Now generate charts from /workspace/output/summa
 | Default (empty) | Stays running | Kept | Interactive, frequent tasks |
 | `Sleep` | Deleted | Kept | Infrequent tasks, cost-sensitive |
 | `AutoDelete` | Deleted | Deleted | One-shot jobs |
+| `Archive` | Deleted | Deleted (agent kept as a record) | One-shot jobs you want to audit |
 
 ## When to use Sleep
 

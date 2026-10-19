@@ -32,6 +32,10 @@ const (
 // with exactly what any other agent supports. Instructions are not part of the
 // template: they come from the schedule's own Instructions field, which is also
 // what a run forwards to an already-existing agent.
+//
+// Lifecycle=Archive is rejected: every run reuses the same agent, and an archived
+// agent can never run again.
+// +kubebuilder:validation:XValidation:rule="!has(self.lifecycle) || self.lifecycle != 'Archive'",message="lifecycle: Archive isn't supported for schedules — every run reuses one agent, and an archived agent can't run again"
 type ScheduleAgentSpec struct {
 	AgentConfigSpec `json:",inline"`
 }

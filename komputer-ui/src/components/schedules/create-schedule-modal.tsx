@@ -300,6 +300,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
                             active={open}
                             hideNameAndNamespace
                             hideInstructions
+                            hideArchive
                             idPrefix="schedule"
                           />
                         </div>

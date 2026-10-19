@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
+import { Archive, Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/kit/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -28,6 +28,7 @@ const statusConfig: Record<string, { color: string; icon: typeof Bot; pulse?: bo
   Pending:   { color: "#FBBF24", icon: Clock },
   Failed:    { color: "#F87171", icon: Skull },
   Succeeded: { color: "#34D399", icon: CheckCircle2 },
+  Archived:  { color: "#94A3B8", icon: Archive },
 };
 
 const defaultStatus = { color: "#8899A6", icon: Bot };

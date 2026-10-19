@@ -116,6 +116,8 @@ export interface AgentFieldsFormProps {
    * second Instructions box whose contents would be silently discarded.
    */
   hideInstructions?: boolean;
+  /** When true, hide the Archive lifecycle option (not allowed for schedule agents) */
+  hideArchive?: boolean;
   /** Optional id prefix for input ids (avoid collisions when multiple forms exist) */
   idPrefix?: string;
 }
@@ -127,6 +129,7 @@ export function AgentFieldsForm({
   hideNameAndNamespace = false,
   hideNamespaceOnly = false,
   hideInstructions = false,
+  hideArchive = false,
   idPrefix = "agent",
 }: AgentFieldsFormProps) {
   const advancedRef = useRef<HTMLDivElement>(null);
@@ -286,7 +289,7 @@ export function AgentFieldsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LIFECYCLES.filter((l) => !(values.ephemeral && l.value === "Sleep")).map((l) => (
+              {LIFECYCLES.filter((l) => !(values.ephemeral && l.value === "Sleep") && !(hideArchive && l.value === "Archive")).map((l) => (
                 <SelectItem key={l.value} value={l.value}>
                   {l.label}
                 </SelectItem>
@@ -664,7 +667,7 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
     model: values.model,
     effort: values.effort !== "auto" ? values.effort : undefined,
     namespace: includeNamespace ? (values.namespace.trim() || undefined) : undefined,
-    lifecycle: values.lifecycle === "default" ? "" : (values.lifecycle as "" | "Sleep" | "AutoDelete"),
+    lifecycle: values.lifecycle === "default" ? "" : (values.lifecycle as "" | "Sleep" | "AutoDelete" | "Archive"),
     role: values.role || undefined,
     templateRef: values.templateRef !== "default" ? values.templateRef : undefined,
     secretRefs: values.selectedSecretRefs.length > 0 ? values.selectedSecretRefs : undefined,

@@ -81,6 +81,9 @@ const (
 	AgentPhaseFailed    KomputerAgentPhase = "Failed"
 	AgentPhaseSleeping  KomputerAgentPhase = "Sleeping"
 	AgentPhaseQueued    KomputerAgentPhase = "Queued"
+	// AgentPhaseArchived is terminal: the agent ran with Lifecycle=Archive, its pod
+	// and PVC are gone, and the CR is kept only as a record of its spec and status.
+	AgentPhaseArchived KomputerAgentPhase = "Archived"
 )
 
 // AgentLifecycle controls what happens after task completion.
@@ -94,6 +97,9 @@ const (
 	AgentLifecycleSleep AgentLifecycle = "Sleep"
 	// AgentLifecycleAutoDelete deletes the entire agent after task completion.
 	AgentLifecycleAutoDelete AgentLifecycle = "AutoDelete"
+	// AgentLifecycleArchive deletes the pod and PVC after task completion but keeps
+	// the CR (spec, cost, status) as a read-only record in Phase=Archived.
+	AgentLifecycleArchive AgentLifecycle = "Archive"
 )
 
 // AgentTaskStatus represents whether the agent is actively working on a task.

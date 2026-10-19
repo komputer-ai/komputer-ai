@@ -170,6 +170,9 @@ func validateMemberRefForAdoption(c *gin.Context, k8s *K8sClient, ns, agentName 
 	if agent.Status.Squad {
 		return "", false
 	}
+	if agentArchived(agent) {
+		return fmt.Sprintf("agent %q is archived and can't join a squad", agentName), true
+	}
 	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
 		return fmt.Sprintf("agent %q must be asleep in order to team up (current phase: %s). Sleep the agent first, then retry.", agentName, agent.Status.Phase), true
 	}
@@ -451,6 +454,20 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 			}
 
 			if req.Members != nil {
+				// An archived agent never runs again — refuse to add one by ref.
+				for _, m := range req.Members {
+					if m.Ref == nil {
+						continue
+					}
+					refNs := m.Ref.Namespace
+					if refNs == "" {
+						refNs = ns
+					}
+					if a, getErr := k8s.GetAgent(c.Request.Context(), refNs, m.Ref.Name); getErr == nil && agentArchived(a) {
+						c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("agent %q is archived and can't join a squad", m.Ref.Name)})
+						return
+					}
+				}
 				squad.Spec.Members = req.Members
 			}
 			if req.OrphanTTL != nil {

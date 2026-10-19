@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Loader2, Moon, Power, Skull, Timer, Users, Zap } from "lucide-react";
+import { Archive, ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Loader2, Moon, Power, Skull, Timer, Users, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { AgentDeleteButton, agentKey } from "@/components/agents/agent-cards";
@@ -34,6 +34,7 @@ const STATUS: Record<string, { color: string; icon: typeof Bot }> = {
   Queued: { color: "var(--color-status-pending)", icon: Clock },
   Failed: { color: "var(--color-status-error)", icon: Skull },
   Succeeded: { color: "var(--color-status-success)", icon: CheckCircle2 },
+  Archived: { color: "var(--color-text-muted)", icon: Archive },
 };
 const DEFAULT_STATUS = { color: "var(--color-text-muted)", icon: Bot };
 
@@ -153,6 +154,7 @@ function SleepWakeButton({ agent, onChanged }: { agent: AgentResponse; onChanged
 function lifecyclePill(agent: AgentResponse) {
   if (agent.lifecycle === "Sleep") return { icon: Moon, label: "Sleeps after task" };
   if (agent.lifecycle === "AutoDelete") return { icon: Timer, label: "Deletes after task" };
+  if (agent.lifecycle === "Archive") return { icon: Archive, label: "Archives after task" };
   return null;
 }
 
