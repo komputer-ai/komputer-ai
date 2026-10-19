@@ -42,10 +42,13 @@ func forwardWithLifecycleChange(ctx context.Context, k8s *K8sClient, existing *k
 
 	cw, err := forward()
 	if err != nil {
-		if revertErr := k8s.PatchAgentLifecycle(ctx, ns, name, string(existing.Spec.Lifecycle)); revertErr != nil {
+		revertErr := k8s.PatchAgentLifecycle(ctx, ns, name, string(existing.Spec.Lifecycle))
+		if revertErr != nil {
+			// Leave TaskStatus cleared: restoring it under the new lifecycle is
+			// exactly the combination that would fire the transition.
 			Logger.Warnw("failed to revert lifecycle after failed forward", "agent_name", name, "error", revertErr)
 		}
-		if cleared {
+		if cleared && revertErr == nil {
 			if _, restoreErr := k8s.SwapAgentTaskStatus(ctx, ns, name, "", prevStatus); restoreErr != nil {
 				Logger.Warnw("failed to restore task status after failed forward", "agent_name", name, "error", restoreErr)
 			}
