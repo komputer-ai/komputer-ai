@@ -946,9 +946,13 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	// Archive mode: same trigger as AutoDelete, but keep the CR as a record and
 	// delete only the pod and PVC. deleteTTL does not delay it — on an archived
 	// agent deleteTTL is the record's retention window (see reconcileArchived).
+	// Requires a pod, like Sleep: a sleeping agent woken with lifecycle=Archive
+	// still has its previous task's Complete status until the wake resets it, and
+	// archiving then would delete the workspace the wake is about to use.
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleArchive &&
 		!wakeIdle &&
-		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
+		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
+		pod != nil {
 		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
 		return r.archiveAgentNow(ctx, agent)
 	}

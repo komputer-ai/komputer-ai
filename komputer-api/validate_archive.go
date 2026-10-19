@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
@@ -18,15 +20,30 @@ func agentArchived(agent *komputerv1alpha1.KomputerAgent) bool {
 // validateArchivedPatch allows only labels and deleteTTL on an archived agent —
 // the fields that still mean something on a record (organizing it, and how long
 // to retain it). Everything else configures a run that will never happen.
+// Implemented as an allowlist (clear the allowed fields, require the rest to be
+// empty) so a field added to PatchAgentRequest later is refused by default.
 func validateArchivedPatch(req PatchAgentRequest) error {
-	if req.Model != nil || req.Effort != nil || req.Lifecycle != nil || req.Instructions != nil ||
-		req.TemplateRef != nil || req.SecretRefs != nil || req.Memories != nil || req.Skills != nil ||
-		req.Connectors != nil || req.AllowedTools != nil || req.DisallowedTools != nil ||
-		req.SystemPrompt != nil || req.Priority != nil || req.PodSpec != nil || req.Storage != nil ||
-		req.SleepTTL != nil || req.TaskTimeout != nil || req.BudgetUSD != nil || req.TaskBudgetUSD != nil {
+	rest := req
+	rest.Labels, rest.RemoveLabels, rest.DeleteTTL = nil, nil, nil
+	if !reflect.DeepEqual(rest, PatchAgentRequest{}) {
 		return fmt.Errorf("agent is archived: only labels and deleteTTL can be changed")
 	}
 	return nil
+}
+
+// validateScheduleAgentRef rejects pointing a schedule at an existing agent
+// that is archived or will archive itself after its next task — the same reason
+// validateScheduleLifecycle rejects an Archive template. A missing agent is left
+// to the existing "referenced agent not found" handling.
+func validateScheduleAgentRef(ctx context.Context, k8s *K8sClient, ns, name string) error {
+	agent, err := k8s.GetAgent(ctx, ns, name)
+	if err != nil {
+		return nil
+	}
+	if agentArchived(agent) {
+		return fmt.Errorf("agent %q is archived and can't run again", name)
+	}
+	return validateScheduleLifecycle(agent.Spec.Lifecycle)
 }
 
 // validateScheduleLifecycle rejects Lifecycle=Archive for a schedule's agent:

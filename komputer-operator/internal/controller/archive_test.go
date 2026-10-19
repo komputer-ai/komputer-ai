@@ -186,3 +186,101 @@ func TestReconcile_ArchivedAgent_DeleteTTLRemovesRecord(t *testing.T) {
 	}
 	assertGone(t, c, &komputerv1alpha1.KomputerAgent{}, "my-agent")
 }
+
+// A sleeping agent switched to lifecycle=Archive (e.g. woken with a new task and
+// lifecycle) still carries its previous task's Complete status with no pod. It
+// must not be archived — that would delete the workspace the wake is about to use.
+func TestReconcileStatus_ArchiveLifecycle_NoPodDoesNotArchive(t *testing.T) {
+	scheme := newTestScheme(t)
+	_, pvc, _ := archiveTestObjects()
+	agent := archiveAgent(komputerv1alpha1.AgentTaskComplete)
+	agent.Status.Phase = komputerv1alpha1.AgentPhaseSleeping
+	agent.Status.PodName = ""
+	c := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(pvc, agent).
+		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
+	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
+
+	if err := r.reconcileStatus(context.Background(), agent, nil, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+		t.Fatalf("reconcileStatus returned error: %v", err)
+	}
+	var got komputerv1alpha1.KomputerAgent
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "my-agent", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get agent: %v", err)
+	}
+	if got.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
+		t.Error("a sleeping agent with no pod must not be archived")
+	}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "my-agent-pvc", Namespace: "default"}, &corev1.PersistentVolumeClaim{}); err != nil {
+		t.Errorf("PVC must be kept: %v", err)
+	}
+}
+
+// A squad never adopts an archived agent: it is pruned from the member list
+// instead of being marked squad-managed (which would rebuild its PVC and pod).
+func TestMarkMembersAsSquad_PrunesArchivedMember(t *testing.T) {
+	live := squadMember("live", time.Minute)
+	archived := archiveAgent(komputerv1alpha1.AgentTaskComplete)
+	archived.Name = "gone"
+	archived.Status.Phase = komputerv1alpha1.AgentPhaseArchived
+	squad := testSquad("live", "gone")
+	r := newSquadTTLReconciler(t, live, archived, squad)
+
+	agents, err := r.markMembersAsSquad(context.Background(), squad)
+	if err != nil {
+		t.Fatalf("markMembersAsSquad: %v", err)
+	}
+	if len(agents) != 1 || agents[0].Name != "live" {
+		t.Fatalf("agents = %v, want only the live member", agents)
+	}
+	var got komputerv1alpha1.KomputerAgent
+	if err := r.Get(context.Background(), types.NamespacedName{Name: "gone", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get archived agent: %v", err)
+	}
+	if got.Status.Squad {
+		t.Error("archived agent must not be marked squad-managed")
+	}
+	var gotSquad komputerv1alpha1.KomputerSquad
+	if err := r.Get(context.Background(), types.NamespacedName{Name: "test-squad", Namespace: "default"}, &gotSquad); err != nil {
+		t.Fatalf("get squad: %v", err)
+	}
+	if len(gotSquad.Spec.Members) != 1 {
+		t.Errorf("squad members = %d, want 1 (archived member pruned)", len(gotSquad.Spec.Members))
+	}
+}
+
+// A schedule whose agent has been archived goes to Error instead of retrying
+// the run forever.
+func TestScheduleReconcile_ArchivedAgent_Errors(t *testing.T) {
+	scheme := newTestScheme(t)
+	past := metav1.NewTime(time.Now().Add(-time.Minute))
+	schedule := &komputerv1alpha1.KomputerSchedule{
+		ObjectMeta: metav1.ObjectMeta{Name: "sched1", Namespace: "default"},
+		Spec: komputerv1alpha1.KomputerScheduleSpec{
+			Schedule:     "0 0 * * *",
+			Instructions: "scheduled prompt",
+			AgentName:    "my-agent",
+		},
+		Status: komputerv1alpha1.KomputerScheduleStatus{
+			Phase:       komputerv1alpha1.SchedulePhaseActive,
+			NextRunTime: &past,
+		},
+	}
+	agent := archiveAgent(komputerv1alpha1.AgentTaskComplete)
+	agent.Status.Phase = komputerv1alpha1.AgentPhaseArchived
+	c := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(schedule, agent).
+		WithStatusSubresource(&komputerv1alpha1.KomputerSchedule{}, &komputerv1alpha1.KomputerAgent{}).Build()
+	r := &KomputerScheduleReconciler{Client: c, Scheme: scheme}
+
+	if _, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "sched1", Namespace: "default"}}); err != nil {
+		t.Fatalf("Reconcile returned error: %v", err)
+	}
+	var got komputerv1alpha1.KomputerSchedule
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "sched1", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get schedule: %v", err)
+	}
+	if got.Status.Phase != komputerv1alpha1.SchedulePhaseError {
+		t.Errorf("Phase = %q, want Error", got.Status.Phase)
+	}
+}

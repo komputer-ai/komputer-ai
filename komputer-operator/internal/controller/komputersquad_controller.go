@@ -289,6 +289,13 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 			}
 			return nil, fmt.Errorf("get agent %s: %w", member.Ref.Name, err)
 		}
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
+			// An archived agent never runs again; adopting it would build it a
+			// fresh PVC and container. Drop it, the same way as a missing agent.
+			log.Info("Member agent is archived; removing from squad spec", "agent", member.Ref.Name)
+			pruned = true
+			continue
+		}
 
 		desiredPort := int32(8000 + memberIdx)
 

@@ -158,6 +158,13 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		if req.AgentName != "" {
+			if err := validateScheduleAgentRef(c.Request.Context(), k8s, ns, req.AgentName); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// A new schedule's inline agent template has no existing connectors to compare
 		// against — every connector it names is a fresh attach.
 		if req.Agent != nil {
@@ -441,6 +448,12 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			req.AgentName == nil && req.Agent == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
+		}
+		if req.AgentName != nil && *req.AgentName != "" {
+			if err := validateScheduleAgentRef(c.Request.Context(), k8s, ns, *req.AgentName); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		// Reject a disabled connector only if it's newly attached — a connector already

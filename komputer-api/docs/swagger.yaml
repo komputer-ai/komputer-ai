@@ -6983,6 +6983,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "409":
+          description: Agent is archived (only labels and deleteTTL can change)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal error
           schema:

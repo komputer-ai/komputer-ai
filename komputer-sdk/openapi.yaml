@@ -262,6 +262,14 @@ paths:
                   type: string
                 type: object
           description: Bad request
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent is archived (only labels and deleteTTL can change)
         "500":
           content:
             application/json:

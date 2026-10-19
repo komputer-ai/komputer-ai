@@ -649,9 +649,35 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if forwardSystemPrompt == "" {
 				forwardSystemPrompt = existing.Spec.SystemPrompt
 			}
+			// Update lifecycle if changed — before forwarding. Every lifecycle
+			// transition (Sleep, AutoDelete, Archive) fires on a finished task's
+			// Complete/Error status, so for a new task the previous task's status is
+			// cleared first: otherwise the operator could act on it before this task
+			// reports in, killing the task (and, for Archive, deleting its workspace).
+			// A steer leaves TaskStatus at InProgress, which never triggers them.
+			newTask := !agentTaskInProgress(existing.Status.TaskStatus)
+			restoreTaskStatus := false
+			if req.Lifecycle != "" && req.Lifecycle != string(existing.Spec.Lifecycle) {
+				if newTask && existing.Status.TaskStatus != "" {
+					if err := k8s.SetAgentTaskStatus(c.Request.Context(), ns, req.Name, ""); err != nil {
+						Logger.Warnw("failed to clear task status before lifecycle change", "agent_name", req.Name, "error", err)
+					} else {
+						restoreTaskStatus = true
+					}
+				}
+				if err := k8s.PatchAgentLifecycle(c.Request.Context(), ns, req.Name, req.Lifecycle); err != nil {
+					Logger.Warnw("failed to patch lifecycle", "agent_name", req.Name, "error", err)
+				}
+			}
+
 			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(c.Request.Context(), ns, existing.Spec.AgentConfigSpec)
 			cw, err := k8s.ForwardTaskToAgent(c.Request.Context(), ns, existing.Status.PodName, existing.Name, instructions, req.Model, buildInternalSystemPrompt(forwardMemories), forwardSystemPrompt, effectiveTaskBudget)
 			if err != nil {
+				if restoreTaskStatus {
+					if restoreErr := k8s.SetAgentTaskStatus(c.Request.Context(), ns, req.Name, existing.Status.TaskStatus); restoreErr != nil {
+						Logger.Warnw("failed to restore task status after failed forward", "agent_name", req.Name, "error", restoreErr)
+					}
+				}
 				agentActionsTotal.WithLabelValues("wake", "error").Inc()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to forward task: " + err.Error()})
 				return
@@ -659,13 +685,6 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			if cw > 0 {
 				if patchErr := k8s.PatchAgentContextWindow(c.Request.Context(), ns, req.Name, cw); patchErr != nil {
 					Logger.Warnw("failed to patch context window", "agent_name", req.Name, "error", patchErr)
-				}
-			}
-
-			// Update lifecycle if changed
-			if req.Lifecycle != "" && req.Lifecycle != string(existing.Spec.Lifecycle) {
-				if err := k8s.PatchAgentLifecycle(c.Request.Context(), ns, req.Name, req.Lifecycle); err != nil {
-					Logger.Warnw("failed to patch lifecycle", "agent_name", req.Name, "error", err)
 				}
 			}
 
@@ -1446,6 +1465,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 // @Success 200 {object} AgentResponse "Updated agent"
 // @Failure 400 {object} map[string]string "Bad request"
 // @Failure 500 {object} map[string]string "Internal error"
+// @Failure 409 {object} map[string]string "Agent is archived (only labels and deleteTTL can change)"
 // @Router /agents/{name} [patch]
 func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -71,3 +71,37 @@ func TestCreateScheduleRejectsArchiveLifecycle(t *testing.T) {
 		t.Fatalf("status = %d, want 400; body = %s", w.Code, w.Body.String())
 	}
 }
+
+func TestPatchArchivedAgentAllowsLabels(t *testing.T) {
+	k8s := newFakeK8s(t, archivedAgent())
+	if w := patchAgentReq(t, k8s, "a1", `{"labels":{"team":"billing"}}`); w.Code != http.StatusOK {
+		t.Errorf("labels patch status = %d, want 200; body = %s", w.Code, w.Body.String())
+	}
+}
+
+// A schedule can't be pointed at an archived agent, or at one that will archive
+// itself after its next task.
+func TestScheduleRejectsArchivedAgentRef(t *testing.T) {
+	archiveLifecycle := archivedAgent()
+	archiveLifecycle.Name = "a2"
+	archiveLifecycle.Status.Phase = komputerv1alpha1.AgentPhaseRunning
+	k8s := newFakeK8s(t, archivedAgent(), archiveLifecycle)
+
+	for _, name := range []string{"a1", "a2"} {
+		body := `{"name":"s-` + name + `","schedule":"* * * * *","instructions":"go","agentName":"` + name + `"}`
+		if w := postCreateSchedule(t, k8s, body); w.Code != http.StatusBadRequest {
+			t.Errorf("create with agentName=%s status = %d, want 400; body = %s", name, w.Code, w.Body.String())
+		}
+	}
+}
+
+func TestPatchSquadRejectsArchivedRef(t *testing.T) {
+	squad := &komputerv1alpha1.KomputerSquad{
+		ObjectMeta: metav1.ObjectMeta{Name: "sq", Namespace: "default"},
+	}
+	k8s := newFakeK8s(t, archivedAgent(), squad)
+	w := patchSquadReq(t, k8s, "sq", `{"members":[{"ref":{"name":"a1"}}]}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409; body = %s", w.Code, w.Body.String())
+	}
+}

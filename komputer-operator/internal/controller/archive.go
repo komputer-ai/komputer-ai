@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -69,16 +70,28 @@ func (r *KomputerAgentReconciler) reconcileArchived(ctx context.Context, agent *
 }
 
 // deleteArchivedResources deletes the pod, workspace PVC and Service of an
-// archived agent. Ephemeral agents have no PVC; NotFound is ignored throughout.
+// archived agent. Each object is read from the cache first, so reconciling an
+// archived agent whose resources are already gone (the common case — archived
+// records accumulate) sends no API requests. Ephemeral agents have no PVC.
 func (r *KomputerAgentReconciler) deleteArchivedResources(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
-	meta := func(name string) metav1.ObjectMeta {
-		return metav1.ObjectMeta{Name: name, Namespace: agent.Namespace}
-	}
-	for _, obj := range []client.Object{
-		&corev1.Pod{ObjectMeta: meta(agent.Name + "-pod")},
-		&corev1.PersistentVolumeClaim{ObjectMeta: meta(agent.Name + "-pvc")},
-		&corev1.Service{ObjectMeta: meta(agentServiceName(agent.Name))},
+	for _, res := range []struct {
+		name string
+		obj  client.Object
+	}{
+		{agent.Name + "-pod", &corev1.Pod{}},
+		{agent.Name + "-pvc", &corev1.PersistentVolumeClaim{}},
+		{agentServiceName(agent.Name), &corev1.Service{}},
 	} {
+		obj := res.obj
+		if err := r.Get(ctx, types.NamespacedName{Name: res.name, Namespace: agent.Namespace}, obj); err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
+			return err
+		}
+		if !obj.GetDeletionTimestamp().IsZero() {
+			continue
+		}
 		if err := r.Delete(ctx, obj); err != nil && !errors.IsNotFound(err) {
 			return err
 		}

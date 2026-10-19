@@ -110,10 +110,12 @@ describe("buildAgentSpecForSquad ephemeral storage", () => {
     const spec = buildAgentSpecForSquad(makeDefaultAgentFormValues({ ephemeral: true, storageSize: "5Gi" }));
     expect(spec.storage).toEqual({ size: "5Gi", ephemeral: true });
   });
+});
 
+describe("buildCreateAgentRequest", () => {
   it("passes the Archive lifecycle through", () => {
-    const spec = buildAgentSpecForSquad(makeDefaultAgentFormValues({ lifecycle: "Archive" }));
-    expect(spec.lifecycle).toBe("Archive");
+    const req = buildCreateAgentRequest(makeDefaultAgentFormValues({ lifecycle: "Archive" }));
+    expect(req.lifecycle).toBe("Archive");
   });
 });
 

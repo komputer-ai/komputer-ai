@@ -753,6 +753,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated agent |  -  |
 **400** | Bad request |  -  |
+**409** | Agent is archived (only labels and deleteTTL can change) |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

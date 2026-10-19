@@ -1711,7 +1711,7 @@ export function AgentChat({
                     }}
                     transition={{ backgroundColor: { duration: 0.2 }, color: { duration: 0.2 }, opacity: { duration: 0.15, delay: 0.15 }, y: { duration: 0.15, delay: 0.15 } }}
                     className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)] cursor-pointer"
-                    title="Archive after task (remove pod and workspace, keep record)"
+                    title="Archive when the task completes — right away if the agent is idle (removes pod and workspace, keeps the record)"
                   >
                     <Archive className="size-4" />
                     Archive

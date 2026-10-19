@@ -330,6 +330,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "409": {
+                        "description": "Agent is archived (only labels and deleteTTL can change)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal error",
                         "schema": {

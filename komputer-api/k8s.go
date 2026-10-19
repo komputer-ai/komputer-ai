@@ -109,6 +109,10 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 	if err := k.client.Get(ctx, key, agent); err != nil {
 		return err
 	}
+	if agentArchived(agent) {
+		// Never flip an archived record back to Pending — that would rebuild it.
+		return ErrAgentArchived
+	}
 	original2 := agent.DeepCopy()
 	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
 	agent.Status.TaskStatus = ""
@@ -2052,6 +2056,20 @@ func statusChangedBeyondActivity(a, b *komputerv1alpha1.KomputerAgentStatus) boo
 	ac, bc := a.DeepCopy(), b.DeepCopy()
 	ac.LastActivityAt, bc.LastActivityAt = nil, nil
 	return !equality.Semantic.DeepEqual(ac, bc)
+}
+
+// SetAgentTaskStatus overwrites status.taskStatus alone. createOrTriggerAgent uses
+// it to clear a finished task's Complete/Error before changing an idle agent's
+// lifecycle, and to put it back if forwarding the new task then fails.
+func (k *K8sClient) SetAgentTaskStatus(ctx context.Context, ns, name string, status komputerv1alpha1.AgentTaskStatus) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, agent); err != nil {
+		return err
+	}
+	original := agent.DeepCopy()
+	agent.Status.TaskStatus = status
+	k.progress.forget(ns, name)
+	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
 }
 
 func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
