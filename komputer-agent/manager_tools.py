@@ -49,7 +49,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "name": {"type": "string", "description": "Unique name for the sub-agent (lowercase, hyphens, no spaces). Used for all operations (wait, status, delete)."},
             "instructions": {"type": "string", "description": "Detailed task instructions for the sub-agent."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
-            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
+            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted, 'Archive'=pod+PVC deleted, agent kept as a read-only record (cost, settings)."},
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},

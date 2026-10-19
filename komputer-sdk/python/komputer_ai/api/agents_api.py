@@ -3474,6 +3474,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3547,6 +3548,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3620,6 +3622,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(

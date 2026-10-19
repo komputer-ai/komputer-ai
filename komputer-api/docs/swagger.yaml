@@ -361,7 +361,7 @@ definitions:
           "komputer.ai/personal-agent" which is allow-listed.
         type: object
       lifecycle:
-        description: '"", "Sleep", or "AutoDelete"'
+        description: '"", "Sleep", "AutoDelete", or "Archive"'
         type: string
       memories:
         description: optional KomputerMemory names to attach
@@ -6274,11 +6274,13 @@ definitions:
     - ""
     - Sleep
     - AutoDelete
+    - Archive
     type: string
     x-enum-varnames:
     - AgentLifecycleDefault
     - AgentLifecycleSleep
     - AgentLifecycleAutoDelete
+    - AgentLifecycleArchive
   v1alpha1.KomputerAgentSpec:
     properties:
       allowedTools:
@@ -6373,8 +6375,9 @@ definitions:
         description: |-
           Lifecycle controls what happens after task completion.
           Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-          "AutoDelete" deletes the entire agent after task completion.
-          +kubebuilder:validation:Enum="";Sleep;AutoDelete
+          "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+          the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+          +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
           +optional
       memories:
         description: |-
@@ -6604,8 +6607,9 @@ definitions:
         description: |-
           Lifecycle controls what happens after task completion.
           Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-          "AutoDelete" deletes the entire agent after task completion.
-          +kubebuilder:validation:Enum="";Sleep;AutoDelete
+          "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+          the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+          +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
           +optional
       memories:
         description: |-
@@ -7226,7 +7230,7 @@ paths:
               type: string
             type: object
         "409":
-          description: Agent is running a task
+          description: Agent is running a task, or is archived
           schema:
             additionalProperties:
               type: string
@@ -7264,6 +7268,12 @@ paths:
             $ref: '#/definitions/main.AgentResponse'
         "404":
           description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent is archived
           schema:
             additionalProperties:
               type: string

@@ -145,6 +145,8 @@ func registerAgentCommands(root *cobra.Command) {
 					phase = errorStyle.Render(fmt.Sprintf("%-10s", phase))
 				case "Sleeping":
 					phase = dimStyle.Render(fmt.Sprintf("%-10s", "💤 Sleep"))
+				case "Archived":
+					phase = dimStyle.Render(fmt.Sprintf("%-10s", "📦 Archived"))
 				case "Queued":
 					phase = warnStyle.Render(fmt.Sprintf("%-10s", fmt.Sprintf("Queued #%d", a.QueuePosition)))
 				default:
@@ -330,7 +332,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max (empty for model default)")
 	createCmd.Flags().String("template", "", "KomputerAgentTemplate name")
 	createCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
-	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
+	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task), AutoDelete (delete agent after task), or Archive (delete pod + workspace, keep agent as a record)")
 	createCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	createCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	createCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
@@ -463,7 +465,7 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
 	updateCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max. Empty string clears it back to model default.")
 	updateCmd.Flags().String("instructions", "", "New task instructions")
-	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep, AutoDelete, or Archive (empty for default)")
 	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	updateCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	updateCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
@@ -924,7 +926,7 @@ func registerAgentCommands(root *cobra.Command) {
 	}
 	configCmd.Flags().String("model", "", "Claude model (e.g. claude-opus-4-6)")
 	configCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max. Empty string clears it back to model default.")
-	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep or AutoDelete (empty for default)")
+	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep, AutoDelete, or Archive (empty for default)")
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	configCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
@@ -1259,7 +1261,7 @@ func registerAgentCommands(root *cobra.Command) {
 	}
 	runCmd.Flags().String("model", "", "Claude model to use")
 	runCmd.Flags().StringSlice("secret", nil, "Secrets as KEY=VALUE (repeatable, e.g. --secret GITHUB=ghp_xxx)")
-	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task) or AutoDelete (delete agent after task)")
+	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task), AutoDelete (delete agent after task), or Archive (delete pod + workspace, keep agent as a record)")
 	runCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	runCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
@@ -1692,7 +1694,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	chatCmd.Flags().String("model", "", "Claude model to use")
-	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep or AutoDelete (default: empty, pod stays running)")
+	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep, AutoDelete, or Archive (default: empty, pod stays running)")
 	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
 	chatCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")

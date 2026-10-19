@@ -16,6 +16,13 @@ By default, agent pods stay running after task completion. You can change this b
 - **Default (`""`)** — Pod stays running, ready for the next task immediately. Best for interactive use and agents that receive frequent tasks.
 - **Sleep** — Pod is deleted after task completion, but the PVC (workspace) is preserved. When a new task is sent, the operator creates a fresh pod that reconnects to the same workspace. Saves compute costs for infrequent tasks.
 - **AutoDelete** — The entire agent (CR, pod, PVC, secrets) is deleted after task completion. Best for one-shot tasks where nothing needs to persist.
+- **Archive** — Like AutoDelete, but the agent CR is kept as a read-only record. After task completion the pod and PVC are deleted and the agent moves to the `Archived` phase, with its settings, model, cost (`totalCostUSD`, `totalTokens`) and last task message intact. Best for one-shot tasks you still want to audit or bill.
+
+### Archived agents
+
+An archived agent is terminal: it can't run again. Sending it a task, waking it, sleeping it, or patching anything other than `labels` and `deleteTTL` returns `409 Conflict`. Delete it like any other agent, or set `deleteTTL` to remove the record automatically (it counts from creation, so `lifecycle: Archive` + `deleteTTL: 720h` keeps the record for 30 days).
+
+The workspace is not kept. An archived agent whose PVC survived would just be a sleeping agent, so `Archive` doesn't offer that: use `Sleep` to keep the workspace, `Archive` to keep the record, and `AutoDelete` to keep neither. Like `AutoDelete`, only a successful task triggers the transition; an agent whose task errors stays up so you can inspect it. `Archive` isn't available for [schedules](./schedules.md), since every run reuses the same agent.
 
 Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](/integration/rest-api) for details.
 

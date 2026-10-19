@@ -27,7 +27,7 @@ import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-d
 import { cn } from "@/lib/utils";
 import { agentKey, cardsSortToApiSort, type CardsSort } from "@/lib/agent-list-query";
 
-const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed"] as const;
+const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed", "Archived"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const SORT_OPTIONS: { value: CardsSort; label: string }[] = [

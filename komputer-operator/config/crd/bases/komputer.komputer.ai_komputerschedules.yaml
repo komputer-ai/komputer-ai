@@ -145,11 +145,13 @@ spec:
                     description: |-
                       Lifecycle controls what happens after task completion.
                       Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-                      "AutoDelete" deletes the entire agent after task completion.
+                      "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+                      the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
                     enum:
                     - ""
                     - Sleep
                     - AutoDelete
+                    - Archive
                     type: string
                   memories:
                     description: |-

@@ -232,7 +232,7 @@ spec:
   model: "claude-sonnet-4-6"
   templateRef: "default"
   role: "manager"    # or "worker" — managers get orchestration tools
-  lifecycle: "Sleep" # "", "Sleep", or "AutoDelete"
+  lifecycle: "Sleep" # "", "Sleep", "AutoDelete", or "Archive"
   priority: 0        # higher = admitted first when template's maxConcurrentAgents is reached
   secrets:           # optional list of K8s Secret names
     - my-agent-secrets

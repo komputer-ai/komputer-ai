@@ -23,6 +23,7 @@ const (
 	AgentLifecycleDefault V1alpha1AgentLifecycle = ""
 	AgentLifecycleSleep V1alpha1AgentLifecycle = "Sleep"
 	AgentLifecycleAutoDelete V1alpha1AgentLifecycle = "AutoDelete"
+	AgentLifecycleArchive V1alpha1AgentLifecycle = "Archive"
 )
 
 // All allowed values of V1alpha1AgentLifecycle enum
@@ -30,6 +31,7 @@ var AllowedV1alpha1AgentLifecycleEnumValues = []V1alpha1AgentLifecycle{
 	"",
 	"Sleep",
 	"AutoDelete",
+	"Archive",
 }
 
 func (v *V1alpha1AgentLifecycle) UnmarshalJSON(src []byte) error {

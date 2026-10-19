@@ -181,6 +181,10 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
+			if err := validateScheduleLifecycle(cfg.Lifecycle); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		if err := k8s.EnsureNamespaceExists(c.Request.Context(), ns); err != nil {
@@ -328,6 +332,9 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			Logger.Warnw("manual trigger: failed to label scheduled agent", "schedule", schedule.Name, "agent", agentName, "error", err)
 		}
 	} else {
+		if agentArchived(agent) {
+			return "", http.StatusConflict, fmt.Errorf("agent %s: %w", agentName, ErrAgentArchived)
+		}
 		if agentTaskInProgress(agent.Status.TaskStatus) {
 			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
 		}
@@ -457,6 +464,10 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			scheduleAgentDefaults(cfg)
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, *cfg)
 			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := validateScheduleLifecycle(cfg.Lifecycle); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

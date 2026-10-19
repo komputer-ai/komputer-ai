@@ -102,7 +102,8 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// The Service selector matches both solo pods and squad pods (via the
 	// "komputer.ai/member-<name>=true" pod label) and routes port 8000 to the
 	// correct container port (8000 for solo, 8000+i for squad members).
-	if agent.DeletionTimestamp.IsZero() {
+	// An archived agent has no pod to route to — reconcileArchived removes its Service.
+	if agent.DeletionTimestamp.IsZero() && agent.Status.Phase != komputerv1alpha1.AgentPhaseArchived {
 		if err := r.ensureAgentService(ctx, agent); err != nil {
 			log.Error(err, "Failed to ensure agent Service", "agent", agent.Name)
 			return ctrl.Result{}, err
@@ -175,6 +176,13 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
+	}
+
+	// Archived agents are records only: no template, secrets, PVC or pod — just
+	// cleanup and deleteTTL. Checked before template resolution so a missing
+	// template can't flip an archived agent back to Pending.
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
+		return r.reconcileArchived(ctx, agent)
 	}
 
 	// 2. Resolve the template
@@ -855,7 +863,8 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 }
 
 // reconcileStatus maps pod phase to agent phase and updates status.
-// Also handles lifecycle transitions (Sleep → delete pod, AutoDelete → delete CR).
+// Also handles lifecycle transitions (Sleep → delete pod, AutoDelete → delete CR,
+// Archive → delete pod + PVC, keep CR).
 //
 // sleepTTL/deleteTTL are the resolved TTLs. When one is set it turns its matching
 // lifecycle action into a delayed one: the immediate transition below is skipped and
@@ -932,6 +941,16 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
 		log.Info("AutoDelete mode: deleting agent after task completion", "agent", agent.Name)
 		return r.Delete(ctx, agent)
+	}
+
+	// Archive mode: same trigger as AutoDelete, but keep the CR as a record and
+	// delete only the pod and PVC. deleteTTL does not delay it — on an archived
+	// agent deleteTTL is the record's retention window (see reconcileArchived).
+	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleArchive &&
+		!wakeIdle &&
+		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete {
+		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
+		return r.archiveAgentNow(ctx, agent)
 	}
 
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {

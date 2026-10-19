@@ -29,6 +29,7 @@ class V1alpha1AgentLifecycle(str, Enum):
     AgentLifecycleDefault = ''
     AgentLifecycleSleep = 'Sleep'
     AgentLifecycleAutoDelete = 'AutoDelete'
+    AgentLifecycleArchive = 'Archive'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:

@@ -552,7 +552,7 @@ export default function AgentDetailPage() {
               <div className="h-4 w-px bg-[var(--color-border)]" />
 
               <div className="flex items-center gap-1.5">
-                {agent.status === "Sleeping" ? (
+                {agent.status === "Archived" ? null : agent.status === "Sleeping" ? (
                   <Button variant="secondary" size="sm" onClick={handleWake}>
                     <Zap className="size-3" data-icon="inline-start" />
                     Wake
@@ -591,12 +591,13 @@ export default function AgentDetailPage() {
                       fetchAgent();
                     }}
                   />
-                ) : (
+                ) : agent.status !== "Archived" && (
                   <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
                     <Users className="size-3" data-icon="inline-start" />
                     Team Up
                   </Button>
                 )}
+                {agent.status !== "Archived" && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -612,6 +613,7 @@ export default function AgentDetailPage() {
                   <Layers className="size-3" data-icon="inline-start" />
                   {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
                 </Button>
+                )}
                 {agentSquad ? (
                   <SquadAwareDeleteButton
                     agentName={agent.name}
@@ -734,7 +736,13 @@ export default function AgentDetailPage() {
               )}
 
               {/* Settings */}
-              <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+              {agent.status === "Archived" ? (
+                <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-sm text-[var(--color-text-secondary)]">
+                  This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
+                </div>
+              ) : (
+                <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+              )}
 
               {/* Topology */}
               <AgentTopology agentName={agent.name} agentNs={agentNs} />
@@ -788,6 +796,7 @@ function StatusStrip({ status, taskStatus }: { status: AgentResponse["status"]; 
     status === "Failed" ? "var(--color-status-error)" :
     status === "Pending" ? "var(--color-status-pending)" :
     status === "Succeeded" ? "var(--color-status-success)" :
+    status === "Archived" ? "var(--color-text-muted)" :
     "var(--color-border)";
 
   const isRunning = status === "Running";

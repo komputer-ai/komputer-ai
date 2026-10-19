@@ -205,6 +205,7 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
   }
 
   const filteredAgents = availableAgents.filter((a) => {
+    if (a.status === "Archived") return false; // read-only records can't join a squad
     const q = agentSearch.toLowerCase();
     return !q || a.name.toLowerCase().includes(q) || a.namespace.toLowerCase().includes(q);
   });

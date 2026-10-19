@@ -94,7 +94,7 @@ export interface CreateAgentRequest {
      */
     labels?: { [key: string]: string; };
     /**
-     * "", "Sleep", or "AutoDelete"
+     * "", "Sleep", "AutoDelete", or "Archive"
      * @type {string}
      * @memberof CreateAgentRequest
      */

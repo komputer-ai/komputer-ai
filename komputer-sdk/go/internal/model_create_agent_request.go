@@ -36,7 +36,7 @@ type CreateAgentRequest struct {
 	Instructions string `json:"instructions"`
 	// Labels are user-defined key=value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/_*) are rejected except for \"komputer.ai/personal-agent\" which is allow-listed.
 	Labels *map[string]string `json:"labels,omitempty"`
-	// \"\", \"Sleep\", or \"AutoDelete\"
+	// \"\", \"Sleep\", \"AutoDelete\", or \"Archive\"
 	Lifecycle *string `json:"lifecycle,omitempty"`
 	// optional KomputerMemory names to attach
 	Memories []string `json:"memories,omitempty"`

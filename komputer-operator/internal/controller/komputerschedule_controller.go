@@ -165,6 +165,15 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, agentErr
 	} else {
 		// Agent exists
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
+			// An archived agent never runs again, and every run reuses this one agent.
+			schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
+			schedule.Status.Message = fmt.Sprintf("Agent %q is archived and can't run again; schedules need a Sleep or AutoDelete agent", agentName)
+			if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
+				return ctrl.Result{}, statusErr
+			}
+			return ctrl.Result{}, nil
+		}
 		if taskInProgress(agent.Status.TaskStatus) {
 			// Agent is busy (InProgress or its Compacting sub-state), skip this run
 			log.Info("Agent is busy, skipping scheduled run", "agent", agentName)

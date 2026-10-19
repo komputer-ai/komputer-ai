@@ -151,6 +151,9 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 	if err := k.client.Get(ctx, key, agent); err != nil {
 		return nil, err
 	}
+	if agentArchived(agent) {
+		return nil, ErrAgentArchived
+	}
 	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
 		// Not asleep yet, but a sleep may be pending (the operator waits out a running
 		// task): waking is the user's latest intent, so cancel it.
@@ -234,6 +237,9 @@ func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komput
 
 	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
 		return agent, nil
+	}
+	if agentArchived(agent) {
+		return nil, ErrAgentArchived
 	}
 	if agentTaskInProgress(agent.Status.TaskStatus) {
 		return nil, ErrAgentBusy
