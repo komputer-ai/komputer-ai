@@ -23,6 +23,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -105,26 +106,30 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 		return fmt.Errorf("failed to patch spec: %w", err)
 	}
 
-	// Patch status: clear sleeping phase and task status so operator creates a pod
-	if err := k.client.Get(ctx, key, agent); err != nil {
-		return err
-	}
-	if agentArchived(agent) {
-		// Never flip an archived record back to Pending — that would rebuild it.
-		return ErrAgentArchived
-	}
-	original2 := agent.DeepCopy()
-	agent.Status.Phase = komputerv1alpha1.AgentPhasePending
-	agent.Status.TaskStatus = ""
-	agent.Status.LastTaskMessage = ""
-	// Waking is activity: restart the sleepTTL idle clock so the freshly woken agent
-	// gets a full idle window instead of inheriting the deadline that just slept it.
-	wokeAt := metav1.Now()
-	agent.Status.LastActivityAt = &wokeAt
-	agent.Status.SleepExpiresAt = nil
-	// TaskStatus was just reset out of band; the coalescer's memory of it is stale.
-	k.progress.forget(ns, name)
-	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original2))
+	// Patch status: clear sleeping phase and task status so operator creates a pod.
+	// Optimistic lock (retried on conflict, re-checking each time) so this never
+	// overwrites a phase — e.g. Archived — written after the Get.
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k.client.Get(ctx, key, agent); err != nil {
+			return err
+		}
+		if agentArchived(agent) {
+			// Never flip an archived record back to Pending — that would rebuild it.
+			return ErrAgentArchived
+		}
+		original2 := agent.DeepCopy()
+		agent.Status.Phase = komputerv1alpha1.AgentPhasePending
+		agent.Status.TaskStatus = ""
+		agent.Status.LastTaskMessage = ""
+		// Waking is activity: restart the sleepTTL idle clock so the freshly woken agent
+		// gets a full idle window instead of inheriting the deadline that just slept it.
+		wokeAt := metav1.Now()
+		agent.Status.LastActivityAt = &wokeAt
+		agent.Status.SleepExpiresAt = nil
+		// TaskStatus was just reset out of band; the coalescer's memory of it is stale.
+		k.progress.forget(ns, name)
+		return k.client.Status().Patch(ctx, agent, client.MergeFromWithOptions(original2, client.MergeFromWithOptimisticLock{}))
+	})
 }
 
 // IdleWakeAgent wakes a sleeping agent WITHOUT running any task — the opposite of
@@ -2058,18 +2063,32 @@ func statusChangedBeyondActivity(a, b *komputerv1alpha1.KomputerAgentStatus) boo
 	return !equality.Semantic.DeepEqual(ac, bc)
 }
 
-// SetAgentTaskStatus overwrites status.taskStatus alone. createOrTriggerAgent uses
-// it to clear a finished task's Complete/Error before changing an idle agent's
-// lifecycle, and to put it back if forwarding the new task then fails.
-func (k *K8sClient) SetAgentTaskStatus(ctx context.Context, ns, name string, status komputerv1alpha1.AgentTaskStatus) error {
-	agent := &komputerv1alpha1.KomputerAgent{}
-	if err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, agent); err != nil {
-		return err
+// SwapAgentTaskStatus sets status.taskStatus to `to` only while it is still
+// `from`, under an optimistic lock, so it never overwrites a status the worker
+// wrote in between. Returns whether it changed anything. Used by
+// forwardWithLifecycleChange.
+func (k *K8sClient) SwapAgentTaskStatus(ctx context.Context, ns, name string, from, to komputerv1alpha1.AgentTaskStatus) (bool, error) {
+	swapped := false
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		agent := &komputerv1alpha1.KomputerAgent{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, agent); err != nil {
+			return err
+		}
+		if agent.Status.TaskStatus != from {
+			return nil
+		}
+		original := agent.DeepCopy()
+		agent.Status.TaskStatus = to
+		if err := k.client.Status().Patch(ctx, agent, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
+			return err
+		}
+		swapped = true
+		return nil
+	})
+	if swapped {
+		k.progress.forget(ns, name)
 	}
-	original := agent.DeepCopy()
-	agent.Status.TaskStatus = status
-	k.progress.forget(ns, name)
-	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
+	return swapped, err
 }
 
 func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {

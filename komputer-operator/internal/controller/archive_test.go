@@ -216,6 +216,32 @@ func TestReconcileStatus_ArchiveLifecycle_NoPodDoesNotArchive(t *testing.T) {
 	}
 }
 
+// Right after a Sleep-lifecycle agent is slept its pod is still terminating. A
+// follow-up that switches it to Archive must not archive it off that pod.
+func TestReconcileStatus_ArchiveLifecycle_TerminatingPodDoesNotArchive(t *testing.T) {
+	scheme := newTestScheme(t)
+	pod, pvc, _ := archiveTestObjects()
+	now := metav1.Now()
+	pod.DeletionTimestamp = &now
+	agent := archiveAgent(komputerv1alpha1.AgentTaskComplete)
+	agent.Status.Phase = komputerv1alpha1.AgentPhaseSleeping
+	c := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(pvc, agent).
+		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
+	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
+
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+		t.Fatalf("reconcileStatus returned error: %v", err)
+	}
+	var got komputerv1alpha1.KomputerAgent
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "my-agent", Namespace: "default"}, &got); err != nil {
+		t.Fatalf("get agent: %v", err)
+	}
+	if got.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
+		t.Error("an agent whose pod is terminating must not be archived")
+	}
+}
+
 // A squad never adopts an archived agent: it is pruned from the member list
 // instead of being marked squad-managed (which would rebuild its PVC and pod).
 func TestMarkMembersAsSquad_PrunesArchivedMember(t *testing.T) {
