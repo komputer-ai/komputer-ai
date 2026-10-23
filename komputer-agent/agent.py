@@ -384,25 +384,31 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     state.steer_queue = session_steer_queue
 
     result = None
+    last_response_model = None
 
     async def process_responses(client):
         """Read all responses until ResultMessage, publishing events along the way."""
-        nonlocal result, last_usage
+        nonlocal result, last_usage, last_response_model
         async for message in client.receive_response():
             if isinstance(message, AssistantMessage):
                 usage = message.usage
                 last_usage = usage
+                # The model the API says answered — unlike the configured model, this
+                # names the real model behind an opaque Bedrock inference-profile ARN.
+                response_model = message.model
+                last_response_model = response_model
                 for block in message.content:
                     if isinstance(block, TextBlock):
-                        publisher.publish("text", {"content": block.text, "usage": usage})
+                        publisher.publish("text", {"content": block.text, "usage": usage, "model": response_model})
                     elif isinstance(block, ThinkingBlock):
-                        publisher.publish("thinking", {"content": block.thinking, "usage": usage})
+                        publisher.publish("thinking", {"content": block.thinking, "usage": usage, "model": response_model})
                     elif isinstance(block, ToolUseBlock):
                         tool_started[block.id] = time.monotonic()
                         publisher.publish("tool_call", {
                             "id": block.id,
                             "tool": block.name,
                             "input": block.input,
+                            "model": response_model,
                         })
             elif isinstance(message, ResultMessage):
                 result = message
@@ -456,6 +462,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    "response_model": last_response_model,
+                    "model_usage": result.model_usage,
                 })
                 state.interrupted = False
             elif result.subtype == "error_max_budget_usd":
@@ -482,6 +490,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    "response_model": last_response_model,
+                    "model_usage": result.model_usage,
                 })
 
     # Clear the queue reference so server.py won't try to push to a dead queue.

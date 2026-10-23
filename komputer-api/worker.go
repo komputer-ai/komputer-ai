@@ -479,6 +479,7 @@ func parseStreamMessage(msg redis.XMessage) (AgentEvent, error) {
 		return event, fmt.Errorf("unmarshal payload: %w", err)
 	}
 	event.Payload = payload
+	repriceInferenceProfileCost(&event)
 
 	return event, nil
 }
