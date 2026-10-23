@@ -12,7 +12,7 @@ logger = logging.getLogger("komputer.agent.server")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-from agent import _write_skills
+from agent import TOOL_OUTPUT_CAP, _write_skills
 import config as agent_config
 import metrics as agent_metrics
 import state
@@ -353,7 +353,7 @@ async def get_history(limit: int = 50, session_id: str = None):
                                     "timestamp": timestamp,
                                     "payload": {
                                         "tool": block.get("tool_use_id", ""),
-                                        "output": str(block.get("content", ""))[:500],
+                                        "output": str(block.get("content", ""))[:TOOL_OUTPUT_CAP],
                                     },
                                 })
                     elif isinstance(content, str) and content:

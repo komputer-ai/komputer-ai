@@ -95,7 +95,9 @@ def _pop_tool_duration_ms(starts: dict, tool_use_id, now: float | None = None) -
     return max(0, int(round((now - started) * 1000)))
 
 
-TOOL_OUTPUT_CAP = 1000
+# Only a guard against multi-megabyte blobs in the event stream; normal tool output
+# is published in full and the UI scrolls it.
+TOOL_OUTPUT_CAP = 100_000
 
 
 def _truncate_strings(value, limit: int):
@@ -118,8 +120,7 @@ def _serialize_tool_output(value) -> tuple[str, bool]:
 
     Output is capped at TOOL_OUTPUT_CAP chars. For dicts/lists the cap shortens
     long string leaves rather than cutting the serialized text, so the UI still
-    receives valid JSON — a Bash result's stdout routinely exceeds the cap on its
-    own. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
+    receives valid JSON. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
     text cut as a last resort. Returns (output, truncated).
     """
     if isinstance(value, (dict, list)):

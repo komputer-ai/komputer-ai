@@ -645,7 +645,7 @@ function ToolCard({
                       </div>
                       <JsonView
                         value={output}
-                        className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                        className="max-h-96 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
                         style={{ overflowWrap: "anywhere" }}
                       />
                     </div>

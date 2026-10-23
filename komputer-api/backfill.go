@@ -21,6 +21,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// backfillToolOutputCap matches the agent's TOOL_OUTPUT_CAP: a guard against
+// multi-megabyte blobs, not a display limit — the UI scrolls long output.
+const backfillToolOutputCap = 100_000
+
 // fetchSessionEvents reads Claude session JSONL from the agent pod and parses
 // it into AgentEvents. Uses HTTP to agent pod, falls back to exec (instant in LOCAL mode).
 func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessionID, agentName string, limit int64, model string, totalCostUSD float64) []AgentEvent {
@@ -344,8 +348,8 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 								output, _ = first["text"].(string)
 							}
 						}
-						if len(output) > 500 {
-							output = output[:500] + "..."
+						if len(output) > backfillToolOutputCap {
+							output = output[:backfillToolOutputCap] + "..."
 						}
 						if info, ok := pendingTools[toolUseID]; ok {
 							events[info.index].Payload["output"] = map[string]interface{}{

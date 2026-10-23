@@ -114,7 +114,7 @@ function ToolResultEvent({ event }: EventCardProps) {
                   </div>
                   <JsonView
                     value={output}
-                    className="max-h-60 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                    className="max-h-96 overflow-auto rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
                   />
                 </div>
               )}
