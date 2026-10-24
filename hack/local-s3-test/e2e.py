@@ -4,7 +4,7 @@
 Drives the real API (http://localhost:28080), checks objects directly in MinIO
 (http://localhost:29000), and writes a markdown report. Needs boto3.
 
-    KUBECONFIG=~/.kube/komputer-s3-test.yaml python3 hack/local-s3-test/e2e.py
+    python3 hack/local-s3-test/e2e.py   (uses ~/.kube/komputer-s3-test.yaml, or $KUBECONFIG_S3_TEST)
     MODEL=eu.anthropic.claude-sonnet-5 ... to use another Bedrock model
 """
 import json
@@ -25,7 +25,10 @@ NS = "default"
 RUN = os.environ.get("RUN") or datetime.now().strftime("%H%M%S")
 ONLY = {x.strip() for x in os.environ.get("ONLY", "").split(",") if x.strip()}
 REPORT = os.environ.get("REPORT", os.path.join(os.path.dirname(__file__), "RESULTS.md"))
-KUBECONFIG = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/komputer-s3-test.yaml"))
+# Always the test cluster's own kubeconfig (same variable as up.sh), never the
+# shell's $KUBECONFIG: these scenarios scale deployments, wipe Redis keys and
+# can run helm upgrade, so they must not reach any other cluster.
+KUBECONFIG = os.environ.get("KUBECONFIG_S3_TEST", os.path.expanduser("~/.kube/komputer-s3-test.yaml"))
 
 # MinIO by default. For real S3 set E2E_S3_BUCKET and E2E_S3_REGION (and leave
 # E2E_S3_ENDPOINT empty); credentials then come from the usual AWS env/profile.

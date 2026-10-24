@@ -89,6 +89,7 @@ GET /api/v1/agents?namespace=production
 | `sort` | One of `created`, `name`, `status`, `model`, `lastActive`, `cost`. Prefix with `-` for descending. Default `-created` (newest first). Ties are broken by name; for `lastActive`, agents that have never run a task sort last regardless of direction. |
 | `limit` | Max agents to return (1-200). **Omitting `limit` returns every matching agent, exactly as before** — existing integrations are unaffected. |
 | `offset` | Number of matching agents to skip, for use with `limit`. Default `0`. |
+| `hideArchived` | `true` leaves out `Archived` agents when no `status` is given (the UI's "All" view). Filtering with `status=Archived` always returns them. |
 
 When `limit` is set, the response also includes `nextOffset` (the offset to request next; omitted once there's no more data) and `total` (the count of agents matching `status`/`label`/`q`, before slicing). `facets` lists every distinct namespace and `key=value` label pair visible in the requested namespace scope — computed *before* `status`/`label`/`q` filtering, so a UI's filter dropdowns can always offer every option even while only a partial page has been fetched.
 
@@ -104,6 +105,16 @@ GET /api/v1/agents/:name?namespace=production
 ```
 
 Returns the same `AgentResponse` object as the list endpoint, for a single agent.
+
+With the [S3 session store](../concepts/session-store) on, `AgentResponse` also carries `sessionStore`: `{ "ok": true, "lastSavedAt": "…" }` after a successful save, or `{ "ok": false, "error": "…" }` when the last save failed.
+
+## Platform Config
+
+```
+GET /api/v1/config
+```
+
+What the platform is configured for, so clients can adapt: `{ "s3": { "enabled": true, "bucket": "my-komputer-sessions" } }`. Never includes credentials.
 
 ## Get Agent Events (History)
 
@@ -196,6 +207,8 @@ DELETE /api/v1/agents/:name?namespace=production
 ```
 
 Deletes the agent CR, which triggers the operator to clean up the pod, PVC, Secrets and ConfigMap.
+
+With the S3 session store on, the delete waits until the agent's latest session is saved to S3. Add `force=true` to delete right away without saving (for example when the bucket is unreachable): `DELETE /api/v1/agents/:name?namespace=production&force=true`.
 
 ## Connectors
 

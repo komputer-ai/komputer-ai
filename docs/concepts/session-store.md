@@ -109,11 +109,14 @@ For R2, use `endpoint: https://<account-id>.r2.cloudflarestorage.com` and `regio
 
 No `s3:DeleteObject` — komputer never deletes from the bucket. The API only needs `s3:GetObject`. Session transcripts contain everything the agent saw, so keep the bucket private and turn on default encryption (SSE-S3 or KMS).
 
+Agents get the store's credentials, and they cover the whole prefix: code running in one agent could read or overwrite another agent's saved session — including files under `.claude` that the other agent loads when it's restored. Treat the agents of one installation as one trust boundary; use a separate bucket or prefix with separate credentials (or a separate installation) where that isn't acceptable.
+
 ## How it behaves
 
 - **Saving** happens at the end of every task, before the task is reported done — so by the time an agent shows `Complete`, its session is in S3. A pod that's shutting down interrupts its task, and the interrupted task is saved the same way (with the store on, agent pods get a 60s termination grace period unless the template sets one).
 - **Restoring** happens only when the agent starts without a local session. An agent with a PVC never restores.
 - **A failed save never fails the task.** The agent shows **Session save failed** with the reason. It only blocks what would destroy the last local copy (below).
+- **A failed restore never overwrites the saved session.** If the store can't be reached when an agent starts without a session, it runs with a fresh one but doesn't save it (each save shows as failed with the reason), so the saved conversation is kept; the next pod start restores it. Only when the saved session is unreadable (corrupt) does the agent start fresh and save normally.
 
 | Situation | With the S3 session store |
 |---|---|
