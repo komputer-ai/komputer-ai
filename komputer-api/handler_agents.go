@@ -1497,11 +1497,17 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 
 		squadByAgent := buildSquadNameMap(c.Request.Context(), k8s, ns)
 
+		// Built from the CRs alone: filtering, sorting and facets need nothing
+		// else. The budget flag needs a template read, so only the returned page
+		// gets it (below).
 		all := make([]AgentResponse, 0, len(agents))
 		metaLabels := make(map[string]map[string]string, len(agents))
-		for _, a := range agents {
+		byKey := make(map[string]*komputerv1alpha1.KomputerAgent, len(agents))
+		for i := range agents {
+			a := &agents[i]
 			metaLabels[a.Namespace+"/"+a.Name] = a.Labels
-			all = append(all, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
+			byKey[a.Namespace+"/"+a.Name] = a
+			resp := AgentResponse{
 				Name:               a.Name,
 				Namespace:          a.Namespace,
 				Model:              a.Spec.Model,
@@ -1514,7 +1520,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				TotalCostUSD:       a.Status.TotalCostUSD,
 				TotalTokens:        a.Status.TotalTokens,
 				ModelContextWindow: a.Status.ModelContextWindow,
-				Secrets:            collectSecretKeys(*c, k8s, ns, a.Spec.Secrets),
+				Secrets:            a.Spec.Secrets, // Secret names, as GET /agents/:name returns them
 				Memories:           a.Spec.Memories,
 				Skills:             mergeDefaultSkills(a.Spec.Skills, defaultSkills),
 				Connectors:         a.Spec.Connectors,
@@ -1532,7 +1538,9 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				SquadName:          squadByAgent[a.Namespace+"/"+a.Name],
 				Labels:             a.Spec.Labels,
 				CompletionTime:     formatTime(a.Status.CompletionTime),
-			}, &a))
+			}
+			fillAgentTTL(&resp, a)
+			all = append(all, resp)
 		}
 
 		page, total, nextOffset, facets, err := filterSortPaginateAgents(all, AgentListQuery{
@@ -1550,12 +1558,36 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		enrichAgentPage(c.Request.Context(), k8s, page, byKey)
+
 		c.JSON(http.StatusOK, AgentListResponse{
 			Agents:     page,
 			Total:      total,
 			NextOffset: nextOffset,
 			Facets:     facets,
 		})
+	}
+}
+
+// enrichAgentPage fills the budget flag, which needs the agent's template, for
+// one page of agents. Agents share templates, so each is read once per page.
+func enrichAgentPage(ctx context.Context, k8s *K8sClient, page []AgentResponse, byKey map[string]*komputerv1alpha1.KomputerAgent) {
+	budgets := map[string]string{}
+	for i := range page {
+		a := byKey[page[i].Namespace+"/"+page[i].Name]
+		if a == nil {
+			continue
+		}
+		budget := a.Spec.BudgetUSD
+		if budget == "" {
+			tplKey := a.Namespace + "/" + a.Spec.TemplateRef
+			var seen bool
+			if budget, seen = budgets[tplKey]; !seen {
+				budget = k8s.ResolveEffectiveBudgetUSD(ctx, a.Namespace, a.Spec.AgentConfigSpec)
+				budgets[tplKey] = budget
+			}
+		}
+		page[i].BudgetExhausted = isBudgetExhausted(a.Status.TotalCostUSD, budget)
 	}
 }
 
