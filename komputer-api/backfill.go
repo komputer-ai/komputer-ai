@@ -68,20 +68,36 @@ func fetchSessionEvents(ctx context.Context, k8s *K8sClient, ns, podName, sessio
 	return convertSessionJSONL(raw, agentName, limit, model, totalCostUSD)
 }
 
+// backfillPushBatch caps the values per RPUSH so one command stays a sane size.
+const backfillPushBatch = 1000
+
 // backfillRedisHistory writes converted session events into Redis history
-// so subsequent requests are fast.
+// so subsequent requests are fast. The events go out as a few multi-value
+// RPUSHes in one pipeline — one network round trip, not one per event, which
+// for a long history (thousands of events) is the difference between
+// milliseconds and seconds.
 func backfillRedisHistory(rdb *redis.Client, agentName string, events []AgentEvent) {
 	ctx := context.Background()
 	historyKey := fmt.Sprintf("komputer-history:%s", agentName)
 
+	values := make([]interface{}, 0, len(events))
 	for _, event := range events {
 		raw, err := json.Marshal(event)
 		if err != nil {
 			continue
 		}
-		rdb.RPush(ctx, historyKey, raw)
+		values = append(values, raw)
 	}
-	Logger.Infow("backfilled events from session to Redis", "event_count", len(events), "agent_name", agentName)
+	pipe := rdb.Pipeline()
+	for start := 0; start < len(values); start += backfillPushBatch {
+		end := min(start+backfillPushBatch, len(values))
+		pipe.RPush(ctx, historyKey, values[start:end]...)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		Logger.Warnw("backfilling events to Redis failed", "agent_name", agentName, "error", err)
+		return
+	}
+	Logger.Infow("backfilled events from session to Redis", "event_count", len(values), "agent_name", agentName)
 }
 
 // ---------------------------------------------------------------------------

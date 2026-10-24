@@ -27,9 +27,13 @@ ONLY = {x.strip() for x in os.environ.get("ONLY", "").split(",") if x.strip()}
 REPORT = os.environ.get("REPORT", os.path.join(os.path.dirname(__file__), "RESULTS.md"))
 KUBECONFIG = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/komputer-s3-test.yaml"))
 
-s3 = boto3.client("s3", endpoint_url="http://localhost:29000", region_name="us-east-1",
-                  aws_access_key_id="minioadmin", aws_secret_access_key="minioadmin-local")
-BUCKET = "komputer-sessions"
+# MinIO by default. For real S3 set E2E_S3_BUCKET and E2E_S3_REGION (and leave
+# E2E_S3_ENDPOINT empty); credentials then come from the usual AWS env/profile.
+_REAL_S3 = bool(os.environ.get("E2E_S3_BUCKET"))
+s3 = boto3.client("s3", region_name=os.environ.get("E2E_S3_REGION", "us-east-1"),
+                  **({} if _REAL_S3 else {"endpoint_url": "http://localhost:29000", "aws_access_key_id": "minioadmin",
+                                          "aws_secret_access_key": "minioadmin-local"}))
+BUCKET = os.environ.get("E2E_S3_BUCKET", "komputer-sessions")
 
 results = []
 
