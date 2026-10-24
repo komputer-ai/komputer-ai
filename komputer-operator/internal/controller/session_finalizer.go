@@ -8,7 +8,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,7 +25,6 @@ import (
 // /agents/{name}?force=true drops the finalizer to skip it.
 
 const (
-	sessionSaverContainer     = "saver"
 	sessionSaverDeadline      = int64(300)
 	sessionFinalizerRetry     = 30 * time.Second
 	sessionSaverSlotRetry     = 15 * time.Second
@@ -119,15 +117,15 @@ func (r *KomputerAgentReconciler) handleSessionFinalizer(ctx context.Context, ag
 	case corev1.PodRunning:
 	case corev1.PodFailed, corev1.PodSucceeded:
 		// Ran out its deadline without being used: start over.
-		_ = r.Delete(ctx, saver)
+		_ = r.Delete(ctx, saver, saverDeleteGrace)
 		return ctrl.Result{RequeueAfter: sessionFinalizerShortWait}, nil
 	default:
 		return ctrl.Result{RequeueAfter: sessionFinalizerShortWait}, nil
 	}
-	if err := r.copyOutSession(ctx, agent, s3, saver.Name, sessionSaverContainer); err != nil {
+	if err := r.copyOutSession(ctx, agent, s3, saver.Name, saver.Spec.Containers[0].Name); err != nil {
 		return r.waitToSave(ctx, agent, err)
 	}
-	if err := r.Delete(ctx, saver); err != nil && !apierrors.IsNotFound(err) {
+	if err := r.Delete(ctx, saver, saverDeleteGrace); err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, r.releaseSessionFinalizer(ctx, agent)
@@ -174,44 +172,9 @@ func (r *KomputerAgentReconciler) ensureSaverPod(ctx context.Context, agent *kom
 		return nil, false, nil
 	}
 
-	templateRef := agent.Spec.TemplateRef
-	if templateRef == "" {
-		templateRef = "default"
-	}
-	tpl, err := readTemplateSpec(ctx, r.Client, templateRef, agent.Namespace)
+	pod, err := r.buildSaverPod(ctx, agent, pvcName)
 	if err != nil {
-		return nil, false, fmt.Errorf("resolve template %q for the saver pod: %w", templateRef, err)
-	}
-	if len(tpl.PodSpec.Containers) == 0 {
-		return nil, false, fmt.Errorf("template %q has no containers", templateRef)
-	}
-	deadline := sessionSaverDeadline
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name, Namespace: agent.Namespace,
-			Labels: map[string]string{komputerv1alpha1.LabelSessionSaver: "true", "komputer.ai/agent-name": agent.Name},
-		},
-		Spec: corev1.PodSpec{
-			RestartPolicy:         corev1.RestartPolicyNever,
-			ActiveDeadlineSeconds: &deadline,
-			SecurityContext:       tpl.PodSpec.SecurityContext.DeepCopy(),
-			ImagePullSecrets:      tpl.PodSpec.ImagePullSecrets,
-			NodeSelector:          tpl.PodSpec.NodeSelector,
-			Tolerations:           tpl.PodSpec.Tolerations,
-			Containers: []corev1.Container{{
-				Name:    sessionSaverContainer,
-				Image:   tpl.PodSpec.Containers[0].Image,
-				Command: []string{"sleep", fmt.Sprint(sessionSaverDeadline)},
-				Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("10m"),
-					corev1.ResourceMemory: resource.MustParse("32Mi"),
-				}},
-				VolumeMounts: []corev1.VolumeMount{{Name: "workspace", MountPath: "/workspace", ReadOnly: true}},
-			}},
-			Volumes: []corev1.Volume{{Name: "workspace", VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName, ReadOnly: true},
-			}}},
-		},
+		return nil, false, err
 	}
 	if err := ctrl.SetControllerReference(agent, pod, r.Scheme); err != nil {
 		return nil, false, err
@@ -243,4 +206,58 @@ func (r *KomputerAgentReconciler) releaseSessionFinalizer(ctx context.Context, a
 		return err
 	}
 	return nil
+}
+
+// saverDeleteGrace: the saver pod copies the agent's grace period, but there's
+// nothing to shut down gracefully (its sleep ignores SIGTERM), so it's deleted
+// at once rather than holding a saver slot for that long.
+var saverDeleteGrace = client.GracePeriodSeconds(1)
+
+// buildSaverPod is the agent's own pod — same template, the agent's overrides,
+// image, env, resources, security contexts, scheduling and service account, so
+// it passes whatever admits the agent's pods — changed only so it doesn't run
+// the agent: the container just sleeps (no probes or shutdown hook, which
+// would fail without the agent's HTTP server), the workspace is mounted
+// read-only, it has a deadline, and it carries the saver label instead of the
+// agent Service's member label.
+func (r *KomputerAgentReconciler) buildSaverPod(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pvcName string) (*corev1.Pod, error) {
+	templateRef := agent.Spec.TemplateRef
+	if templateRef == "" {
+		templateRef = "default"
+	}
+	tplSpec, err := readTemplateSpec(ctx, r.Client, templateRef, agent.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("resolve template %q for the saver pod: %w", templateRef, err)
+	}
+	config, err := r.getConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tpl := applyAgentOverrides(&komputerv1alpha1.KomputerAgentTemplate{
+		ObjectMeta: metav1.ObjectMeta{Name: templateRef},
+		Spec:       *tplSpec,
+	}, agent)
+	pod, err := r.buildPod(ctx, agent, tpl, pvcName, agent.Name+"-session-saver", config, false)
+	if err != nil {
+		return nil, err
+	}
+
+	deadline := sessionSaverDeadline
+	pod.Spec.ActiveDeadlineSeconds = &deadline
+	c := &pod.Spec.Containers[0]
+	c.Command = []string{"sleep", fmt.Sprint(sessionSaverDeadline)}
+	c.Args = nil
+	c.LivenessProbe, c.ReadinessProbe, c.StartupProbe, c.Lifecycle = nil, nil, nil, nil
+	for i := range c.VolumeMounts {
+		if c.VolumeMounts[i].Name == "workspace" {
+			c.VolumeMounts[i].ReadOnly = true
+		}
+	}
+	for i := range pod.Spec.Volumes {
+		if v := pod.Spec.Volumes[i].PersistentVolumeClaim; v != nil && v.ClaimName == pvcName {
+			v.ReadOnly = true
+		}
+	}
+	pod.Labels = map[string]string{komputerv1alpha1.LabelSessionSaver: "true", "komputer.ai/agent-name": agent.Name}
+	return pod, nil
 }
