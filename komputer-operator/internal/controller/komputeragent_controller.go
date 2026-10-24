@@ -365,8 +365,12 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// 8b. S3 session store: save the session of an idle agent whose pod predates
-	// the S3 env and so can't save it itself.
-	r.maybeCopyOut(ctx, agent, pod, komputerConfig)
+	// the S3 env and so can't save it itself. After a failure, come back once the
+	// backoff ends (folded into the TTL requeue below).
+	if retry := r.maybeCopyOut(ctx, agent, pod, komputerConfig); retry > 0 &&
+		(ttlResult.RequeueAfter == 0 || retry < ttlResult.RequeueAfter) {
+		ttlResult.RequeueAfter = retry
+	}
 
 	// 9. Create KomputerOffice if this agent has an officeManager
 	if agent.Spec.OfficeManager != "" {

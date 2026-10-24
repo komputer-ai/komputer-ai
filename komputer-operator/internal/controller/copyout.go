@@ -58,6 +58,12 @@ func agentContainerName(pod *corev1.Pod, agent *komputerv1alpha1.KomputerAgent) 
 			return c, true
 		}
 	}
+	// A member added to a running squad runs as an ephemeral container.
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if ec.Name == agent.Name {
+			return corev1.Container{Name: ec.Name, Env: ec.Env}, true
+		}
+	}
 	if len(pod.Spec.Containers) > 0 && !agent.Status.Squad {
 		return pod.Spec.Containers[0], true
 	}
@@ -89,6 +95,9 @@ func (r *KomputerAgentReconciler) copyOutSession(ctx context.Context, agent *kom
 	// Bounded: the agent controller reconciles one agent at a time, so a hung
 	// exec or a stalled store must not hold every other agent up.
 	copyCtx, cancel := context.WithTimeout(ctx, copyOutTimeout)
+	// The snapshot time is when the copy starts: a task that begins while a long
+	// copy-out is still uploading must not count as saved by it.
+	startedAt := metav1.Now()
 	err := r.streamSessionToStore(copyCtx, agent, s3, podName, container)
 	cancel()
 	if err != nil {
@@ -96,13 +105,12 @@ func (r *KomputerAgentReconciler) copyOutSession(ctx context.Context, agent *kom
 	} else {
 		r.copyOutRetryAt.Delete(agent.UID)
 	}
-	now := metav1.Now()
 	if statusErr := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		cond := metav1.Condition{Type: komputerv1alpha1.ConditionSessionSaved, Status: metav1.ConditionTrue, Reason: "CopiedOut", Message: "Session saved to S3 by the operator"}
 		if err != nil {
 			cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, "SaveFailed", copyOutFailureMessage(agent, err)
 		} else {
-			s.SessionCopiedOutAt = &now
+			s.SessionCopiedOutAt = &startedAt
 		}
 		meta.SetStatusCondition(&s.Conditions, cond)
 	}); statusErr != nil && err == nil {
@@ -161,17 +169,22 @@ func (r *KomputerAgentReconciler) copyOutDue(agent *komputerv1alpha1.KomputerAge
 
 // maybeCopyOut saves the session of an idle agent whose pod can't save itself.
 // Failures are recorded on the agent and logged; they never fail the reconcile.
-func (r *KomputerAgentReconciler) maybeCopyOut(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, config *komputerv1alpha1.KomputerConfig) {
+// It returns how long until a retry is due (0 when none is needed), so the
+// caller can requeue — a failed copy-out writes no new status the second time,
+// so nothing else would wake the reconcile.
+func (r *KomputerAgentReconciler) maybeCopyOut(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, config *komputerv1alpha1.KomputerConfig) time.Duration {
 	if !needsCopyOut(agent, pod, config.Spec.S3.IsEnabled()) {
-		return
+		return 0
 	}
-	if due, _ := r.copyOutDue(agent); !due {
-		return
+	if due, wait := r.copyOutDue(agent); !due {
+		return wait
 	}
 	c, _ := agentContainerName(pod, agent)
 	if err := r.copyOutSession(ctx, agent, config.Spec.S3, pod.Name, c.Name); err != nil {
 		logf.FromContext(ctx).Info("couldn't copy the session out to S3", "agent", agent.Name, "error", err.Error())
+		return copyOutRetryInterval
 	}
+	return 0
 }
 
 // copyOutFailureMessage says what a failed save is holding back: for a live

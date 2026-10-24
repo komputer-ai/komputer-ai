@@ -25,6 +25,7 @@ type fakeExecer struct {
 	out   []byte
 	err   error
 	calls []string
+	delay time.Duration // how long the stream takes
 	mu    sync.Mutex
 }
 
@@ -32,6 +33,7 @@ func (f *fakeExecer) ExecStream(ctx context.Context, ns, pod, container string, 
 	f.mu.Lock()
 	f.calls = append(f.calls, ns+"/"+pod+"/"+container)
 	f.mu.Unlock()
+	time.Sleep(f.delay)
 	if f.err != nil {
 		return f.err
 	}
