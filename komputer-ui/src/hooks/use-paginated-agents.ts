@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { listAgents } from "@/lib/api";
 import type { AgentResponse, AgentListFacets } from "@/lib/types";
 import { appendAgentsDeduped } from "@/lib/agent-list-query";
+import { normalizeAgentFacets } from "@/lib/agent-facets";
 
 export const AGENTS_PAGE_SIZE = 50;
 // Mirrors MaxAgentListLimit in komputer-api.
@@ -74,7 +75,7 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
       if (requestId !== requestIdRef.current) return; // superseded by newer filters
       setAgents(data.agents || []);
       setTotal(data.total ?? (data.agents || []).length);
-      setFacets(data.facets ?? EMPTY_FACETS);
+      setFacets(normalizeAgentFacets(data.facets) ?? EMPTY_FACETS);
       setNextOffset(data.nextOffset ?? null);
       setError(null);
     } catch (e: unknown) {
@@ -98,7 +99,7 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
       if (requestId !== requestIdRef.current) return; // filters changed meanwhile
       setAgents((prev) => appendAgentsDeduped(prev, data.agents || []));
       setTotal(data.total ?? total);
-      setFacets(data.facets ?? facets);
+      setFacets(normalizeAgentFacets(data.facets) ?? facets);
       setNextOffset(data.nextOffset ?? null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -125,7 +126,7 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
       if (requestId !== requestIdRef.current) return;
       setAgents(refreshed);
       setTotal(data.total ?? refreshed.length);
-      setFacets(data.facets ?? EMPTY_FACETS);
+      setFacets(normalizeAgentFacets(data.facets) ?? EMPTY_FACETS);
       setNextOffset(data.nextOffset ?? null);
       setError(null);
     } catch (e: unknown) {

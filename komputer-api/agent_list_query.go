@@ -114,7 +114,8 @@ func parseAgentListOffset(raw string) (int, error) {
 func computeAgentFacets(agents []AgentResponse) AgentListFacets {
 	nsSeen := map[string]bool{}
 	labelSeen := map[string]bool{}
-	var namespaces, labels []string
+	// Empty, not nil: the UI maps over both lists, and nil encodes as null.
+	namespaces, labels := []string{}, []string{}
 	for _, a := range agents {
 		if a.Namespace != "" && !nsSeen[a.Namespace] {
 			nsSeen[a.Namespace] = true
