@@ -7,6 +7,7 @@ description: Cluster-scoped singleton that holds platform-wide settings.
 
 - **Redis connection** — Address, database number, stream prefix, and optional password secret. Redis is the event bus that connects agents to the API.
 - **API URL** — The internal cluster URL of the komputer-api service. Manager agents use this to create and manage sub-agents via HTTP.
+- **S3 session store** (`spec.s3`, optional) — Where agents save and restore their sessions. See [S3 session store](./session-store.md).
 
 The operator auto-discovers this resource — agents and templates don't need to reference it explicitly.
 

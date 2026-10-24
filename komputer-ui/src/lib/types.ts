@@ -67,6 +67,20 @@ export interface AgentResponse {
   squadName?: string;
   errors?: string[];
   labels?: Record<string, string>;
+  /** S3 session store state; absent when the store isn't in use. */
+  sessionStore?: SessionStoreState;
+}
+
+/** An agent's S3 session store state: when its session was last saved, and whether the last save worked. */
+export interface SessionStoreState {
+  lastSavedAt?: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** GET /config — platform settings the UI adapts to. */
+export interface ConfigResponse {
+  s3: { enabled: boolean; bucket?: string };
 }
 
 export interface AgentListFacets {

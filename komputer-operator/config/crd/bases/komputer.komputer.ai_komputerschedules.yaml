@@ -8295,10 +8295,6 @@ spec:
                       to use.
                     type: string
                 type: object
-                x-kubernetes-validations:
-                - message: 'lifecycle: Archive isn''t supported for schedules — every
-                    run reuses one agent, and an archived agent can''t run again'
-                  rule: '!has(self.lifecycle) || self.lifecycle != ''Archive'''
               agentName:
                 description: AgentName references an existing KomputerAgent to trigger
                   on schedule.

@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**AgentsNameWsGet**](AgentsAPI.md#AgentsNameWsGet) | **Get** /agents/{name}/ws | Stream agent events (WebSocket)
+[**ArchiveAgent**](AgentsAPI.md#ArchiveAgent) | **Post** /agents/{name}/archive | Archive an agent now
 [**CancelAgentTask**](AgentsAPI.md#CancelAgentTask) | **Post** /agents/{name}/cancel | Cancel agent task
 [**CompactAgentTask**](AgentsAPI.md#CompactAgentTask) | **Post** /agents/{name}/compact | Compact agent conversation
 [**CreateAgent**](AgentsAPI.md#CreateAgent) | **Post** /agents | Create agent or send task
@@ -83,6 +84,78 @@ No authorization required
 
 - **Content-Type**: Not defined
 - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## ArchiveAgent
+
+> AgentResponse ArchiveAgent(ctx, name).Namespace(namespace).Execute()
+
+Archive an agent now
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/komputer-ai/komputer-ai/komputer"
+)
+
+func main() {
+	name := "name_example" // string | Agent name
+	namespace := "namespace_example" // string | Kubernetes namespace (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.AgentsAPI.ArchiveAgent(context.Background(), name).Namespace(namespace).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.ArchiveAgent``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `ArchiveAgent`: AgentResponse
+	fmt.Fprintf(os.Stdout, "Response from `AgentsAPI.ArchiveAgent`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**name** | **string** | Agent name | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiArchiveAgentRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **namespace** | **string** | Kubernetes namespace | 
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)
@@ -303,7 +376,7 @@ No authorization required
 
 ## DeleteAgent
 
-> map[string]string DeleteAgent(ctx, name).Namespace(namespace).RecreatePod(recreatePod).Execute()
+> map[string]string DeleteAgent(ctx, name).Namespace(namespace).RecreatePod(recreatePod).Force(force).Execute()
 
 Delete agent
 
@@ -325,10 +398,11 @@ func main() {
 	name := "name_example" // string | Agent name
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 	recreatePod := true // bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
+	force := true // bool | Skip saving the session to the S3 session store before deleting (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.DeleteAgent(context.Background(), name).Namespace(namespace).RecreatePod(recreatePod).Execute()
+	resp, r, err := apiClient.AgentsAPI.DeleteAgent(context.Background(), name).Namespace(namespace).RecreatePod(recreatePod).Force(force).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.DeleteAgent``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -356,6 +430,7 @@ Name | Type | Description  | Notes
 
  **namespace** | **string** | Kubernetes namespace | 
  **recreatePod** | **bool** | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | 
+ **force** | **bool** | Skip saving the session to the S3 session store before deleting | 
 
 ### Return type
 
@@ -605,7 +680,7 @@ No authorization required
 
 ## ListAgents
 
-> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
+> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
 
 List agents
 
@@ -626,6 +701,7 @@ import (
 func main() {
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 	status := "status_example" // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+	hideArchived := true // bool | Leave out Archived agents unless status asks for them (optional)
 	label := []string{"Inner_example"} // []string | Label filter key=value; repeat for multiple (AND) (optional)
 	q := "q_example" // string | Case-insensitive substring match against agent name (optional)
 	sort := "sort_example" // string | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to "-created")
@@ -634,7 +710,7 @@ func main() {
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
+	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.ListAgents``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -657,6 +733,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **string** | Kubernetes namespace | 
  **status** | **string** | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | 
+ **hideArchived** | **bool** | Leave out Archived agents unless status asks for them | 
  **label** | **[]string** | Label filter key&#x3D;value; repeat for multiple (AND) | 
  **q** | **string** | Case-insensitive substring match against agent name | 
  **sort** | **string** | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [default to &quot;-created&quot;]

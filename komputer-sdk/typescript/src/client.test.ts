@@ -1,6 +1,44 @@
 import { describe, it, expect } from "vitest";
 import { KomputerClient } from "./client";
 
+describe("S3 session store", () => {
+  it("sends force on deleteAgent and reads the platform config", async () => {
+    const seen: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      seen.push(`${init?.method ?? "GET"} ${url}`);
+      const body = url.endsWith("/config") ? { s3: { enabled: true, bucket: "sessions" } } : { status: "deleted" };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      const client = new KomputerClient("http://api");
+      await client.deleteAgent("a1", { force: true });
+      const cfg = await client.getConfig();
+      expect(seen[0]).toBe("DELETE http://api/api/v1/agents/a1?force=true");
+      expect(cfg.s3?.enabled).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("archives an agent now", async () => {
+    const seen: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      seen.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(JSON.stringify({ name: "a1", status: "Running" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      await new KomputerClient("http://api").archiveAgent("a1");
+      expect(seen[0]).toBe("POST http://api/api/v1/agents/a1/archive");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe("KomputerClient", () => {
   it("instantiates with default URL", () => {
     const client = new KomputerClient();

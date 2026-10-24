@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.session_store_response import SessionStoreResponse
 from komputer_ai.models.v1_pod_spec import V1PodSpec
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
 from typing import Optional, Set
@@ -56,6 +57,7 @@ class AgentResponse(BaseModel):
     queue_position: Optional[StrictInt] = Field(default=None, alias="queuePosition")
     queue_reason: Optional[StrictStr] = Field(default=None, alias="queueReason")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Key names from K8s Secrets (not values)")
+    session_store: Optional[SessionStoreResponse] = Field(default=None, description="SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent's own save, or the operator saving it on the agent's behalf). Nil when S3 isn't in use.", alias="sessionStore")
     skills: Optional[List[StrictStr]] = Field(default=None, description="KomputerSkill names attached to this agent")
     sleep_expires_at: Optional[StrictStr] = Field(default=None, description="SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.", alias="sleepExpiresAt")
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="idle timeout before auto-sleep, e.g. \"30m\"", alias="sleepTTL")
@@ -71,7 +73,7 @@ class AgentResponse(BaseModel):
     task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "sessionStore", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -115,6 +117,9 @@ class AgentResponse(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of pod_spec
         if self.pod_spec:
             _dict['podSpec'] = self.pod_spec.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of session_store
+        if self.session_store:
+            _dict['sessionStore'] = self.session_store.to_dict()
         # override the default output from pydantic by calling `to_dict()` of storage
         if self.storage:
             _dict['storage'] = self.storage.to_dict()
@@ -157,6 +162,7 @@ class AgentResponse(BaseModel):
             "queuePosition": obj.get("queuePosition"),
             "queueReason": obj.get("queueReason"),
             "secrets": obj.get("secrets"),
+            "sessionStore": SessionStoreResponse.from_dict(obj["sessionStore"]) if obj.get("sessionStore") is not None else None,
             "skills": obj.get("skills"),
             "sleepExpiresAt": obj.get("sleepExpiresAt"),
             "sleepTTL": obj.get("sleepTTL"),

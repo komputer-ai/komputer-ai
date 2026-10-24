@@ -6,6 +6,8 @@ docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
 docs/CompactAgentRequest.md
+docs/ConfigApi.md
+docs/ConfigResponse.md
 docs/ConnectorResponse.md
 docs/ConnectorsApi.md
 docs/CostBreakdownResponse.md
@@ -30,12 +32,14 @@ docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
 docs/PatchSquadRequest.md
+docs/S3ConfigResponse.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
 docs/SchedulesApi.md
 docs/SecretListResponse.md
 docs/SecretResponse.md
 docs/SecretsApi.md
+docs/SessionStoreResponse.md
 docs/SkillResponse.md
 docs/SkillsApi.md
 docs/SquadListResponse.md
@@ -199,6 +203,7 @@ docs/V1alpha1KomputerSquadMemberRef.md
 docs/V1alpha1ScheduleAgentSpec.md
 docs/V1alpha1StorageSpec.md
 src/apis/AgentsApi.ts
+src/apis/ConfigApi.ts
 src/apis/ConnectorsApi.ts
 src/apis/MemoriesApi.ts
 src/apis/OfficesApi.ts
@@ -214,6 +219,7 @@ src/models/AgentListFacets.ts
 src/models/AgentListResponse.ts
 src/models/AgentResponse.ts
 src/models/CompactAgentRequest.ts
+src/models/ConfigResponse.ts
 src/models/ConnectorResponse.ts
 src/models/CostBreakdownResponse.ts
 src/models/CreateAgentRequest.ts
@@ -235,10 +241,12 @@ src/models/PatchMemoryRequest.ts
 src/models/PatchScheduleRequest.ts
 src/models/PatchSkillRequest.ts
 src/models/PatchSquadRequest.ts
+src/models/S3ConfigResponse.ts
 src/models/ScheduleListResponse.ts
 src/models/ScheduleResponse.ts
 src/models/SecretListResponse.ts
 src/models/SecretResponse.ts
+src/models/SessionStoreResponse.ts
 src/models/SkillResponse.ts
 src/models/SquadListResponse.ts
 src/models/SquadMemberResponse.ts

@@ -50,6 +50,13 @@ func (r *KomputerAgentReconciler) reconcileArchived(ctx context.Context, agent *
 	if err := r.deleteArchivedResources(ctx, agent); err != nil {
 		return ctrl.Result{}, err
 	}
+	// An archive-now request that couldn't be cleared when it was honored would
+	// archive the agent again the moment it's woken.
+	if _, pending := agent.Annotations[komputerv1alpha1.AnnotationArchiveRequested]; pending {
+		if err := r.clearArchiveRequestAnnotations(ctx, agent); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	_, deleteTTL, _ := resolveAgentTTLs(ctx, r.Client, agent)
 	d := evaluateTTL(agent, nil, deleteTTL, time.Now(), false)

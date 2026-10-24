@@ -74,6 +74,7 @@ Full SDK reference in [komputer-sdk/](komputer-sdk/).
 ## Key Features
 
 - **Persistent agents** — each agent runs in its own pod with a persistent workspace that survives restarts and sleep cycles
+- **S3 session store** — point komputer at any S3-compatible bucket and every agent's conversation is saved there, so agents without a workspace volume (ephemeral or archived) come back where they left off
 - **Manager/worker orchestration** — managers create and coordinate sub-agents, delegate tasks, and synthesize results
 - **Steer mid-task** — send follow-up messages to a running agent without restarting, seamlessly redirecting its work
 - **MCP connectors** — connect agents to external tools (Slack, GitHub, Atlassian, Notion, Google Workspace) via OAuth, bearer token, or custom-header auth

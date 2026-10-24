@@ -52,6 +52,10 @@ spec:
         - name: OAUTH_CALLBACK_URL
           value: {{ .Values.api.oauth.callbackUrl | quote }}
         {{- end }}
+        {{- include "komputer.s3CredentialsEnv" . | nindent 8 }}
+        {{- with .Values.api.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         ports:
         - containerPort: 8080
           name: http

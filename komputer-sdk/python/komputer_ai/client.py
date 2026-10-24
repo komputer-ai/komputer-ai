@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 
 from komputer_ai import Configuration, ApiClient
 from komputer_ai.api.agents_api import AgentsApi
+from komputer_ai.api.config_api import ConfigApi
 from komputer_ai.api.connectors_api import ConnectorsApi
 from komputer_ai.api.memories_api import MemoriesApi
 from komputer_ai.api.offices_api import OfficesApi
@@ -44,6 +45,7 @@ class KomputerClient:
         api_client = ApiClient(config)
 
         self.agents = AgentsApi(api_client)
+        self.config = ConfigApi(api_client)
         self.connectors = ConnectorsApi(api_client)
         self.memories = MemoriesApi(api_client)
         self.offices = OfficesApi(api_client)
@@ -79,8 +81,14 @@ class KomputerClient:
     def patch_agent(self, name: str, *, allowed_tools: Optional[List[str]] = None, budget_usd: Optional[str] = None, connectors: Optional[List[str]] = None, delete_ttl: Optional[str] = None, disallowed_tools: Optional[List[str]] = None, effort: Optional[str] = None, instructions: Optional[str] = None, labels: Optional[Dict[str, str]] = None, lifecycle: Optional[str] = None, sleep_ttl: Optional[str] = None, task_budget_usd: Optional[str] = None, task_timeout: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, pod_spec: Optional[V1PodSpec] = None, priority: Optional[int] = None, remove_labels: Optional[List[str]] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, storage: Optional[V1alpha1StorageSpec] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
         return self.agents.patch_agent(name, PatchAgentRequest(allowed_tools=allowed_tools, budget_usd=budget_usd, connectors=connectors, delete_ttl=delete_ttl, disallowed_tools=disallowed_tools, effort=effort, instructions=instructions, labels=labels, lifecycle=lifecycle, sleep_ttl=sleep_ttl, task_budget_usd=task_budget_usd, task_timeout=task_timeout, memories=memories, model=model, pod_spec=pod_spec, priority=priority, remove_labels=remove_labels, secret_refs=secret_refs, skills=skills, storage=storage, system_prompt=system_prompt, template_ref=template_ref))
 
-    def delete_agent(self, name: str):
-        return self.agents.delete_agent(name)
+    def delete_agent(self, name: str, force: bool = False):
+        """Delete an agent. ``force=True`` skips waiting for its session to be
+        saved to the S3 session store (for when the store is broken)."""
+        return self.agents.delete_agent(name, force=True if force else None)
+
+    def get_config(self):
+        """Platform settings clients adapt to, e.g. whether the S3 session store is on."""
+        return self.config.get_config()
 
     def cancel_agent_task(self, name: str):
         return self.agents.cancel_agent_task(name)
@@ -98,6 +106,14 @@ class KomputerClient:
         if already sleeping; raises ApiException (409) if a task is in
         progress, or (400) for an ephemeral-workspace agent."""
         return self.agents.sleep_agent(name)
+
+    def archive_agent(self, name: str):
+        """Archive an agent once it's idle — pod and workspace deleted, the
+        agent kept as a record — without changing its lifecycle policy. With
+        the S3 session store on, the session is saved first and the agent can
+        run again. A no-op if already archived; raises ApiException (409) if a
+        task is in progress or the agent is in a squad."""
+        return self.agents.archive_agent(name)
 
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)

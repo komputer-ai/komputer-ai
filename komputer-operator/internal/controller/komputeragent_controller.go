@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -49,11 +50,21 @@ type KomputerAgentReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	ControlNamespace string
+	// Exec runs commands in agent containers, for copying sessions out of pods
+	// that can't save to the S3 session store themselves.
+	Exec PodExecer
+	// NewUploader builds the S3 session store client.
+	NewUploader UploaderFactory
+	// MaxConcurrentSavers caps the short-lived saver pods (see session_finalizer.go).
+	MaxConcurrentSavers int
+	// copyOutRetryAt holds, per agent UID, when a failed copy-out may be retried.
+	copyOutRetryAt sync.Map
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragenttemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragentclustertemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerconfigs,verbs=get;list;watch
@@ -79,6 +90,16 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+
+	// 1a. S3 session store: a delete waits until the agent's latest session is
+	// saved (komputer.ai/session-store). Handled before everything else — squad
+	// members included — and a live agent gets the finalizer while S3 is on.
+	if !agent.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(agent, komputerv1alpha1.FinalizerSessionStore) {
+		return r.handleSessionFinalizer(ctx, agent)
+	}
+	if _, err := r.ensureSessionFinalizer(ctx, agent); err != nil {
+		return ctrl.Result{}, fmt.Errorf("add session-store finalizer: %w", err)
 	}
 
 	// 1b. Propagate Spec.Labels onto the agent CR's own metadata.labels so that
@@ -304,6 +325,13 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// above. It's this — not the raw config flag — that must never be slept: sleeping
 	// is safe for a PVC-backed workspace, since the data survives the pod deletion.
 	ephemeralWorkspace := !usePVC
+	// What status.pvcName records when the agent sleeps: nothing for an emptyDir
+	// workspace (an S3-backed ephemeral agent can sleep), or the next reconcile
+	// would take it for an existing PVC and create one.
+	sleepPVCName := pvcName
+	if ephemeralWorkspace {
+		sleepPVCName = ""
+	}
 
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
@@ -319,7 +347,8 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Running on its way out, and an over-running task is cancelled rather than reported
 	// as merely running. An ephemeral (emptyDir) agent is never slept — see applyTTL.
 	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout, ephemeralWorkspace)
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, sleepPVCName, sleepTTL, deleteTTL, taskTimeout,
+		sleepUnsafe(ephemeralWorkspace, komputerConfig.Spec.S3.IsEnabled(), agent))
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
 		return ctrl.Result{}, err
@@ -330,9 +359,17 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// 8. Update CR status based on pod state
-	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, sleepPVCName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
+	}
+
+	// 8b. S3 session store: save the session of an idle agent whose pod predates
+	// the S3 env and so can't save it itself. After a failure, come back once the
+	// backoff ends (folded into the TTL requeue below).
+	if retry := r.maybeCopyOut(ctx, agent, pod, komputerConfig); retry > 0 &&
+		(ttlResult.RequeueAfter == 0 || retry < ttlResult.RequeueAfter) {
+		ttlResult.RequeueAfter = retry
 	}
 
 	// 9. Create KomputerOffice if this agent has an officeManager
@@ -741,6 +778,13 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// Set restart policy
 	podSpec.RestartPolicy = corev1.RestartPolicyNever
 
+	// With the S3 session store, an interrupted task needs time to save its
+	// session before the kubelet kills the pod. A template's own value wins.
+	if config.Spec.S3.IsEnabled() && podSpec.TerminationGracePeriodSeconds == nil {
+		grace := defaultS3TerminationGraceSeconds
+		podSpec.TerminationGracePeriodSeconds = &grace
+	}
+
 	// Add workspace volume (solo pod uses the plain name "workspace"). An ephemeral
 	// workspace is an emptyDir, optionally capped by storage.size as a SizeLimit.
 	var sizeLimit *resource.Quantity
@@ -888,6 +932,25 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration, ephemeralWorkspace bool) error {
 	log := logf.FromContext(ctx)
 	wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] == "true"
+	// With the S3 session store an ephemeral agent may sleep once its latest
+	// task is saved (the wake restores it); see sleepUnsafe.
+	s3On := s3SpecFromCluster(ctx, r.Client).IsEnabled()
+	unsafeToSleep := sleepUnsafe(ephemeralWorkspace, s3On, agent)
+
+	// Explicit archive request (komputerv1alpha1.AnnotationArchiveRequested, set by
+	// POST /agents/{name}/archive): checked first so it wins over the sleep rules.
+	// Never kills a running task, and with the S3 session store waits for the save
+	// (an idle unsaved pod is copied out by maybeCopyOut; its status write
+	// re-triggers this reconcile).
+	if agent.Annotations[komputerv1alpha1.AnnotationArchiveRequested] == "true" &&
+		!taskInProgress(agent.Status.TaskStatus) &&
+		savedBeforeDestroy(s3On, agent) {
+		log.Info("archive requested via API: archiving agent", "agent", agent.Name)
+		if err := r.archiveAgentNow(ctx, agent); err != nil {
+			return err
+		}
+		return r.clearArchiveRequestAnnotations(ctx, agent)
+	}
 
 	// Sleep mode: delete pod when task is done (complete or error), keep PVC.
 	// Skipped for an ephemeral (emptyDir) workspace — sleeping would delete the pod
@@ -897,8 +960,8 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!wakeIdle &&
 		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
-		if ephemeralWorkspace {
-			log.Info("skipping Sleep lifecycle for ephemeral agent: sleeping would delete its emptyDir workspace",
+		if unsafeToSleep {
+			log.Info("skipping Sleep lifecycle for ephemeral agent: sleeping would delete its emptyDir workspace before its session is saved",
 				"agent", agent.Name)
 		} else {
 			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
@@ -925,7 +988,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	// is defense in depth, not the primary guard.
 	if agent.Annotations[komputerv1alpha1.AnnotationSleepRequested] == "true" &&
 		pod != nil &&
-		!ephemeralWorkspace &&
+		!unsafeToSleep &&
 		!taskInProgress(agent.Status.TaskStatus) {
 		log.Info("sleep requested via API: deleting pod", "agent", agent.Name)
 		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
@@ -954,7 +1017,8 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!wakeIdle &&
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
 		pod != nil && pod.DeletionTimestamp.IsZero() &&
-		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping &&
+		savedBeforeDestroy(s3On, agent) {
 		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
 		return r.archiveAgentNow(ctx, agent)
 	}
@@ -1041,6 +1105,15 @@ func (r *KomputerAgentReconciler) clearSleepRequestAnnotations(ctx context.Conte
 	}
 	original := agent.DeepCopy()
 	delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
+	delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+	return r.Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// clearArchiveRequestAnnotations clears an honored archive request, plus the
+// wake-idle marker the API may have set to save a sleeping agent first.
+func (r *KomputerAgentReconciler) clearArchiveRequestAnnotations(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+	original := agent.DeepCopy()
+	delete(agent.Annotations, komputerv1alpha1.AnnotationArchiveRequested)
 	delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
 	return r.Patch(ctx, agent, client.MergeFrom(original))
 }
@@ -1154,6 +1227,17 @@ func (r *KomputerAgentReconciler) enqueueAgentsForSecret(ctx context.Context, ob
 		if listErr := r.List(ctx, agentList); listErr == nil {
 			for _, a := range agentList.Items {
 				enqueueIfMatch(config.Spec.Redis.PasswordSecret, r.ControlNamespace, a.Namespace, a.Name)
+			}
+		}
+	}
+
+	// Check the KomputerConfig S3 credentials secret (same singleton fan-out).
+	if err == nil && config.Spec.S3.IsEnabled() && config.Spec.S3.CredentialsSecret != nil {
+		s3Ref := &komputerv1alpha1.SecretKeyRef{Name: config.Spec.S3.CredentialsSecret.Name, Namespace: config.Spec.S3.CredentialsSecret.Namespace}
+		agentList := &komputerv1alpha1.KomputerAgentList{}
+		if listErr := r.List(ctx, agentList); listErr == nil {
+			for _, a := range agentList.Items {
+				enqueueIfMatch(s3Ref, r.ControlNamespace, a.Namespace, a.Name)
 			}
 		}
 	}

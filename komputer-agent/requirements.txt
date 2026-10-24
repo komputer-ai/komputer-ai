@@ -1,5 +1,6 @@
 claude-agent-sdk>=0.2.83
 httpx
+boto3>=1.34
 redis
 fastapi
 uvicorn

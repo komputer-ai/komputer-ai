@@ -8,6 +8,7 @@ import threading
 import uvicorn
 
 from agent import run_agent, _write_skills
+import session_store
 from events import EventPublisher
 from logger import init_logger
 import config
@@ -87,6 +88,12 @@ def main():
     # Initialize runtime config from env vars.
     config.init()
 
+    # S3 session store: restore the session only when this workspace has none
+    # (a non-PVC agent coming back, or an archived agent running again). Never
+    # blocks startup — on failure the agent simply starts fresh.
+    if session_store.enabled():
+        session_store.restore_if_needed()
+
     # Write skill files from SKILL_* env vars
     env_skills = {
         key[6:].lower().replace("_", "-"): value
@@ -124,10 +131,10 @@ def main():
                     run_agent(instructions, model, publisher, system_prompt=combined_system_prompt, effort=effort)
                 )
             except asyncio.CancelledError:
-                publisher.publish("task_cancelled", {"reason": "Cancelled by signal"})
+                publisher.publish("task_cancelled", {"reason": "Cancelled by signal", **session_store.task_end_fields()})
             except Exception as e:
                 logger.exception("initial task failed", extra={"error": str(e)})
-                publisher.publish("error", {"error": str(e)})
+                publisher.publish("error", {"error": str(e), **session_store.task_end_fields()})
             finally:
                 state.set_active_client(None)
                 state.active_loop = None
