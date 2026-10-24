@@ -98,6 +98,7 @@ var errCorruptSession = errors.New("corrupt session tarball")
 func fetchSessionEventsFromStore(ctx context.Context, g sessionObjectGetter, spec *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.KomputerAgent, totalCostUSD float64) ([]AgentEvent, error) {
 	events, err := readSessionEvents(ctx, g, spec.Bucket, komputerv1alpha1.SessionStoreKey(spec, agent), agent, totalCostUSD)
 	if errors.Is(err, errCorruptSession) {
+		Logger.Warnw("latest session in S3 is unreadable; reading the previous one", "agent_name", agent.Name, "error", err)
 		return readSessionEvents(ctx, g, spec.Bucket, komputerv1alpha1.SessionStorePreviousKey(spec, agent), agent, totalCostUSD)
 	}
 	return events, err
@@ -171,6 +172,8 @@ func sessionBackfillEvents(ctx context.Context, k8s *K8sClient, ns string, agent
 			Logger.Warnw("session store backfill failed", "agent_name", agent.Name, "error", err)
 			return []AgentEvent(nil), nil
 		}
+		Logger.Infow("chat history rebuilt from the S3 session store",
+			"namespace", ns, "agent_name", agent.Name, "bucket", spec.Bucket, "event_count", len(events))
 		if len(events) > 0 {
 			persist(events)
 		}
