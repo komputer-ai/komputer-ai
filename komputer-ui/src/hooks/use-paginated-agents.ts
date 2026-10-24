@@ -19,6 +19,8 @@ export interface PaginatedAgentsFilters {
   q?: string;
   /** API sort string, e.g. "-created" or "cost". */
   sort: string;
+  /** Leave out Archived agents (the "All" view shows them only on request). */
+  hideArchived?: boolean;
 }
 
 /**
@@ -52,6 +54,7 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
     (limit: number, offset: number) =>
       listAgents(filters.namespace, {
         status: filters.status,
+        hideArchived: filters.hideArchived,
         labelSelectors: filters.labels,
         q: filters.q,
         sort: filters.sort,

@@ -1,6 +1,7 @@
 import type {
   AgentResponse,
   AgentListResponse,
+  ConfigResponse,
   OfficeResponse,
   OfficeListResponse,
   ScheduleResponse,
@@ -57,21 +58,28 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // backward-compatible default relied on by callers like useAgents()). Set
 // `limit`/`offset` to page through results — the response then also carries
 // `total`/`nextOffset`/`facets`.
-export const listAgents = (
-  ns?: string,
-  opts?: {
-    labelSelectors?: string[];
-    status?: string;
-    q?: string;
-    sort?: string;
-    limit?: number;
-    offset?: number;
-  },
-) => {
+export type ListAgentsOptions = {
+  labelSelectors?: string[];
+  status?: string;
+  q?: string;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+  /** Leave out Archived agents (ignored when `status` is set). */
+  hideArchived?: boolean;
+};
+
+export const listAgents = (ns?: string, opts?: ListAgentsOptions) => {
   if (MOCK_EMPTY) return Promise.resolve({ agents: [] } as AgentListResponse);
+  return request<AgentListResponse>(`/agents${buildListAgentsQuery(ns, opts)}`);
+};
+
+/** The query string for GET /agents ("" or "?…"). */
+export const buildListAgentsQuery = (ns?: string, opts?: ListAgentsOptions): string => {
   const params = new URLSearchParams();
   if (ns) params.set('namespace', ns);
   if (opts?.status) params.set('status', opts.status);
+  else if (opts?.hideArchived) params.set('hideArchived', 'true');
   if (opts?.q) params.set('q', opts.q);
   if (opts?.sort) params.set('sort', opts.sort);
   if (opts?.limit != null) params.set('limit', String(opts.limit));
@@ -80,8 +88,11 @@ export const listAgents = (
     params.append('label', l);
   }
   const qs = params.toString();
-  return request<AgentListResponse>(`/agents${qs ? `?${qs}` : ''}`);
+  return qs ? `?${qs}` : '';
 };
+
+/** Platform settings the UI adapts to, e.g. whether the S3 session store is on. */
+export const getPlatformConfig = () => request<ConfigResponse>('/config');
 
 export const getAgent = (name: string, ns?: string) =>
   request<AgentResponse>(`/agents/${name}${ns ? `?namespace=${ns}` : ''}`);
@@ -89,10 +100,12 @@ export const getAgent = (name: string, ns?: string) =>
 export const createAgent = (data: CreateAgentRequest) =>
   request<AgentResponse>('/agents', { method: 'POST', body: JSON.stringify(data) });
 
-export const deleteAgent = (name: string, ns?: string, opts?: { recreatePod?: boolean }) => {
+export const deleteAgent = (name: string, ns?: string, opts?: { recreatePod?: boolean; force?: boolean }) => {
   const params = new URLSearchParams();
   if (ns) params.set('namespace', ns);
   if (opts?.recreatePod) params.set('recreatePod', 'true');
+  // force: don't wait for the session to be saved to the S3 session store.
+  if (opts?.force) params.set('force', 'true');
   const qs = params.toString();
   return request<void>(`/agents/${name}${qs ? `?${qs}` : ''}`, { method: 'DELETE' });
 };

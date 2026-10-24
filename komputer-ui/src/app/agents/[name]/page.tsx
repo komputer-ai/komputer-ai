@@ -42,6 +42,8 @@ import type { AgentResponse, AgentEvent } from "@/lib/types";
 import { fmtDuration } from "@/lib/utils";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { archivedReadOnly, agentDormant, formatSessionStore } from "@/lib/session-store";
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
@@ -327,7 +329,9 @@ export default function AgentDetailPage() {
     }
   }, [agent?.taskStatus, compactionRequestedAt]);
 
-  const handleDelete = async (opts?: { recreatePod?: boolean }) => {
+  const { s3Enabled } = usePlatformConfig();
+
+  const handleDelete = async (opts?: { recreatePod?: boolean; force?: boolean }) => {
     if (!agentName) return;
     try {
       await deleteAgent(agentName, agentNs, opts);
@@ -549,10 +553,22 @@ export default function AgentDetailPage() {
 
               <RelativeTime timestamp={agent.createdAt} />
 
+              {agent.sessionStore && (
+                <>
+                  <div className="h-4 w-px bg-[var(--color-border)]" />
+                  <span
+                    className={agent.sessionStore.ok ? "text-xs text-[var(--color-text-muted)]" : "text-xs text-[var(--color-status-error)]"}
+                    title={agent.sessionStore.error || undefined}
+                  >
+                    {formatSessionStore(agent.sessionStore)}
+                  </span>
+                </>
+              )}
+
               <div className="h-4 w-px bg-[var(--color-border)]" />
 
               <div className="flex items-center gap-1.5">
-                {agent.status === "Archived" ? null : agent.status === "Sleeping" ? (
+                {archivedReadOnly(agent.status, s3Enabled) ? null : agentDormant(agent.status, s3Enabled) ? (
                   <Button variant="secondary" size="sm" onClick={handleWake}>
                     <Zap className="size-3" data-icon="inline-start" />
                     Wake
@@ -591,7 +607,7 @@ export default function AgentDetailPage() {
                       fetchAgent();
                     }}
                   />
-                ) : agent.status !== "Archived" && (
+                ) : !archivedReadOnly(agent.status, s3Enabled) && (
                   <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
                     <Users className="size-3" data-icon="inline-start" />
                     Team Up
@@ -613,6 +629,19 @@ export default function AgentDetailPage() {
                   <Layers className="size-3" data-icon="inline-start" />
                   {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
                 </Button>
+                )}
+                {s3Enabled && agent.sessionStore?.ok === false && (
+                  <ConfirmDialog
+                    title="Delete without saving"
+                    description={`The last attempt to save "${agent.name}"'s session to S3 failed (${agent.sessionStore.error ?? "unknown error"}). A normal delete waits until the session is saved; this deletes the agent right away and its latest session is lost.`}
+                    onConfirm={() => handleDelete({ force: true })}
+                    trigger={
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="size-3" data-icon="inline-start" />
+                        Delete without saving
+                      </Button>
+                    }
+                  />
                 )}
                 {agentSquad ? (
                   <SquadAwareDeleteButton
@@ -736,7 +765,7 @@ export default function AgentDetailPage() {
               )}
 
               {/* Settings */}
-              {agent.status === "Archived" ? (
+              {archivedReadOnly(agent.status, s3Enabled) ? (
                 <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-sm text-[var(--color-text-secondary)]">
                   This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
                 </div>

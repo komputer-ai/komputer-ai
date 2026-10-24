@@ -86,6 +86,8 @@ export default function AgentsPage() {
     () => ({
       namespace: namespace || undefined,
       status: statusFilter === "All" ? undefined : statusFilter,
+      // Archived agents only show up under the Archived filter.
+      hideArchived: statusFilter === "All",
       labels: labelFilters,
       q: search || undefined,
       sort: apiSort,

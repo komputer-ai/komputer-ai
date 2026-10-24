@@ -13,6 +13,8 @@ import { toggleTableSort, type AgentTableSortKey } from "@/lib/agent-list-query"
 import { shortModelLabel } from "@/lib/model-utils";
 import { cn, formatCost } from "@/lib/utils";
 import type { AgentResponse, Squad } from "@/lib/types";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { agentDormant } from "@/lib/session-store";
 
 type AgentTableProps = {
   agents: AgentResponse[];
@@ -105,14 +107,19 @@ function SortHeader({ column, sort, onSortChange }: { column: Column; sort: stri
   );
 }
 
-// Wake for sleeping agents, Sleep for idle running ones; nothing otherwise
-// (busy agents can't be slept, and ephemeral ones have no workspace to keep).
+// Wake for sleeping agents (and archived ones when the S3 session store can
+// restore them), Sleep for idle running ones; nothing otherwise (busy agents
+// can't be slept, and ephemeral ones can only sleep when their session is in S3).
 function SleepWakeButton({ agent, onChanged }: { agent: AgentResponse; onChanged?: () => void }) {
+  const { s3Enabled } = usePlatformConfig();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting";
-  const action =
-    agent.status === "Sleeping" ? "wake" : agent.status === "Running" && !busy && !agent.storage?.ephemeral ? "sleep" : null;
+  const action = agentDormant(agent.status, s3Enabled)
+    ? "wake"
+    : agent.status === "Running" && !busy && (!agent.storage?.ephemeral || s3Enabled)
+      ? "sleep"
+      : null;
   if (!action) return null;
 
   const run = async () => {

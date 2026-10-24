@@ -29,6 +29,8 @@ import {
   Sparkles,
   Archive,
 } from "lucide-react";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { archivedReadOnly } from "@/lib/session-store";
 
 type AgentChatProps = {
   agentName: string;
@@ -1083,6 +1085,7 @@ export function AgentChat({
   onLoadNewer,
   compactionPending,
 }: AgentChatProps) {
+  const { s3Enabled } = usePlatformConfig();
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(`draft:${agentName}`) ?? "";
@@ -1455,7 +1458,9 @@ export function AgentChat({
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-secondary)]">
             {agentStatus === "Sleeping"
               ? "Agent is sleeping. Send a message to wake it up."
-              : agentStatus === "Archived"
+              : agentStatus === "Archived" && s3Enabled
+                ? "Agent is archived. Send a message to bring it back with its conversation."
+                : agentStatus === "Archived"
                 ? "No messages to show for this archived agent."
                 : "No messages yet. Waiting for events..."}
           </div>
@@ -1581,7 +1586,7 @@ export function AgentChat({
       <div className="shrink-0 bg-[var(--color-bg)]">
         <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} isBedrock={isBedrockModelId(agentModel ?? "")} />
         <div className="border-t border-[var(--color-border)]" />
-        {agentStatus === "Archived" ? (
+        {archivedReadOnly(agentStatus, s3Enabled) ? (
           <div className="flex items-center gap-2 p-4 text-sm text-[var(--color-text-secondary)]">
             <Archive className="size-4 shrink-0" />
             This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.

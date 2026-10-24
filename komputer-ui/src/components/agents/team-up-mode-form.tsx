@@ -13,6 +13,7 @@ import {
   type AgentFormValues,
   buildAgentSpecForSquad,
 } from "./agent-fields-form";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -33,6 +34,7 @@ export interface TeamUpModeFormProps {
 }
 
 export function TeamUpModeForm({ state, onChange, active, error, onError, onCreated, onCancel }: TeamUpModeFormProps) {
+  const { s3Enabled } = usePlatformConfig();
   const [availableAgents, setAvailableAgents] = useState<AgentResponse[]>([]);
   const [squads, setSquads] = useState<Squad[]>([]);
   const [agentSearch, setAgentSearch] = useState("");
@@ -205,7 +207,8 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
   }
 
   const filteredAgents = availableAgents.filter((a) => {
-    if (a.status === "Archived") return false; // read-only records can't join a squad
+    // Archived agents can join only when the S3 session store can restore them.
+    if (a.status === "Archived" && !s3Enabled) return false;
     const q = agentSearch.toLowerCase();
     return !q || a.name.toLowerCase().includes(q) || a.namespace.toLowerCase().includes(q);
   });
