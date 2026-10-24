@@ -42,6 +42,11 @@ export interface AgentsNameWsGetRequest {
     group?: string;
 }
 
+export interface ArchiveAgentRequest {
+    name: string;
+    namespace?: string;
+}
+
 export interface CancelAgentTaskRequest {
     name: string;
     namespace?: string;
@@ -165,6 +170,57 @@ export class AgentsApi extends runtime.BaseAPI {
      */
     async agentsNameWsGet(requestParameters: AgentsNameWsGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.agentsNameWsGetRaw(requestParameters, initOverrides);
+    }
+
+    /**
+     * Creates request options for archiveAgent without sending the request
+     */
+    async archiveAgentRequestOpts(requestParameters: ArchiveAgentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling archiveAgent().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['namespace'] != null) {
+            queryParameters['namespace'] = requestParameters['namespace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/agents/{name}/archive`;
+        urlPath = urlPath.replace(`{${"name"}}`, encodeURIComponent(String(requestParameters['name'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Archives an agent once it\'s idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+     * Archive an agent now
+     */
+    async archiveAgentRaw(requestParameters: ArchiveAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AgentResponse>> {
+        const requestOptions = await this.archiveAgentRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AgentResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Archives an agent once it\'s idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+     * Archive an agent now
+     */
+    async archiveAgent(requestParameters: ArchiveAgentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentResponse> {
+        const response = await this.archiveAgentRaw(requestParameters, initOverrides);
+        return await response.value();
     }
 
     /**

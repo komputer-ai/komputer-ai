@@ -23,6 +23,24 @@ export function archivedReadOnly(status: string | undefined, s3Enabled: boolean)
   return status === "Archived" && !s3Enabled;
 }
 
+/**
+ * Whether the UI offers Delete. With the S3 session store a live agent is
+ * retired by archiving it (everything kept, it can run again), so Delete is
+ * offered only once it's archived. The API still accepts any delete.
+ */
+export function deleteOffered(status: string | undefined, s3Enabled: boolean): boolean {
+  return !s3Enabled || status === "Archived";
+}
+
+/**
+ * Whether Sleep is off-limits for this agent: sleeping deletes the pod, which
+ * would wipe an ephemeral (emptyDir) workspace — unless the S3 session store is
+ * on, which saves the session first and restores it on wake.
+ */
+export function ephemeralBlocksSleep(ephemeral: boolean | undefined, s3Enabled: boolean): boolean {
+  return !!ephemeral && !s3Enabled;
+}
+
 /** Whether waking applies: Sleeping, or Archived with the S3 session store on. */
 export function agentDormant(status: string | undefined, s3Enabled: boolean): boolean {
   return status === "Sleeping" || (status === "Archived" && s3Enabled);

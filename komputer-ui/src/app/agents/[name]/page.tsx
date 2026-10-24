@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -18,7 +18,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { SquadChatView } from "@/components/agents/squad-chat-view";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
-import { getAgent, deleteAgent, cancelAgent, compactAgent, wakeAgent, sleepAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
+import { getAgent, deleteAgent, cancelAgent, compactAgent, wakeAgent, sleepAgent, archiveAgent, getAgentEvents, patchAgent, listMemories, listSkills, listSecrets, listConnectors, deleteSquad } from "@/lib/api";
 import { useSquads } from "@/hooks/use-squads";
 import { TeamUpDialog } from "@/components/agents/team-up-dialog";
 import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
@@ -43,7 +43,7 @@ import { fmtDuration } from "@/lib/utils";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
-import { archivedReadOnly, agentDormant, formatSessionStore } from "@/lib/session-store";
+import { archivedReadOnly, agentDormant, ephemeralBlocksSleep, formatSessionStore } from "@/lib/session-store";
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
@@ -368,6 +368,20 @@ export default function AgentDetailPage() {
     }
   };
 
+  const [archiveNote, setArchiveNote] = useState<string | null>(null);
+  const handleArchive = async () => {
+    if (!agentName) return;
+    setArchiveNote(null);
+    try {
+      const res = await archiveAgent(agentName, agentNs);
+      if (res.status !== "Archived") setArchiveNote("Archiving…");
+      await fetchAgent();
+    } catch (e: unknown) {
+      setArchiveNote(e instanceof Error ? e.message : "Failed to archive agent");
+      window.setTimeout(() => setArchiveNote(null), 4000);
+    }
+  };
+
   // Loading state
   if (showLoading) {
     return (
@@ -585,9 +599,9 @@ export default function AgentDetailPage() {
                       variant="secondary"
                       size="sm"
                       onClick={handleSleep}
-                      disabled={sleeping || agent.storage?.ephemeral}
+                      disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
                       title={
-                        agent.storage?.ephemeral
+                        ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
                           ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
                           : undefined
                       }
@@ -650,6 +664,42 @@ export default function AgentDetailPage() {
                     squad={agentSquad}
                     onConfirm={handleDelete}
                   />
+                ) : s3Enabled ? (
+                  // With the S3 session store, archiving keeps everything and the
+                  // agent can run again, so it's how a live agent is retired;
+                  // Delete is only offered once it's archived.
+                  agent.status !== "Archived" ? (
+                      <ConfirmDialog
+                        title="Archive Agent"
+                        description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
+                        onConfirm={handleArchive}
+                        confirmLabel="Archive"
+                        confirmVariant="primary"
+                        trigger={
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting"}
+                            title={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" ? "Archive is available once the current task finishes (or cancel it)." : undefined}
+                          >
+                            <Archive className="size-3" data-icon="inline-start" />
+                            {archiveNote ?? "Archive"}
+                          </Button>
+                        }
+                      />
+                  ) : (
+                    <ConfirmDialog
+                      title="Delete Agent"
+                      description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone. Its last saved session stays in S3.`}
+                      onConfirm={handleDelete}
+                      trigger={
+                        <Button variant="destructive" size="sm">
+                          <Trash2 className="size-3" data-icon="inline-start" />
+                          Delete
+                        </Button>
+                      }
+                    />
+                  )
                 ) : (
                   <ConfirmDialog
                     title="Delete Agent"
@@ -937,6 +987,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [model, setModel] = useState(agent.model);
   const [effort, setEffort] = useState<string>(agent.effort || "auto");
   const [lifecycle, setLifecycle] = useState<string>(agent.lifecycle || "default");
+  const { s3Enabled } = usePlatformConfig();
+  const sleepBlocked = ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled);
   // TTLs round-trip as Go duration strings; show the compact form so editing "30m"
   // doesn't turn into "30m0s" on every save.
   const [sleepTTL, setSleepTTL] = useState(fmtDuration(agent.sleepTTL ?? ""));
@@ -1128,12 +1180,12 @@ function SettingsCard({ agent, agentNs, onSaved }: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {LIFECYCLES.filter((l) => !(agent.storage?.ephemeral && l.value === "Sleep")).map((l) => (
+            {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep")).map((l) => (
               <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {agent.storage?.ephemeral && (
+        {sleepBlocked && (
           <p className="text-[11px] text-[var(--color-text-muted)]">
             Sleep is unavailable — this agent&apos;s workspace is ephemeral (no PVC).
           </p>

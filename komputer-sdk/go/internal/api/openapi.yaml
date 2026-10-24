@@ -335,6 +335,64 @@ paths:
       tags:
       - agents
       x-codegen-request-body-name: request
+  /agents/{name}/archive:
+    post:
+      description: "Archives an agent once it's idle (pod and workspace/PVC deleted,\
+        \ the agent kept as a record), without changing spec.lifecycle. With the S3\
+        \ session store on, the latest session is saved first and the archived agent\
+        \ can run again later. A no-op (200, current state) if already archived."
+      operationId: archiveAgent
+      parameters:
+      - description: Agent name
+        explode: false
+        in: path
+        name: name
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: Kubernetes namespace
+        explode: true
+        in: query
+        name: namespace
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+          description: Archive requested (or already archived)
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Agent not found
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: "Agent is running a task, or is in a squad"
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+          description: Internal error
+      summary: Archive an agent now
+      tags:
+      - agents
   /agents/{name}/cancel:
     post:
       description: Gracefully cancels the currently running task. The agent pod stays

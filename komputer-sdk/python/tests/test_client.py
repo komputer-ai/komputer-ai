@@ -25,6 +25,14 @@ class TestSessionStoreWrappers:
         assert calls == {"name": "a2", "force": None}
         client.close()
 
+    def test_archive_agent(self, monkeypatch):
+        client = KomputerClient("http://localhost:8080")
+        calls = []
+        monkeypatch.setattr(client.agents, "archive_agent", lambda name: calls.append(name))
+        client.archive_agent("a1")
+        assert calls == ["a1"]
+        client.close()
+
 
 class TestKomputerClient:
     def test_instantiation(self):

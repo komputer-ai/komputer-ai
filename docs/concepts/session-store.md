@@ -139,6 +139,8 @@ With the store on, an archived agent is a sleeping agent with no workspace and n
 
 The agents list hides archived agents unless you pick the **Archived** filter.
 
+**Archive now.** Any idle agent, running or sleeping, can be archived on the spot without changing its lifecycle: **Archive** in the UI, `komputer agents archive <name>`, `POST /api/v1/agents/<name>/archive`, or the `archive_agent` manager tool. Its session is saved first; a sleeping agent whose session isn't saved yet is woken briefly so the operator can save it. With the store on, the UI retires live agents this way and offers **Delete** only for archived ones (the API and CLI still delete any agent).
+
 Without the store, Archive stays a read-only record (see [Agents](./agents.md#archived-agents)).
 
 ### Agents that were running before the store was turned on

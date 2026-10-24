@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatSessionStore, archivedReadOnly, agentDormant } from "./session-store";
+import { formatSessionStore, archivedReadOnly, agentDormant, deleteOffered, ephemeralBlocksSleep } from "./session-store";
 import { buildListAgentsQuery } from "./api";
 
 describe("formatSessionStore", () => {
@@ -39,5 +39,44 @@ describe("buildListAgentsQuery", () => {
 
   it("doesn't hide them when filtering for Archived", () => {
     expect(buildListAgentsQuery(undefined, { status: "Archived" })).not.toContain("hideArchived");
+  });
+});
+
+describe("archiveAgent", () => {
+  it("POSTs to the archive-now endpoint", async () => {
+    const { archiveAgent } = await import("./api");
+    const seen: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(`${init?.method} ${String(input)}`);
+      return new Response(JSON.stringify({ name: "a1", status: "Running" }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      await archiveAgent("a1", "team-a");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatch(/^POST .*\/api\/v1\/agents\/a1\/archive\?namespace=team-a$/);
+  });
+});
+
+describe("deleteOffered", () => {
+  it("with the S3 session store, offers Delete only once the agent is archived", () => {
+    expect(deleteOffered("Running", true)).toBe(false);
+    expect(deleteOffered("Sleeping", true)).toBe(false);
+    expect(deleteOffered("Archived", true)).toBe(true);
+  });
+  it("without it, offers Delete on every agent", () => {
+    expect(deleteOffered("Running", false)).toBe(true);
+    expect(deleteOffered("Archived", false)).toBe(true);
+  });
+});
+
+describe("ephemeralBlocksSleep", () => {
+  it("blocks Sleep for an ephemeral agent only when the S3 session store is off", () => {
+    expect(ephemeralBlocksSleep(true, false)).toBe(true);
+    expect(ephemeralBlocksSleep(true, true)).toBe(false); // saved to S3 first, restored on wake
+    expect(ephemeralBlocksSleep(false, false)).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Archive, ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Loader2, Moon, Power, Skull, Timer, Users, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RelativeTime } from "@/components/shared/relative-time";
-import { AgentDeleteButton, agentKey } from "@/components/agents/agent-cards";
+import { AgentDeleteButton, ArchiveButton, agentKey } from "@/components/agents/agent-cards";
 import { useSquads } from "@/hooks/use-squads";
 import { sleepAgent, wakeAgent } from "@/lib/api";
 import { toggleTableSort, type AgentTableSortKey } from "@/lib/agent-list-query";
@@ -413,11 +413,13 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                   <td className={cn(cell, "pr-3 text-right")}>
                     <span className="inline-flex items-center justify-end gap-1.5">
                       <SleepWakeButton agent={agent} onChanged={onChanged} />
-                      <span className="inline-flex opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                      <span className="inline-flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                      {!squad && <ArchiveButton agent={agent} onChanged={onChanged} />}
                       <AgentDeleteButton
                         agentName={agent.name}
                         agentNamespace={agent.namespace}
                         squad={squad}
+                        status={agent.status}
                         onConfirm={(opts) => onDelete(agent.name, agent.namespace, opts)}
                       />
                       </span>

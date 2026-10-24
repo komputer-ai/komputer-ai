@@ -35,6 +35,23 @@ async def test_sleep_agent_defaults_to_self(mock_api):
     assert mock_api.calls == [("POST", "/api/v1/agents/self/sleep")]
 
 
+# --- archive_agent ---
+
+@pytest.mark.asyncio
+async def test_archive_agent_calls_archive_endpoint(mock_api):
+    mock_api.set("POST", "/api/v1/agents/foo/archive", {"name": "foo", "status": "Running"})
+    result = await manager_tools.archive_agent.handler({"name": "foo"})
+    assert not result.get("isError")
+    assert mock_api.calls == [("POST", "/api/v1/agents/foo/archive")]
+
+
+@pytest.mark.asyncio
+async def test_archive_agent_requires_a_name(mock_api):
+    result = await manager_tools.archive_agent.handler({})
+    assert result.get("isError")
+    assert mock_api.calls == []
+
+
 # --- wake_agent ---
 
 @pytest.mark.asyncio

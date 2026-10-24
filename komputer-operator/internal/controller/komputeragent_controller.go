@@ -933,6 +933,21 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	s3On := s3SpecFromCluster(ctx, r.Client).IsEnabled()
 	unsafeToSleep := sleepUnsafe(ephemeralWorkspace, s3On, agent)
 
+	// Explicit archive request (komputerv1alpha1.AnnotationArchiveRequested, set by
+	// POST /agents/{name}/archive): checked first so it wins over the sleep rules.
+	// Never kills a running task, and with the S3 session store waits for the save
+	// (an idle unsaved pod is copied out by maybeCopyOut; its status write
+	// re-triggers this reconcile).
+	if agent.Annotations[komputerv1alpha1.AnnotationArchiveRequested] == "true" &&
+		!taskInProgress(agent.Status.TaskStatus) &&
+		savedBeforeDestroy(s3On, agent) {
+		log.Info("archive requested via API: archiving agent", "agent", agent.Name)
+		if err := r.archiveAgentNow(ctx, agent); err != nil {
+			return err
+		}
+		return r.clearArchiveRequestAnnotations(ctx, agent)
+	}
+
 	// Sleep mode: delete pod when task is done (complete or error), keep PVC.
 	// Skipped for an ephemeral (emptyDir) workspace — sleeping would delete the pod
 	// and silently wipe it, rather than merely pausing the agent.
@@ -1086,6 +1101,15 @@ func (r *KomputerAgentReconciler) clearSleepRequestAnnotations(ctx context.Conte
 	}
 	original := agent.DeepCopy()
 	delete(agent.Annotations, komputerv1alpha1.AnnotationSleepRequested)
+	delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
+	return r.Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// clearArchiveRequestAnnotations clears an honored archive request, plus the
+// wake-idle marker the API may have set to save a sleeping agent first.
+func (r *KomputerAgentReconciler) clearArchiveRequestAnnotations(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+	original := agent.DeepCopy()
+	delete(agent.Annotations, komputerv1alpha1.AnnotationArchiveRequested)
 	delete(agent.Annotations, komputerv1alpha1.AnnotationWakeIdle)
 	return r.Patch(ctx, agent, client.MergeFrom(original))
 }

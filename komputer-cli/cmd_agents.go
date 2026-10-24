@@ -753,6 +753,52 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	})
 
+	// ── archive ──────────────────────────────────────────────────────────
+	root.AddCommand(&cobra.Command{
+		Use:   "archive <name>",
+		Short: "Archive an agent now",
+		Long:  "Archives an agent once it's idle — pod and workspace deleted, the agent kept as a record — without changing its lifecycle policy. With the S3 session store on, its session is saved first and it can run again later. A no-op if already archived.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			jsonMode, _ := cmd.Flags().GetBool("json")
+			data, status, err := apiRequest("POST", agentArchiveURL(resolveEndpoint(cmd), args[0], cmd), nil)
+			if err != nil {
+				if jsonMode {
+					dieJSON("Request failed: "+err.Error(), 0)
+				}
+				fmt.Println(errorStyle.Render("Request failed: " + err.Error()))
+				os.Exit(1)
+			}
+			if status == 404 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("Agent %q not found", args[0]), 404)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("Agent %q not found", args[0])))
+				os.Exit(1)
+			}
+			if status != 200 {
+				if jsonMode {
+					dieJSON(fmt.Sprintf("API error (%d): %s", status, string(data)), status)
+				}
+				fmt.Println(errorStyle.Render(fmt.Sprintf("API error (%d): %s", status, string(data))))
+				os.Exit(1)
+			}
+
+			var agent AgentResponse
+			json.Unmarshal(data, &agent)
+
+			if jsonMode {
+				printJSON(agent)
+				return
+			}
+			if agent.Status == "Archived" {
+				fmt.Println(successStyle.Render(fmt.Sprintf("✔ %q is archived", args[0])))
+				return
+			}
+			fmt.Println(successStyle.Render(fmt.Sprintf("✔ Archiving %q once it's idle (status: %s)", args[0], agent.Status)))
+		},
+	})
+
 	// ── compact ──────────────────────────────────────────────────────────
 	compactCmd := &cobra.Command{
 		Use:   "compact <name>",

@@ -107,6 +107,14 @@ class KomputerClient:
         progress, or (400) for an ephemeral-workspace agent."""
         return self.agents.sleep_agent(name)
 
+    def archive_agent(self, name: str):
+        """Archive an agent once it's idle — pod and workspace deleted, the
+        agent kept as a record — without changing its lifecycle policy. With
+        the S3 session store on, the session is saved first and the agent can
+        run again. A no-op if already archived; raises ApiException (409) if a
+        task is in progress or the agent is in a squad."""
+        return self.agents.archive_agent(name)
+
     def get_agent_events(self, name: str):
         return self.agents.get_agent_events(name)
 

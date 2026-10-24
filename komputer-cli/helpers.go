@@ -390,6 +390,11 @@ func sessionStoreSummary(s *SessionStoreView) string {
 	return "saved " + s.LastSavedAt
 }
 
+// agentArchiveURL is the archive-now endpoint for an agent, with --namespace.
+func agentArchiveURL(ep, name string, cmd *cobra.Command) string {
+	return fmt.Sprintf("%s/api/v1/agents/%s/archive%s", ep, url.PathEscape(name), nsQuery(cmd))
+}
+
 // agentDeleteURL is the DELETE URL for an agent, with --namespace and --force.
 func agentDeleteURL(ep, name string, cmd *cobra.Command) string {
 	u := fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(name), nsQuery(cmd))

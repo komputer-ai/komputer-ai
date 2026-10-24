@@ -73,6 +73,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *AgentsAPI* | [**AgentsNameWsGet**](docs/AgentsAPI.md#agentsnamewsget) | **Get** /agents/{name}/ws | Stream agent events (WebSocket)
+*AgentsAPI* | [**ArchiveAgent**](docs/AgentsAPI.md#archiveagent) | **Post** /agents/{name}/archive | Archive an agent now
 *AgentsAPI* | [**CancelAgentTask**](docs/AgentsAPI.md#cancelagenttask) | **Post** /agents/{name}/cancel | Cancel agent task
 *AgentsAPI* | [**CompactAgentTask**](docs/AgentsAPI.md#compactagenttask) | **Post** /agents/{name}/compact | Compact agent conversation
 *AgentsAPI* | [**CreateAgent**](docs/AgentsAPI.md#createagent) | **Post** /agents | Create agent or send task

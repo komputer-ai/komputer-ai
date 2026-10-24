@@ -130,6 +130,14 @@ export const wakeAgent = (name: string, ns?: string) =>
 export const sleepAgent = (name: string, ns?: string) =>
   request<AgentResponse>(`/agents/${name}/sleep${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
 
+// archiveAgent archives an agent once it's idle — pod and workspace deleted,
+// the agent kept as a record — without changing its lifecycle policy. With the
+// S3 session store on, the session is saved first and the agent can run again.
+// A no-op if already archived; throws (409) if a task is in progress or the
+// agent is in a squad.
+export const archiveAgent = (name: string, ns?: string) =>
+  request<AgentResponse>(`/agents/${name}/archive${ns ? `?namespace=${ns}` : ''}`, { method: 'POST' });
+
 export const compactAgent = (name: string, opts?: { instructions?: string; namespace?: string }) =>
   request<{ status: string; name: string }>(
     `/agents/${name}/compact${opts?.namespace ? `?namespace=${opts.namespace}` : ''}`,

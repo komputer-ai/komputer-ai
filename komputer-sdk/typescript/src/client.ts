@@ -105,6 +105,15 @@ export class KomputerClient {
     return this._agents.sleepAgent({ name });
   }
 
+  /** Archive an agent once it's idle — pod and workspace deleted, the agent
+   * kept as a record — without changing its lifecycle policy. With the S3
+   * session store on, the session is saved first and the agent can run again.
+   * A no-op if already archived; throws (409) if a task is in progress or the
+   * agent is in a squad. */
+  async archiveAgent(name: string) {
+    return this._agents.archiveAgent({ name });
+  }
+
   async getAgentEvents(name: string) {
     return this._agents.getAgentEvents({ name });
   }

@@ -71,6 +71,16 @@ const AnnotationWakeIdle = "komputer.ai/wake-idle"
 // of this annotation — see SleepAgentNow's doc comment.
 const AnnotationSleepRequested = "komputer.ai/sleep-requested"
 
+// AnnotationArchiveRequested records an explicit "archive now" request, WITHOUT
+// changing spec.Lifecycle. Owned by the API (set by ArchiveAgentNow, the handler
+// for POST /agents/{name}/archive). Consumed and cleared by the operator's
+// reconcileStatus: once no task is in progress and — with the S3 session store
+// on — the latest task is saved, it archives the agent (pod, PVC and Service
+// deleted; the CR kept), running or sleeping, then clears this annotation and
+// AnnotationWakeIdle. A sleeping agent whose latest task isn't saved is woken
+// idle by the API so the operator can copy its session out first.
+const AnnotationArchiveRequested = "komputer.ai/archive-requested"
+
 // KomputerAgentPhase represents the lifecycle phase of a KomputerAgent.
 type KomputerAgentPhase string
 

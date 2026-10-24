@@ -346,6 +346,15 @@ func (c *Client) SleepAgent(ctx context.Context, name string) (*komputer.AgentRe
 	return c.api.AgentsAPI.SleepAgent(ctx, name).Execute()
 }
 
+// ArchiveAgent archives an agent once it's idle — pod and workspace deleted,
+// the agent kept as a record — without changing its lifecycle policy. With the
+// S3 session store on, the session is saved first and the agent can run again.
+// A no-op if already archived; returns an error (409) if a task is in progress
+// or the agent is in a squad.
+func (c *Client) ArchiveAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
+	return c.api.AgentsAPI.ArchiveAgent(ctx, name).Execute()
+}
+
 func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]interface{}, *http.Response, error) {
 	return c.api.AgentsAPI.GetAgentEvents(ctx, name).Execute()
 }

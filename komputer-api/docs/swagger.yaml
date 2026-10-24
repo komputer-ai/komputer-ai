@@ -7034,6 +7034,51 @@ paths:
       summary: Patch agent
       tags:
       - agents
+  /agents/{name}/archive:
+    post:
+      description: Archives an agent once it's idle (pod and workspace/PVC deleted,
+        the agent kept as a record), without changing spec.lifecycle. With the S3
+        session store on, the latest session is saved first and the archived agent
+        can run again later. A no-op (200, current state) if already archived.
+      operationId: archiveAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Archive requested (or already archived)
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent is running a task, or is in a squad
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Archive an agent now
+      tags:
+      - agents
   /agents/{name}/cancel:
     post:
       description: Gracefully cancels the currently running task. The agent pod stays

@@ -373,9 +373,56 @@ def s10(notes):
     notes.append("wake reported `restored_from: previous`, recalled `PUFFIN-2`; its save left a good `latest` again")
 
 
+@scenario("11. Archive now: an idle running agent is archived, keeps its lifecycle, and comes back")
+def s11(notes):
+    name = f"now-{RUN}"
+    create(name, "Remember the codeword WREN-4. Reply with just OK.")
+    a = wait("task end", task_done(name))
+    check(a["taskStatus"] == "Complete", f"task: {a['taskStatus']}")
+    code, data = api("POST", f"/agents/{name}/archive?namespace={NS}")
+    check(code == 200, f"archive: {code} {data}")
+    wait("archived", lambda: (agent(name) or {}).get("status") == "Archived", timeout=120)
+    check(not exists("pod", f"{name}-pod") or wait("pod gone", lambda: not exists("pod", f"{name}-pod"), timeout=120), "pod gone")
+    check(not exists("pvc", f"{name}-pvc"), "PVC should be gone")
+    c = cr(name)
+    check(not c["spec"].get("lifecycle"), f"lifecycle must be unchanged, got {c['spec'].get('lifecycle')}")
+    check("komputer.ai/archive-requested" not in (c["metadata"].get("annotations") or {}), "request must be cleared")
+    notes.append("`POST /archive` on an idle running agent: archived, pod and PVC gone, lifecycle unchanged, request cleared")
+    send(name, "What codeword did I ask you to remember? Reply with just the codeword.")
+    wait("answered", lambda: (agent(name) or {}).get("status") == "Running" and (agent(name) or {}).get("taskStatus") == "Complete" and "WREN-4" in events_text(name).split('"task_started"')[-1], timeout=480)
+    notes.append("a new task woke it from S3 and it recalled `WREN-4`; it stays running (default lifecycle)")
+
+
+@scenario("12. Archive now on a sleeping agent whose save failed: woken, saved by the operator, archived")
+def s12(notes):
+    name = f"sleepy-{RUN}"
+    kubectl("scale", "deploy/minio", "-n", "minio", "--replicas=0")
+    try:
+        wait("minio down", lambda: kubectl("get", "pods", "-n", "minio", "-l", "app=minio", "-o", "name", check=False) == "", timeout=120)
+        create(name, "Remember the codeword STORK-8. Reply with just OK.", lifecycle="Sleep")
+        wait("asleep", lambda: (agent(name) or {}).get("status") == "Sleeping", timeout=480)
+        a = agent(name)
+        check(a.get("sessionStore", {}).get("ok") is False, f"its save should have failed: {a.get('sessionStore')}")
+        notes.append("with MinIO down, a PVC agent ran a task and slept with its save failed")
+    finally:
+        kubectl("scale", "deploy/minio", "-n", "minio", "--replicas=1")
+        kubectl("rollout", "status", "deploy/minio", "-n", "minio", "--timeout=180s")
+    code, data = api("POST", f"/agents/{name}/archive?namespace={NS}")
+    check(code == 200, f"archive: {code} {data}")
+    notes.append(f"`POST /archive` → status `{data.get('status')}` (woken idle to save first)")
+    wait("archived", lambda: (agent(name) or {}).get("status") == "Archived", timeout=300)
+    check(session_key(name) in objects(f"komputer/{NS}/{name}/"), "session should be saved before archiving")
+    conds = {x["type"]: x for x in cr(name)["status"].get("conditions", [])}
+    check(conds.get("SessionSaved", {}).get("status") == "True", f"SessionSaved: {conds.get('SessionSaved')}")
+    notes.append("the operator copied the session out of the woken pod (`SessionSaved=True`), then archived it")
+    send(name, "What codeword did I ask you to remember? Reply with just the codeword.", "Sleep")
+    wait("answered", lambda: "STORK-8" in events_text(name).split('"task_started"')[-1], timeout=480)
+    notes.append("a new task restored it from S3 and it recalled `STORK-8`")
+
+
 def main():
     print(f"API={API} MODEL={MODEL} RUN={RUN}", flush=True)
-    for i, fn in enumerate((s0, s1, s2, s3_ephemeral, s4, s5, s6, s7, s8, s9, s10)):
+    for i, fn in enumerate((s0, s1, s2, s3_ephemeral, s4, s5, s6, s7, s8, s9, s10, s11, s12)):
         # 9 flips the Helm release's s3.enabled, so it only runs when asked for.
         if (not ONLY and i != 9) or str(i) in ONLY:
             fn()

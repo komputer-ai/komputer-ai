@@ -2,7 +2,7 @@
 
 Run `135107` at 2026-10-24 13:53 against the kind cluster `komputer-s3-test` (MinIO as S3, Bedrock model `eu.anthropic.claude-haiku-4-5-20251001-v1:0`).
 
-**11/11 scenarios passed** (9 flips `s3.enabled` on the Helm release, so it runs on its own with `ONLY=9`, same code).
+**13/13 scenarios passed** (9 flips `s3.enabled` on the Helm release, so it runs on its own with `ONLY=9`, same code).
 
 | # | Scenario | Result | Time |
 |---|---|---|---|
@@ -17,6 +17,8 @@ Run `135107` at 2026-10-24 13:53 against the kind cluster `komputer-s3-test` (Mi
 | 8 | Without S3 on a schedule template the admission policy is installed | PASS | 0s |
 | 9 | An agent started before S3 was on gets saved by the operator from outside (opt-in: ONLY=9) | PASS | 102s |
 | 10 | A corrupt latest save falls back to the previous one | PASS | 22s |
+| 11 | Archive now: an idle running agent is archived, keeps its lifecycle, and comes back | PASS | 40s |
+| 12 | Archive now on a sleeping agent whose save failed: woken, saved by the operator, archived | PASS | 33s |
 
 ## What the runs found
 
@@ -40,6 +42,8 @@ after creation, with no delete or finalizer log line. Repeating the same state a
 
 **Added since: latest + previous.** Each save now copies `latest.tar.gz` to `previous.tar.gz` before
 overwriting it, and a restore falls back to `previous` when `latest` is corrupt (scenario 10).
+
+**Added since: Archive now.** `POST /agents/{name}/archive` (UI, CLI, SDK, manager tool) archives an idle agent without changing its lifecycle, saving first — scenarios 11 and 12 (11 and 12 ran together with `ONLY=11,12`).
 
 **Not covered here.** The admission policy's deny path (covered by the operator envtest), real AWS S3 /
 IAM roles, squads, and very large sessions.
@@ -101,3 +105,15 @@ IAM roles, squads, and very large sessions.
 - two saves: `latest.tar.gz` and `previous.tar.gz` both present
 - overwrote `latest.tar.gz` with garbage
 - wake reported `restored_from: previous`, recalled `PUFFIN-2`; its save left a good `latest` again
+
+## 11. Archive now: an idle running agent is archived, keeps its lifecycle, and comes back — PASS
+
+- `POST /archive` on an idle running agent: archived, pod and PVC gone, lifecycle unchanged, request cleared
+- a new task woke it from S3 and it recalled `WREN-4`; it stays running (default lifecycle)
+
+## 12. Archive now on a sleeping agent whose save failed: woken, saved by the operator, archived — PASS
+
+- with MinIO down, a PVC agent ran a task and slept with its save failed
+- `POST /archive` → status `Pending` (woken idle to save first)
+- the operator copied the session out of the woken pod (`SessionSaved=True`), then archived it
+- a new task restored it from S3 and it recalled `STORK-8`

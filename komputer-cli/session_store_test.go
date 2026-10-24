@@ -40,6 +40,27 @@ func TestDeleteForceSendsQueryParam(t *testing.T) {
 	}
 }
 
+func TestArchiveCommand(t *testing.T) {
+	root := &cobra.Command{Use: "komputer"}
+	root.PersistentFlags().String("namespace", "", "")
+	registerAgentCommands(root)
+	var archive *cobra.Command
+	for _, c := range root.Commands() {
+		if c.Name() == "archive" {
+			archive = c
+		}
+	}
+	if archive == nil {
+		t.Fatal("archive command not found")
+	}
+	if err := archive.ParseFlags([]string{"--namespace", "team-a"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := agentArchiveURL("http://api", "a1", archive); got != "http://api/api/v1/agents/a1/archive?namespace=team-a" {
+		t.Errorf("url = %q", got)
+	}
+}
+
 func TestSessionStoreSummary(t *testing.T) {
 	if got := sessionStoreSummary(&SessionStoreView{OK: true, LastSavedAt: "2026-10-24T10:00:00Z"}); !strings.HasPrefix(got, "saved ") {
 		t.Errorf("ok: %q", got)

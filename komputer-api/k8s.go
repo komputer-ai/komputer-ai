@@ -285,6 +285,51 @@ func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komput
 	return agent, nil
 }
 
+// ErrAgentInSquad is returned by ArchiveAgentNow for a squad member: archiving
+// deletes its PVC, which the shared squad pod mounts.
+var ErrAgentInSquad = fmt.Errorf("agent is in a squad; remove it from the squad first")
+
+// ArchiveAgentNow archives an agent as soon as it's idle, WITHOUT changing
+// spec.Lifecycle: it sets the komputer.ai/archive-requested annotation and the
+// operator does the rest (see komputerv1alpha1.AnnotationArchiveRequested).
+// Already Archived is a no-op success. A task in progress returns ErrAgentBusy;
+// a squad member returns ErrAgentInSquad.
+//
+// With the S3 session store on, a sleeping agent whose latest task isn't saved
+// is also woken idle: the operator copies its session out of the running pod
+// before archiving deletes the workspace.
+func (k *K8sClient) ArchiveAgentNow(ctx context.Context, ns, name string) (*komputerv1alpha1.KomputerAgent, error) {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	key := types.NamespacedName{Name: name, Namespace: ns}
+	if err := k.client.Get(ctx, key, agent); err != nil {
+		return nil, err
+	}
+	if agentArchived(agent) {
+		return agent, nil
+	}
+	if agent.Status.Squad {
+		return nil, ErrAgentInSquad
+	}
+	if agentTaskInProgress(agent.Status.TaskStatus) {
+		return nil, ErrAgentBusy
+	}
+
+	original := agent.DeepCopy()
+	if agent.Annotations == nil {
+		agent.Annotations = map[string]string{}
+	}
+	agent.Annotations[komputerv1alpha1.AnnotationArchiveRequested] = "true"
+	if err := k.client.Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+		return nil, fmt.Errorf("failed to patch annotations: %w", err)
+	}
+
+	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping && agent.Status.PvcName != "" &&
+		k.S3Enabled(ctx) && !komputerv1alpha1.LatestTaskSaved(agent) {
+		return k.IdleWakeAgent(ctx, ns, name)
+	}
+	return agent, nil
+}
+
 // clearSleepMetadata clears the komputer.ai/wake-idle annotation (stale once an
 // agent is sleeping) and status.SleepExpiresAt (no future sleep deadline once
 // already asleep). Used by SleepAgentNow's squad-member path, which drives the

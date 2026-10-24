@@ -1108,6 +1108,82 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
+// archiveAgent archives an agent as soon as it's idle, without changing its
+// lifecycle — the "archive now" counterpart to sleepAgent. Already Archived is a
+// no-op (200, current state).
+// @ID archiveAgent
+// @Summary Archive an agent now
+// @Description Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentResponse "Archive requested (or already archived)"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent is running a task, or is in a squad"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/archive [post]
+func archiveAgent(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
+
+		agent, err := k8s.ArchiveAgentNow(c.Request.Context(), ns, name)
+		if err != nil {
+			switch {
+			case errors.IsNotFound(err):
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			case err == ErrAgentBusy:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": "agent is running a task; cancel it first"})
+			case err == ErrAgentInSquad:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			default:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to archive agent: " + err.Error()})
+			}
+			return
+		}
+
+		Logger.Infow("archive-requested agent", "namespace", ns, "agent_name", name)
+		agentActionsTotal.WithLabelValues("archive_now", "success").Inc()
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
+			Status:             string(agent.Status.Phase),
+			TaskStatus:         string(agent.Status.TaskStatus),
+			LastTaskMessage:    agent.Status.LastTaskMessage,
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			LastTaskCostUSD:    agent.Status.LastTaskCostUSD,
+			TotalCostUSD:       agent.Status.TotalCostUSD,
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
+			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Memories:           agent.Spec.Memories,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
+			Instructions:       agent.Spec.Instructions,
+			SystemPrompt:       agent.Spec.SystemPrompt,
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			Priority:           agent.Spec.Priority,
+			QueuePosition:      agent.Status.QueuePosition,
+			QueueReason:        agent.Status.QueueReason,
+			PodSpec:            agent.Spec.PodSpec,
+			Storage:            agent.Spec.Storage,
+			Squad:              agent.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
+			Labels:             agent.Spec.Labels,
+			CompletionTime:     formatTime(agent.Status.CompletionTime),
+		}, agent))
+	}
+}
+
 // sleepAgent puts a running agent to sleep right now — the real counterpart to
 // wakeAgent. Unlike PATCH /agents/{name} with lifecycle=Sleep (which sets a
 // policy the operator applies once a task completes, suppressed by a prior

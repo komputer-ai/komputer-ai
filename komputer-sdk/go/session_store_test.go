@@ -24,6 +24,23 @@ func TestClient_DeleteAgentForce(t *testing.T) {
 	}
 }
 
+func TestClient_ArchiveAgent(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Method + " " + r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name":"a1","status":"Running"}`))
+	}))
+	defer srv.Close()
+
+	if _, _, err := New(srv.URL).ArchiveAgent(context.Background(), "a1"); err != nil {
+		t.Fatal(err)
+	}
+	if got != "POST /api/v1/agents/a1/archive" {
+		t.Errorf("request = %q", got)
+	}
+}
+
 func TestClient_GetConfig(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/config" {
