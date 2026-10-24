@@ -9,6 +9,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -109,8 +110,14 @@ func readSessionEvents(ctx context.Context, g sessionObjectGetter, bucket, key s
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
-	gz, err := gzip.NewReader(body)
+	// Download fully before parsing, so a dropped connection stays a download
+	// error and only an unreadable object counts as corrupt.
+	data, err := io.ReadAll(body)
+	body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("download session tarball: %w", err)
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("open session tarball: %w: %w", errCorruptSession, err)
 	}

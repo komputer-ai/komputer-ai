@@ -47,13 +47,14 @@ func sessionTarball(t *testing.T, files map[string][]byte) []byte {
 }
 
 type fakeGetter struct {
-	body   []byte
-	bodies map[string][]byte // per key, when set
-	err   error
-	calls atomic.Int32
-	delay time.Duration
-	keys  []string
-	mu    sync.Mutex
+	body    []byte
+	bodies  map[string][]byte // per key, when set
+	readErr error             // the body fails partway with this error
+	err     error
+	calls   atomic.Int32
+	delay   time.Duration
+	keys    []string
+	mu      sync.Mutex
 }
 
 func (f *fakeGetter) GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, error) {
@@ -68,7 +69,29 @@ func (f *fakeGetter) GetObject(ctx context.Context, bucket, key string) (io.Read
 	if f.bodies != nil {
 		return io.NopCloser(bytes.NewReader(f.bodies[key])), nil
 	}
+	if f.readErr != nil {
+		// The connection drops halfway through the body.
+		return io.NopCloser(io.MultiReader(bytes.NewReader(f.body[:len(f.body)/2]), errReader{f.readErr})), nil
+	}
 	return io.NopCloser(bytes.NewReader(f.body)), nil
+}
+
+type errReader struct{ err error }
+
+func (e errReader) Read([]byte) (int, error) { return 0, e.err }
+
+// A download that fails partway is a network problem, not a corrupt session:
+// it must not fall back to the older previous save (and persist it to Redis).
+func TestFetchSessionEventsFromStore_DroppedDownload_DoesNotTryPrevious(t *testing.T) {
+	good := sessionTarball(t, map[string][]byte{".claude/projects/-workspace/s1.jsonl": sessionFixture})
+	g := &fakeGetter{body: good, readErr: errors.New("connection reset by peer")}
+	s3 := &komputerv1alpha1.S3Spec{Enabled: true, Bucket: "sessions", Prefix: "komputer"}
+	if _, err := fetchSessionEventsFromStore(context.Background(), g, s3, storeBackfillAgent(""), 0); err == nil {
+		t.Fatal("want the download error")
+	}
+	if n := g.calls.Load(); n != 1 {
+		t.Errorf("GetObject calls = %d, want 1 (no fallback to previous)", n)
+	}
 }
 
 func storeBackfillAgent(podName string) *komputerv1alpha1.KomputerAgent {
