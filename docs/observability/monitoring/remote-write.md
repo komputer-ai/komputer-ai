@@ -28,4 +28,4 @@ Failures during flush are logged but never crash the agent.
 
 Your remote-write target must have receiver enabled. For Prometheus: `--web.enable-remote-write-receiver`. For Mimir/Cortex/Thanos: native support.
 
-For local kind dev, the sample `KomputerAgentClusterTemplate` already wires the agent to the local Prometheus from `monitoring/docker-compose.yml`. See [local development](../../contribution/local-development) and the [local monitoring stack](./local-stack).
+For local kind dev, the sample `KomputerAgentClusterTemplate` already wires the agent to the local Prometheus from `monitoring/docker-compose.yml`. See [local development](../../contribution/local-development.md) and the [local monitoring stack](./local-stack.md).

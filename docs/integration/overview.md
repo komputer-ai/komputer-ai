@@ -13,9 +13,9 @@ Whether it's a vibecoding platform running coding agents on Kubernetes, a debugg
 
 Three integration surfaces:
 
-- **HTTP REST** — create agents, send tasks, check status, get results, delete agents. See [REST API](./rest-api).
-- **WebSocket** — stream real-time events as agents work (thinking, tool calls, text output, completion). See [WebSocket events](./websocket).
-- **MCP** — fully control komputer from Claude Code, Claude Desktop, or any MCP-aware agent. Every REST operation is exposed as a tool at `<api-url>/mcp`. See [MCP server](./mcp-server).
+- **HTTP REST** — create agents, send tasks, check status, get results, delete agents. See [REST API](./rest-api.md).
+- **WebSocket** — stream real-time events as agents work (thinking, tool calls, text output, completion). See [WebSocket events](./websocket.md).
+- **MCP** — fully control komputer from Claude Code, Claude Desktop, or any MCP-aware agent. Every REST operation is exposed as a tool at `<api-url>/mcp`. See [MCP server](./mcp-server.md).
 
 ## Important: komputer.ai is an Internal Backend
 
