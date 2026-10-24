@@ -1,0 +1,81 @@
+# Single-node MinIO for the local S3 session store test. Credentials are
+# throwaway test values (minioadmin / minioadmin-local); the bucket
+# "komputer-sessions" is created by the init container.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: minio }
+  template:
+    metadata:
+      labels: { app: minio }
+    spec:
+      containers:
+      - name: minio
+        image: local-minio:s3-test
+        imagePullPolicy: Never   # loaded into kind from the local Docker cache (MinIO no longer publishes community images)
+        args: ["server", "/data", "--console-address", ":9001"]
+        env:
+        - { name: MINIO_ROOT_USER, value: minioadmin }
+        - { name: MINIO_ROOT_PASSWORD, value: minioadmin-local }
+        ports:
+        - { containerPort: 9000, name: s3 }
+        - { containerPort: 9001, name: console }
+        readinessProbe:
+          httpGet: { path: /minio/health/ready, port: 9000 }
+          periodSeconds: 3
+        resources:
+          requests: { cpu: 50m, memory: 128Mi }
+        volumeMounts:
+        - { name: data, mountPath: /data }
+      volumes:
+      - name: data
+        persistentVolumeClaim: { claimName: minio-data }
+---
+# A PVC, not an emptyDir: the failed-save scenario scales MinIO to 0 and back.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: minio
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  type: NodePort
+  selector: { app: minio }
+  ports:
+  - { name: s3, port: 9000, targetPort: 9000, nodePort: 30900 }
+  - { name: console, port: 9001, targetPort: 9001, nodePort: 30901 }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: make-bucket
+  namespace: minio
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: mc
+        image: local-mc:s3-test
+        imagePullPolicy: Never
+        command: ["sh", "-c", "mc alias set local http://minio.minio.svc.cluster.local:9000 minioadmin minioadmin-local && mc mb --ignore-existing local/komputer-sessions"]
