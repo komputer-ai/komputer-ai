@@ -25,6 +25,7 @@ import { usePageRefresh, usePageHeaderSlot } from "@/components/layout/app-shell
 import { archiveAgent, deleteAgent, deleteSquad } from "@/lib/api";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
 import { deleteOffered } from "@/lib/session-store";
+import { summarizeBulkArchive } from "@/lib/bulk-archive";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { cn } from "@/lib/utils";
@@ -125,7 +126,11 @@ export default function AgentsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // What the last bulk archive couldn't do; shown in the bulk bar until the selection changes.
+  const [bulkArchiveMessage, setBulkArchiveMessage] = useState<string | null>(null);
+
   const toggleSelect = useCallback((key: string) => {
+    setBulkArchiveMessage(null);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -134,11 +139,15 @@ export default function AgentsPage() {
     });
   }, []);
 
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  const clearSelection = useCallback(() => {
+    setBulkArchiveMessage(null);
+    setSelected(new Set());
+  }, []);
 
   const selectAll = useCallback(() => {
     // Selects every agent currently loaded (infinite scroll may not have
     // fetched the full matching set yet).
+    setBulkArchiveMessage(null);
     setSelected(new Set(agents.map((a) => agentKey(a))));
   }, [agents]);
 
@@ -196,8 +205,10 @@ export default function AgentsPage() {
   const handleBulkArchive = useCallback(async () => {
     setBulkArchiving(true);
     try {
-      await Promise.allSettled(archivable.map((a) => archiveAgent(a.name, a.namespace)));
-      setSelected(new Set());
+      const results = await Promise.allSettled(archivable.map((a) => archiveAgent(a.name, a.namespace)));
+      const outcome = summarizeBulkArchive(archivable, results);
+      setSelected(new Set(outcome.failedKeys));
+      setBulkArchiveMessage(outcome.message);
       refresh();
     } finally {
       setBulkArchiving(false);
@@ -226,6 +237,15 @@ export default function AgentsPage() {
         className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]"
       >
         <span className="text-xs text-[var(--color-text-secondary)]">{selected.size} selected</span>
+        {bulkArchiveMessage && (
+          <span
+            role="status"
+            className="max-w-[28rem] truncate text-xs text-[var(--color-status-error)]"
+            title={bulkArchiveMessage}
+          >
+            {bulkArchiveMessage}
+          </span>
+        )}
         {squadSelectedCount > 0 && (
           <span
             className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-[var(--color-brand-violet)]/15 text-[var(--color-brand-violet)] border border-[var(--color-brand-violet)]/30"
@@ -283,7 +303,7 @@ export default function AgentsPage() {
         )}
       </motion.div>
     );
-  }, [selected.size, squadSelectedCount, bulkDeleting, clearSelection, selectAll, allSelected, archivable, bulkArchiving, bulkDeleteOffered, handleBulkArchive]);
+  }, [selected.size, squadSelectedCount, bulkDeleting, clearSelection, selectAll, allSelected, archivable, bulkArchiving, bulkDeleteOffered, handleBulkArchive, bulkArchiveMessage]);
   usePageHeaderSlot(headerSlot);
 
   return (
