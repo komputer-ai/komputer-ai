@@ -19,6 +19,7 @@ import { AgentTable } from "@/components/agents/agent-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
+import { StatusFilter } from "@/components/shared/status-filter";
 import { usePaginatedAgents } from "@/hooks/use-paginated-agents";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { usePageRefresh, usePageHeaderSlot } from "@/components/layout/app-shell";
@@ -384,24 +385,7 @@ export default function AgentsPage() {
               ))}
             </div>
             <span aria-hidden className="h-4 w-px bg-[var(--color-border)]" />
-            <div className="flex gap-1">
-              {STATUS_FILTERS.map((f) => (
-                <Button
-                  key={f}
-                  size="sm"
-                  variant={statusFilter === f ? "primary" : "ghost"}
-                  onClick={() => setStatusFilter(f)}
-                  className={cn(
-                    "text-xs",
-                    statusFilter === f
-                      ? "bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)]"
-                      : "text-[var(--color-text-secondary)]"
-                  )}
-                >
-                  {f}
-                </Button>
-              ))}
-            </div>
+            <StatusFilter options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
           </div>
         </ListFilterBar>
 

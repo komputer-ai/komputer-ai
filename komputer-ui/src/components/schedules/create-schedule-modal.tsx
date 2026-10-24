@@ -149,7 +149,8 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
         if (!nextOpen) resetForm();
       }}
     >
-      <DialogContent>
+      {/* Capped to the viewport; the fields scroll between the fixed header and footer. */}
+      <DialogContent className="max-h-[85vh] overflow-hidden">
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <DialogHeader>
             <DialogTitle>Create Schedule</DialogTitle>
