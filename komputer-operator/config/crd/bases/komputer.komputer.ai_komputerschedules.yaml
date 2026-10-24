@@ -8299,6 +8299,17 @@ spec:
                 description: AgentName references an existing KomputerAgent to trigger
                   on schedule.
                 type: string
+              agentNaming:
+                default: Fixed
+                description: |-
+                  AgentNaming picks how each run's agent is named. Fixed (default) reuses one agent;
+                  Date and Random create a new agent from the Agent template every run. Per-run naming
+                  needs Agent, not AgentName. A run is skipped while the previous run's agent is busy.
+                enum:
+                - Fixed
+                - Date
+                - Random
+                type: string
               autoDelete:
                 description: AutoDelete deletes this schedule CR after the first successful
                   run.

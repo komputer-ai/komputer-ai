@@ -131,6 +131,7 @@ type ScheduleResponse struct {
 	KeepAgents     bool               `json:"keepAgents"`
 	Suspended      bool               `json:"suspended"`
 	Agent          *ScheduleAgentSpec `json:"agent,omitempty"`
+	AgentNaming    string             `json:"agentNaming,omitempty"`
 	Phase          string             `json:"phase"`
 	AgentName      string             `json:"agentName"`
 	NextRunTime    string             `json:"nextRunTime"`

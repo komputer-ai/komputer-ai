@@ -790,3 +790,18 @@ def test_schedule_agent_accepts_archive_lifecycle():
     lifecycle = manager_tools.schedule_agent.input_schema["properties"]["lifecycle"]
     assert "Archive" in lifecycle["enum"]
     assert "S3 session store" in lifecycle["description"]
+
+
+@pytest.mark.asyncio
+async def test_schedule_agent_forwards_agent_naming(mock_api):
+    """Date/Random naming gives every run its own new agent."""
+    mock_api.set("POST", "/api/v1/schedules", {"name": "nightly"})
+    props = manager_tools.schedule_agent.input_schema["properties"]
+    assert props["agent_naming"]["enum"] == ["Fixed", "Date", "Random"]
+    await manager_tools.schedule_agent.handler({
+        "name": "nightly",
+        "schedule": "0 9 * * *",
+        "instructions": "report",
+        "agent_naming": "Date",
+    })
+    assert mock_api.last_json["agentNaming"] == "Date"

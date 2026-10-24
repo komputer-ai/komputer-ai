@@ -23,6 +23,8 @@ var _ MappedNullable = &CreateScheduleRequest{}
 type CreateScheduleRequest struct {
 	Agent *V1alpha1ScheduleAgentSpec `json:"agent,omitempty"`
 	AgentName *string `json:"agentName,omitempty"`
+	// AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName).
+	AgentNaming *V1alpha1ScheduleAgentNaming `json:"agentNaming,omitempty"`
 	AutoDelete *bool `json:"autoDelete,omitempty"`
 	Instructions string `json:"instructions"`
 	KeepAgents *bool `json:"keepAgents,omitempty"`
@@ -116,6 +118,38 @@ func (o *CreateScheduleRequest) HasAgentName() bool {
 // SetAgentName gets a reference to the given string and assigns it to the AgentName field.
 func (o *CreateScheduleRequest) SetAgentName(v string) {
 	o.AgentName = &v
+}
+
+// GetAgentNaming returns the AgentNaming field value if set, zero value otherwise.
+func (o *CreateScheduleRequest) GetAgentNaming() V1alpha1ScheduleAgentNaming {
+	if o == nil || IsNil(o.AgentNaming) {
+		var ret V1alpha1ScheduleAgentNaming
+		return ret
+	}
+	return *o.AgentNaming
+}
+
+// GetAgentNamingOk returns a tuple with the AgentNaming field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateScheduleRequest) GetAgentNamingOk() (*V1alpha1ScheduleAgentNaming, bool) {
+	if o == nil || IsNil(o.AgentNaming) {
+		return nil, false
+	}
+	return o.AgentNaming, true
+}
+
+// HasAgentNaming returns a boolean if a field has been set.
+func (o *CreateScheduleRequest) HasAgentNaming() bool {
+	if o != nil && !IsNil(o.AgentNaming) {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentNaming gets a reference to the given V1alpha1ScheduleAgentNaming and assigns it to the AgentNaming field.
+func (o *CreateScheduleRequest) SetAgentNaming(v V1alpha1ScheduleAgentNaming) {
+	o.AgentNaming = &v
 }
 
 // GetAutoDelete returns the AutoDelete field value if set, zero value otherwise.
@@ -333,6 +367,9 @@ func (o CreateScheduleRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.AgentName) {
 		toSerialize["agentName"] = o.AgentName
+	}
+	if !IsNil(o.AgentNaming) {
+		toSerialize["agentNaming"] = o.AgentNaming
 	}
 	if !IsNil(o.AutoDelete) {
 		toSerialize["autoDelete"] = o.AutoDelete

@@ -6,6 +6,8 @@ import { ScheduleCards } from "@/components/schedules/schedule-cards";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { ListFilterBar } from "@/components/shared/list-filter-bar";
+import { StatusFilter } from "@/components/shared/status-filter";
+import { SCHEDULE_STATUS_FILTERS, matchesScheduleStatus, type ScheduleStatusFilter } from "@/lib/schedule-filters";
 import { useSchedules } from "@/hooks/use-schedules";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { usePageRefresh } from "@/components/layout/app-shell";
@@ -17,6 +19,7 @@ export default function SchedulesPage() {
   usePageRefresh(refresh);
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ScheduleStatusFilter>("All");
 
   const namespaces = useMemo(
     () => [...new Set(schedules.map((s) => s.namespace))].sort(),
@@ -24,7 +27,7 @@ export default function SchedulesPage() {
   );
 
   const filtered = useMemo(() => {
-    let result = schedules;
+    let result = schedules.filter((s) => matchesScheduleStatus(s, statusFilter));
     if (namespace) {
       result = result.filter((s) => s.namespace === namespace);
     }
@@ -33,7 +36,7 @@ export default function SchedulesPage() {
       result = result.filter((s) => s.name.toLowerCase().includes(q));
     }
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [schedules, search, namespace]);
+  }, [schedules, search, namespace, statusFilter]);
 
   async function handleDelete(name: string, namespace: string) {
     try {
@@ -59,7 +62,9 @@ export default function SchedulesPage() {
           namespace={namespace}
           onNamespaceChange={setNamespace}
           namespaces={namespaces}
-        />
+        >
+          <StatusFilter options={SCHEDULE_STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+        </ListFilterBar>
 
         {showLoading ? (
           <SkeletonTable />

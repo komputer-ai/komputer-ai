@@ -1192,10 +1192,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Model</Label>
-        <ModelSelector value={model} onChange={(v) => setModel(v)} />
-      </div>
+      <ModelSelector value={model} onChange={(v) => setModel(v)} />
 
       <div className="flex flex-col gap-1.5">
         <Label>Reasoning Effort</Label>

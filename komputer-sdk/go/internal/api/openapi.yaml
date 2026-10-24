@@ -6008,6 +6008,7 @@ components:
       type: object
     CreateScheduleRequest:
       example:
+        agentNaming: "{}"
         instructions: instructions
         schedule: schedule
         agent:
@@ -6056,6 +6057,12 @@ components:
           $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
           type: string
+        agentNaming:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.ScheduleAgentNaming"
+          description: "AgentNaming: Fixed (default) reuses one agent; Date or Random\
+            \ creates a new agent per run (needs agent, not agentName)."
+          type: object
         autoDelete:
           type: boolean
         instructions:
@@ -7116,6 +7123,7 @@ components:
       type: object
     PatchScheduleRequest:
       example:
+        agentNaming: "{}"
         instructions: instructions
         schedule: schedule
         agent:
@@ -7163,6 +7171,11 @@ components:
           $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
           type: string
+        agentNaming:
+          allOf:
+          - $ref: "#/components/schemas/v1alpha1.ScheduleAgentNaming"
+          description: "AgentNaming: Fixed, Date or Random (see CreateScheduleRequest)."
+          type: object
         autoDelete:
           type: boolean
         instructions:
@@ -7292,6 +7305,7 @@ components:
       example:
         schedules:
         - phase: phase
+          agentNaming: agentNaming
           instructions: instructions
           agent:
             connectors:
@@ -7348,6 +7362,7 @@ components:
           keepAgents: true
           runCount: 5
         - phase: phase
+          agentNaming: agentNaming
           instructions: instructions
           agent:
             connectors:
@@ -7412,6 +7427,7 @@ components:
     ScheduleResponse:
       example:
         phase: phase
+        agentNaming: agentNaming
         instructions: instructions
         agent:
           connectors:
@@ -7471,6 +7487,8 @@ components:
         agent:
           $ref: "#/components/schemas/v1alpha1.ScheduleAgentSpec"
         agentName:
+          type: string
+        agentNaming:
           type: string
         autoDelete:
           type: boolean
@@ -14516,6 +14534,16 @@ components:
           description: defaults to squad's namespace
           type: string
       type: object
+    v1alpha1.ScheduleAgentNaming:
+      enum:
+      - Fixed
+      - Date
+      - Random
+      type: string
+      x-enum-varnames:
+      - ScheduleAgentNamingFixed
+      - ScheduleAgentNamingDate
+      - ScheduleAgentNamingRandom
     v1alpha1.ScheduleAgentSpec:
       example:
         connectors:

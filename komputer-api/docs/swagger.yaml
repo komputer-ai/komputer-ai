@@ -491,6 +491,15 @@ definitions:
         $ref: '#/definitions/v1alpha1.ScheduleAgentSpec'
       agentName:
         type: string
+      agentNaming:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ScheduleAgentNaming'
+        description: 'AgentNaming: Fixed (default) reuses one agent; Date or Random
+          creates a new agent per run (needs agent, not agentName).'
+        enum:
+        - Fixed
+        - Date
+        - Random
       autoDelete:
         type: boolean
       instructions:
@@ -721,6 +730,14 @@ definitions:
         $ref: '#/definitions/v1alpha1.ScheduleAgentSpec'
       agentName:
         type: string
+      agentNaming:
+        allOf:
+        - $ref: '#/definitions/v1alpha1.ScheduleAgentNaming'
+        description: 'AgentNaming: Fixed, Date or Random (see CreateScheduleRequest).'
+        enum:
+        - Fixed
+        - Date
+        - Random
       autoDelete:
         type: boolean
       instructions:
@@ -769,6 +786,8 @@ definitions:
       agent:
         $ref: '#/definitions/v1alpha1.ScheduleAgentSpec'
       agentName:
+        type: string
+      agentNaming:
         type: string
       autoDelete:
         type: boolean
@@ -6549,6 +6568,16 @@ definitions:
         description: defaults to squad's namespace
         type: string
     type: object
+  v1alpha1.ScheduleAgentNaming:
+    enum:
+    - Fixed
+    - Date
+    - Random
+    type: string
+    x-enum-varnames:
+    - ScheduleAgentNamingFixed
+    - ScheduleAgentNamingDate
+    - ScheduleAgentNamingRandom
   v1alpha1.ScheduleAgentSpec:
     properties:
       allowedTools:

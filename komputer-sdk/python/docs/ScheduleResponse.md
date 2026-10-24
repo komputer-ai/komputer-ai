@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **agent** | [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **agent_name** | **str** |  | [optional] 
+**agent_naming** | **str** |  | [optional] 
 **auto_delete** | **bool** |  | [optional] 
 **created_at** | **str** |  | [optional] 
 **failed_runs** | **int** |  | [optional] 

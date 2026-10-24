@@ -44,6 +44,15 @@ import (
 type KomputerScheduleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// Now is the clock; nil means time.Now. Tests pin it.
+	Now func() time.Time
+}
+
+func (r *KomputerScheduleReconciler) now() time.Time {
+	if r.Now != nil {
+		return r.Now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerschedules,verbs=get;list;watch;create;update;patch;delete
@@ -94,16 +103,21 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	// 5. Compute and store nextRunTime if not set; set phase to Active; set agentName
+	// 5. Compute and store nextRunTime if not set; set phase to Active; set agentName.
+	// With per-run naming the agent is named when the run fires, so status keeps
+	// pointing at the last run's agent until then.
+	perRun := schedule.Spec.AgentNaming.PerRun() && schedule.Spec.Agent != nil
 	agentName := schedule.Spec.AgentName
 	if agentName == "" {
 		agentName = schedule.Name + "-agent"
 	}
-	schedule.Status.AgentName = agentName
+	if !perRun {
+		schedule.Status.AgentName = agentName
+	}
 
 	if schedule.Status.NextRunTime == nil {
 		// Determine the "after" time: use lastRunTime if available, otherwise now
-		after := time.Now().UTC()
+		after := r.now()
 		if schedule.Status.LastRunTime != nil {
 			after = schedule.Status.LastRunTime.Time
 		}
@@ -123,7 +137,7 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	schedule.Status.Message = ""
 
 	// 6. If now < nextRunTime, requeue after the delay
-	now := time.Now().UTC()
+	now := r.now()
 	if now.Before(schedule.Status.NextRunTime.Time) {
 		delay := schedule.Status.NextRunTime.Time.Sub(now)
 		if err := r.patchScheduleStatus(ctx, base, schedule); err != nil {
@@ -134,6 +148,12 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	// 7. FIRE - trigger the agent
+	if perRun {
+		if res, skipped, err := r.createRunAgent(ctx, base, schedule, now); err != nil || skipped {
+			return res, err
+		}
+		return r.markRunStarted(ctx, base, schedule, now)
+	}
 	agent := &komputerv1alpha1.KomputerAgent{}
 	agentKey := client.ObjectKey{Name: agentName, Namespace: schedule.Namespace}
 	agentErr := r.Get(ctx, agentKey, agent)
@@ -312,6 +332,11 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
+	return r.markRunStarted(ctx, base, schedule, now)
+}
+
+// markRunStarted records a fired run and schedules the next one.
+func (r *KomputerScheduleReconciler) markRunStarted(ctx context.Context, base, schedule *komputerv1alpha1.KomputerSchedule, now time.Time) (ctrl.Result, error) {
 	// 8. Update status: lastRunTime, runCount++, lastRunStatus="InProgress"
 	nowMeta := metav1.NewTime(now)
 	schedule.Status.LastRunTime = &nowMeta
@@ -468,7 +493,7 @@ func (r *KomputerScheduleReconciler) handlePostCompletion(ctx context.Context, b
 	}
 
 	// Compute next run time
-	now := time.Now().UTC()
+	now := r.now()
 	nextTime, err := computeNextRunTime(schedule.Spec.Schedule, schedule.Spec.Timezone, now)
 	if err != nil {
 		schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError

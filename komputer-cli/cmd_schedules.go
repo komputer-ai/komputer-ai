@@ -191,6 +191,9 @@ func registerScheduleCommands(root *cobra.Command) {
 			row("Timezone:", sched.Timezone)
 			row("Phase:", phaseBadge)
 			row("Agent:", sched.AgentName)
+			if sched.AgentNaming != "" && sched.AgentNaming != "Fixed" {
+				row("Agent Naming:", sched.AgentNaming+" (new agent each run)")
+			}
 			if sched.Instructions != "" {
 				row("Instructions:", sched.Instructions)
 			}
@@ -274,6 +277,9 @@ func registerScheduleCommands(root *cobra.Command) {
 			}
 			if keepAgents {
 				body["keepAgents"] = true
+			}
+			if naming, _ := cmd.Flags().GetString("agent-naming"); naming != "" {
+				body["agentNaming"] = naming
 			}
 			if agent != "" {
 				// Reference existing agent
@@ -377,6 +383,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleCreateCmd.Flags().Bool("auto-delete", false, "Delete schedule after first successful run")
 	scheduleCreateCmd.Flags().Bool("keep-agents", false, "Keep agents alive when schedule auto-deletes")
 	scheduleCreateCmd.Flags().String("agent", "", "Reference existing agent instead of creating one")
+	scheduleCreateCmd.Flags().String("agent-naming", "", "Fixed (default): reuse one agent; Date or Random: create a new agent each run, named <schedule>-YYYYMMDD-HHMM or <schedule>-<random>")
 	scheduleCreateCmd.Flags().String("model", "", "Claude model")
 	scheduleCreateCmd.Flags().String("effort", "", "Reasoning effort: low, medium, high, xhigh, or max (empty for model default)")
 	scheduleCreateCmd.Flags().String("lifecycle", "Sleep", "Agent lifecycle (default: Sleep)")
@@ -531,7 +538,7 @@ func registerScheduleCommands(root *cobra.Command) {
 			body := buildScheduleUpdateBody(cmd, existing.Agent)
 
 			if len(body) == 0 {
-				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --connector, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
+				msg := "no fields to update — pass at least one of --cron, --instructions, --timezone, --auto-delete, --keep-agents, --suspended, --agent, --agent-naming, --model, --lifecycle, --role, --template, --secret, --skill, --memory, --connector, --allow-tool, --disallow-tool, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image"
 				if jsonMode {
 					dieJSON(msg, 400)
 				}
@@ -570,6 +577,7 @@ func registerScheduleCommands(root *cobra.Command) {
 	scheduleUpdateCmd.Flags().Bool("keep-agents", false, "Toggle keep-agents on auto-delete")
 	scheduleUpdateCmd.Flags().Bool("suspended", false, "Toggle suspended state (paused without deletion)")
 	scheduleUpdateCmd.Flags().String("agent", "", "Target an existing agent by name (clears inline template)")
+	scheduleUpdateCmd.Flags().String("agent-naming", "", "Fixed, Date or Random (new agent each run)")
 	scheduleUpdateCmd.Flags().String("model", "", "Agent template: Claude model")
 	scheduleUpdateCmd.Flags().String("effort", "", "Agent template: reasoning effort (low, medium, high, xhigh, max; empty for model default)")
 	scheduleUpdateCmd.Flags().String("lifecycle", "", "Agent template: lifecycle (Sleep, AutoDelete, or empty)")
@@ -612,7 +620,7 @@ var (
 	}
 	scheduleOwnFlags = []string{
 		"cron", "instructions", "timezone", "auto-delete", "keep-agents",
-		"suspended", "agent",
+		"suspended", "agent", "agent-naming",
 	}
 )
 
@@ -691,6 +699,10 @@ func buildScheduleUpdateBody(cmd *cobra.Command, existingAgent map[string]interf
 	if cmd.Flags().Changed("agent") {
 		agent, _ := cmd.Flags().GetString("agent")
 		body["agentName"] = agent
+	}
+	if cmd.Flags().Changed("agent-naming") {
+		naming, _ := cmd.Flags().GetString("agent-naming")
+		body["agentNaming"] = naming
 	}
 
 	agentSpec := existingAgent

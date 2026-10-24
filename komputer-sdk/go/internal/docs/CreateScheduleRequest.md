@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Agent** | Pointer to [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **AgentName** | Pointer to **string** |  | [optional] 
+**AgentNaming** | Pointer to [**V1alpha1ScheduleAgentNaming**](V1alpha1ScheduleAgentNaming.md) | AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName). | [optional] 
 **AutoDelete** | Pointer to **bool** |  | [optional] 
 **Instructions** | **string** |  | 
 **KeepAgents** | Pointer to **bool** |  | [optional] 
@@ -82,6 +83,31 @@ SetAgentName sets AgentName field to given value.
 `func (o *CreateScheduleRequest) HasAgentName() bool`
 
 HasAgentName returns a boolean if a field has been set.
+
+### GetAgentNaming
+
+`func (o *CreateScheduleRequest) GetAgentNaming() V1alpha1ScheduleAgentNaming`
+
+GetAgentNaming returns the AgentNaming field if non-nil, zero value otherwise.
+
+### GetAgentNamingOk
+
+`func (o *CreateScheduleRequest) GetAgentNamingOk() (*V1alpha1ScheduleAgentNaming, bool)`
+
+GetAgentNamingOk returns a tuple with the AgentNaming field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAgentNaming
+
+`func (o *CreateScheduleRequest) SetAgentNaming(v V1alpha1ScheduleAgentNaming)`
+
+SetAgentNaming sets AgentNaming field to given value.
+
+### HasAgentNaming
+
+`func (o *CreateScheduleRequest) HasAgentNaming() bool`
+
+HasAgentNaming returns a boolean if a field has been set.
 
 ### GetAutoDelete
 

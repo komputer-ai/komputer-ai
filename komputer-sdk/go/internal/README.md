@@ -322,6 +322,7 @@ Class | Method | HTTP request | Description
  - [V1alpha1KomputerAgentSpec](docs/V1alpha1KomputerAgentSpec.md)
  - [V1alpha1KomputerSquadMember](docs/V1alpha1KomputerSquadMember.md)
  - [V1alpha1KomputerSquadMemberRef](docs/V1alpha1KomputerSquadMemberRef.md)
+ - [V1alpha1ScheduleAgentNaming](docs/V1alpha1ScheduleAgentNaming.md)
  - [V1alpha1ScheduleAgentSpec](docs/V1alpha1ScheduleAgentSpec.md)
  - [V1alpha1StorageSpec](docs/V1alpha1StorageSpec.md)
 

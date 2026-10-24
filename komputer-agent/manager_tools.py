@@ -142,7 +142,8 @@ async def create_agent(args):
             "auto_delete": {"type": "boolean", "description": "If true, the schedule deletes itself after the first successful run. Use for one-time future tasks."},
             "keep_agents": {"type": "boolean", "description": "When auto_delete is true, keep managed agents alive after the schedule deletes itself."},
             "agent_name": {"type": "string", "description": "Reference an existing agent instead of creating a new one. Use your own agent name to schedule a task for yourself."},
-            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules). 'Archive' (no pod or PVC between runs) requires the S3 session store."},
+            "agent_naming": {"type": "string", "enum": ["Fixed", "Date", "Random"], "description": "Fixed (default) reuses one agent every run. Date or Random creates a new agent each run (<name>-YYYYMMDD-HHMM or <name>-<random>); not with agent_name."},
+            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules). 'Archive' (no pod or PVC between runs) requires the S3 session store, or agent_naming Date or Random."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. Default: 'worker'."},
             "model": {"type": "string", "description": "Claude model override."},
             "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override (optional). Omit to use the model's own default effort."},
@@ -170,6 +171,8 @@ async def schedule_agent(args):
         payload["autoDelete"] = args["auto_delete"]
     if args.get("keep_agents") is not None:
         payload["keepAgents"] = args["keep_agents"]
+    if args.get("agent_naming"):
+        payload["agentNaming"] = args["agent_naming"]
 
     if args.get("agent_name"):
         # Reference an existing agent.

@@ -29,7 +29,7 @@ func newFakeK8sWithStatusSubresource(t *testing.T, objs ...client.Object) *K8sCl
 	c := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(objs...).
-		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).
+		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}, &komputerv1alpha1.KomputerSchedule{}).
 		Build()
 	return &K8sClient{client: c, defaultNamespace: "default"}
 }

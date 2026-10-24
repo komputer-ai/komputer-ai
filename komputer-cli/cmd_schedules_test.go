@@ -145,6 +145,18 @@ func TestScheduleUpdateBodyOmitsAgentWhenUnchanged(t *testing.T) {
 	}
 }
 
+func TestScheduleUpdateBodyAgentNaming(t *testing.T) {
+	cmd := newScheduleUpdateCmd(t)
+	setFlags(t, cmd, map[string]string{"agent-naming": "Date"})
+
+	body := buildScheduleUpdateBody(cmd, existingScheduleAgent())
+
+	want := map[string]interface{}{"agentNaming": "Date"}
+	if !reflect.DeepEqual(asJSON(t, body), want) {
+		t.Errorf("body = %v, want %v", asJSON(t, body), want)
+	}
+}
+
 // TestScheduleUpdateBodyMergesPodSpec covers the sibling-field destruction the
 // review caught: --cpu alone must not drop the image or memory overrides.
 func TestScheduleUpdateBodyMergesPodSpec(t *testing.T) {

@@ -191,5 +191,6 @@ export * from './V1alpha1AgentLifecycle';
 export * from './V1alpha1KomputerAgentSpec';
 export * from './V1alpha1KomputerSquadMember';
 export * from './V1alpha1KomputerSquadMemberRef';
+export * from './V1alpha1ScheduleAgentNaming';
 export * from './V1alpha1ScheduleAgentSpec';
 export * from './V1alpha1StorageSpec';

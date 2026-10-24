@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **agent** | [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **agent_name** | **str** |  | [optional] 
+**agent_naming** | [**V1alpha1ScheduleAgentNaming**](V1alpha1ScheduleAgentNaming.md) | AgentNaming: Fixed, Date or Random (see CreateScheduleRequest). | [optional] 
 **auto_delete** | **bool** |  | [optional] 
 **instructions** | **str** |  | [optional] 
 **keep_agents** | **bool** |  | [optional] 

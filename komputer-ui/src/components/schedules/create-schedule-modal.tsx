@@ -31,7 +31,9 @@ import {
   type AgentFormValues,
 } from "@/components/agents/agent-fields-form";
 import { createSchedule, listAgents } from "@/lib/api";
-import type { CreateScheduleRequest } from "@/lib/types";
+import type { CreateScheduleRequest, ScheduleAgentNaming } from "@/lib/types";
+import { archiveAllowedForSchedule } from "@/lib/schedule-naming";
+import { AgentNamingField } from "./agent-naming-field";
 import { namespacedHref } from "@/lib/namespaced-href";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
 
@@ -54,6 +56,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
   const [autoDelete, setAutoDelete] = useState(false);
   const [keepAgents, setKeepAgents] = useState(false);
   const [agentRef, setAgentRef] = useState("");
+  const [agentNaming, setAgentNaming] = useState<ScheduleAgentNaming>("Fixed");
   // Inline agent template, used when no existing agent is referenced. Role and
   // lifecycle mirror the defaults the API applies server-side for schedules.
   const [agentValues, setAgentValues] = useState<AgentFormValues>(
@@ -81,6 +84,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
     setAutoDelete(false);
     setKeepAgents(false);
     setAgentRef("");
+    setAgentNaming("Fixed");
     setAgentValues(makeDefaultAgentFormValues({ role: "worker", lifecycle: "Sleep" }));
     setAdvancedOpen(false);
     setError(null);
@@ -121,6 +125,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
         req.agentName = agentRef.trim();
       } else {
         req.agent = buildScheduleAgentSpec(agentValues);
+        if (agentNaming !== "Fixed") req.agentNaming = agentNaming;
       }
 
       await createSchedule(req);
@@ -144,7 +149,8 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
         if (!nextOpen) resetForm();
       }}
     >
-      <DialogContent>
+      {/* Capped to the viewport; the fields scroll between the fixed header and footer. */}
+      <DialogContent className="max-h-[85vh] overflow-hidden">
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <DialogHeader>
             <DialogTitle>Create Schedule</DialogTitle>
@@ -296,13 +302,23 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">
                             Agent Template
                           </span>
+                          <AgentNamingField
+                            value={agentNaming}
+                            scheduleName={name}
+                            onChange={(v) => {
+                              setAgentNaming(v);
+                              // Archive is only offered when allowed; drop it if it no longer is.
+                              if (!archiveAllowedForSchedule(s3Enabled, v) && agentValues.lifecycle === "Archive")
+                                setAgentValues({ ...agentValues, lifecycle: "Sleep" });
+                            }}
+                          />
                           <AgentFieldsForm
                             values={agentValues}
                             onChange={setAgentValues}
                             active={open}
                             hideNameAndNamespace
                             hideInstructions
-                            hideArchive={!s3Enabled}
+                            hideArchive={!archiveAllowedForSchedule(s3Enabled, agentNaming)}
                             idPrefix="schedule"
                           />
                         </div>

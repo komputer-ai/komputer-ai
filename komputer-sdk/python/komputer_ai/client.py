@@ -199,9 +199,9 @@ class KomputerClient:
     def list_schedules(self):
         return self.schedules.list_schedules()
 
-    def create_schedule(self, name: str, instructions: str, schedule: str, *, agent: Optional[V1alpha1ScheduleAgentSpec] = None, agent_name: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, namespace: Optional[str] = None, timezone: Optional[str] = None):
+    def create_schedule(self, name: str, instructions: str, schedule: str, *, agent: Optional[V1alpha1ScheduleAgentSpec] = None, agent_name: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, namespace: Optional[str] = None, timezone: Optional[str] = None, agent_naming: Optional[str] = None):
         try:
-            return self.schedules.create_schedule(CreateScheduleRequest(agent=agent, agent_name=agent_name, auto_delete=auto_delete, instructions=instructions, keep_agents=keep_agents, name=name, namespace=namespace, schedule=schedule, timezone=timezone))
+            return self.schedules.create_schedule(CreateScheduleRequest(agent=agent, agent_name=agent_name, agent_naming=agent_naming, auto_delete=auto_delete, instructions=instructions, keep_agents=keep_agents, name=name, namespace=namespace, schedule=schedule, timezone=timezone))
         except ApiException as e:
             if e.status == 409:
                 return self.patch_schedule(name, schedule=schedule)
@@ -210,8 +210,8 @@ class KomputerClient:
     def get_schedule(self, name: str):
         return self.schedules.get_schedule(name)
 
-    def patch_schedule(self, name: str, *, schedule: Optional[str] = None, instructions: Optional[str] = None, timezone: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, suspended: Optional[bool] = None, agent_name: Optional[str] = None, agent: Optional[V1alpha1ScheduleAgentSpec] = None):
-        return self.schedules.patch_schedule(name, PatchScheduleRequest(schedule=schedule, instructions=instructions, timezone=timezone, auto_delete=auto_delete, keep_agents=keep_agents, suspended=suspended, agent_name=agent_name, agent=agent))
+    def patch_schedule(self, name: str, *, schedule: Optional[str] = None, instructions: Optional[str] = None, timezone: Optional[str] = None, auto_delete: Optional[bool] = None, keep_agents: Optional[bool] = None, suspended: Optional[bool] = None, agent_name: Optional[str] = None, agent: Optional[V1alpha1ScheduleAgentSpec] = None, agent_naming: Optional[str] = None):
+        return self.schedules.patch_schedule(name, PatchScheduleRequest(schedule=schedule, instructions=instructions, timezone=timezone, auto_delete=auto_delete, keep_agents=keep_agents, suspended=suspended, agent_name=agent_name, agent=agent, agent_naming=agent_naming))
 
     def delete_schedule(self, name: str):
         return self.schedules.delete_schedule(name)

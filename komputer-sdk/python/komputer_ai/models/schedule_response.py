@@ -30,6 +30,7 @@ class ScheduleResponse(BaseModel):
     """ # noqa: E501
     agent: Optional[V1alpha1ScheduleAgentSpec] = None
     agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
+    agent_naming: Optional[StrictStr] = Field(default=None, alias="agentNaming")
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
     failed_runs: Optional[StrictInt] = Field(default=None, alias="failedRuns")
@@ -50,7 +51,7 @@ class ScheduleResponse(BaseModel):
     timezone: Optional[StrictStr] = None
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["agent", "agentName", "autoDelete", "createdAt", "failedRuns", "instructions", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "suspended", "timezone", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["agent", "agentName", "agentNaming", "autoDelete", "createdAt", "failedRuns", "instructions", "keepAgents", "lastRunCostUSD", "lastRunStatus", "lastRunTime", "lastRunTokens", "name", "namespace", "nextRunTime", "phase", "runCount", "schedule", "successfulRuns", "suspended", "timezone", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -108,6 +109,7 @@ class ScheduleResponse(BaseModel):
         _obj = cls.model_validate({
             "agent": V1alpha1ScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
             "agentName": obj.get("agentName"),
+            "agentNaming": obj.get("agentNaming"),
             "autoDelete": obj.get("autoDelete"),
             "createdAt": obj.get("createdAt"),
             "failedRuns": obj.get("failedRuns"),

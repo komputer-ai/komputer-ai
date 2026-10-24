@@ -42,6 +42,24 @@ type ScheduleAgentSpec struct {
 	AgentConfigSpec `json:",inline"`
 }
 
+// ScheduleAgentNaming picks how a schedule names the agent each run uses.
+// +kubebuilder:validation:Enum=Fixed;Date;Random
+type ScheduleAgentNaming string
+
+const (
+	// ScheduleAgentNamingFixed reuses one agent (<schedule>-agent, or agentName) every run.
+	ScheduleAgentNamingFixed ScheduleAgentNaming = "Fixed"
+	// ScheduleAgentNamingDate creates a new agent per run named <schedule>-YYYYMMDD-HHMM (schedule timezone).
+	ScheduleAgentNamingDate ScheduleAgentNaming = "Date"
+	// ScheduleAgentNamingRandom creates a new agent per run named <schedule>-<5 random chars>.
+	ScheduleAgentNamingRandom ScheduleAgentNaming = "Random"
+)
+
+// PerRun reports whether each run gets its own new agent.
+func (n ScheduleAgentNaming) PerRun() bool {
+	return n == ScheduleAgentNamingDate || n == ScheduleAgentNamingRandom
+}
+
 type KomputerScheduleSpec struct {
 	// Schedule is a cron expression (5-field: min hour dom month dow).
 	Schedule string `json:"schedule"`
@@ -65,6 +83,12 @@ type KomputerScheduleSpec struct {
 	// Agent defines the template for creating a new agent. Used when AgentName is empty.
 	// +optional
 	Agent *ScheduleAgentSpec `json:"agent,omitempty"`
+	// AgentNaming picks how each run's agent is named. Fixed (default) reuses one agent;
+	// Date and Random create a new agent from the Agent template every run. Per-run naming
+	// needs Agent, not AgentName. A run is skipped while the previous run's agent is busy.
+	// +optional
+	// +kubebuilder:default=Fixed
+	AgentNaming ScheduleAgentNaming `json:"agentNaming,omitempty"`
 }
 
 type KomputerScheduleStatus struct {
