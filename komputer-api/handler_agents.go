@@ -1314,16 +1314,14 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 		if len(events) == 0 && shouldBackfillEvents(before, after, around) {
 			ns := resolveNamespace(c, k8s)
 			agent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
-			if getErr == nil && agent.Status.PodName != "" && agent.Status.SessionID != "" {
-				// Fetch ALL events (no limit) so we backfill the full history.
-				var totalCost float64
-				if agent.Status.TotalCostUSD != "" {
-					fmt.Sscanf(agent.Status.TotalCostUSD, "%f", &totalCost)
-				}
-				allSessionEvents := fetchSessionEvents(c.Request.Context(), k8s, ns, agent.Status.PodName, agent.Status.SessionID, name, 0, agent.Spec.Model, totalCost)
+			if getErr == nil {
+				// Fetch ALL events (no limit) so we backfill the full history: from
+				// the pod, or — when it has none — from the S3 session store.
+				// Backfilled synchronously so pagination works on the next request.
+				allSessionEvents := sessionBackfillEvents(c.Request.Context(), k8s, ns, agent, func(evs []AgentEvent) {
+					backfillRedisHistory(worker.Rdb, name, evs)
+				})
 				if len(allSessionEvents) > 0 {
-					// Backfill synchronously so pagination works on the next request.
-					backfillRedisHistory(worker.Rdb, name, allSessionEvents)
 					// Serve only the requested limit.
 					if int64(len(allSessionEvents)) > limit {
 						events = allSessionEvents[int64(len(allSessionEvents))-limit:]
