@@ -307,6 +307,12 @@ func convertSessionJSONL(raw []byte, agentName string, limit int64, model string
 			firstTurn = false
 			continue
 		}
+		// Only real conversation entries count. Newer Claude Code versions also
+		// write e.g. "api-request-blob" lines carrying a copy of the messages sent
+		// to the model, with no timestamp — reading those duplicated every turn.
+		if entryType != "" && entryType != "user" && entryType != "assistant" {
+			continue
+		}
 
 		msg, _ := entry["message"].(map[string]interface{})
 		if msg == nil {
