@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getPlatformConfig } from "@/lib/api";
+import { retryUntilLoaded } from "@/lib/retry";
 import type { ConfigResponse } from "@/lib/types";
 
 // The platform config barely changes, so every component shares one fetch.
@@ -11,15 +12,12 @@ let inflight: Promise<ConfigResponse> | null = null;
 function loadConfig(): Promise<ConfigResponse> {
   if (cached) return Promise.resolve(cached);
   if (!inflight) {
-    inflight = getPlatformConfig()
-      .then((cfg) => {
-        cached = cfg;
-        return cfg;
-      })
-      .catch(() => {
-        inflight = null; // retry on the next mount
-        return { s3: { enabled: false } } as ConfigResponse;
-      });
+    // Keep retrying: one failed request (e.g. the API restarting) must not
+    // leave an open page treating S3 as off until it's reloaded.
+    inflight = retryUntilLoaded(getPlatformConfig).then((cfg) => {
+      cached = cfg;
+      return cfg;
+    });
   }
   return inflight;
 }
