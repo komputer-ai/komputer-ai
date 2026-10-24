@@ -74,7 +74,7 @@ func (r *KomputerAgentReconciler) copyOutSession(ctx context.Context, agent *kom
 	if statusErr := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		cond := metav1.Condition{Type: komputerv1alpha1.ConditionSessionSaved, Status: metav1.ConditionTrue, Reason: "CopiedOut", Message: "Session saved to S3 by the operator"}
 		if err != nil {
-			cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, "SaveFailed", err.Error()
+			cond.Status, cond.Reason, cond.Message = metav1.ConditionFalse, "SaveFailed", copyOutFailureMessage(agent, err)
 		} else {
 			s.SessionCopiedOutAt = &now
 		}
@@ -114,4 +114,13 @@ func (r *KomputerAgentReconciler) maybeCopyOut(ctx context.Context, agent *kompu
 	if err := r.copyOutSession(ctx, agent, config.Spec.S3, pod.Name, c.Name); err != nil {
 		logf.FromContext(ctx).Info("couldn't copy the session out to S3", "agent", agent.Name, "error", err.Error())
 	}
+}
+
+// copyOutFailureMessage says what a failed save is holding back: for an Archive
+// agent, the archive (which would delete its workspace).
+func copyOutFailureMessage(agent *komputerv1alpha1.KomputerAgent, err error) string {
+	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleArchive {
+		return "Archive stopped: couldn't save the session to S3: " + err.Error()
+	}
+	return "Couldn't save the session to S3: " + err.Error()
 }

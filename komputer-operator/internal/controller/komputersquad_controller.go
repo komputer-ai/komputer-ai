@@ -290,11 +290,21 @@ func (r *KomputerSquadReconciler) markMembersAsSquad(ctx context.Context, squad 
 			return nil, fmt.Errorf("get agent %s: %w", member.Ref.Name, err)
 		}
 		if agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
-			// An archived agent never runs again; adopting it would build it a
-			// fresh PVC and container. Drop it, the same way as a missing agent.
-			log.Info("Member agent is archived; removing from squad spec", "agent", member.Ref.Name)
-			pruned = true
-			continue
+			if !s3SpecFromCluster(ctx, r.Client).IsEnabled() {
+				// An archived agent never runs again; adopting it would build it a
+				// fresh PVC and container. Drop it, the same way as a missing agent.
+				log.Info("Member agent is archived; removing from squad spec", "agent", member.Ref.Name)
+				pruned = true
+				continue
+			}
+			// With the S3 session store an archived agent is a sleeping agent with
+			// no workspace: adopt it as Sleeping, and it restores its session from
+			// S3 when its container starts.
+			original := agent.DeepCopy()
+			agent.Status.Phase = komputerv1alpha1.AgentPhaseSleeping
+			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+				return nil, fmt.Errorf("adopt archived agent %s as sleeping: %w", agent.Name, err)
+			}
 		}
 
 		desiredPort := int32(8000 + memberIdx)
@@ -348,6 +358,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 ) []*komputerv1alpha1.KomputerAgent {
 	log := logf.FromContext(ctx)
 	survivors := make([]*komputerv1alpha1.KomputerAgent, 0, len(agents))
+	s3On := s3SpecFromCluster(ctx, r.Client).IsEnabled()
 
 	for _, agent := range agents {
 		sleepTTL, deleteTTL, taskTimeout := resolveAgentTTLs(ctx, r.Client, agent)
@@ -401,7 +412,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			continue
 		}
 
-		d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now(), ephemeralWorkspace)
+		d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now(), sleepUnsafe(ephemeralWorkspace, s3On, agent))
 
 		switch d.Action {
 		case ttlActionDelete:

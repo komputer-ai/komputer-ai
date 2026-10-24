@@ -327,7 +327,8 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Running on its way out, and an over-running task is cancelled rather than reported
 	// as merely running. An ephemeral (emptyDir) agent is never slept — see applyTTL.
 	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout, ephemeralWorkspace)
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout,
+		sleepUnsafe(ephemeralWorkspace, komputerConfig.Spec.S3.IsEnabled(), agent))
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
 		return ctrl.Result{}, err
@@ -907,6 +908,10 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration, ephemeralWorkspace bool) error {
 	log := logf.FromContext(ctx)
 	wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] == "true"
+	// With the S3 session store an ephemeral agent may sleep once its latest
+	// task is saved (the wake restores it); see sleepUnsafe.
+	s3On := s3SpecFromCluster(ctx, r.Client).IsEnabled()
+	unsafeToSleep := sleepUnsafe(ephemeralWorkspace, s3On, agent)
 
 	// Sleep mode: delete pod when task is done (complete or error), keep PVC.
 	// Skipped for an ephemeral (emptyDir) workspace — sleeping would delete the pod
@@ -916,8 +921,8 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!wakeIdle &&
 		(agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete || agent.Status.TaskStatus == komputerv1alpha1.AgentTaskError) &&
 		pod != nil {
-		if ephemeralWorkspace {
-			log.Info("skipping Sleep lifecycle for ephemeral agent: sleeping would delete its emptyDir workspace",
+		if unsafeToSleep {
+			log.Info("skipping Sleep lifecycle for ephemeral agent: sleeping would delete its emptyDir workspace before its session is saved",
 				"agent", agent.Name)
 		} else {
 			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
@@ -944,7 +949,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	// is defense in depth, not the primary guard.
 	if agent.Annotations[komputerv1alpha1.AnnotationSleepRequested] == "true" &&
 		pod != nil &&
-		!ephemeralWorkspace &&
+		!unsafeToSleep &&
 		!taskInProgress(agent.Status.TaskStatus) {
 		log.Info("sleep requested via API: deleting pod", "agent", agent.Name)
 		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
@@ -973,7 +978,8 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!wakeIdle &&
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
 		pod != nil && pod.DeletionTimestamp.IsZero() &&
-		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping &&
+		savedBeforeDestroy(s3On, agent) {
 		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
 		return r.archiveAgentNow(ctx, agent)
 	}
