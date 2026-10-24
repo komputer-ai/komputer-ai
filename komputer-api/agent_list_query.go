@@ -17,6 +17,9 @@ const MaxAgentListLimit = 200
 type AgentListQuery struct {
 	// Status filters by agent phase, case-insensitive. "" matches everything.
 	Status string
+	// HideArchived leaves out Archived agents when Status is empty, so lists
+	// show them only when asked for explicitly.
+	HideArchived bool
 	// Labels are "key=value" filters, ANDed together.
 	Labels map[string]string
 	// FilterLabels optionally maps "namespace/name" to the agent CR's metadata
@@ -260,6 +263,9 @@ func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (pag
 	q := strings.ToLower(strings.TrimSpace(query.Q))
 	filtered := make([]AgentResponse, 0, len(agents))
 	for _, a := range agents {
+		if query.Status == "" && query.HideArchived && a.Status == "Archived" {
+			continue
+		}
 		if query.Status != "" && !strings.EqualFold(query.Status, a.Status) {
 			continue
 		}

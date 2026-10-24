@@ -115,8 +115,9 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 		if err := k.client.Get(ctx, key, agent); err != nil {
 			return err
 		}
-		if agentArchived(agent) {
-			// Never flip an archived record back to Pending — that would rebuild it.
+		if agentArchived(agent) && !k.S3Enabled(ctx) {
+			// Without the S3 session store, never flip an archived record back to
+			// Pending — that would rebuild it with nothing to restore.
 			return ErrAgentArchived
 		}
 		original2 := agent.DeepCopy()
@@ -162,10 +163,11 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 	if err := k.client.Get(ctx, key, agent); err != nil {
 		return nil, err
 	}
-	if agentArchived(agent) {
+	s3On := k.S3Enabled(ctx)
+	if agentArchived(agent) && !s3On {
 		return nil, ErrAgentArchived
 	}
-	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+	if !agentDormant(agent, s3On) {
 		// Not asleep yet, but a sleep may be pending (the operator waits out a running
 		// task): waking is the user's latest intent, so cancel it.
 		if _, pending := agent.Annotations[komputerv1alpha1.AnnotationSleepRequested]; pending {
@@ -246,7 +248,8 @@ func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komput
 		return nil, err
 	}
 
-	if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+	s3On := k.S3Enabled(ctx)
+	if agentDormant(agent, s3On) {
 		return agent, nil
 	}
 	if agentArchived(agent) {
@@ -255,7 +258,9 @@ func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komput
 	if agentTaskInProgress(agent.Status.TaskStatus) {
 		return nil, ErrAgentBusy
 	}
-	if k.ResolveEffectiveEphemeral(ctx, ns, agent.Spec.AgentConfigSpec) {
+	// With the S3 session store an ephemeral agent can sleep: the operator saves
+	// its session first and the wake restores it.
+	if !s3On && k.ResolveEffectiveEphemeral(ctx, ns, agent.Spec.AgentConfigSpec) {
 		return nil, ErrAgentEphemeral
 	}
 
@@ -790,6 +795,36 @@ func (k *K8sClient) DeleteAgent(ctx context.Context, ns, name string) error {
 		},
 	}
 	return k.client.Delete(ctx, agent)
+}
+
+// ForceDeleteAgent deletes an agent without waiting for the operator to save its
+// session to S3: it deletes the CR and then drops the komputer.ai/session-store
+// finalizer that would otherwise hold the delete until the save succeeds.
+func (k *K8sClient) ForceDeleteAgent(ctx context.Context, ns, name string) error {
+	if err := k.DeleteAgent(ctx, ns, name); err != nil {
+		return err
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		agent := &komputerv1alpha1.KomputerAgent{}
+		if err := k.client.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, agent); err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		kept := agent.Finalizers[:0:0]
+		for _, f := range agent.Finalizers {
+			if f != komputerv1alpha1.FinalizerSessionStore {
+				kept = append(kept, f)
+			}
+		}
+		if len(kept) == len(agent.Finalizers) {
+			return nil
+		}
+		original := agent.DeepCopy()
+		agent.Finalizers = kept
+		return k.client.Patch(ctx, agent, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
+	})
 }
 
 // agentHTTPBase returns the base URL for an agent's HTTP endpoint via the

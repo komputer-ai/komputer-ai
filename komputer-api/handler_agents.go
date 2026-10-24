@@ -532,7 +532,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent: " + err.Error()})
 			return
 		}
-		if existing != nil && agentArchived(existing) {
+		s3On := k8s.S3Enabled(c.Request.Context())
+		if existing != nil && agentArchived(existing) && !s3On {
 			c.JSON(http.StatusConflict, gin.H{"error": ErrAgentArchived.Error()})
 			return
 		}
@@ -571,15 +572,17 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				})
 				sleepTTLToCheck = sleepTTL
 			}
-			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 		}
 
 		if existing != nil {
-			// Wake-up flow for sleeping agents
-			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			// Wake-up flow for sleeping agents (and, with the S3 session store,
+			// archived ones — they wake into a fresh workspace and restore their
+			// session from S3).
+			if agentDormant(existing, s3On) {
 				// A wake-with-task always starts a brand new task, so the lifetime
 				// budget gates it the same way it gates a forward below. A plain idle
 				// wake (no task) goes through the separate /wake endpoint instead,
@@ -859,6 +862,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
 // @Param recreatePod query bool false "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member"
+// @Param force query bool false "Skip saving the session to the S3 session store before deleting"
 // @Success 200 {object} map[string]string "Agent deleted"
 // @Failure 404 {object} map[string]string "Agent not found"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -883,7 +887,13 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 			}
 		}
 
-		if err := k8s.DeleteAgent(c.Request.Context(), ns, name); err != nil {
+		deleteFn := k8s.DeleteAgent
+		if c.Query("force") == "true" {
+			// The operator holds deletes until the session is saved to S3; force
+			// skips that (e.g. the bucket is broken and the delete is stuck).
+			deleteFn = k8s.ForceDeleteAgent
+		}
+		if err := deleteFn(c.Request.Context(), ns, name); err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 				return
@@ -1346,6 +1356,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 // @Produce json
 // @Param namespace query string false "Kubernetes namespace"
 // @Param status query string false "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
+// @Param hideArchived query bool false "Leave out Archived agents unless status asks for them"
 // @Param label query []string false "Label filter key=value; repeat for multiple (AND)" collectionFormat(multi)
 // @Param q query string false "Case-insensitive substring match against agent name"
 // @Param sort query string false "Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created" default(-created)
@@ -1449,6 +1460,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 
 		page, total, nextOffset, facets, err := filterSortPaginateAgents(all, AgentListQuery{
 			Status:       statusFilter,
+			HideArchived: c.Query("hideArchived") == "true",
 			Labels:       labelFilter,
 			FilterLabels: metaLabels,
 			Q:            c.Query("q"),
@@ -1513,7 +1525,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 		}
-		if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentArchived(target) {
+		if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentArchived(target) && !k8s.S3Enabled(c.Request.Context()) {
 			if err := validateArchivedPatch(req); err != nil {
 				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 				return
@@ -1568,7 +1580,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			if sleepTTL.Set {
 				sleepTTLToCheck = sleepTTL.Value
 			}
-			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
