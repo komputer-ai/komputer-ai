@@ -58,8 +58,11 @@ func (r *KomputerAgentReconciler) handleSessionFinalizer(ctx context.Context, ag
 	if !s3.IsEnabled() {
 		return ctrl.Result{}, r.releaseSessionFinalizer(ctx, agent)
 	}
-	if taskInProgress(agent.Status.TaskStatus) {
-		// The agent saves as part of ending the task; cancel it and wait.
+	pod := r.liveAgentPod(ctx, agent)
+	if taskInProgress(agent.Status.TaskStatus) && pod != nil {
+		// The agent saves as part of ending the task; cancel it and wait. (With
+		// no live pod the "in progress" task is a leftover from a pod that died
+		// mid-task — there's nothing to cancel, so go on and save from the PVC.)
 		if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
 			logf.FromContext(ctx).Info("couldn't cancel the task of a deleting agent; will retry", "agent", agent.Name, "error", err.Error())
 		}
@@ -70,7 +73,11 @@ func (r *KomputerAgentReconciler) handleSessionFinalizer(ctx context.Context, ag
 		return ctrl.Result{}, r.releaseSessionFinalizer(ctx, agent)
 	}
 
-	if pod := r.liveAgentPod(ctx, agent); pod != nil {
+	if due, wait := r.copyOutDue(agent); !due {
+		return ctrl.Result{RequeueAfter: wait}, nil
+	}
+
+	if pod != nil {
 		c, ok := agentContainerName(pod, agent)
 		if !ok {
 			return r.waitToSave(ctx, agent, fmt.Errorf("no agent container in pod %s", pod.Name))

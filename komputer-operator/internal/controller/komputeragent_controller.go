@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -56,6 +57,8 @@ type KomputerAgentReconciler struct {
 	NewUploader UploaderFactory
 	// MaxConcurrentSavers caps the short-lived saver pods (see session_finalizer.go).
 	MaxConcurrentSavers int
+	// copyOutRetryAt holds, per agent UID, when a failed copy-out may be retried.
+	copyOutRetryAt sync.Map
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents,verbs=get;list;watch;create;update;patch;delete

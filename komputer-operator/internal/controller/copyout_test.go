@@ -103,7 +103,11 @@ func TestNeedsCopyOut(t *testing.T) {
 		want  bool
 	}{
 		{"old pod, idle, unsaved", copyOutAgent, copyOutPod(false), true, true},
-		{"pod saves itself", copyOutAgent, copyOutPod(true), true, false},
+		{"pod saved itself", func() *komputerv1alpha1.KomputerAgent {
+			a := copyOutAgent()
+			a.Status.SessionStore = &komputerv1alpha1.SessionStoreStatus{OK: true, LastSavedAt: &saved}
+			return a
+		}, copyOutPod(true), true, false},
 		{"task in progress", func() *komputerv1alpha1.KomputerAgent {
 			a := copyOutAgent()
 			a.Status.TaskStatus = komputerv1alpha1.AgentTaskInProgress
