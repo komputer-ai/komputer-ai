@@ -17,6 +17,8 @@ import { ChevronRight, Plus } from "lucide-react";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { ConnectorLogo } from "@/components/connectors/connector-logo";
 import { useConnectorTemplates } from "@/hooks/use-connector-templates";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { ephemeralBlocksSleep } from "@/lib/session-store";
 import { NamespaceSelector } from "@/components/shared/namespace-selector";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { listTemplates, listMemories, listSkills, listSecrets, listConnectors } from "@/lib/api";
@@ -136,6 +138,8 @@ export function AgentFieldsForm({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { getByService: getConnectorTemplate } = useConnectorTemplates();
+  const { s3Enabled } = usePlatformConfig();
+  const sleepBlocked = ephemeralBlocksSleep(values.ephemeral, s3Enabled);
 
   const [templates, setTemplates] = useState<TemplateResponse[]>([]);
   const [availableMemories, setAvailableMemories] = useState<{ name: string; namespace: string; ref: string }[]>([]);
@@ -289,14 +293,14 @@ export function AgentFieldsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LIFECYCLES.filter((l) => !(values.ephemeral && l.value === "Sleep") && !(hideArchive && l.value === "Archive")).map((l) => (
+              {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep") && !(hideArchive && l.value === "Archive")).map((l) => (
                 <SelectItem key={l.value} value={l.value}>
                   {l.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {values.ephemeral && (
+          {sleepBlocked && (
             <p className="text-xs text-[var(--color-text-secondary)]">Sleep is unavailable for an ephemeral workspace.</p>
           )}
         </div>
@@ -512,10 +516,10 @@ export function AgentFieldsForm({
                       <Label htmlFor={`${idPrefix}-sleep-ttl`}>Sleep TTL</Label>
                       <Input
                         id={`${idPrefix}-sleep-ttl`}
-                        placeholder={values.ephemeral ? "Unavailable (ephemeral)" : "e.g. 30m"}
+                        placeholder={sleepBlocked ? "Unavailable (ephemeral)" : "e.g. 30m"}
                         value={values.sleepTTL}
                         onChange={(e) => patch("sleepTTL", e.target.value)}
-                        disabled={values.ephemeral}
+                        disabled={sleepBlocked}
                         autoComplete="off"
                       />
                     </div>
@@ -587,9 +591,10 @@ export function AgentFieldsForm({
                             ...values,
                             ephemeral,
                             // Sleeping deletes the pod, which would wipe an ephemeral
-                            // (emptyDir) workspace — clear anything that would sleep it.
-                            lifecycle: ephemeral && values.lifecycle === "Sleep" ? "default" : values.lifecycle,
-                            sleepTTL: ephemeral ? "" : values.sleepTTL,
+                            // (emptyDir) workspace — clear anything that would sleep it,
+                            // unless the S3 session store saves the session first.
+                            lifecycle: ephemeralBlocksSleep(ephemeral, s3Enabled) && values.lifecycle === "Sleep" ? "default" : values.lifecycle,
+                            sleepTTL: ephemeralBlocksSleep(ephemeral, s3Enabled) ? "" : values.sleepTTL,
                           });
                         }}
                         className="mt-0.5 accent-[var(--color-brand-blue)]"

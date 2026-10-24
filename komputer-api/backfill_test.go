@@ -208,3 +208,31 @@ func TestEstimateCostUSD(t *testing.T) {
 		})
 	}
 }
+
+// Newer Claude Code versions also write "api-request-blob" lines that carry a
+// copy of the messages sent to the model, with no timestamp. Only real user and
+// assistant entries are the conversation; the copies must not become events.
+func TestConvertSessionJSONL_IgnoresRequestBlobs(t *testing.T) {
+	raw := strings.Join([]string{
+		`{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-24T12:01:25.949Z"}`,
+		`{"type":"user","timestamp":"2026-10-24T12:01:25.986Z","message":{"role":"user","content":"print the date"}}`,
+		`{"type":"api-request-blob","message":{"role":"user","content":[{"type":"text","text":"print the date"}]}}`,
+		`{"type":"assistant","timestamp":"2026-10-24T12:01:27.490Z","message":{"role":"assistant","content":[{"type":"text","text":"On it."}],"usage":{"input_tokens":10,"output_tokens":5}}}`,
+		`{"type":"api-request-blob","message":{"role":"assistant","content":[{"type":"text","text":"On it."}]}}`,
+		`{"type":"assistant","timestamp":"2026-10-24T12:01:30.663Z","message":{"role":"assistant","content":[{"type":"text","text":"Done."}],"usage":{"input_tokens":12,"output_tokens":3}}}`,
+	}, "\n")
+
+	events := convertSessionJSONL([]byte(raw), "a1", 0, "claude-haiku-4-5", 0)
+	var texts []string
+	for _, e := range events {
+		if e.Timestamp == "" {
+			t.Errorf("%s event has no timestamp: %+v", e.Type, e.Payload)
+		}
+		if e.Type == "text" {
+			texts = append(texts, e.Payload["content"].(string))
+		}
+	}
+	if strings.Join(texts, "|") != "On it.|Done." {
+		t.Errorf("text events = %q, want each assistant message once", texts)
+	}
+}

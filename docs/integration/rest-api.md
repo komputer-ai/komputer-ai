@@ -155,6 +155,18 @@ A no-op if the agent is already sleeping: returns `200 OK` with its current stat
 
 **Response (200 OK):** the agent's `AgentResponse`, same shape as "Get Agent Details" above.
 
+## Archive an Agent Now
+
+```
+POST /api/v1/agents/:name/archive?namespace=production
+```
+
+Archives an agent once it's idle — pod and workspace (PVC) deleted, the agent kept as a record with its settings and cost — **without changing `spec.lifecycle`**. Works on running and sleeping agents. With the [S3 session store](../concepts/session-store) on, the latest session is saved first (a sleeping agent whose session isn't saved yet is woken briefly to save it), and the archived agent can run again later: send it a task and it restores its conversation. Without the store, an archived agent is a read-only record.
+
+The response comes back right away; the agent shows `Archived` once the operator has saved and archived it. A no-op if already archived. Returns `409 Conflict` if a task is in progress (cancel it first) or the agent is in a squad.
+
+**Response (200 OK):** the agent's `AgentResponse`, same shape as "Get Agent Details" above.
+
 ## Compact a Conversation
 
 Manually trigger compaction on the agent's active task. Older turns are summarized to free context space. Only works while the agent is actively running a task — returns `409 Conflict` otherwise.

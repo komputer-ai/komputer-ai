@@ -73,6 +73,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *AgentsAPI* | [**AgentsNameWsGet**](docs/AgentsAPI.md#agentsnamewsget) | **Get** /agents/{name}/ws | Stream agent events (WebSocket)
+*AgentsAPI* | [**ArchiveAgent**](docs/AgentsAPI.md#archiveagent) | **Post** /agents/{name}/archive | Archive an agent now
 *AgentsAPI* | [**CancelAgentTask**](docs/AgentsAPI.md#cancelagenttask) | **Post** /agents/{name}/cancel | Cancel agent task
 *AgentsAPI* | [**CompactAgentTask**](docs/AgentsAPI.md#compactagenttask) | **Post** /agents/{name}/compact | Compact agent conversation
 *AgentsAPI* | [**CreateAgent**](docs/AgentsAPI.md#createagent) | **Post** /agents | Create agent or send task
@@ -84,6 +85,7 @@ Class | Method | HTTP request | Description
 *AgentsAPI* | [**PatchAgent**](docs/AgentsAPI.md#patchagent) | **Patch** /agents/{name} | Patch agent
 *AgentsAPI* | [**SleepAgent**](docs/AgentsAPI.md#sleepagent) | **Post** /agents/{name}/sleep | Sleep an agent now
 *AgentsAPI* | [**WakeAgent**](docs/AgentsAPI.md#wakeagent) | **Post** /agents/{name}/wake | Wake an agent idle
+*ConfigAPI* | [**GetConfig**](docs/ConfigAPI.md#getconfig) | **Get** /config | Get platform configuration
 *ConnectorsAPI* | [**CreateConnector**](docs/ConnectorsAPI.md#createconnector) | **Post** /connectors | Create connector
 *ConnectorsAPI* | [**DeleteConnector**](docs/ConnectorsAPI.md#deleteconnector) | **Delete** /connectors/{name} | Delete connector
 *ConnectorsAPI* | [**GetConnector**](docs/ConnectorsAPI.md#getconnector) | **Get** /connectors/{name} | Get connector details
@@ -135,6 +137,7 @@ Class | Method | HTTP request | Description
  - [AgentListResponse](docs/AgentListResponse.md)
  - [AgentResponse](docs/AgentResponse.md)
  - [CompactAgentRequest](docs/CompactAgentRequest.md)
+ - [ConfigResponse](docs/ConfigResponse.md)
  - [ConnectorResponse](docs/ConnectorResponse.md)
  - [CostBreakdownResponse](docs/CostBreakdownResponse.md)
  - [CreateAgentRequest](docs/CreateAgentRequest.md)
@@ -156,10 +159,12 @@ Class | Method | HTTP request | Description
  - [PatchScheduleRequest](docs/PatchScheduleRequest.md)
  - [PatchSkillRequest](docs/PatchSkillRequest.md)
  - [PatchSquadRequest](docs/PatchSquadRequest.md)
+ - [S3ConfigResponse](docs/S3ConfigResponse.md)
  - [ScheduleListResponse](docs/ScheduleListResponse.md)
  - [ScheduleResponse](docs/ScheduleResponse.md)
  - [SecretListResponse](docs/SecretListResponse.md)
  - [SecretResponse](docs/SecretResponse.md)
+ - [SessionStoreResponse](docs/SessionStoreResponse.md)
  - [SkillResponse](docs/SkillResponse.md)
  - [SquadListResponse](docs/SquadListResponse.md)
  - [SquadMemberResponse](docs/SquadMemberResponse.md)

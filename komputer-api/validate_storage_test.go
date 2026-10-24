@@ -27,7 +27,7 @@ func TestValidateEphemeralStorage(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateEphemeralStorage(tc.ephemeral, tc.lifecycle, tc.sleepTTL)
+			err := validateEphemeralStorage(tc.ephemeral, tc.lifecycle, tc.sleepTTL, false)
 			if tc.wantErr && err == nil {
 				t.Fatal("expected an error, got nil")
 			}

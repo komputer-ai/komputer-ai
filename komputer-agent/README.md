@@ -109,6 +109,7 @@ When `KOMPUTER_ROLE=manager`, the agent additionally registers MCP orchestration
 | `get_agent_status` / `get_agent_events` | Check status / fetch recent events from a sub-agent |
 | `cancel_agent` | Cancel an in-flight task without deleting the agent |
 | `sleep_agent` / `wake_agent` | Sleep an agent (cancel + tear down pod, keep PVC) or wake it back up |
+| `archive_agent` | Archive an agent once idle (pod + workspace deleted, kept as a record; with the S3 session store its session is saved and it can run again) |
 | `delete_agent` | Delete a sub-agent and clean up resources |
 
 **Schedule tools:** `schedule_agent`, `list_schedules`, `get_schedule`, `update_schedule`, `delete_schedule`.

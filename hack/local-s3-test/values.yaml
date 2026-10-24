@@ -1,0 +1,30 @@
+# Helm values for the local S3 session store test (kind cluster komputer-s3-test).
+operator:
+  image: { repository: komputer-operator, tag: s3-test, pullPolicy: Never }
+api:
+  image: { repository: komputer-api, tag: s3-test, pullPolicy: Never }
+agent:
+  image: { repository: komputer-agent, tag: s3-test, pullPolicy: Never }
+  defaultModel: eu.anthropic.claude-haiku-4-5-20251001-v1:0
+ui:
+  image: { repository: komputer-ui, tag: s3-test, pullPolicy: Never }
+  apiUrl: http://localhost:28080
+bedrock:
+  enabled: true
+  region: eu-central-1
+webhooks:
+  enabled: false
+clusterTemplate:
+  storageSize: 1Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+s3:
+  enabled: true
+  bucket: komputer-sessions
+  region: us-east-1
+  endpoint: http://minio.minio.svc.cluster.local:9000
+  forcePathStyle: true
+  prefix: komputer
+  credentials:
+    secretName: komputer-s3

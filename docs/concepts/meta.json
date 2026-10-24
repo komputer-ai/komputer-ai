@@ -6,6 +6,7 @@
     "squads",
     "templates",
     "config",
+    "session-store",
     "secrets",
     "namespaces",
     "cost-tracking",

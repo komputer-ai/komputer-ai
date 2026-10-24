@@ -13,7 +13,7 @@ const statusColorMap: Record<string, { dot: string; text: string }> = {
   Compacting: { dot: "bg-[#C084FC]", text: "text-[var(--color-text)]" },
   Sleeping: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
   Suspended: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },
-  Archived: { dot: "bg-[#94A3B8]", text: "text-[var(--color-text-secondary)]" },
+  Archived: { dot: "bg-[var(--color-status-archived)]", text: "text-[var(--color-text-secondary)]" },
   Failed: { dot: "bg-[#F87171]", text: "text-[var(--color-text)]" },
   Error: { dot: "bg-[#F87171]", text: "text-[var(--color-text)]" },
   Pending: { dot: "bg-[#FBBF24]", text: "text-[var(--color-text)]" },

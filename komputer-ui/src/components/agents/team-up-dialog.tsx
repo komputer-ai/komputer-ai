@@ -23,6 +23,7 @@ import { Label } from "@/components/kit/label";
 import { listAgents, createSquad, addSquadMember, sleepAgent } from "@/lib/api";
 import { Moon } from "lucide-react";
 import type { Squad, AgentResponse } from "@/lib/types";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 
 type TeamUpDialogProps = {
   open: boolean;
@@ -43,6 +44,7 @@ export function TeamUpDialog({
   squads,
   onSuccess,
 }: TeamUpDialogProps) {
+  const { s3Enabled } = usePlatformConfig();
   const [agents, setAgents] = useState<AgentResponse[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [squadName, setSquadName] = useState("");
@@ -51,7 +53,8 @@ export function TeamUpDialog({
   const [agentSearch, setAgentSearch] = useState("");
 
   const filteredAgents = agents.filter((a) => {
-    if (a.status === "Archived") return false; // read-only records can't join a squad
+    // Archived agents can join only when the S3 session store can restore them.
+    if (a.status === "Archived" && !s3Enabled) return false;
     const q = agentSearch.trim().toLowerCase();
     if (!q) return true;
     return a.name.toLowerCase().includes(q) || a.namespace.toLowerCase().includes(q);

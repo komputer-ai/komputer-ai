@@ -1,0 +1,12 @@
+# kind cluster for testing the S3 session store locally, isolated from any
+# komputer-ai install on Docker Desktop's own Kubernetes.
+# Host ports: API 28080, UI 23000, MinIO API 29000, MinIO console 29001.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - { containerPort: 30080, hostPort: 28080, protocol: TCP }   # komputer API
+  - { containerPort: 30300, hostPort: 23000, protocol: TCP }   # komputer UI
+  - { containerPort: 30900, hostPort: 29000, protocol: TCP }   # MinIO S3 API
+  - { containerPort: 30901, hostPort: 29001, protocol: TCP }   # MinIO console

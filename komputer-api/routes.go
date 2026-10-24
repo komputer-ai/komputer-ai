@@ -67,6 +67,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 	v1 := r.Group("/api/v1")
 	{
 		v1.POST("/agents", createOrTriggerAgent(k8s))
+		v1.GET("/config", getConfig(k8s))
 		v1.GET("/agents", listAgents(k8s))
 		v1.GET("/agents/:name", getAgent(k8s))
 		v1.GET("/agents/:name/events", getAgentEvents(worker, k8s))
@@ -77,6 +78,7 @@ func SetupRoutes(r *gin.Engine, k8s *K8sClient, hub *Hub, worker *RedisWorker) {
 		v1.POST("/agents/:name/compact", compactAgentTask(k8s))
 		v1.POST("/agents/:name/wake", wakeAgent(k8s))
 		v1.POST("/agents/:name/sleep", sleepAgent(k8s))
+		v1.POST("/agents/:name/archive", archiveAgent(k8s))
 		v1.GET("/agents/:name/ws", HandleAgentWS(hub))
 		v1.GET("/agents/:name/download/*filepath", downloadAgentFile(k8s))
 

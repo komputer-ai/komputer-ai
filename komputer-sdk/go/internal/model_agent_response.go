@@ -58,6 +58,8 @@ type AgentResponse struct {
 	QueueReason *string `json:"queueReason,omitempty"`
 	// Key names from K8s Secrets (not values)
 	Secrets []string `json:"secrets,omitempty"`
+	// SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent's own save, or the operator saving it on the agent's behalf). Nil when S3 isn't in use.
+	SessionStore *SessionStoreResponse `json:"sessionStore,omitempty"`
 	// KomputerSkill names attached to this agent
 	Skills []string `json:"skills,omitempty"`
 	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.
@@ -965,6 +967,38 @@ func (o *AgentResponse) SetSecrets(v []string) {
 	o.Secrets = v
 }
 
+// GetSessionStore returns the SessionStore field value if set, zero value otherwise.
+func (o *AgentResponse) GetSessionStore() SessionStoreResponse {
+	if o == nil || IsNil(o.SessionStore) {
+		var ret SessionStoreResponse
+		return ret
+	}
+	return *o.SessionStore
+}
+
+// GetSessionStoreOk returns a tuple with the SessionStore field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetSessionStoreOk() (*SessionStoreResponse, bool) {
+	if o == nil || IsNil(o.SessionStore) {
+		return nil, false
+	}
+	return o.SessionStore, true
+}
+
+// HasSessionStore returns a boolean if a field has been set.
+func (o *AgentResponse) HasSessionStore() bool {
+	if o != nil && !IsNil(o.SessionStore) {
+		return true
+	}
+
+	return false
+}
+
+// SetSessionStore gets a reference to the given SessionStoreResponse and assigns it to the SessionStore field.
+func (o *AgentResponse) SetSessionStore(v SessionStoreResponse) {
+	o.SessionStore = &v
+}
+
 // GetSkills returns the Skills field value if set, zero value otherwise.
 func (o *AgentResponse) GetSkills() []string {
 	if o == nil || IsNil(o.Skills) {
@@ -1535,6 +1569,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Secrets) {
 		toSerialize["secrets"] = o.Secrets
+	}
+	if !IsNil(o.SessionStore) {
+		toSerialize["sessionStore"] = o.SessionStore
 	}
 	if !IsNil(o.Skills) {
 		toSerialize["skills"] = o.Skills

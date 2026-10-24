@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
 | [**agentsNameWsGet**](AgentsApi.md#agentsnamewsget) | **GET** /agents/{name}/ws | Stream agent events (WebSocket) |
+| [**archiveAgent**](AgentsApi.md#archiveagent) | **POST** /agents/{name}/archive | Archive an agent now |
 | [**cancelAgentTask**](AgentsApi.md#cancelagenttask) | **POST** /agents/{name}/cancel | Cancel agent task |
 | [**compactAgentTask**](AgentsApi.md#compactagenttask) | **POST** /agents/{name}/compact | Compact agent conversation |
 | [**createAgent**](AgentsApi.md#createagentoperation) | **POST** /agents | Create agent or send task |
@@ -80,6 +81,79 @@ No authorization required
 - **Content-Type**: Not defined
 - **Accept**: Not defined
 
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## archiveAgent
+
+> AgentResponse archiveAgent(name, namespace)
+
+Archive an agent now
+
+Archives an agent once it\&#39;s idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AgentsApi,
+} from '@komputer-ai/sdk';
+import type { ArchiveAgentRequest } from '@komputer-ai/sdk';
+
+async function example() {
+  console.log("🚀 Testing @komputer-ai/sdk SDK...");
+  const api = new AgentsApi();
+
+  const body = {
+    // string | Agent name
+    name: name_example,
+    // string | Kubernetes namespace (optional)
+    namespace: namespace_example,
+  } satisfies ArchiveAgentRequest;
+
+  try {
+    const data = await api.archiveAgent(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **name** | `string` | Agent name | [Defaults to `undefined`] |
+| **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Archive requested (or already archived) |  -  |
+| **404** | Agent not found |  -  |
+| **409** | Agent is running a task, or is in a squad |  -  |
+| **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -305,7 +379,7 @@ No authorization required
 
 ## deleteAgent
 
-> { [key: string]: string; } deleteAgent(name, namespace, recreatePod)
+> { [key: string]: string; } deleteAgent(name, namespace, recreatePod, force)
 
 Delete agent
 
@@ -331,6 +405,8 @@ async function example() {
     namespace: namespace_example,
     // boolean | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
     recreatePod: true,
+    // boolean | Skip saving the session to the S3 session store before deleting (optional)
+    force: true,
   } satisfies DeleteAgentRequest;
 
   try {
@@ -353,6 +429,7 @@ example().catch(console.error);
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **recreatePod** | `boolean` | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [Optional] [Defaults to `undefined`] |
+| **force** | `boolean` | Skip saving the session to the S3 session store before deleting | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -614,7 +691,7 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace, status, label, q, sort, limit, offset)
+> AgentListResponse listAgents(namespace, status, hideArchived, label, q, sort, limit, offset)
 
 List agents
 
@@ -638,6 +715,8 @@ async function example() {
     namespace: namespace_example,
     // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
     status: status_example,
+    // boolean | Leave out Archived agents unless status asks for them (optional)
+    hideArchived: true,
     // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
     label: ...,
     // string | Case-insensitive substring match against agent name (optional)
@@ -669,6 +748,7 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
+| **hideArchived** | `boolean` | Leave out Archived agents unless status asks for them | [Optional] [Defaults to `undefined`] |
 | **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
 | **q** | `string` | Case-insensitive substring match against agent name | [Optional] [Defaults to `undefined`] |
 | **sort** | `string` | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [Optional] [Defaults to `&#39;-created&#39;`] |

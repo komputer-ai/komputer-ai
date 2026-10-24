@@ -14,6 +14,16 @@ operator:
   replicas: 1
   # -- Enable leader election for the operator. Required when replicas > 1 (HA mode).
   leaderElect: true
+  serviceAccount:
+    # -- Annotations on the operator ServiceAccount, e.g. an IAM role for the S3 session store
+    # (eks.amazonaws.com/role-arn or iam.gke.io/gcp-service-account).
+    annotations: {}
+  # -- Extra env vars for the operator container (e.g. your own S3 credentials).
+  extraEnv: []
+  sessionSaver:
+    # -- Max short-lived saver pods at once. A saver pod mounts the PVC of a deleted
+    # agent that has no pod, so its session can be saved to S3 before the delete completes.
+    maxConcurrent: 4
   resources:
     limits:
       cpu: 500m
@@ -28,6 +38,11 @@ api:
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
+  serviceAccount:
+    # -- Annotations on the API ServiceAccount, e.g. an IAM role for reading the S3 session store.
+    annotations: {}
+  # -- Extra env vars for the API container (e.g. your own S3 credentials).
+  extraEnv: []
   service:
     type: ClusterIP
     port: 8080
@@ -192,6 +207,24 @@ anthropicKeySecret:
 bedrock:
   enabled: false
   region: "us-east-1"
+
+# -- S3 session store: agents save their session (.claude) to S3 at the end of every
+# task and restore it when they have no local copy. Works with any S3-compatible store.
+s3:
+  enabled: false
+  bucket: ""
+  region: ""
+  # -- S3 API URL for MinIO / R2 / GCS / Ceph. Empty means AWS.
+  endpoint: ""
+  # -- Path-style addressing (most non-AWS stores need it).
+  forcePathStyle: false
+  prefix: komputer
+  credentials:
+    # -- Secret (in the release namespace) with AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+    # Injected into agents, the operator and the API. Leave empty to use the AWS default
+    # credential chain instead: an IAM role on the ServiceAccounts, or env vars you add via
+    # the agent template's podSpec env and operator.extraEnv / api.extraEnv.
+    secretName: ""
 
 # -- KomputerConfig settings
 config:
