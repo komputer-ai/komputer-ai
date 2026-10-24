@@ -22,8 +22,8 @@ func KindClusterName() string {
 
 // CheckE2EContext refuses any kube context but the kind cluster the suite
 // loads its image into (kind-<cluster>), or the one named in AllowContextEnv.
-// The suite creates and deletes cluster-wide resources (cert-manager, CRDs,
-// namespaces), so it must never reach a real cluster.
+// The suite creates and deletes cluster-wide resources (CRDs, namespaces), so
+// it must never reach a real cluster.
 func CheckE2EContext(current, kindCluster, allowed string) error {
 	if current != "" && (current == "kind-"+kindCluster || (allowed != "" && current == allowed)) {
 		return nil
