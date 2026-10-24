@@ -741,6 +741,13 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 	// Set restart policy
 	podSpec.RestartPolicy = corev1.RestartPolicyNever
 
+	// With the S3 session store, an interrupted task needs time to save its
+	// session before the kubelet kills the pod. A template's own value wins.
+	if config.Spec.S3.IsEnabled() && podSpec.TerminationGracePeriodSeconds == nil {
+		grace := defaultS3TerminationGraceSeconds
+		podSpec.TerminationGracePeriodSeconds = &grace
+	}
+
 	// Add workspace volume (solo pod uses the plain name "workspace"). An ephemeral
 	// workspace is an emptyDir, optionally capped by storage.size as a SizeLimit.
 	var sizeLimit *resource.Quantity
@@ -1154,6 +1161,17 @@ func (r *KomputerAgentReconciler) enqueueAgentsForSecret(ctx context.Context, ob
 		if listErr := r.List(ctx, agentList); listErr == nil {
 			for _, a := range agentList.Items {
 				enqueueIfMatch(config.Spec.Redis.PasswordSecret, r.ControlNamespace, a.Namespace, a.Name)
+			}
+		}
+	}
+
+	// Check the KomputerConfig S3 credentials secret (same singleton fan-out).
+	if err == nil && config.Spec.S3.IsEnabled() && config.Spec.S3.CredentialsSecret != nil {
+		s3Ref := &komputerv1alpha1.SecretKeyRef{Name: config.Spec.S3.CredentialsSecret.Name, Namespace: config.Spec.S3.CredentialsSecret.Namespace}
+		agentList := &komputerv1alpha1.KomputerAgentList{}
+		if listErr := r.List(ctx, agentList); listErr == nil {
+			for _, a := range agentList.Items {
+				enqueueIfMatch(s3Ref, r.ControlNamespace, a.Namespace, a.Name)
 			}
 		}
 	}

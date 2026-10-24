@@ -185,6 +185,14 @@ func reconcileAgentSecrets(
 		sources = append(sources, sourceRef{Namespace: redisRef.Namespace, Name: redisRef.Name})
 	}
 
+	if s3 := config.Spec.S3; s3.IsEnabled() && s3.CredentialsSecret != nil && s3.CredentialsSecret.Name != "" {
+		ns := s3.CredentialsSecret.Namespace
+		if ns == "" {
+			ns = controlNs
+		}
+		sources = append(sources, sourceRef{Namespace: ns, Name: s3.CredentialsSecret.Name})
+	}
+
 	// Mirror each source.
 	for _, src := range sources {
 		if err := mirrorSourceToNamespace(ctx, c, src.Namespace, src.Name, agent.Namespace); err != nil {

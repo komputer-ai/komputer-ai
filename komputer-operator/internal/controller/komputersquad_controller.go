@@ -1069,7 +1069,44 @@ func (r *KomputerSquadReconciler) buildSquadPodSpec(ctx context.Context, squad *
 		},
 	}
 
+	// A pod has one ServiceAccount, so the squad pod only carries the members'
+	// when they all agree — otherwise nobody silently gets another member's IAM
+	// role (updateSquadMemberStatus surfaces the mismatch).
+	if sa, mismatched := r.squadServiceAccount(ctx, agents); !mismatched {
+		pod.Spec.ServiceAccountName = sa
+	}
+	if config.Spec.S3.IsEnabled() {
+		grace := defaultS3TerminationGraceSeconds
+		pod.Spec.TerminationGracePeriodSeconds = &grace
+	}
+
 	return pod, nil
+}
+
+// squadServiceAccountMismatch is the squad status message when members'
+// templates name different ServiceAccounts.
+const squadServiceAccountMismatch = "Squad members use different service accounts; the squad pod runs without one"
+
+// squadServiceAccount returns the ServiceAccount every member's template agrees
+// on, and whether they disagree. A template that can't be read counts as "".
+func (r *KomputerSquadReconciler) squadServiceAccount(ctx context.Context, agents []*komputerv1alpha1.KomputerAgent) (string, bool) {
+	sa, first := "", true
+	for _, agent := range agents {
+		templateRef := agent.Spec.TemplateRef
+		if templateRef == "" {
+			templateRef = "default"
+		}
+		memberSA := ""
+		if spec, err := readTemplateSpec(ctx, r.Client, templateRef, agent.Namespace); err == nil {
+			memberSA = spec.PodSpec.ServiceAccountName
+		}
+		if first {
+			sa, first = memberSA, false
+		} else if memberSA != sa {
+			return "", true
+		}
+	}
+	return sa, false
 }
 
 // updateSquadMemberStatus refreshes squad.status.phase, podName, and members[].
@@ -1152,12 +1189,16 @@ func (r *KomputerSquadReconciler) updateSquadMemberStatus(ctx context.Context, s
 		return memberStatuses[i].Name < memberStatuses[j].Name
 	})
 
+	message := ""
+	if _, mismatched := r.squadServiceAccount(ctx, agents); mismatched {
+		message = squadServiceAccountMismatch
+	}
 	return r.updateSquadStatus(ctx, squad, func(s *komputerv1alpha1.KomputerSquadStatus) {
 		s.Phase = squadPhase
 		s.PodName = podName
 		s.Members = memberStatuses
 		s.OrphanedSince = nil
-		s.Message = ""
+		s.Message = message
 	})
 }
 
