@@ -211,10 +211,18 @@ func main() {
 		controlNamespace = "default"
 	}
 
+	podExecer, err := controller.NewPodExecer(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to create pod exec client")
+		os.Exit(1)
+	}
 	if err := (&controller.KomputerAgentReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		ControlNamespace: controlNamespace,
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		ControlNamespace:    controlNamespace,
+		Exec:                podExecer,
+		NewUploader:         controller.NewS3Uploader,
+		MaxConcurrentSavers: controller.MaxConcurrentSaversFromEnv(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerAgent")
 		os.Exit(1)

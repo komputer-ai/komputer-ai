@@ -49,11 +49,19 @@ type KomputerAgentReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	ControlNamespace string
+	// Exec runs commands in agent containers, for copying sessions out of pods
+	// that can't save to the S3 session store themselves.
+	Exec PodExecer
+	// NewUploader builds the S3 session store client.
+	NewUploader UploaderFactory
+	// MaxConcurrentSavers caps the short-lived saver pods (see session_finalizer.go).
+	MaxConcurrentSavers int
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragenttemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragentclustertemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerconfigs,verbs=get;list;watch
@@ -334,6 +342,10 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
 	}
+
+	// 8b. S3 session store: save the session of an idle agent whose pod predates
+	// the S3 env and so can't save it itself.
+	r.maybeCopyOut(ctx, agent, pod, komputerConfig)
 
 	// 9. Create KomputerOffice if this agent has an officeManager
 	if agent.Spec.OfficeManager != "" {
