@@ -211,10 +211,10 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 // than have the sleep silently kill it.
 var ErrAgentBusy = fmt.Errorf("agent is running a task")
 
-// ErrAgentEphemeral is returned by SleepAgentNow for an effectively ephemeral
-// (emptyDir, no PVC) agent — sleeping deletes the pod, which would silently
-// wipe such an agent's only copy of its workspace.
-var ErrAgentEphemeral = fmt.Errorf("ephemeral agents can't sleep: sleeping deletes the pod and would wipe the workspace")
+// ErrAgentEphemeral is returned by SleepAgentNow, without the S3 session store,
+// for an effectively ephemeral (emptyDir, no PVC) agent — sleeping deletes the
+// pod, which would silently wipe such an agent's only copy of its session.
+var ErrAgentEphemeral = fmt.Errorf("ephemeral agents can't sleep without the S3 session store: sleeping deletes the pod and would wipe the workspace")
 
 // SleepAgentNow puts an agent to sleep immediately, regardless of wake-idle or
 // sleepTTL, and WITHOUT changing spec.Lifecycle — the explicit "sleep now"

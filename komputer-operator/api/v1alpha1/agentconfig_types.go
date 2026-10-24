@@ -88,7 +88,9 @@ type AgentConfigSpec struct {
 	// Lifecycle controls what happens after task completion.
 	// Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
 	// "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
-	// the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+	// the pod and PVC but keeps the agent as a record (Phase=Archived). Without the S3
+	// session store an archived agent can't run again; with it, a new task or a wake
+	// brings it back with its session restored.
 	// +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
 	// +optional
 	Lifecycle AgentLifecycle `json:"lifecycle,omitempty"`

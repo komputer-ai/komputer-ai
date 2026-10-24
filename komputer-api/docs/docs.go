@@ -749,7 +749,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Ephemeral-workspace agents can't sleep",
+                        "description": "Ephemeral-workspace agents can't sleep without the S3 session store",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -8624,7 +8624,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a record (Phase=Archived). Without the S3\nsession store an archived agent can't run again; with it, a new task or a wake\nbrings it back with its session restored.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"
@@ -8807,7 +8807,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a record (Phase=Archived). Without the S3\nsession store an archived agent can't run again; with it, a new task or a wake\nbrings it back with its session restored.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"
@@ -8897,7 +8897,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "ephemeral": {
-                    "description": "Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC:\nno PersistentVolumeClaim is created. The workspace lives exactly as long as the\npod — files, installed packages and the Claude session are permanently lost\nwhenever the pod is deleted, evicted, rescheduled or restarted. Incompatible with\nLifecycle=Sleep and with sleepTTL, since both would sleep the agent by deleting\nits pod (the operator refuses to sleep an ephemeral agent for this reason).\n\nUnset (default) or false keeps today's behavior: every agent gets a PVC. Set it on\na KomputerAgentTemplate to make ephemeral the default for agents using it, or on an\nindividual agent to override its template either way. Immutable after agent\ncreation. An agent that already has a PVC keeps it even if later marked ephemeral —\nthe operator never deletes an existing PVC.\n+optional",
+                    "description": "Ephemeral, when true, runs the agent's workspace as an emptyDir instead of a PVC:\nno PersistentVolumeClaim is created. The workspace lives exactly as long as the\npod — files, installed packages and the Claude session are permanently lost\nwhenever the pod is deleted, evicted, rescheduled or restarted. Sleeping (Lifecycle=Sleep,\nsleepTTL, sleep-now) deletes the pod, so without the S3 session store the API\nrejects those combinations and the operator never sleeps an ephemeral agent.\nWith the store, the operator sleeps it once the latest task's session is saved,\nand the wake restores the session into a fresh, empty workspace.\n\nUnset (default) or false keeps today's behavior: every agent gets a PVC. Set it on\na KomputerAgentTemplate to make ephemeral the default for agents using it, or on an\nindividual agent to override its template either way. Immutable after agent\ncreation. An agent that already has a PVC keeps it even if later marked ephemeral —\nthe operator never deletes an existing PVC.\n+optional",
                     "type": "boolean"
                 },
                 "size": {

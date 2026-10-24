@@ -1200,7 +1200,7 @@ func archiveAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
 // @Success 200 {object} AgentResponse "Agent sleeping (or already asleep)"
-// @Failure 400 {object} map[string]string "Ephemeral-workspace agents can't sleep"
+// @Failure 400 {object} map[string]string "Ephemeral-workspace agents can't sleep without the S3 session store"
 // @Failure 404 {object} map[string]string "Agent not found"
 // @Failure 409 {object} map[string]string "Agent is running a task, or is archived"
 // @Failure 500 {object} map[string]string "Internal error"
