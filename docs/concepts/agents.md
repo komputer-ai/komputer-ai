@@ -20,9 +20,11 @@ By default, agent pods stay running after task completion. You can change this b
 
 ### Archived agents
 
-An archived agent is terminal: it can't run again. Sending it a task, waking it, sleeping it, or patching anything other than `labels` and `deleteTTL` returns `409 Conflict`. Delete it like any other agent, or set `deleteTTL` to remove the record automatically (it counts from creation, so `lifecycle: Archive` + `deleteTTL: 720h` keeps the record for 30 days).
+Without the [S3 session store](./session-store.md), an archived agent is terminal: it can't run again. Sending it a task, waking it, sleeping it, or patching anything other than `labels` and `deleteTTL` returns `409 Conflict`. Delete it like any other agent, or set `deleteTTL` to remove the record automatically (it counts from creation, so `lifecycle: Archive` + `deleteTTL: 720h` keeps the record for 30 days).
 
-The workspace is not kept. An archived agent whose PVC survived would just be a sleeping agent, so `Archive` doesn't offer that: use `Sleep` to keep the workspace, `Archive` to keep the record, and `AutoDelete` to keep neither. Like `AutoDelete`, only a successful task triggers the transition; an agent whose task errors stays up so you can inspect it. `Archive` isn't available for [schedules](./schedules.md), since every run reuses the same agent.
+The workspace is not kept. An archived agent whose PVC survived would just be a sleeping agent, so `Archive` doesn't offer that: use `Sleep` to keep the workspace, `Archive` to keep the record, and `AutoDelete` to keep neither. Like `AutoDelete`, only a successful task triggers the transition; an agent whose task errors stays up so you can inspect it. Without the session store, `Archive` isn't available for [schedules](./schedules.md), since every run reuses the same agent.
+
+With the [S3 session store](./session-store.md) configured, an archived agent works like a sleeping agent with no workspace: every control works, and sending it a task brings it back with its conversation restored (its files are not kept). Schedules can use `Archive` too, and ephemeral agents can sleep, since their session is restored on wake.
 
 Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](/integration/rest-api) for details.
 
