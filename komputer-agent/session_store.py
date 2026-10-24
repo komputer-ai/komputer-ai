@@ -166,3 +166,10 @@ def restore_if_needed(workspace: Path = WORKSPACE, client=None) -> dict:
     finally:
         last_restore = result
     return result
+
+
+def task_end_fields() -> dict:
+    """The session_store block for a task-end event: saves the session first.
+    Empty when the store isn't configured. Every path that ends a task uses it,
+    so "the task ended" always comes with a save attempt."""
+    return {"session_store": save()} if enabled() else {}

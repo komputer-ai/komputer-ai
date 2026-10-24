@@ -340,8 +340,8 @@ type SessionStoreResponse struct {
 
 // sessionStoreResponse folds status.sessionStore (the agent's own saves) and the
 // operator's SessionSaved condition (saves it makes on the agent's behalf) into
-// one view. A False condition wins: it's the most recent save attempt that
-// blocks something (an archive, a delete).
+// one view. A False condition newer than the agent's last attempt wins: it's the
+// most recent save attempt, and it's what blocks an archive or a delete.
 func sessionStoreResponse(agent *komputerv1alpha1.KomputerAgent) *SessionStoreResponse {
 	ss := agent.Status.SessionStore
 	cond := meta.FindStatusCondition(agent.Status.Conditions, komputerv1alpha1.ConditionSessionSaved)
@@ -356,7 +356,10 @@ func sessionStoreResponse(agent *komputerv1alpha1.KomputerAgent) *SessionStoreRe
 			last = ss.LastSavedAt
 		}
 	}
-	if cond != nil && cond.Status == metav1.ConditionFalse {
+	// A failed operator save only counts if it's newer than the agent's own
+	// last attempt; otherwise a later successful save has superseded it.
+	if cond != nil && cond.Status == metav1.ConditionFalse &&
+		(ss == nil || ss.LastAttemptAt == nil || cond.LastTransitionTime.After(ss.LastAttemptAt.Time)) {
 		resp.OK, resp.Error = false, cond.Message
 	}
 	resp.LastSavedAt = formatTime(last)

@@ -131,10 +131,10 @@ def main():
                     run_agent(instructions, model, publisher, system_prompt=combined_system_prompt, effort=effort)
                 )
             except asyncio.CancelledError:
-                publisher.publish("task_cancelled", {"reason": "Cancelled by signal"})
+                publisher.publish("task_cancelled", {"reason": "Cancelled by signal", **session_store.task_end_fields()})
             except Exception as e:
                 logger.exception("initial task failed", extra={"error": str(e)})
-                publisher.publish("error", {"error": str(e)})
+                publisher.publish("error", {"error": str(e), **session_store.task_end_fields()})
             finally:
                 state.set_active_client(None)
                 state.active_loop = None

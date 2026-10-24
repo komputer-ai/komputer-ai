@@ -448,7 +448,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             # Save the session to S3 BEFORE the task-end event: the operator
             # archives or sleeps the agent the moment it sees the task end, so
             # "Complete" must already imply "saved".
-            store_fields = {"session_store": session_store.save()} if session_store.enabled() else {}
+            store_fields = session_store.task_end_fields()
 
             if state.interrupted:
                 # A cancelled run still gets a ResultMessage back from the SDK

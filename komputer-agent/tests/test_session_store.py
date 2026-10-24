@@ -268,3 +268,12 @@ def test_save_with_real_boto3_reports_the_real_error(s3_env, workspace, monkeypa
     assert result["ok"] is False
     assert "closed file" not in result["error"], result["error"]
     assert "127.0.0.1:1" in result["error"] or "Connect" in result["error"], result["error"]
+
+
+def test_task_end_fields(s3_env, workspace, monkeypatch):
+    """Every task-end path (normal, user cancel, signal, crash) saves the same way."""
+    saved = {"ok": True, "at": "t", "bytes": 1, "error": None}
+    monkeypatch.setattr(session_store, "save", lambda workspace=None, client=None: saved)
+    assert session_store.task_end_fields() == {"session_store": saved}
+    monkeypatch.delenv("KOMPUTER_S3_BUCKET")
+    assert session_store.task_end_fields() == {}

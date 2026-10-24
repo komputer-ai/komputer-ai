@@ -2151,7 +2151,11 @@ func (k *K8sClient) patchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 
 	original := agent.DeepCopy()
 	if store != nil {
-		at := metav1.NewTime(store.At)
+		// The worker's own clock, not the pod's: TaskStartedAt is stamped here too
+		// (when task_started is processed), and the task-end event always comes
+		// after it in the stream, so "saved after the task started" holds even
+		// when the worker lags or the pod's clock is skewed.
+		at := metav1.Now()
 		ss := agent.Status.SessionStore.DeepCopy()
 		if ss == nil {
 			ss = &komputerv1alpha1.SessionStoreStatus{}

@@ -15,6 +15,7 @@ if not logger.handlers:
 from agent import _write_skills
 import config as agent_config
 import metrics as agent_metrics
+import session_store
 import state
 
 app = FastAPI()
@@ -217,7 +218,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
             try:
                 loop.run_until_complete(_current_task)
             except asyncio.CancelledError:
-                _publisher.publish("task_cancelled", {"reason": "Cancelled by user"})
+                _publisher.publish("task_cancelled", {"reason": "Cancelled by user", **session_store.task_end_fields()})
             finally:
                 state.set_active_client(None)
                 state.active_loop = None
