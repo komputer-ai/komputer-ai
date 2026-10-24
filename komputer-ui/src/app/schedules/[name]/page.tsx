@@ -24,6 +24,7 @@ import {
   agentFormValuesFromScheduleSpec,
   buildScheduleAgentSpec,
 } from "@/components/agents/agent-fields-form";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 
 function StatCard({
   label,
@@ -48,6 +49,7 @@ function StatCard({
 }
 
 export default function ScheduleDetailPage() {
+  const { s3Enabled } = usePlatformConfig();
   const params = useParams<{ name: string }>();
   const name = params.name;
   const router = useRouter();
@@ -761,6 +763,7 @@ export default function ScheduleDetailPage() {
                       active={editingDetails}
                       hideNameAndNamespace
                       hideInstructions
+                      hideArchive={!s3Enabled}
                       idPrefix="sched-edit"
                     />
                   </div>

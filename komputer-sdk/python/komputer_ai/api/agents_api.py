@@ -311,6 +311,292 @@ class AgentsApi:
 
 
     @validate_call
+    def archive_agent(
+        self,
+        name: Annotated[StrictStr, Field(description="Agent name")],
+        namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> AgentResponse:
+        """Archive an agent now
+
+        Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+
+        :param name: Agent name (required)
+        :type name: str
+        :param namespace: Kubernetes namespace
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._archive_agent_serialize(
+            name=name,
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AgentResponse",
+            '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
+            '500': "Dict[str, str]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def archive_agent_with_http_info(
+        self,
+        name: Annotated[StrictStr, Field(description="Agent name")],
+        namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[AgentResponse]:
+        """Archive an agent now
+
+        Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+
+        :param name: Agent name (required)
+        :type name: str
+        :param namespace: Kubernetes namespace
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._archive_agent_serialize(
+            name=name,
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AgentResponse",
+            '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
+            '500': "Dict[str, str]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def archive_agent_without_preload_content(
+        self,
+        name: Annotated[StrictStr, Field(description="Agent name")],
+        namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Archive an agent now
+
+        Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+
+        :param name: Agent name (required)
+        :type name: str
+        :param namespace: Kubernetes namespace
+        :type namespace: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._archive_agent_serialize(
+            name=name,
+            namespace=namespace,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AgentResponse",
+            '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
+            '500': "Dict[str, str]",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _archive_agent_serialize(
+        self,
+        name,
+        namespace,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if name is not None:
+            _path_params['name'] = name
+        # process the query parameters
+        if namespace is not None:
+            
+            _query_params.append(('namespace', namespace))
+            
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/agents/{name}/archive',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
     def cancel_agent_task(
         self,
         name: Annotated[StrictStr, Field(description="Agent name")],
@@ -1198,6 +1484,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1221,6 +1508,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1247,6 +1536,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1275,6 +1565,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1298,6 +1589,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1324,6 +1617,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1352,6 +1646,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1375,6 +1670,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1401,6 +1698,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1424,6 +1722,7 @@ class AgentsApi:
         name,
         namespace,
         recreate_pod,
+        force,
         _request_auth,
         _content_type,
         _headers,
@@ -1455,6 +1754,10 @@ class AgentsApi:
         if recreate_pod is not None:
             
             _query_params.append(('recreatePod', recreate_pod))
+            
+        if force is not None:
+            
+            _query_params.append(('force', force))
             
         # process the header parameters
         # process the form parameters
@@ -2448,6 +2751,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2474,6 +2778,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2509,6 +2815,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2541,6 +2848,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2567,6 +2875,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2602,6 +2912,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2634,6 +2945,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2660,6 +2972,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2695,6 +3009,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2722,6 +3037,7 @@ class AgentsApi:
         self,
         namespace,
         status,
+        hide_archived,
         label,
         q,
         sort,
@@ -2757,6 +3073,10 @@ class AgentsApi:
         if status is not None:
             
             _query_params.append(('status', status))
+            
+        if hide_archived is not None:
+            
+            _query_params.append(('hideArchived', hide_archived))
             
         if label is not None:
             
@@ -2878,6 +3198,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '400': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -2955,6 +3276,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '400': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3032,6 +3354,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '400': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3474,6 +3797,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3547,6 +3871,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(
@@ -3620,6 +3945,7 @@ class AgentsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "AgentResponse",
             '404': "Dict[str, str]",
+            '409': "Dict[str, str]",
             '500': "Dict[str, str]",
         }
         response_data = self.api_client.call_api(

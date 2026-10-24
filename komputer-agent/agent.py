@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import metrics as agent_metrics
+import session_store
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,9 @@ def _pop_tool_duration_ms(starts: dict, tool_use_id, now: float | None = None) -
     return max(0, int(round((now - started) * 1000)))
 
 
-TOOL_OUTPUT_CAP = 1000
+# Only a guard against multi-megabyte blobs in the event stream; normal tool output
+# is published in full and the UI scrolls it.
+TOOL_OUTPUT_CAP = 100_000
 
 
 def _truncate_strings(value, limit: int):
@@ -118,8 +121,7 @@ def _serialize_tool_output(value) -> tuple[str, bool]:
 
     Output is capped at TOOL_OUTPUT_CAP chars. For dicts/lists the cap shortens
     long string leaves rather than cutting the serialized text, so the UI still
-    receives valid JSON — a Bash result's stdout routinely exceeds the cap on its
-    own. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
+    receives valid JSON. Only if shortening every leaf can't fit (e.g. thousands of keys) is the
     text cut as a last resort. Returns (output, truncated).
     """
     if isinstance(value, (dict, list)):
@@ -198,11 +200,19 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     if task_marker in instructions:
         user_task = instructions.split(task_marker, 1)[1]
 
-    publisher.publish("task_started", {
+    task_started = {
         "instructions": user_task,
         "resuming_session": session_id is not None,
         "model": model,
-    })
+    }
+    if session_store.enabled():
+        restore = session_store.last_restore or {"restored": False, "error": None}
+        task_started["restored_session"] = restore["restored"]
+        task_started["restored_from"] = restore.get("from")
+        task_started["restore_error"] = restore["error"]
+        # The startup restore is reported once, on the pod's first task.
+        session_store.last_restore = None
+    publisher.publish("task_started", task_started)
 
     # Tracks the most recent AssistantMessage usage so the PreCompact hook can
     # publish a snapshot of context size at compaction time. Updated in
@@ -445,6 +455,11 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             # Persist session ID for future tasks
             _save_session_id(result.session_id)
 
+            # Save the session to S3 BEFORE the task-end event: the operator
+            # archives or sleeps the agent the moment it sees the task end, so
+            # "Complete" must already imply "saved".
+            store_fields = session_store.task_end_fields()
+
             if state.interrupted:
                 # A cancelled run still gets a ResultMessage back from the SDK
                 # (whatever work completed before the interrupt), so include
@@ -463,6 +478,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "model": model,
                     "response_model": last_response_model,
                     "model_usage": result.model_usage,
+                    **store_fields,
                 })
                 state.interrupted = False
             elif result.subtype == "error_max_budget_usd":
@@ -477,6 +493,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "cost_usd": cost,
                     "duration_ms": result.duration_ms,
                     "session_id": result.session_id,
+                    **store_fields,
                 })
             else:
                 publisher.publish("task_completed", {
@@ -491,6 +508,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "model": model,
                     "response_model": last_response_model,
                     "model_usage": result.model_usage,
+                    **store_fields,
                 })
 
     # Clear the queue reference so server.py won't try to push to a dead queue.

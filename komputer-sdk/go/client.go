@@ -314,6 +314,18 @@ func (c *Client) DeleteAgent(ctx context.Context, name string) (map[string]strin
 	return c.api.AgentsAPI.DeleteAgent(ctx, name).Execute()
 }
 
+// DeleteAgentForce deletes an agent without waiting for its session to be saved
+// to the S3 session store (for when the store is broken and a delete is stuck).
+func (c *Client) DeleteAgentForce(ctx context.Context, name string) (map[string]string, *http.Response, error) {
+	return c.api.AgentsAPI.DeleteAgent(ctx, name).Force(true).Execute()
+}
+
+// GetConfig returns platform settings clients adapt to, such as whether the S3
+// session store is enabled.
+func (c *Client) GetConfig(ctx context.Context) (*komputer.ConfigResponse, *http.Response, error) {
+	return c.api.ConfigAPI.GetConfig(ctx).Execute()
+}
+
 func (c *Client) CancelAgentTask(ctx context.Context, name string) (map[string]string, *http.Response, error) {
 	return c.api.AgentsAPI.CancelAgentTask(ctx, name).Execute()
 }
@@ -332,6 +344,15 @@ func (c *Client) WakeAgent(ctx context.Context, name string) (*komputer.AgentRes
 // (400) for an ephemeral-workspace agent.
 func (c *Client) SleepAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
 	return c.api.AgentsAPI.SleepAgent(ctx, name).Execute()
+}
+
+// ArchiveAgent archives an agent once it's idle — pod and workspace deleted,
+// the agent kept as a record — without changing its lifecycle policy. With the
+// S3 session store on, the session is saved first and the agent can run again.
+// A no-op if already archived; returns an error (409) if a task is in progress
+// or the agent is in a squad.
+func (c *Client) ArchiveAgent(ctx context.Context, name string) (*komputer.AgentResponse, *http.Response, error) {
+	return c.api.AgentsAPI.ArchiveAgent(ctx, name).Execute()
 }
 
 func (c *Client) GetAgentEvents(ctx context.Context, name string) (map[string]interface{}, *http.Response, error) {

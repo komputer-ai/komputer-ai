@@ -50,7 +50,7 @@ func TestPatchAgentTaskEvent_CoalescesProgress(t *testing.T) {
 	send := func(eventType string) {
 		t.Helper()
 		status, msg := mapEventToTaskStatus(AgentEvent{Type: eventType, Payload: map[string]interface{}{}})
-		if err := k8s.PatchAgentTaskEvent(ctx, eventType, "default", "a1", status, msg, "", 0, 0, 0); err != nil {
+		if err := k8s.PatchAgentTaskEvent(ctx, eventType, "default", "a1", status, msg, "", 0, 0, 0, nil); err != nil {
 			t.Fatalf("%s: %v", eventType, err)
 		}
 	}

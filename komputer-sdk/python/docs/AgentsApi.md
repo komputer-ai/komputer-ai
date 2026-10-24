@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**agents_name_ws_get**](AgentsApi.md#agents_name_ws_get) | **GET** /agents/{name}/ws | Stream agent events (WebSocket)
+[**archive_agent**](AgentsApi.md#archive_agent) | **POST** /agents/{name}/archive | Archive an agent now
 [**cancel_agent_task**](AgentsApi.md#cancel_agent_task) | **POST** /agents/{name}/cancel | Cancel agent task
 [**compact_agent_task**](AgentsApi.md#compact_agent_task) | **POST** /agents/{name}/compact | Compact agent conversation
 [**create_agent**](AgentsApi.md#create_agent) | **POST** /agents | Create agent or send task
@@ -77,6 +78,79 @@ No authorization required
  - **Content-Type**: Not defined
  - **Accept**: Not defined
 
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **archive_agent**
+> AgentResponse archive_agent(name, namespace=namespace)
+
+Archive an agent now
+
+Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+
+### Example
+
+
+```python
+import komputer_ai
+from komputer_ai.models.agent_response import AgentResponse
+from komputer_ai.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost:8080/api/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = komputer_ai.Configuration(
+    host = "http://localhost:8080/api/v1"
+)
+
+
+# Enter a context with an instance of the API client
+with komputer_ai.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = komputer_ai.AgentsApi(api_client)
+    name = 'name_example' # str | Agent name
+    namespace = 'namespace_example' # str | Kubernetes namespace (optional)
+
+    try:
+        # Archive an agent now
+        api_response = api_instance.archive_agent(name, namespace=namespace)
+        print("The response of AgentsApi->archive_agent:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling AgentsApi->archive_agent: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **name** | **str**| Agent name | 
+ **namespace** | **str**| Kubernetes namespace | [optional] 
+
+### Return type
+
+[**AgentResponse**](AgentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Archive requested (or already archived) |  -  |
+**404** | Agent not found |  -  |
+**409** | Agent is running a task, or is in a squad |  -  |
+**500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -301,7 +375,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_agent**
-> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
+> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod, force=force)
 
 Delete agent
 
@@ -329,10 +403,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     recreate_pod = True # bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
+    force = True # bool | Skip saving the session to the S3 session store before deleting (optional)
 
     try:
         # Delete agent
-        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
+        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod, force=force)
         print("The response of AgentsApi->delete_agent:\n")
         pprint(api_response)
     except Exception as e:
@@ -349,6 +424,7 @@ Name | Type | Description  | Notes
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **recreate_pod** | **bool**| If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [optional] 
+ **force** | **bool**| Skip saving the session to the S3 session store before deleting | [optional] 
 
 ### Return type
 
@@ -601,7 +677,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
+> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
 
 List agents
 
@@ -629,6 +705,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     api_instance = komputer_ai.AgentsApi(api_client)
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    hide_archived = True # bool | Leave out Archived agents unless status asks for them (optional)
     label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
     q = 'q_example' # str | Case-insensitive substring match against agent name (optional)
     sort = '-created' # str | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to '-created')
@@ -637,7 +714,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -653,6 +730,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
+ **hide_archived** | **bool**| Leave out Archived agents unless status asks for them | [optional] 
  **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
  **q** | **str**| Case-insensitive substring match against agent name | [optional] 
  **sort** | **str**| Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [optional] [default to &#39;-created&#39;]
@@ -753,6 +831,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Updated agent |  -  |
 **400** | Bad request |  -  |
+**409** | Agent is archived (only labels and deleteTTL can change) |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -826,7 +905,7 @@ No authorization required
 **200** | Agent sleeping (or already asleep) |  -  |
 **400** | Ephemeral-workspace agents can&#39;t sleep |  -  |
 **404** | Agent not found |  -  |
-**409** | Agent is running a task |  -  |
+**409** | Agent is running a task, or is archived |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -899,6 +978,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | Agent woken (or already awake) |  -  |
 **404** | Agent not found |  -  |
+**409** | Agent is archived |  -  |
 **500** | Internal error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

@@ -165,6 +165,16 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, agentErr
 	} else {
 		// Agent exists
+		s3On := s3SpecFromCluster(ctx, r.Client).IsEnabled()
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived && !s3On {
+			// An archived agent never runs again, and every run reuses this one agent.
+			schedule.Status.Phase = komputerv1alpha1.SchedulePhaseError
+			schedule.Status.Message = fmt.Sprintf("Agent %q is archived and can't run again; schedules need a Sleep or AutoDelete agent", agentName)
+			if statusErr := r.patchScheduleStatus(ctx, base, schedule); statusErr != nil {
+				return ctrl.Result{}, statusErr
+			}
+			return ctrl.Result{}, nil
+		}
 		if taskInProgress(agent.Status.TaskStatus) {
 			// Agent is busy (InProgress or its Compacting sub-state), skip this run
 			log.Info("Agent is busy, skipping scheduled run", "agent", agentName)
@@ -210,8 +220,11 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
 
-		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
-			// Sleeping agent: patch instructions and wake it (creates new pod)
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping ||
+			(s3On && agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived) {
+			// Sleeping agent — or, with the S3 session store, an archived one:
+			// patch instructions and wake it (creates a new pod, which restores
+			// its session from S3).
 			original := agent.DeepCopy()
 			agent.Spec.Instructions = schedule.Spec.Instructions
 			if err := r.Patch(ctx, agent, client.MergeFrom(original)); err != nil {

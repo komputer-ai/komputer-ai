@@ -134,8 +134,9 @@ export interface V1alpha1ScheduleAgentSpec {
     /**
      * Lifecycle controls what happens after task completion.
      * Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-     * "AutoDelete" deletes the entire agent after task completion.
-     * +kubebuilder:validation:Enum="";Sleep;AutoDelete
+     * "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+     * the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
+     * +kubebuilder:validation:Enum="";Sleep;AutoDelete;Archive
      * +optional
      * @type {V1alpha1AgentLifecycle}
      * @memberof V1alpha1ScheduleAgentSpec

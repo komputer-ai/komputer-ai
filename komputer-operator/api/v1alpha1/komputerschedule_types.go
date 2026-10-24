@@ -32,6 +32,12 @@ const (
 // with exactly what any other agent supports. Instructions are not part of the
 // template: they come from the schedule's own Instructions field, which is also
 // what a run forwards to an already-existing agent.
+//
+// Lifecycle=Archive needs the S3 session store: every run reuses this one agent,
+// and only the session store lets an archived agent run again. That depends on
+// KomputerConfig, which a CRD rule can't see, so it's enforced by the
+// komputer-schedule-archive-requires-s3 ValidatingAdmissionPolicy (Helm), the
+// API, and the schedule controller.
 type ScheduleAgentSpec struct {
 	AgentConfigSpec `json:",inline"`
 }

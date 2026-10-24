@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
+import { Archive, Bot, Trash2, Zap, Moon, Skull, Clock, CheckCircle2, Check, Users } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/kit/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
-import { formatCost, formatRelativeTime } from "@/lib/utils";
+import { cn, formatCost, formatRelativeTime } from "@/lib/utils";
 import type { AgentResponse, Squad } from "@/lib/types";
 import { useSquads } from "@/hooks/use-squads";
-import { deleteSquad } from "@/lib/api";
+import { archiveAgent, deleteSquad } from "@/lib/api";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { deleteOffered } from "@/lib/session-store";
 import { agentKey } from "@/lib/agent-list-query";
 
 export { agentKey };
@@ -20,6 +22,7 @@ type AgentCardsProps = {
   onDelete: (name: string, namespace: string, opts?: { recreatePod?: boolean }) => void;
   selected?: Set<string>;
   onToggleSelect?: (key: string) => void;
+  onChanged?: () => void;
 };
 
 const statusConfig: Record<string, { color: string; icon: typeof Bot; pulse?: boolean }> = {
@@ -28,11 +31,12 @@ const statusConfig: Record<string, { color: string; icon: typeof Bot; pulse?: bo
   Pending:   { color: "#FBBF24", icon: Clock },
   Failed:    { color: "#F87171", icon: Skull },
   Succeeded: { color: "#34D399", icon: CheckCircle2 },
+  Archived:  { color: "var(--color-status-archived)", icon: Archive },
 };
 
 const defaultStatus = { color: "#8899A6", icon: Bot };
 
-export function AgentCards({ agents, onDelete, selected, onToggleSelect }: AgentCardsProps) {
+export function AgentCards({ agents, onDelete, selected, onToggleSelect, onChanged }: AgentCardsProps) {
   const selectionMode = !!selected && selected.size > 0;
   const { squads } = useSquads();
 
@@ -75,10 +79,11 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ duration: 0.25, delay: i * 0.04, layout: { duration: 0.25, ease: "easeOut" } }}
+              className="h-full"
             >
-              <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block group" onClick={handleCardClick}>
+              <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block h-full group" onClick={handleCardClick}>
                 <div
-                  className={`relative rounded-[var(--radius-md)] border bg-[var(--color-surface)] ${
+                  className={`relative h-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] ${
                     isSelected
                       ? "border-[var(--color-border)]"
                       : "border-[var(--color-border)] transition-[border-color,box-shadow] duration-150 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]"
@@ -132,11 +137,13 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                         {agent.name}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }} className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!squad && <ArchiveButton agent={agent} onChanged={onChanged} />}
                           <AgentDeleteButton
                             agentName={agent.name}
                             agentNamespace={agent.namespace}
                             squad={squad}
+                            status={agent.status}
                             onConfirm={(opts) => onDelete(agent.name, agent.namespace, opts)}
                           />
                         </div>
@@ -178,17 +185,19 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
                           {formatRelativeTime(agent.createdAt)}
                         </span>
                       </div>
-                      {agent.storage?.ephemeral && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">storage</span>
-                          <span
-                            className="text-[11px] font-medium text-[var(--color-warning,#FBBF24)]"
-                            title="Ephemeral workspace — no PVC, lost on pod restart"
-                          >
-                            Ephemeral
-                          </span>
-                        </div>
-                      )}
+                      {/* Always laid out (blank when not ephemeral) so every card is the same height. */}
+                      <div
+                        className={cn("flex items-center justify-between", !agent.storage?.ephemeral && "invisible")}
+                        aria-hidden={!agent.storage?.ephemeral}
+                      >
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">storage</span>
+                        <span
+                          className="text-[11px] font-medium text-[var(--color-warning,#FBBF24)]"
+                          title="Ephemeral workspace — no PVC, lost on pod restart"
+                        >
+                          Ephemeral
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -204,17 +213,57 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect }: Agent
 
 // Squad-aware delete button: shows extra options when agent is in a squad.
 // Exported so the table view can reuse the same delete affordance as cards.
+// Archive now, with the S3 session store on: the agent, its settings, cost and
+// conversation are kept and it can run again. Hidden while a task runs.
+export function ArchiveButton({ agent, onChanged }: { agent: AgentResponse; onChanged?: () => void }) {
+  const { s3Enabled } = usePlatformConfig();
+  const [error, setError] = useState<string | null>(null);
+  const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting";
+  if (!s3Enabled || agent.status === "Archived" || busy) return null;
+
+  const archive = async () => {
+    setError(null);
+    try {
+      await archiveAgent(agent.name, agent.namespace);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to archive");
+    }
+  };
+
+  return (
+    <ConfirmDialog
+      title={`Archive ${agent.name}?`}
+      description="Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later."
+      onConfirm={archive}
+      confirmLabel="Archive"
+      confirmVariant="primary"
+      confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
+      trigger={
+        <Button variant="ghost" size="icon" className="h-5 w-5 p-0" title={error ?? `Archive ${agent.name}`} aria-label={`Archive ${agent.name}`}>
+          <Archive className={cn("w-2.5 h-2.5 transition-colors", error ? "text-[var(--color-status-error)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-status-archived)]")} />
+        </Button>
+      }
+    />
+  );
+}
+
 export function AgentDeleteButton({
   agentName,
   agentNamespace,
   squad,
+  status,
   onConfirm,
 }: {
   agentName: string;
   agentNamespace: string;
   squad?: Squad;
+  /** The agent's phase: with the S3 session store, Delete is offered only once archived. */
+  status?: string;
   onConfirm: (opts?: { recreatePod?: boolean }) => void;
 }) {
+  const { s3Enabled } = usePlatformConfig();
+  if (!squad && !deleteOffered(status, s3Enabled)) return null;
   if (!squad) {
     return (
       <ConfirmDialog

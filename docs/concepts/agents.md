@@ -16,10 +16,21 @@ By default, agent pods stay running after task completion. You can change this b
 - **Default (`""`)** — Pod stays running, ready for the next task immediately. Best for interactive use and agents that receive frequent tasks.
 - **Sleep** — Pod is deleted after task completion, but the PVC (workspace) is preserved. When a new task is sent, the operator creates a fresh pod that reconnects to the same workspace. Saves compute costs for infrequent tasks.
 - **AutoDelete** — The entire agent (CR, pod, PVC, secrets) is deleted after task completion. Best for one-shot tasks where nothing needs to persist.
+- **Archive** — Like AutoDelete, but the agent CR is kept as a read-only record. After task completion the pod and PVC are deleted and the agent moves to the `Archived` phase, with its settings, model, cost (`totalCostUSD`, `totalTokens`) and last task message intact. Best for one-shot tasks you still want to audit or bill.
+
+### Archived agents
+
+Without the [S3 session store](./session-store.md), an archived agent is terminal: it can't run again. Sending it a task, waking it, sleeping it, or patching anything other than `labels` and `deleteTTL` returns `409 Conflict`. Delete it like any other agent, or set `deleteTTL` to remove the record automatically (it counts from creation, so `lifecycle: Archive` + `deleteTTL: 720h` keeps the record for 30 days).
+
+The workspace is not kept. An archived agent whose PVC survived would just be a sleeping agent, so `Archive` doesn't offer that: use `Sleep` to keep the workspace, `Archive` to keep the record, and `AutoDelete` to keep neither. Like `AutoDelete`, only a successful task triggers the transition; an agent whose task errors stays up so you can inspect it. Without the session store, `Archive` isn't available for [schedules](./schedules.md), since every run reuses the same agent.
+
+With the [S3 session store](./session-store.md) configured, an archived agent works like a sleeping agent with no workspace: every control works, and sending it a task brings it back with its conversation restored (its files are not kept). Schedules can use `Archive` too, and ephemeral agents can sleep, since their session is restored on wake.
 
 Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](/integration/rest-api) for details.
 
 To sleep an agent **right now** rather than set the `lifecycle: Sleep` policy above, use `POST /agents/{name}/sleep` (or `komputer agents sleep <name>`) instead. Unlike `lifecycle: Sleep`, it takes effect immediately regardless of a prior idle wake or a `sleepTTL`, and it does not change `spec.lifecycle` at all — it's a one-off action, not a policy change.
+
+To archive an agent **right now** (running or sleeping, once idle), use `POST /agents/{name}/archive` (or `komputer agents archive <name>`). Like sleep now, it doesn't change `spec.lifecycle`. With the S3 session store the session is saved first and the agent can run again later; without it, the archived agent is a read-only record.
 
 A pod only auto-runs `spec.instructions` on startup when a task is pending or was interrupted (`status.taskStatus` is empty, `InProgress`, or `Compacting`); if the last task already finished (`Complete`/`Error`), a freshly (re)built pod comes up idle instead. This is what makes an agent reschedule (eviction, crash, node drain) safe: it resumes the task it was actually on rather than silently re-running whatever instructions it was created with.
 

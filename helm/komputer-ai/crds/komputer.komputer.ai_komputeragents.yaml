@@ -147,11 +147,13 @@ spec:
                 description: |-
                   Lifecycle controls what happens after task completion.
                   Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
-                  "AutoDelete" deletes the entire agent after task completion.
+                  "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
+                  the pod and PVC but keeps the agent as a read-only record (Phase=Archived).
                 enum:
                 - ""
                 - Sleep
                 - AutoDelete
+                - Archive
                 type: string
               memories:
                 description: |-
@@ -8398,11 +8400,40 @@ spec:
                   QueueReason explains why the agent is queued.
                   Owned by operator.
                 type: string
+              sessionCopiedOutAt:
+                description: |-
+                  SessionCopiedOutAt is when the operator last saved this agent's session to
+                  S3 on its behalf (for pods that can't save themselves).
+                  Owned by the operator.
+                format: date-time
+                type: string
               sessionId:
                 description: |-
                   SessionID is the Claude session ID for conversation continuity.
                   Set by the API worker when a task completes, read by the agent on startup.
                 type: string
+              sessionStore:
+                description: |-
+                  SessionStore is the result of the agent's own S3 session saves.
+                  Owned by the API worker.
+                properties:
+                  error:
+                    description: Error is the last attempt's error, if it failed.
+                    type: string
+                  lastAttemptAt:
+                    description: LastAttemptAt is when a save was last attempted.
+                    format: date-time
+                    type: string
+                  lastSavedAt:
+                    description: LastSavedAt is when the session was last saved successfully.
+                    format: date-time
+                    type: string
+                  ok:
+                    description: OK reports whether the last attempt succeeded.
+                    type: boolean
+                required:
+                - ok
+                type: object
               sleepExpiresAt:
                 description: |-
                   SleepExpiresAt is when the agent will be put to sleep by SleepTTL.

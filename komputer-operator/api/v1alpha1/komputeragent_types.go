@@ -71,6 +71,16 @@ const AnnotationWakeIdle = "komputer.ai/wake-idle"
 // of this annotation — see SleepAgentNow's doc comment.
 const AnnotationSleepRequested = "komputer.ai/sleep-requested"
 
+// AnnotationArchiveRequested records an explicit "archive now" request, WITHOUT
+// changing spec.Lifecycle. Owned by the API (set by ArchiveAgentNow, the handler
+// for POST /agents/{name}/archive). Consumed and cleared by the operator's
+// reconcileStatus: once no task is in progress and — with the S3 session store
+// on — the latest task is saved, it archives the agent (pod, PVC and Service
+// deleted; the CR kept), running or sleeping, then clears this annotation and
+// AnnotationWakeIdle. A sleeping agent whose latest task isn't saved is woken
+// idle by the API so the operator can copy its session out first.
+const AnnotationArchiveRequested = "komputer.ai/archive-requested"
+
 // KomputerAgentPhase represents the lifecycle phase of a KomputerAgent.
 type KomputerAgentPhase string
 
@@ -81,6 +91,9 @@ const (
 	AgentPhaseFailed    KomputerAgentPhase = "Failed"
 	AgentPhaseSleeping  KomputerAgentPhase = "Sleeping"
 	AgentPhaseQueued    KomputerAgentPhase = "Queued"
+	// AgentPhaseArchived is terminal: the agent ran with Lifecycle=Archive, its pod
+	// and PVC are gone, and the CR is kept only as a record of its spec and status.
+	AgentPhaseArchived KomputerAgentPhase = "Archived"
 )
 
 // AgentLifecycle controls what happens after task completion.
@@ -94,6 +107,9 @@ const (
 	AgentLifecycleSleep AgentLifecycle = "Sleep"
 	// AgentLifecycleAutoDelete deletes the entire agent after task completion.
 	AgentLifecycleAutoDelete AgentLifecycle = "AutoDelete"
+	// AgentLifecycleArchive deletes the pod and PVC after task completion but keeps
+	// the CR (spec, cost, status) as a read-only record in Phase=Archived.
+	AgentLifecycleArchive AgentLifecycle = "Archive"
 )
 
 // AgentTaskStatus represents whether the agent is actively working on a task.
@@ -219,6 +235,15 @@ type KomputerAgentStatus struct {
 	// Owned by the controller that owns the pod (agent for solo, squad for squad members).
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// SessionStore is the result of the agent's own S3 session saves.
+	// Owned by the API worker.
+	// +optional
+	SessionStore *SessionStoreStatus `json:"sessionStore,omitempty"`
+	// SessionCopiedOutAt is when the operator last saved this agent's session to
+	// S3 on its behalf (for pods that can't save themselves).
+	// Owned by the operator.
+	// +optional
+	SessionCopiedOutAt *metav1.Time `json:"sessionCopiedOutAt,omitempty"`
 	// Conditions holds the latest observations about the agent's state.
 	// Owned by the operator.
 	// +optional

@@ -19,6 +19,7 @@ __version__ = "0.1.0"
 # Define package exports
 __all__ = [
     "AgentsApi",
+    "ConfigApi",
     "ConnectorsApi",
     "MemoriesApi",
     "OfficesApi",
@@ -42,6 +43,7 @@ __all__ = [
     "AgentListResponse",
     "AgentResponse",
     "CompactAgentRequest",
+    "ConfigResponse",
     "ConnectorResponse",
     "CostBreakdownResponse",
     "CreateAgentRequest",
@@ -63,10 +65,12 @@ __all__ = [
     "PatchScheduleRequest",
     "PatchSkillRequest",
     "PatchSquadRequest",
+    "S3ConfigResponse",
     "ScheduleListResponse",
     "ScheduleResponse",
     "SecretListResponse",
     "SecretResponse",
+    "SessionStoreResponse",
     "SkillResponse",
     "SquadListResponse",
     "SquadMemberResponse",
@@ -230,6 +234,7 @@ __all__ = [
 
 # import apis into sdk package
 from komputer_ai.api.agents_api import AgentsApi as AgentsApi
+from komputer_ai.api.config_api import ConfigApi as ConfigApi
 from komputer_ai.api.connectors_api import ConnectorsApi as ConnectorsApi
 from komputer_ai.api.memories_api import MemoriesApi as MemoriesApi
 from komputer_ai.api.offices_api import OfficesApi as OfficesApi
@@ -257,6 +262,7 @@ from komputer_ai.models.agent_list_facets import AgentListFacets as AgentListFac
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
 from komputer_ai.models.agent_response import AgentResponse as AgentResponse
 from komputer_ai.models.compact_agent_request import CompactAgentRequest as CompactAgentRequest
+from komputer_ai.models.config_response import ConfigResponse as ConfigResponse
 from komputer_ai.models.connector_response import ConnectorResponse as ConnectorResponse
 from komputer_ai.models.cost_breakdown_response import CostBreakdownResponse as CostBreakdownResponse
 from komputer_ai.models.create_agent_request import CreateAgentRequest as CreateAgentRequest
@@ -278,10 +284,12 @@ from komputer_ai.models.patch_memory_request import PatchMemoryRequest as PatchM
 from komputer_ai.models.patch_schedule_request import PatchScheduleRequest as PatchScheduleRequest
 from komputer_ai.models.patch_skill_request import PatchSkillRequest as PatchSkillRequest
 from komputer_ai.models.patch_squad_request import PatchSquadRequest as PatchSquadRequest
+from komputer_ai.models.s3_config_response import S3ConfigResponse as S3ConfigResponse
 from komputer_ai.models.schedule_list_response import ScheduleListResponse as ScheduleListResponse
 from komputer_ai.models.schedule_response import ScheduleResponse as ScheduleResponse
 from komputer_ai.models.secret_list_response import SecretListResponse as SecretListResponse
 from komputer_ai.models.secret_response import SecretResponse as SecretResponse
+from komputer_ai.models.session_store_response import SessionStoreResponse as SessionStoreResponse
 from komputer_ai.models.skill_response import SkillResponse as SkillResponse
 from komputer_ai.models.squad_list_response import SquadListResponse as SquadListResponse
 from komputer_ai.models.squad_member_response import SquadMemberResponse as SquadMemberResponse

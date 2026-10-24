@@ -13,7 +13,7 @@
  */
 
 import { Configuration, ResponseError } from "./runtime";
-import { AgentsApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, SquadsApi, TemplatesApi } from "./apis";
+import { AgentsApi, ConfigApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, SquadsApi, TemplatesApi } from "./apis";
 import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateConnectorRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec } from "./models";
 import { AgentEventStream } from "./watch";
 import type { AgentEvent } from "./watch";
@@ -21,6 +21,7 @@ export type { AgentEvent } from "./watch";
 
 export class KomputerClient {
   private _agents: AgentsApi;
+  private _config: ConfigApi;
   private _connectors: ConnectorsApi;
   private _memories: MemoriesApi;
   private _offices: OfficesApi;
@@ -35,6 +36,7 @@ export class KomputerClient {
     this._baseUrl = baseUrl.replace(/\/$/, "");
     const config = new Configuration({ basePath: this._baseUrl + "/api/v1" });
     this._agents = new AgentsApi(config);
+    this._config = new ConfigApi(config);
     this._connectors = new ConnectorsApi(config);
     this._memories = new MemoriesApi(config);
     this._offices = new OfficesApi(config);
@@ -73,8 +75,14 @@ export class KomputerClient {
     return this._agents.patchAgent({ name: params.name, request: { allowedTools: params.allowedTools, budgetUSD: params.budgetUSD, connectors: params.connectors, deleteTTL: params.deleteTTL, disallowedTools: params.disallowedTools, effort: params.effort, instructions: params.instructions, labels: params.labels, lifecycle: params.lifecycle, sleepTTL: params.sleepTTL, taskBudgetUSD: params.taskBudgetUSD, taskTimeout: params.taskTimeout, memories: params.memories, model: params.model, podSpec: params.podSpec, priority: params.priority, removeLabels: params.removeLabels, secretRefs: params.secretRefs, skills: params.skills, storage: params.storage, systemPrompt: params.systemPrompt, templateRef: params.templateRef } });
   }
 
-  async deleteAgent(name: string) {
-    return this._agents.deleteAgent({ name });
+  /** Delete an agent. `force` skips waiting for its session to be saved to the S3 session store. */
+  async deleteAgent(name: string, opts?: { force?: boolean }) {
+    return this._agents.deleteAgent({ name, force: opts?.force || undefined });
+  }
+
+  /** Platform settings clients adapt to, e.g. whether the S3 session store is on. */
+  async getConfig() {
+    return this._config.getConfig();
   }
 
   async cancelAgentTask(name: string) {
@@ -95,6 +103,15 @@ export class KomputerClient {
    * ephemeral-workspace agent. */
   async sleepAgent(name: string) {
     return this._agents.sleepAgent({ name });
+  }
+
+  /** Archive an agent once it's idle — pod and workspace deleted, the agent
+   * kept as a record — without changing its lifecycle policy. With the S3
+   * session store on, the session is saved first and the agent can run again.
+   * A no-op if already archived; throws (409) if a task is in progress or the
+   * agent is in a squad. */
+  async archiveAgent(name: string) {
+    return this._agents.archiveAgent({ name });
   }
 
   async getAgentEvents(name: string) {

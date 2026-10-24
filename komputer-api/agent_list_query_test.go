@@ -1,9 +1,25 @@
 package main
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+// With no labels (or no agents) the facets must encode as [] — the UI maps
+// over them, and a nil slice encodes as null.
+func TestComputeAgentFacets_EmptyEncodesAsArrays(t *testing.T) {
+	for _, agents := range [][]AgentResponse{nil, {{Name: "a", Namespace: "default"}}} {
+		b, err := json.Marshal(computeAgentFacets(agents))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), "null") {
+			t.Errorf("facets for %d agents = %s, want arrays, not null", len(agents), b)
+		}
+	}
+}
 
 func names(agents []AgentResponse) []string {
 	out := make([]string, len(agents))

@@ -158,6 +158,13 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		if req.AgentName != "" {
+			if err := validateScheduleAgentRef(c.Request.Context(), k8s, ns, req.AgentName, k8s.S3Enabled(c.Request.Context())); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// A new schedule's inline agent template has no existing connectors to compare
 		// against — every connector it names is a fresh attach.
 		if req.Agent != nil {
@@ -177,7 +184,11 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			cfg := req.Agent.AgentConfigSpec.DeepCopy()
 			scheduleAgentDefaults(cfg)
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, *cfg)
-			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL, k8s.S3Enabled(c.Request.Context())); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -328,6 +339,10 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			Logger.Warnw("manual trigger: failed to label scheduled agent", "schedule", schedule.Name, "agent", agentName, "error", err)
 		}
 	} else {
+		s3On := k8s.S3Enabled(ctx)
+		if agentArchived(agent) && !s3On {
+			return "", http.StatusConflict, fmt.Errorf("agent %s: %w", agentName, ErrAgentArchived)
+		}
 		if agentTaskInProgress(agent.Status.TaskStatus) {
 			return "", http.StatusConflict, fmt.Errorf("agent %s is currently busy", agentName)
 		}
@@ -337,7 +352,7 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 		if err := checkBudgetExhausted(ctx, k8s, agent); err != nil {
 			return "", http.StatusConflict, err
 		}
-		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+		if agentDormant(agent, s3On) {
 			if err := k8s.WakeAgent(ctx, ns, agentName, instructions, "", "", "", string(agent.Spec.Lifecycle)); err != nil {
 				return "", http.StatusInternalServerError, fmt.Errorf("failed to wake agent: %w", err)
 			}
@@ -435,6 +450,12 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
+		if req.AgentName != nil && *req.AgentName != "" {
+			if err := validateScheduleAgentRef(c.Request.Context(), k8s, ns, *req.AgentName, k8s.S3Enabled(c.Request.Context())); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
 
 		// Reject a disabled connector only if it's newly attached — a connector already
 		// on the schedule's agent template (now disabled) must survive a re-sent template
@@ -456,7 +477,11 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			cfg := req.Agent.AgentConfigSpec.DeepCopy()
 			scheduleAgentDefaults(cfg)
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, *cfg)
-			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, string(cfg.Lifecycle), cfg.SleepTTL, k8s.S3Enabled(c.Request.Context())); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

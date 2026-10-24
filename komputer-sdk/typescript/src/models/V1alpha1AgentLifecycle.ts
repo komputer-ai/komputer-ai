@@ -20,7 +20,8 @@
 export const V1alpha1AgentLifecycle = {
     AgentLifecycleDefault: '',
     AgentLifecycleSleep: 'Sleep',
-    AgentLifecycleAutoDelete: 'AutoDelete'
+    AgentLifecycleAutoDelete: 'AutoDelete',
+    AgentLifecycleArchive: 'Archive'
 } as const;
 export type V1alpha1AgentLifecycle = typeof V1alpha1AgentLifecycle[keyof typeof V1alpha1AgentLifecycle];
 

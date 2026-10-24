@@ -36,6 +36,9 @@ var (
 	skipCertManagerInstall = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
 	// isCertManagerAlreadyInstalled will be set true when CertManager CRDs be found on the cluster
 	isCertManagerAlreadyInstalled = false
+	// certManagerInstalledByUs is set only after this run installed cert-manager;
+	// AfterSuite uninstalls nothing otherwise (e.g. when BeforeSuite failed early).
+	certManagerInstalledByUs = false
 
 	// projectImage is the name of the image which will be build and loaded
 	// with the code source changes to be tested.
@@ -53,9 +56,20 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	// Before anything else: this suite creates and deletes cluster-wide
+	// resources, so it only runs against its kind cluster (or a context named
+	// explicitly), and every kubectl/make call is pinned to that context.
+	By("checking the kube context is the e2e kind cluster")
+	kubeContext, err := utils.CurrentKubeContext()
+	Expect(err).NotTo(HaveOccurred(), "Failed to read the current kube context")
+	Expect(utils.CheckE2EContext(kubeContext, utils.KindClusterName(), os.Getenv(utils.AllowContextEnv))).To(Succeed())
+	pinned, err := utils.PinKubeContext(kubeContext, GinkgoT().TempDir())
+	Expect(err).NotTo(HaveOccurred(), "Failed to pin the kube context")
+	Expect(os.Setenv("KUBECONFIG", pinned)).To(Succeed())
+
 	By("building the manager(Operator) image")
 	cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectImage))
-	_, err := utils.Run(cmd)
+	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager(Operator) image")
 
 	// TODO(user): If you want to change the e2e test vendor from Kind, ensure the image is
@@ -74,6 +88,7 @@ var _ = BeforeSuite(func() {
 		if !isCertManagerAlreadyInstalled {
 			_, _ = fmt.Fprintf(GinkgoWriter, "Installing CertManager...\n")
 			Expect(utils.InstallCertManager()).To(Succeed(), "Failed to install CertManager")
+			certManagerInstalledByUs = true
 		} else {
 			_, _ = fmt.Fprintf(GinkgoWriter, "WARNING: CertManager is already installed. Skipping installation...\n")
 		}
@@ -81,8 +96,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	// Teardown CertManager after the suite if not skipped and if it was not already installed
-	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
+	// Teardown CertManager only if this run installed it.
+	if certManagerInstalledByUs {
 		_, _ = fmt.Fprintf(GinkgoWriter, "Uninstalling CertManager...\n")
 		utils.UninstallCertManager()
 	}

@@ -38,6 +38,13 @@ rules:
 - apiGroups:
   - komputer.komputer.ai
   resources:
+  - komputerconfigs
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
   - komputeragents
   verbs:
   - create

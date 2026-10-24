@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Trash2, X, CheckSquare, Users, LayoutGrid, Rows3, Loader2 } from "lucide-react";
+import { Archive, Trash2, X, CheckSquare, Users, LayoutGrid, Rows3, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
@@ -22,12 +22,16 @@ import { ListFilterBar } from "@/components/shared/list-filter-bar";
 import { usePaginatedAgents } from "@/hooks/use-paginated-agents";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { usePageRefresh, usePageHeaderSlot } from "@/components/layout/app-shell";
-import { deleteAgent, deleteSquad } from "@/lib/api";
+import { archiveAgent, deleteAgent, deleteSquad } from "@/lib/api";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { deleteOffered } from "@/lib/session-store";
+import { summarizeBulkArchive } from "@/lib/bulk-archive";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
 import { cn } from "@/lib/utils";
 import { agentKey, cardsSortToApiSort, type CardsSort } from "@/lib/agent-list-query";
 
-const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed"] as const;
+const STATUS_FILTERS = ["All", "Running", "Sleeping", "Failed", "Archived"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const SORT_OPTIONS: { value: CardsSort; label: string }[] = [
@@ -86,6 +90,8 @@ export default function AgentsPage() {
     () => ({
       namespace: namespace || undefined,
       status: statusFilter === "All" ? undefined : statusFilter,
+      // Archived agents only show up under the Archived filter.
+      hideArchived: statusFilter === "All",
       labels: labelFilters,
       q: search || undefined,
       sort: apiSort,
@@ -120,7 +126,11 @@ export default function AgentsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // What the last bulk archive couldn't do; shown in the bulk bar until the selection changes.
+  const [bulkArchiveMessage, setBulkArchiveMessage] = useState<string | null>(null);
+
   const toggleSelect = useCallback((key: string) => {
+    setBulkArchiveMessage(null);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -129,11 +139,15 @@ export default function AgentsPage() {
     });
   }, []);
 
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  const clearSelection = useCallback(() => {
+    setBulkArchiveMessage(null);
+    setSelected(new Set());
+  }, []);
 
   const selectAll = useCallback(() => {
     // Selects every agent currently loaded (infinite scroll may not have
     // fetched the full matching set yet).
+    setBulkArchiveMessage(null);
     setSelected(new Set(agents.map((a) => agentKey(a))));
   }, [agents]);
 
@@ -178,6 +192,29 @@ export default function AgentsPage() {
   // Inject the bulk-action bar into the global header (left of "+ New Agent").
   const allSelected = selected.size > 0 && selected.size === agents.length;
 
+  // With the S3 session store, live agents are retired by archiving them; Delete
+  // is offered only when every selected agent is archived (squad members aside).
+  const { s3Enabled } = usePlatformConfig();
+  const selectedAgents = useMemo(() => agents.filter((a) => selected.has(agentKey(a))), [agents, selected]);
+  const archivable = useMemo(
+    () => (s3Enabled ? selectedAgents.filter((a) => !a.squad && a.status !== "Archived" && a.taskStatus !== "InProgress" && a.taskStatus !== "Compacting") : []),
+    [s3Enabled, selectedAgents],
+  );
+  const bulkDeleteOffered = selectedAgents.every((a) => a.squad || deleteOffered(a.status, s3Enabled));
+  const [bulkArchiving, setBulkArchiving] = useState(false);
+  const handleBulkArchive = useCallback(async () => {
+    setBulkArchiving(true);
+    try {
+      const results = await Promise.allSettled(archivable.map((a) => archiveAgent(a.name, a.namespace)));
+      const outcome = summarizeBulkArchive(archivable, results);
+      setSelected(new Set(outcome.failedKeys));
+      setBulkArchiveMessage(outcome.message);
+      refresh();
+    } finally {
+      setBulkArchiving(false);
+    }
+  }, [archivable, refresh]);
+
   // List the selected squad-member agents (and their squad names) so the user
   // can confirm exactly what will happen to them.
   const squadSelectedAgents = useMemo(() => {
@@ -200,6 +237,15 @@ export default function AgentsPage() {
         className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]"
       >
         <span className="text-xs text-[var(--color-text-secondary)]">{selected.size} selected</span>
+        {bulkArchiveMessage && (
+          <span
+            role="status"
+            className="max-w-[28rem] truncate text-xs text-[var(--color-status-error)]"
+            title={bulkArchiveMessage}
+          >
+            {bulkArchiveMessage}
+          </span>
+        )}
         {squadSelectedCount > 0 && (
           <span
             className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-[var(--color-brand-violet)]/15 text-[var(--color-brand-violet)] border border-[var(--color-brand-violet)]/30"
@@ -227,19 +273,37 @@ export default function AgentsPage() {
           <X className="size-3" />
           Clear
         </button>
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={bulkDeleting}
-          className="!h-6 !px-2.5 text-xs"
-          onClick={() => setBulkDialogOpen(true)}
-        >
-          <Trash2 className="size-3" data-icon="inline-start" />
-          {bulkDeleting ? "Deleting..." : `Delete ${selected.size}`}
-        </Button>
+        {archivable.length > 0 && (
+          <ConfirmDialog
+            title={`Archive ${archivable.length} agent${archivable.length === 1 ? "" : "s"}?`}
+            description="Their pods and workspace files are removed once they're idle. The agents, their settings, cost and conversations are kept, and you can send them a task again later."
+            onConfirm={handleBulkArchive}
+            confirmLabel={`Archive ${archivable.length}`}
+            confirmVariant="primary"
+            confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
+            trigger={
+              <Button variant="secondary" size="sm" disabled={bulkArchiving} className="!h-6 !px-2.5 text-xs border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55">
+                <Archive className="size-3" data-icon="inline-start" />
+                {bulkArchiving ? "Archiving..." : `Archive ${archivable.length}`}
+              </Button>
+            }
+          />
+        )}
+        {bulkDeleteOffered && (
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={bulkDeleting}
+            className="!h-6 !px-2.5 text-xs"
+            onClick={() => setBulkDialogOpen(true)}
+          >
+            <Trash2 className="size-3" data-icon="inline-start" />
+            {bulkDeleting ? "Deleting..." : `Delete ${selected.size}`}
+          </Button>
+        )}
       </motion.div>
     );
-  }, [selected.size, squadSelectedCount, bulkDeleting, clearSelection, selectAll, allSelected]);
+  }, [selected.size, squadSelectedCount, bulkDeleting, clearSelection, selectAll, allSelected, archivable, bulkArchiving, bulkDeleteOffered, handleBulkArchive, bulkArchiveMessage]);
   usePageHeaderSlot(headerSlot);
 
   return (
@@ -390,6 +454,7 @@ export default function AgentsPage() {
         ) : (
           <AgentCards
             agents={agents}
+            onChanged={refresh}
             onDelete={handleDelete}
             selected={selected}
             onToggleSelect={toggleSelect}

@@ -87,6 +87,51 @@ spec:
                 required:
                 - address
                 type: object
+              s3:
+                description: |-
+                  S3 configures the S3 session store, where agent sessions are saved and
+                  restored from. Unset means the session store is off.
+                properties:
+                  bucket:
+                    description: Bucket holds the agents' session objects.
+                    type: string
+                  credentialsSecret:
+                    description: |-
+                      CredentialsSecret holds static credentials under the keys
+                      AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. When unset, everything uses
+                      the AWS default credential chain (IAM roles, or env vars you add).
+                    properties:
+                      name:
+                        description: Name of the Secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the Secret. Empty means the operator's
+                          namespace.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  enabled:
+                    description: Enabled turns the session store on.
+                    type: boolean
+                  endpoint:
+                    description: Endpoint is the S3 API URL for non-AWS stores. Empty
+                      means AWS.
+                    type: string
+                  forcePathStyle:
+                    description: ForcePathStyle uses path-style addressing (most non-AWS
+                      stores need it).
+                    type: boolean
+                  prefix:
+                    description: Prefix is prepended to every object key.
+                    type: string
+                  region:
+                    description: Region of the bucket.
+                    type: string
+                required:
+                - bucket
+                - enabled
+                type: object
             required:
             - redis
             type: object

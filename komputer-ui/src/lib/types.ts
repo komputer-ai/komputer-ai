@@ -1,4 +1,4 @@
-export type AgentStatus = 'Pending' | 'Running' | 'Queued' | 'Sleeping' | 'Succeeded' | 'Failed';
+export type AgentStatus = 'Pending' | 'Running' | 'Queued' | 'Sleeping' | 'Succeeded' | 'Failed' | 'Archived';
 
 export interface StorageOverride {
   size?: string;
@@ -22,7 +22,7 @@ export interface AgentResponse {
   status: AgentStatus;
   taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
-  lifecycle?: '' | 'Sleep' | 'AutoDelete';
+  lifecycle?: '' | 'Sleep' | 'AutoDelete' | 'Archive';
   /** Idle timeout before auto-sleep, as a Go duration string (e.g. "30m0s"). */
   sleepTTL?: string;
   /** Absolute lifetime before auto-delete, as a Go duration string (e.g. "24h0m0s"). */
@@ -67,6 +67,20 @@ export interface AgentResponse {
   squadName?: string;
   errors?: string[];
   labels?: Record<string, string>;
+  /** S3 session store state; absent when the store isn't in use. */
+  sessionStore?: SessionStoreState;
+}
+
+/** An agent's S3 session store state: when its session was last saved, and whether the last save worked. */
+export interface SessionStoreState {
+  lastSavedAt?: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** GET /config — platform settings the UI adapts to. */
+export interface ConfigResponse {
+  s3: { enabled: boolean; bucket?: string };
 }
 
 export interface AgentListFacets {
@@ -206,7 +220,7 @@ export interface CreateAgentRequest {
   allowedTools?: string[];
   disallowedTools?: string[];
   secretRefs?: string[];
-  lifecycle?: '' | 'Sleep' | 'AutoDelete';
+  lifecycle?: '' | 'Sleep' | 'AutoDelete' | 'Archive';
   /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
   sleepTTL?: string;
   /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */

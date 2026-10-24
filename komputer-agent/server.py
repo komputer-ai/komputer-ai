@@ -12,9 +12,10 @@ logger = logging.getLogger("komputer.agent.server")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-from agent import _write_skills
+from agent import TOOL_OUTPUT_CAP, _write_skills
 import config as agent_config
 import metrics as agent_metrics
+import session_store
 import state
 
 app = FastAPI()
@@ -217,7 +218,7 @@ async def create_task(req: TaskRequest, background_tasks: BackgroundTasks):
             try:
                 loop.run_until_complete(_current_task)
             except asyncio.CancelledError:
-                _publisher.publish("task_cancelled", {"reason": "Cancelled by user"})
+                _publisher.publish("task_cancelled", {"reason": "Cancelled by user", **session_store.task_end_fields()})
             finally:
                 state.set_active_client(None)
                 state.active_loop = None
@@ -353,7 +354,7 @@ async def get_history(limit: int = 50, session_id: str = None):
                                     "timestamp": timestamp,
                                     "payload": {
                                         "tool": block.get("tool_use_id", ""),
-                                        "output": str(block.get("content", ""))[:500],
+                                        "output": str(block.get("content", ""))[:TOOL_OUTPUT_CAP],
                                     },
                                 })
                     elif isinstance(content, str) and content:
@@ -497,8 +498,9 @@ async def shutdown():
     # Phase 2: Task didn't finish — interrupt via SDK then cancel
     _interrupt_agent()
 
-    # Phase 3: Wait up to 5s for cancellation to flush events
-    for _ in range(10):
+    # Phase 3: Wait up to 20s for cancellation to flush events and save the
+    # session to S3 (the pod gets a 60s grace period when S3 is configured).
+    for _ in range(40):
         if not state.busy.locked():
             return {"status": "cancelled"}
         time.sleep(0.5)

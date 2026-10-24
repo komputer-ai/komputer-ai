@@ -31,6 +31,7 @@ Name | Type | Description | Notes
 **QueuePosition** | Pointer to **int32** |  | [optional] 
 **QueueReason** | Pointer to **string** |  | [optional] 
 **Secrets** | Pointer to **[]string** | Key names from K8s Secrets (not values) | [optional] 
+**SessionStore** | Pointer to [**SessionStoreResponse**](SessionStoreResponse.md) | SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent&#39;s own save, or the operator saving it on the agent&#39;s behalf). Nil when S3 isn&#39;t in use. | [optional] 
 **Skills** | Pointer to **[]string** | KomputerSkill names attached to this agent | [optional] 
 **SleepExpiresAt** | Pointer to **string** | SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t currently running. | [optional] 
 **SleepTTL** | Pointer to **string** | idle timeout before auto-sleep, e.g. \&quot;30m\&quot; | [optional] 
@@ -740,6 +741,31 @@ SetSecrets sets Secrets field to given value.
 `func (o *AgentResponse) HasSecrets() bool`
 
 HasSecrets returns a boolean if a field has been set.
+
+### GetSessionStore
+
+`func (o *AgentResponse) GetSessionStore() SessionStoreResponse`
+
+GetSessionStore returns the SessionStore field if non-nil, zero value otherwise.
+
+### GetSessionStoreOk
+
+`func (o *AgentResponse) GetSessionStoreOk() (*SessionStoreResponse, bool)`
+
+GetSessionStoreOk returns a tuple with the SessionStore field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSessionStore
+
+`func (o *AgentResponse) SetSessionStore(v SessionStoreResponse)`
+
+SetSessionStore sets SessionStore field to given value.
+
+### HasSessionStore
+
+`func (o *AgentResponse) HasSessionStore() bool`
+
+HasSessionStore returns a boolean if a field has been set.
 
 ### GetSkills
 

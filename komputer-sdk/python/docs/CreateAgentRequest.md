@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 **effort** | **str** | Effort sets the Claude Agent SDK&#39;s reasoning effort: \&quot;low\&quot;, \&quot;medium\&quot;, \&quot;high\&quot;, \&quot;xhigh\&quot;, or \&quot;max\&quot;. Empty means unset, so the model&#39;s own default effort applies. | [optional] 
 **instructions** | **str** |  | 
 **labels** | **Dict[str, str]** | Labels are user-defined key&#x3D;value labels passed through to the agent CR. Reserved-prefix keys (komputer.ai/*) are rejected except for \&quot;komputer.ai/personal-agent\&quot; which is allow-listed. | [optional] 
-**lifecycle** | **str** | \&quot;\&quot;, \&quot;Sleep\&quot;, or \&quot;AutoDelete\&quot; | [optional] 
+**lifecycle** | **str** | \&quot;\&quot;, \&quot;Sleep\&quot;, \&quot;AutoDelete\&quot;, or \&quot;Archive\&quot; | [optional] 
 **memories** | **List[str]** | optional KomputerMemory names to attach | [optional] 
 **model** | **str** |  | [optional] 
 **name** | **str** |  | 

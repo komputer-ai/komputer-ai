@@ -40,6 +40,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Leave out Archived agents unless status asks for them",
+                        "name": "hideArchived",
+                        "in": "query"
+                    },
+                    {
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -245,6 +251,12 @@ const docTemplate = `{
                         "description": "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member",
                         "name": "recreatePod",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Skip saving the session to the S3 session store before deleting",
+                        "name": "force",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -323,6 +335,78 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Agent is archived (only labels and deleteTTL can change)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/{name}/archive": {
+            "post": {
+                "description": "Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Archive an agent now",
+                "operationId": "archiveAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kubernetes namespace",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Archive requested (or already archived)",
+                        "schema": {
+                            "$ref": "#/definitions/main.AgentResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Agent not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Agent is running a task, or is in a squad",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -683,7 +767,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Agent is running a task",
+                        "description": "Agent is running a task, or is archived",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -745,6 +829,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "409": {
+                        "description": "Agent is archived",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "500": {
                         "description": "Internal error",
                         "schema": {
@@ -780,6 +873,27 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {}
+            }
+        },
+        "/config": {
+            "get": {
+                "description": "Returns platform settings that change what clients can offer, such as whether the S3 session store is enabled. Never returns credentials.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Get platform configuration",
+                "operationId": "getConfig",
+                "responses": {
+                    "200": {
+                        "description": "Platform configuration",
+                        "schema": {
+                            "$ref": "#/definitions/main.ConfigResponse"
+                        }
+                    }
+                }
             }
         },
         "/connector-templates": {
@@ -3177,6 +3291,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "sessionStore": {
+                    "description": "SessionStore is the S3 session store state: when the session was last\nsaved and whether the last save worked (the agent's own save, or the\noperator saving it on the agent's behalf). Nil when S3 isn't in use.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.SessionStoreResponse"
+                        }
+                    ]
+                },
                 "skills": {
                     "description": "KomputerSkill names attached to this agent",
                     "type": "array",
@@ -3241,6 +3363,14 @@ const docTemplate = `{
             "properties": {
                 "instructions": {
                     "type": "string"
+                }
+            }
+        },
+        "main.ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "s3": {
+                    "$ref": "#/definitions/main.S3ConfigResponse"
                 }
             }
         },
@@ -3377,7 +3507,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "\"\", \"Sleep\", or \"AutoDelete\"",
+                    "description": "\"\", \"Sleep\", \"AutoDelete\", or \"Archive\"",
                     "type": "string"
                 },
                 "memories": {
@@ -3899,6 +4029,17 @@ const docTemplate = `{
                 }
             }
         },
+        "main.S3ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "bucket": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "main.ScheduleListResponse": {
             "type": "object",
             "properties": {
@@ -4024,6 +4165,20 @@ const docTemplate = `{
                 },
                 "namespace": {
                     "type": "string"
+                }
+            }
+        },
+        "main.SessionStoreResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "lastSavedAt": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
                 }
             }
         },
@@ -8374,12 +8529,14 @@ const docTemplate = `{
             "enum": [
                 "",
                 "Sleep",
-                "AutoDelete"
+                "AutoDelete",
+                "Archive"
             ],
             "x-enum-varnames": [
                 "AgentLifecycleDefault",
                 "AgentLifecycleSleep",
-                "AgentLifecycleAutoDelete"
+                "AgentLifecycleAutoDelete",
+                "AgentLifecycleArchive"
             ]
         },
         "v1alpha1.KomputerAgentSpec": {
@@ -8438,7 +8595,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"
@@ -8608,7 +8765,7 @@ const docTemplate = `{
                     }
                 },
                 "lifecycle": {
-                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion.\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete\n+optional",
+                    "description": "Lifecycle controls what happens after task completion.\nEmpty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC,\n\"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes\nthe pod and PVC but keeps the agent as a read-only record (Phase=Archived).\n+kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive\n+optional",
                     "allOf": [
                         {
                             "$ref": "#/definitions/v1alpha1.AgentLifecycle"

@@ -49,7 +49,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "name": {"type": "string", "description": "Unique name for the sub-agent (lowercase, hyphens, no spaces). Used for all operations (wait, status, delete)."},
             "instructions": {"type": "string", "description": "Detailed task instructions for the sub-agent."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
-            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted."},
+            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted, 'Archive'=pod+PVC deleted, agent kept as a read-only record (cost, settings)."},
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},
@@ -142,7 +142,7 @@ async def create_agent(args):
             "auto_delete": {"type": "boolean", "description": "If true, the schedule deletes itself after the first successful run. Use for one-time future tasks."},
             "keep_agents": {"type": "boolean", "description": "When auto_delete is true, keep managed agents alive after the schedule deletes itself."},
             "agent_name": {"type": "string", "description": "Reference an existing agent instead of creating a new one. Use your own agent name to schedule a task for yourself."},
-            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules)."},
+            "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Agent lifecycle. Defaults to 'Sleep' (recommended for schedules). 'Archive' (no pod or PVC between runs) requires the S3 session store."},
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. Default: 'worker'."},
             "model": {"type": "string", "description": "Claude model override."},
             "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"], "description": "Reasoning effort override (optional). Omit to use the model's own default effort."},
@@ -584,6 +584,24 @@ async def sleep_agent(args):
         if not name:
             return _err("No name provided and KOMPUTER_AGENT_NAME not set.")
     return await _request("POST", f"/api/v1/agents/{name}/sleep", timeout=30)
+
+
+@tool(
+    name="archive_agent",
+    description="Archive an agent once it's idle — pod and workspace deleted, the agent kept as a record with its settings and cost — without changing its lifecycle policy. With the S3 session store on, its session is saved first and it can be given a task again later. Use instead of delete_agent when the agent's history should be kept.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Agent to archive."},
+        },
+        "required": ["name"],
+    },
+)
+async def archive_agent(args):
+    name = args.get("name")
+    if not name:
+        return _err("archive_agent requires a name.")
+    return await _request("POST", f"/api/v1/agents/{_sanitize_name(name)}/archive", timeout=30)
 
 
 @tool(
@@ -1557,5 +1575,5 @@ def create_manager_server():
     """Create the MCP server with manager orchestration tools."""
     return create_sdk_mcp_server(
         name="komputer",
-        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, create_connector, update_connector_token, set_connector_enabled, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
+        tools=[create_agent, schedule_agent, get_agent_status, get_agent_events, cancel_agent, compact_agent, delete_agent, delete_schedule, trigger_schedule, list_schedules, get_schedule, update_schedule, create_memory, attach_memory, create_skill, attach_skill, update_agent, sleep_agent, archive_agent, wake_agent, list_agents, patch_agent, get_agent, list_connectors, list_connector_templates, get_connector, create_connector, update_connector_token, set_connector_enabled, attach_connector, detach_connector, list_secrets, create_secret, delete_secret, attach_secret, detach_secret, list_skills, get_skill, update_skill, delete_skill, detach_skill, list_memories, get_memory, update_memory, delete_memory, detach_memory, list_namespaces, list_templates, create_squad, add_to_squad, remove_from_squad, delete_squad, list_squads],
     )

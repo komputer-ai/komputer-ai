@@ -37,7 +37,7 @@ type V1alpha1KomputerAgentSpec struct {
 	InternalSystemPrompt *string `json:"internalSystemPrompt,omitempty"`
 	// Labels are user-defined key=value labels attached to this agent and propagated to all child resources (Pod, PVC, ConfigMap, Service). Keys starting with \"komputer.ai/\" are reserved for system labels and should not be set directly through the API. +optional
 	Labels *map[string]string `json:"labels,omitempty"`
-	// Lifecycle controls what happens after task completion. Empty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC, \"AutoDelete\" deletes the entire agent after task completion. +kubebuilder:validation:Enum=\"\";Sleep;AutoDelete +optional
+	// Lifecycle controls what happens after task completion. Empty (default) keeps the pod running, \"Sleep\" deletes the pod but keeps the PVC, \"AutoDelete\" deletes the entire agent after task completion, and \"Archive\" deletes the pod and PVC but keeps the agent as a read-only record (Phase=Archived). +kubebuilder:validation:Enum=\"\";Sleep;AutoDelete;Archive +optional
 	Lifecycle *V1alpha1AgentLifecycle `json:"lifecycle,omitempty"`
 	// Memories is a list of KomputerMemory names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
 	Memories []string `json:"memories,omitempty"`

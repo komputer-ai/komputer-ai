@@ -27,7 +27,10 @@ import {
   Trash2,
   Play,
   Sparkles,
+  Archive,
 } from "lucide-react";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { archivedReadOnly } from "@/lib/session-store";
 
 type AgentChatProps = {
   agentName: string;
@@ -644,7 +647,7 @@ function ToolCard({
                       </div>
                       <JsonView
                         value={output}
-                        className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
+                        className="max-h-96 overflow-y-auto whitespace-pre-wrap break-words rounded bg-[var(--color-bg)] p-2 font-mono text-xs text-[var(--color-text)]"
                         style={{ overflowWrap: "anywhere" }}
                       />
                     </div>
@@ -1082,6 +1085,7 @@ export function AgentChat({
   onLoadNewer,
   compactionPending,
 }: AgentChatProps) {
+  const { s3Enabled } = usePlatformConfig();
   const [input, setInputRaw] = useState(() => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(`draft:${agentName}`) ?? "";
@@ -1091,8 +1095,8 @@ export function AgentChat({
     if (v) localStorage.setItem(`draft:${agentName}`, v);
     else localStorage.removeItem(`draft:${agentName}`);
   }, [agentName]);
-  const [lifecycle, setLifecycleRaw] = useState<"" | "Sleep" | "AutoDelete">((agentLifecycle as "" | "Sleep" | "AutoDelete") || "");
-  const setLifecycle = useCallback((lc: "" | "Sleep" | "AutoDelete") => {
+  const [lifecycle, setLifecycleRaw] = useState<"" | "Sleep" | "AutoDelete" | "Archive">((agentLifecycle as "" | "Sleep" | "AutoDelete" | "Archive") || "");
+  const setLifecycle = useCallback((lc: "" | "Sleep" | "AutoDelete" | "Archive") => {
     setLifecycleRaw(lc);
     patchAgent(agentName, { lifecycle: lc }, agentNamespace).catch(() => {});
   }, [agentName, agentNamespace]);
@@ -1454,7 +1458,11 @@ export function AgentChat({
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-secondary)]">
             {agentStatus === "Sleeping"
               ? "Agent is sleeping. Send a message to wake it up."
-              : "No messages yet. Waiting for events..."}
+              : agentStatus === "Archived" && s3Enabled
+                ? "Agent is archived. Send a message to bring it back with its conversation."
+                : agentStatus === "Archived"
+                ? "No messages to show for this archived agent."
+                : "No messages yet. Waiting for events..."}
           </div>
         ) : (
           <div data-messages className="flex flex-col gap-3 min-w-0">
@@ -1578,6 +1586,12 @@ export function AgentChat({
       <div className="shrink-0 bg-[var(--color-bg)]">
         <ContextBar inputTokens={lastInputTokens} contextWindow={contextWindow} isBedrock={isBedrockModelId(agentModel ?? "")} />
         <div className="border-t border-[var(--color-border)]" />
+        {archivedReadOnly(agentStatus, s3Enabled) ? (
+          <div className="flex items-center gap-2 p-4 text-sm text-[var(--color-text-secondary)]">
+            <Archive className="size-4 shrink-0" />
+            This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
+          </div>
+        ) : (
         <div className="flex gap-2 p-4">
           <div className="flex-1 min-w-0">
             <textarea
@@ -1622,9 +1636,9 @@ export function AgentChat({
               onClick={() => setLifecycleOpen(!lifecycleOpen)}
               whileTap={{ scale: 0.9 }}
               animate={{
-                borderColor: lifecycle === "" ? "var(--color-border)" : lifecycle === "Sleep" ? "rgba(234,179,8,0.4)" : "rgba(239,68,68,0.4)",
-                backgroundColor: lifecycle === "" ? "rgba(0,0,0,0)" : lifecycle === "Sleep" ? "rgba(234,179,8,0.1)" : "rgba(239,68,68,0.1)",
-                color: lifecycle === "" ? "var(--color-text-secondary)" : lifecycle === "Sleep" ? "#facc15" : "#f87171",
+                borderColor: lifecycle === "" ? "var(--color-border)" : lifecycle === "Sleep" ? "rgba(234,179,8,0.4)" : lifecycle === "Archive" ? "rgba(148,163,184,0.4)" : "rgba(239,68,68,0.4)",
+                backgroundColor: lifecycle === "" ? "rgba(0,0,0,0)" : lifecycle === "Sleep" ? "rgba(234,179,8,0.1)" : lifecycle === "Archive" ? "rgba(148,163,184,0.1)" : "rgba(239,68,68,0.1)",
+                color: lifecycle === "" ? "var(--color-text-secondary)" : lifecycle === "Sleep" ? "#facc15" : lifecycle === "Archive" ? "#94a3b8" : "#f87171",
               }}
               transition={{ duration: 0.3 }}
               className="flex size-10 shrink-0 items-center justify-center rounded-xl border hover:opacity-80 cursor-pointer"
@@ -1691,12 +1705,29 @@ export function AgentChat({
                     <Trash2 className="size-4" />
                     AutoDelete
                   </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => { setLifecycle("Archive"); }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{
+                      opacity: 1, y: 0,
+                      backgroundColor: lifecycle === "Archive" ? "rgba(148,163,184,0.15)" : "rgba(0,0,0,0)",
+                      color: lifecycle === "Archive" ? "#94a3b8" : "#7c7c98",
+                    }}
+                    transition={{ backgroundColor: { duration: 0.2 }, color: { duration: 0.2 }, opacity: { duration: 0.15, delay: 0.15 }, y: { duration: 0.15, delay: 0.15 } }}
+                    className="flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-[10px] font-medium hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                    title="Archive when the task completes — right away if the agent is idle (removes pod and workspace, keeps the record)"
+                  >
+                    <Archive className="size-4" />
+                    Archive
+                  </motion.button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

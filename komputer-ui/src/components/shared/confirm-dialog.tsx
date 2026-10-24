@@ -20,6 +20,8 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   /** Visual style of the confirm button. Defaults to "destructive". */
   confirmVariant?: "destructive" | "primary" | "secondary";
+  /** Extra classes for the confirm button, e.g. a status color. */
+  confirmClassName?: string;
 };
 
 export function ConfirmDialog({
@@ -29,6 +31,7 @@ export function ConfirmDialog({
   trigger,
   confirmLabel = "Delete",
   confirmVariant = "destructive",
+  confirmClassName,
 }: ConfirmDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -55,6 +58,7 @@ export function ConfirmDialog({
             </Button>
             <Button
               variant={confirmVariant}
+              className={confirmClassName}
               onClick={() => {
                 onConfirm();
                 setOpen(false);
