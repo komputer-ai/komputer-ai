@@ -67,14 +67,14 @@ func TestListAgents_PageReadsDontGrowWithAgentCount(t *testing.T) {
 	if len(resp.Agents) != 5 || resp.Total != 40 {
 		t.Fatalf("page = %d agents of %d, want 5 of 40", len(resp.Agents), resp.Total)
 	}
-	// The page still carries what those reads are for.
+	// Secrets are listed by name from the spec, as GET /agents/:name does.
 	for _, a := range resp.Agents {
-		if len(a.Secrets) != 1 || a.Secrets[0] != "API_KEY" || !a.BudgetExhausted {
-			t.Errorf("%s: secrets %v, budgetExhausted %v; want [API_KEY], true", a.Name, a.Secrets, a.BudgetExhausted)
+		if len(a.Secrets) != 1 || a.Secrets[0] != "shared" || !a.BudgetExhausted {
+			t.Errorf("%s: secrets %v, budgetExhausted %v; want [shared], true", a.Name, a.Secrets, a.BudgetExhausted)
 		}
 	}
-	// One read of the shared Secret and one of the shared template, not one per agent.
-	if gets > 2 {
-		t.Errorf("listing a 5-agent page of 40 made %d Get calls, want at most 2", gets)
+	// Only the shared template is read, once; Secrets aren't read at all.
+	if gets > 1 {
+		t.Errorf("listing a 5-agent page of 40 made %d Get calls, want at most 1", gets)
 	}
 }

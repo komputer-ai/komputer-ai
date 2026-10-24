@@ -1498,8 +1498,8 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 		squadByAgent := buildSquadNameMap(c.Request.Context(), k8s, ns)
 
 		// Built from the CRs alone: filtering, sorting and facets need nothing
-		// else. Secret keys and the budget flag need API reads, so only the
-		// returned page gets them (below).
+		// else. The budget flag needs a template read, so only the returned page
+		// gets it (below).
 		all := make([]AgentResponse, 0, len(agents))
 		metaLabels := make(map[string]map[string]string, len(agents))
 		byKey := make(map[string]*komputerv1alpha1.KomputerAgent, len(agents))
@@ -1520,6 +1520,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				TotalCostUSD:       a.Status.TotalCostUSD,
 				TotalTokens:        a.Status.TotalTokens,
 				ModelContextWindow: a.Status.ModelContextWindow,
+				Secrets:            a.Spec.Secrets, // Secret names, as GET /agents/:name returns them
 				Memories:           a.Spec.Memories,
 				Skills:             mergeDefaultSkills(a.Spec.Skills, defaultSkills),
 				Connectors:         a.Spec.Connectors,
@@ -1568,25 +1569,14 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 	}
 }
 
-// enrichAgentPage fills the fields that need API reads — secret key names and
-// the budget flag — for one page of agents. Agents share Secrets and templates,
-// so each Secret and each template is read once per page.
+// enrichAgentPage fills the budget flag, which needs the agent's template, for
+// one page of agents. Agents share templates, so each is read once per page.
 func enrichAgentPage(ctx context.Context, k8s *K8sClient, page []AgentResponse, byKey map[string]*komputerv1alpha1.KomputerAgent) {
-	secretKeys := map[string][]string{}
 	budgets := map[string]string{}
 	for i := range page {
 		a := byKey[page[i].Namespace+"/"+page[i].Name]
 		if a == nil {
 			continue
-		}
-		for _, name := range a.Spec.Secrets {
-			key := a.Namespace + "/" + name
-			keys, seen := secretKeys[key]
-			if !seen {
-				keys, _ = k8s.GetSecretKeys(ctx, a.Namespace, name) // a deleted Secret has no keys
-				secretKeys[key] = keys
-			}
-			page[i].Secrets = append(page[i].Secrets, keys...)
 		}
 		budget := a.Spec.BudgetUSD
 		if budget == "" {
