@@ -21,7 +21,9 @@ type CreateScheduleRequest struct {
 	KeepAgents   bool                                `json:"keepAgents"`
 	AgentName    string                              `json:"agentName"`
 	Agent        *komputerv1alpha1.ScheduleAgentSpec `json:"agent"`
-	Namespace    string                              `json:"namespace"`
+	// AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName).
+	AgentNaming komputerv1alpha1.ScheduleAgentNaming `json:"agentNaming,omitempty" enums:"Fixed,Date,Random"`
+	Namespace   string                               `json:"namespace"`
 }
 
 type ScheduleResponse struct {
@@ -34,6 +36,7 @@ type ScheduleResponse struct {
 	KeepAgents     bool                                `json:"keepAgents,omitempty"`
 	Suspended      bool                                `json:"suspended,omitempty"`
 	Agent          *komputerv1alpha1.ScheduleAgentSpec `json:"agent,omitempty"`
+	AgentNaming    string                              `json:"agentNaming,omitempty"`
 	Phase          string                              `json:"phase"`
 	AgentName      string                              `json:"agentName,omitempty"`
 	NextRunTime    string                              `json:"nextRunTime,omitempty"`
@@ -83,6 +86,8 @@ type PatchScheduleRequest struct {
 	Suspended    *bool                               `json:"suspended,omitempty"`
 	AgentName    *string                             `json:"agentName,omitempty"`
 	Agent        *komputerv1alpha1.ScheduleAgentSpec `json:"agent,omitempty"`
+	// AgentNaming: Fixed, Date or Random (see CreateScheduleRequest).
+	AgentNaming *komputerv1alpha1.ScheduleAgentNaming `json:"agentNaming,omitempty" enums:"Fixed,Date,Random"`
 }
 
 type TriggerScheduleResponse struct {
@@ -102,6 +107,7 @@ func scheduleToResponse(s komputerv1alpha1.KomputerSchedule) ScheduleResponse {
 		AutoDelete:     s.Spec.AutoDelete,
 		KeepAgents:     s.Spec.KeepAgents,
 		Suspended:      s.Spec.Suspended,
+		AgentNaming:    string(s.Spec.AgentNaming),
 		Phase:          string(s.Status.Phase),
 		AgentName:      s.Status.AgentName,
 		RunCount:       s.Status.RunCount,
@@ -158,6 +164,10 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		if err := validateScheduleNaming(req.AgentNaming, req.AgentName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		if req.AgentName != "" {
 			if err := validateScheduleAgentRef(c.Request.Context(), k8s, ns, req.AgentName, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -188,7 +198,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context())); err != nil {
+			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context()) || req.AgentNaming.PerRun()); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -313,6 +323,14 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 	if schedule.Status.LastRunStatus == "InProgress" {
 		return "", http.StatusConflict, fmt.Errorf("a run is already in progress")
 	}
+	if schedule.Spec.AgentNaming.PerRun() && schedule.Spec.Agent != nil {
+		agentName, code, err := createScheduleRunAgent(ctx, k8s, schedule)
+		if err != nil {
+			return "", code, err
+		}
+		recordManualRun(ctx, k8s, ns, name, agentName)
+		return agentName, http.StatusOK, nil
+	}
 	agentName := schedule.Spec.AgentName
 	if agentName == "" {
 		agentName = schedule.Name + "-agent"
@@ -372,6 +390,13 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 		}
 	}
 
+	recordManualRun(ctx, k8s, ns, name, agentName)
+	return agentName, http.StatusOK, nil
+}
+
+// recordManualRun marks a manually triggered run on the schedule's status, the
+// same way the operator records a cron run.
+func recordManualRun(ctx context.Context, k8s *K8sClient, ns, name, agentName string) {
 	now := metav1.NewTime(time.Now().UTC())
 	if freshSchedule, getErr := k8s.GetSchedule(ctx, ns, name); getErr == nil {
 		original := freshSchedule.DeepCopy()
@@ -383,8 +408,49 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			Logger.Warnw("manual trigger: failed to update schedule status", "schedule", name, "error", patchErr)
 		}
 	}
+}
 
-	return agentName, http.StatusOK, nil
+// createScheduleRunAgent creates the new agent for one manual run of a Date or
+// Random schedule, owned by the schedule like the operator's cron-run agents.
+// It refuses (409) while the previous run's agent is still working.
+func createScheduleRunAgent(ctx context.Context, k8s *K8sClient, schedule *komputerv1alpha1.KomputerSchedule) (string, int, error) {
+	ns := schedule.Namespace
+	if prev := schedule.Status.AgentName; prev != "" {
+		if a, err := k8s.GetAgent(ctx, ns, prev); err == nil && agentTaskInProgress(a.Status.TaskStatus) {
+			return "", http.StatusConflict, fmt.Errorf("the previous run's agent %s is still working", prev)
+		}
+	}
+	cfg := schedule.Spec.Agent.AgentConfigSpec
+	scheduleAgentDefaults(&cfg)
+	name := komputerv1alpha1.RunAgentName(schedule.Name, schedule.Spec.Timezone, schedule.Spec.AgentNaming, time.Now(), komputerv1alpha1.RandomNameSuffix(5))
+	_, err := k8s.CreateAgent(ctx, ns, name, schedule.Spec.Instructions, "", "", cfg)
+	if errors.IsAlreadyExists(err) {
+		// Another run already used this name (e.g. a cron run in the same minute).
+		name += "-" + komputerv1alpha1.RandomNameSuffix(4)
+		_, err = k8s.CreateAgent(ctx, ns, name, schedule.Spec.Instructions, "", "", cfg)
+	}
+	if err != nil {
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to create agent: %w", err)
+	}
+	if err := k8s.AdoptScheduleAgent(ctx, schedule, name); err != nil {
+		Logger.Warnw("manual trigger: failed to attach agent to schedule", "schedule", schedule.Name, "agent", name, "error", err)
+	}
+	return name, http.StatusOK, nil
+}
+
+// validateScheduleNaming checks agentNaming is a known value, and that per-run
+// naming isn't combined with agentName — each run needs a template to create from.
+func validateScheduleNaming(naming komputerv1alpha1.ScheduleAgentNaming, agentName string) error {
+	switch naming {
+	case "", komputerv1alpha1.ScheduleAgentNamingFixed:
+		return nil
+	case komputerv1alpha1.ScheduleAgentNamingDate, komputerv1alpha1.ScheduleAgentNamingRandom:
+		if agentName != "" {
+			return fmt.Errorf("agentNaming %s creates a new agent every run, so it needs an agent template, not agentName", naming)
+		}
+		return nil
+	}
+	return fmt.Errorf("invalid agentNaming %q: use Fixed, Date or Random", naming)
 }
 
 // triggerSchedule fires a schedule immediately, outside of its cron cadence.
@@ -446,7 +512,7 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 		}
 		if req.Schedule == nil && req.Instructions == nil && req.Timezone == nil &&
 			req.AutoDelete == nil && req.KeepAgents == nil && req.Suspended == nil &&
-			req.AgentName == nil && req.Agent == nil {
+			req.AgentName == nil && req.Agent == nil && req.AgentNaming == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -457,12 +523,39 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 			}
 		}
 
+		existing, _ := k8s.GetSchedule(c.Request.Context(), ns, name)
+		// Validate agentNaming against the schedule as it will be after the patch.
+		naming, effectiveAgentName, template := komputerv1alpha1.ScheduleAgentNaming(""), "", (*komputerv1alpha1.ScheduleAgentSpec)(nil)
+		if existing != nil {
+			naming, effectiveAgentName, template = existing.Spec.AgentNaming, existing.Spec.AgentName, existing.Spec.Agent
+		}
+		if req.AgentNaming != nil {
+			naming = *req.AgentNaming
+		}
+		if req.AgentName != nil {
+			effectiveAgentName = *req.AgentName
+		}
+		if req.Agent != nil {
+			effectiveAgentName = ""
+		}
+		if err := validateScheduleNaming(naming, effectiveAgentName); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		// Switching an unchanged Archive template back to Fixed naming.
+		if req.AgentNaming != nil && req.Agent == nil && template != nil {
+			if err := validateScheduleLifecycle(template.Lifecycle, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// Reject a disabled connector only if it's newly attached — a connector already
 		// on the schedule's agent template (now disabled) must survive a re-sent template
 		// or an edit to an unrelated field.
 		if req.Agent != nil {
 			var existingConnectors []string
-			if existing, getErr := k8s.GetSchedule(c.Request.Context(), ns, name); getErr == nil && existing.Spec.Agent != nil {
+			if existing != nil && existing.Spec.Agent != nil {
 				existingConnectors = existing.Spec.Agent.Connectors
 			}
 			if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Agent.Connectors, existingConnectors); err != nil {
@@ -481,7 +574,7 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context())); err != nil {
+			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

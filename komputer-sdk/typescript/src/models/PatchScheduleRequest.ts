@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { V1alpha1ScheduleAgentNaming } from './V1alpha1ScheduleAgentNaming';
+import {
+    V1alpha1ScheduleAgentNamingFromJSON,
+    V1alpha1ScheduleAgentNamingFromJSONTyped,
+    V1alpha1ScheduleAgentNamingToJSON,
+    V1alpha1ScheduleAgentNamingToJSONTyped,
+} from './V1alpha1ScheduleAgentNaming';
 import type { V1alpha1ScheduleAgentSpec } from './V1alpha1ScheduleAgentSpec';
 import {
     V1alpha1ScheduleAgentSpecFromJSON,
@@ -39,6 +46,12 @@ export interface PatchScheduleRequest {
      * @memberof PatchScheduleRequest
      */
     agentName?: string;
+    /**
+     * AgentNaming: Fixed, Date or Random (see CreateScheduleRequest).
+     * @type {V1alpha1ScheduleAgentNaming}
+     * @memberof PatchScheduleRequest
+     */
+    agentNaming?: V1alpha1ScheduleAgentNaming;
     /**
      * 
      * @type {boolean}
@@ -77,6 +90,8 @@ export interface PatchScheduleRequest {
     timezone?: string;
 }
 
+
+
 /**
  * Check if a given object implements the PatchScheduleRequest interface.
  */
@@ -96,6 +111,7 @@ export function PatchScheduleRequestFromJSONTyped(json: any, ignoreDiscriminator
         
         'agent': json['agent'] == null ? undefined : V1alpha1ScheduleAgentSpecFromJSON(json['agent']),
         'agentName': json['agentName'] == null ? undefined : json['agentName'],
+        'agentNaming': json['agentNaming'] == null ? undefined : V1alpha1ScheduleAgentNamingFromJSON(json['agentNaming']),
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'instructions': json['instructions'] == null ? undefined : json['instructions'],
         'keepAgents': json['keepAgents'] == null ? undefined : json['keepAgents'],
@@ -118,6 +134,7 @@ export function PatchScheduleRequestToJSONTyped(value?: PatchScheduleRequest | n
         
         'agent': V1alpha1ScheduleAgentSpecToJSON(value['agent']),
         'agentName': value['agentName'],
+        'agentNaming': V1alpha1ScheduleAgentNamingToJSON(value['agentNaming']),
         'autoDelete': value['autoDelete'],
         'instructions': value['instructions'],
         'keepAgents': value['keepAgents'],

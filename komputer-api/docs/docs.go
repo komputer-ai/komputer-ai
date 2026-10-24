@@ -3665,6 +3665,19 @@ const docTemplate = `{
                 "agentName": {
                     "type": "string"
                 },
+                "agentNaming": {
+                    "description": "AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName).",
+                    "enum": [
+                        "Fixed",
+                        "Date",
+                        "Random"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ScheduleAgentNaming"
+                        }
+                    ]
+                },
                 "autoDelete": {
                     "type": "boolean"
                 },
@@ -3984,6 +3997,19 @@ const docTemplate = `{
                 "agentName": {
                     "type": "string"
                 },
+                "agentNaming": {
+                    "description": "AgentNaming: Fixed, Date or Random (see CreateScheduleRequest).",
+                    "enum": [
+                        "Fixed",
+                        "Date",
+                        "Random"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1alpha1.ScheduleAgentNaming"
+                        }
+                    ]
+                },
                 "autoDelete": {
                     "type": "boolean"
                 },
@@ -4058,6 +4084,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/v1alpha1.ScheduleAgentSpec"
                 },
                 "agentName": {
+                    "type": "string"
+                },
+                "agentNaming": {
                     "type": "string"
                 },
                 "autoDelete": {
@@ -8716,6 +8745,19 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "v1alpha1.ScheduleAgentNaming": {
+            "type": "string",
+            "enum": [
+                "Fixed",
+                "Date",
+                "Random"
+            ],
+            "x-enum-varnames": [
+                "ScheduleAgentNamingFixed",
+                "ScheduleAgentNamingDate",
+                "ScheduleAgentNamingRandom"
+            ]
         },
         "v1alpha1.ScheduleAgentSpec": {
             "type": "object",

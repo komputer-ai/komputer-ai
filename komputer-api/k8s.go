@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // EnsureNamespaceExists creates the namespace if missing. The apiserver
@@ -645,6 +646,25 @@ func (k *K8sClient) IsAgentBudgetExhausted(ctx context.Context, agent *komputerv
 
 // MergeAgentLabels merges the given labels into the agent's Spec.Labels additively.
 // Existing keys are overwritten; no keys are removed.
+// AdoptScheduleAgent labels an agent with its schedule and makes the schedule its
+// controller owner, so the agent is deleted with the schedule (or released by
+// KeepAgents) like the agents the operator creates.
+func (k *K8sClient) AdoptScheduleAgent(ctx context.Context, schedule *komputerv1alpha1.KomputerSchedule, agentName string) error {
+	agent := &komputerv1alpha1.KomputerAgent{}
+	if err := k.client.Get(ctx, types.NamespacedName{Name: agentName, Namespace: schedule.Namespace}, agent); err != nil {
+		return fmt.Errorf("failed to get agent %s: %w", agentName, err)
+	}
+	original := agent.DeepCopy()
+	if agent.Labels == nil {
+		agent.Labels = map[string]string{}
+	}
+	agent.Labels["komputer.ai/schedule"] = schedule.Name
+	if err := controllerutil.SetControllerReference(schedule, agent, k.client.Scheme()); err != nil {
+		return err
+	}
+	return k.client.Patch(ctx, agent, client.MergeFrom(original))
+}
+
 func (k *K8sClient) MergeAgentLabels(ctx context.Context, ns, agentName string, labels map[string]string) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
@@ -1292,6 +1312,7 @@ func (k *K8sClient) CreateSchedule(ctx context.Context, ns string, req *CreateSc
 			AutoDelete:   req.AutoDelete,
 			KeepAgents:   req.KeepAgents,
 			AgentName:    req.AgentName,
+			AgentNaming:  req.AgentNaming,
 		},
 	}
 
@@ -1369,6 +1390,10 @@ func (k *K8sClient) PatchScheduleSpec(ctx context.Context, ns, name string, req 
 		schedule.Spec.Agent = agentSpec
 		// Inline template replaces any AgentName reference.
 		schedule.Spec.AgentName = ""
+		changed = true
+	}
+	if req.AgentNaming != nil && schedule.Spec.AgentNaming != *req.AgentNaming {
+		schedule.Spec.AgentNaming = *req.AgentNaming
 		changed = true
 	}
 	if !changed {

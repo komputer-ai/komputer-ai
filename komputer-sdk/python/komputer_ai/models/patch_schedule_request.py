@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.v1alpha1_schedule_agent_naming import V1alpha1ScheduleAgentNaming
 from komputer_ai.models.v1alpha1_schedule_agent_spec import V1alpha1ScheduleAgentSpec
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,13 +31,14 @@ class PatchScheduleRequest(BaseModel):
     """ # noqa: E501
     agent: Optional[V1alpha1ScheduleAgentSpec] = None
     agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
+    agent_naming: Optional[V1alpha1ScheduleAgentNaming] = Field(default=None, description="AgentNaming: Fixed, Date or Random (see CreateScheduleRequest).", alias="agentNaming")
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     instructions: Optional[StrictStr] = None
     keep_agents: Optional[StrictBool] = Field(default=None, alias="keepAgents")
     schedule: Optional[StrictStr] = None
     suspended: Optional[StrictBool] = None
     timezone: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agent", "agentName", "autoDelete", "instructions", "keepAgents", "schedule", "suspended", "timezone"]
+    __properties: ClassVar[List[str]] = ["agent", "agentName", "agentNaming", "autoDelete", "instructions", "keepAgents", "schedule", "suspended", "timezone"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -94,6 +96,7 @@ class PatchScheduleRequest(BaseModel):
         _obj = cls.model_validate({
             "agent": V1alpha1ScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
             "agentName": obj.get("agentName"),
+            "agentNaming": obj.get("agentNaming"),
             "autoDelete": obj.get("autoDelete"),
             "instructions": obj.get("instructions"),
             "keepAgents": obj.get("keepAgents"),

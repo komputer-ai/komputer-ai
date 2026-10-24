@@ -14,7 +14,7 @@
 
 import { Configuration, ResponseError } from "./runtime";
 import { AgentsApi, ConfigApi, ConnectorsApi, MemoriesApi, OfficesApi, SchedulesApi, SecretsApi, SkillsApi, SquadsApi, TemplatesApi } from "./apis";
-import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateConnectorRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec } from "./models";
+import type { CreateAgentRequest, CreateConnectorRequest, CreateMemoryRequest, CreateScheduleRequest, CreateSecretRequest, CreateSkillRequest, PatchAgentRequest, PatchMemoryRequest, PatchScheduleRequest, PatchSkillRequest, UpdateConnectorRequest, UpdateSecretRequest, V1PodSpec, V1alpha1KomputerAgentSpec, V1alpha1KomputerSquadMember, V1alpha1KomputerSquadMemberRef, V1alpha1ScheduleAgentNaming, V1alpha1ScheduleAgentSpec, V1alpha1StorageSpec } from "./models";
 import { AgentEventStream } from "./watch";
 import type { AgentEvent } from "./watch";
 export type { AgentEvent } from "./watch";
@@ -224,9 +224,9 @@ export class KomputerClient {
     return this._schedules.listSchedules({});
   }
 
-  async createSchedule(params: { name: string; instructions: string; schedule: string; agent?: V1alpha1ScheduleAgentSpec; agentName?: string; autoDelete?: boolean; keepAgents?: boolean; namespace?: string; timezone?: string }) {
+  async createSchedule(params: { name: string; instructions: string; schedule: string; agent?: V1alpha1ScheduleAgentSpec; agentName?: string; agentNaming?: V1alpha1ScheduleAgentNaming; autoDelete?: boolean; keepAgents?: boolean; namespace?: string; timezone?: string }) {
     try {
-      return await this._schedules.createSchedule({ request: { agent: params.agent, agentName: params.agentName, autoDelete: params.autoDelete, instructions: params.instructions, keepAgents: params.keepAgents, name: params.name, namespace: params.namespace, schedule: params.schedule, timezone: params.timezone } });
+      return await this._schedules.createSchedule({ request: { agent: params.agent, agentName: params.agentName, agentNaming: params.agentNaming, autoDelete: params.autoDelete, instructions: params.instructions, keepAgents: params.keepAgents, name: params.name, namespace: params.namespace, schedule: params.schedule, timezone: params.timezone } });
     } catch (e) {
       if (e instanceof ResponseError && e.response.status === 409) {
         return this._schedules.patchSchedule({ name: params.name, request: { schedule: params.schedule } });
@@ -249,6 +249,7 @@ export class KomputerClient {
     suspended?: boolean;
     agentName?: string;
     agent?: V1alpha1ScheduleAgentSpec;
+    agentNaming?: V1alpha1ScheduleAgentNaming;
   }) {
     return this._schedules.patchSchedule({
       name: params.name,
@@ -261,6 +262,7 @@ export class KomputerClient {
         suspended: params.suspended,
         agentName: params.agentName,
         agent: params.agent,
+        agentNaming: params.agentNaming,
       },
     });
   }

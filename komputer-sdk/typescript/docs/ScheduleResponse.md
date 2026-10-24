@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `agent` | [V1alpha1ScheduleAgentSpec](V1alpha1ScheduleAgentSpec.md)
 `agentName` | string
+`agentNaming` | string
 `autoDelete` | boolean
 `createdAt` | string
 `failedRuns` | number
@@ -38,6 +39,7 @@ import type { ScheduleResponse } from '@komputer-ai/sdk'
 const example = {
   "agent": null,
   "agentName": null,
+  "agentNaming": null,
   "autoDelete": null,
   "createdAt": null,
   "failedRuns": null,

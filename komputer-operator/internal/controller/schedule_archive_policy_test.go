@@ -83,6 +83,12 @@ var _ = Describe("Schedule archive admission policy", func() {
 		Expect(k8sClient.Create(ctx, s)).To(Succeed())
 		DeferCleanup(func() { _ = k8sClient.Delete(context.Background(), s) })
 
+		By("allowing Archive without S3 when each run gets its own agent")
+		perRun := schedule("archive-per-run", komputerv1alpha1.AgentLifecycleArchive)
+		perRun.Spec.AgentNaming = komputerv1alpha1.ScheduleAgentNamingDate
+		Expect(k8sClient.Create(ctx, perRun)).To(Succeed())
+		DeferCleanup(func() { _ = k8sClient.Delete(context.Background(), perRun) })
+
 		By("allowing Archive once every KomputerConfig has S3")
 		var cfgs komputerv1alpha1.KomputerConfigList
 		Expect(k8sClient.List(ctx, &cfgs)).To(Succeed())

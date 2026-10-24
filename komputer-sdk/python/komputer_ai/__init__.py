@@ -228,6 +228,7 @@ __all__ = [
     "V1alpha1KomputerAgentSpec",
     "V1alpha1KomputerSquadMember",
     "V1alpha1KomputerSquadMemberRef",
+    "V1alpha1ScheduleAgentNaming",
     "V1alpha1ScheduleAgentSpec",
     "V1alpha1StorageSpec",
 ]
@@ -447,6 +448,7 @@ from komputer_ai.models.v1alpha1_agent_lifecycle import V1alpha1AgentLifecycle a
 from komputer_ai.models.v1alpha1_komputer_agent_spec import V1alpha1KomputerAgentSpec as V1alpha1KomputerAgentSpec
 from komputer_ai.models.v1alpha1_komputer_squad_member import V1alpha1KomputerSquadMember as V1alpha1KomputerSquadMember
 from komputer_ai.models.v1alpha1_komputer_squad_member_ref import V1alpha1KomputerSquadMemberRef as V1alpha1KomputerSquadMemberRef
+from komputer_ai.models.v1alpha1_schedule_agent_naming import V1alpha1ScheduleAgentNaming as V1alpha1ScheduleAgentNaming
 from komputer_ai.models.v1alpha1_schedule_agent_spec import V1alpha1ScheduleAgentSpec as V1alpha1ScheduleAgentSpec
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec as V1alpha1StorageSpec
 

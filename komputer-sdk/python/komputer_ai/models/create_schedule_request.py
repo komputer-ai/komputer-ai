@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.v1alpha1_schedule_agent_naming import V1alpha1ScheduleAgentNaming
 from komputer_ai.models.v1alpha1_schedule_agent_spec import V1alpha1ScheduleAgentSpec
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,6 +31,7 @@ class CreateScheduleRequest(BaseModel):
     """ # noqa: E501
     agent: Optional[V1alpha1ScheduleAgentSpec] = None
     agent_name: Optional[StrictStr] = Field(default=None, alias="agentName")
+    agent_naming: Optional[V1alpha1ScheduleAgentNaming] = Field(default=None, description="AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName).", alias="agentNaming")
     auto_delete: Optional[StrictBool] = Field(default=None, alias="autoDelete")
     instructions: StrictStr
     keep_agents: Optional[StrictBool] = Field(default=None, alias="keepAgents")
@@ -37,7 +39,7 @@ class CreateScheduleRequest(BaseModel):
     namespace: Optional[StrictStr] = None
     schedule: StrictStr
     timezone: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["agent", "agentName", "autoDelete", "instructions", "keepAgents", "name", "namespace", "schedule", "timezone"]
+    __properties: ClassVar[List[str]] = ["agent", "agentName", "agentNaming", "autoDelete", "instructions", "keepAgents", "name", "namespace", "schedule", "timezone"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -95,6 +97,7 @@ class CreateScheduleRequest(BaseModel):
         _obj = cls.model_validate({
             "agent": V1alpha1ScheduleAgentSpec.from_dict(obj["agent"]) if obj.get("agent") is not None else None,
             "agentName": obj.get("agentName"),
+            "agentNaming": obj.get("agentNaming"),
             "autoDelete": obj.get("autoDelete"),
             "instructions": obj.get("instructions"),
             "keepAgents": obj.get("keepAgents"),

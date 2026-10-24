@@ -596,12 +596,14 @@ func (c *Client) ListSchedules(ctx context.Context) (*komputer.ScheduleListRespo
 }
 
 type CreateScheduleOpts struct {
-	Agent      *komputer.V1alpha1ScheduleAgentSpec
-	AgentName  *string
-	AutoDelete *bool
-	KeepAgents *bool
-	Namespace  *string
-	Timezone   *string
+	Agent     *komputer.V1alpha1ScheduleAgentSpec
+	AgentName *string
+	// AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run.
+	AgentNaming *komputer.V1alpha1ScheduleAgentNaming
+	AutoDelete  *bool
+	KeepAgents  *bool
+	Namespace   *string
+	Timezone    *string
 }
 
 func (c *Client) CreateSchedule(ctx context.Context, name string, instructions string, schedule string, opts ...CreateScheduleOpts) (*komputer.ScheduleResponse, *http.Response, error) {
@@ -617,6 +619,9 @@ func (c *Client) CreateSchedule(ctx context.Context, name string, instructions s
 		}
 		if o.AgentName != nil {
 			req.AgentName = o.AgentName
+		}
+		if o.AgentNaming != nil {
+			req.AgentNaming = o.AgentNaming
 		}
 		if o.AutoDelete != nil {
 			req.AutoDelete = o.AutoDelete
@@ -651,6 +656,7 @@ type PatchScheduleOpts struct {
 	Suspended    *bool
 	AgentName    *string
 	Agent        *komputer.V1alpha1ScheduleAgentSpec
+	AgentNaming  *komputer.V1alpha1ScheduleAgentNaming
 }
 
 func (c *Client) PatchSchedule(ctx context.Context, name string, opts ...PatchScheduleOpts) (*komputer.ScheduleResponse, *http.Response, error) {
@@ -680,6 +686,9 @@ func (c *Client) PatchSchedule(ctx context.Context, name string, opts ...PatchSc
 		}
 		if o.Agent != nil {
 			req.Agent = o.Agent
+		}
+		if o.AgentNaming != nil {
+			req.AgentNaming = o.AgentNaming
 		}
 	}
 	return c.api.SchedulesAPI.PatchSchedule(ctx, name).Request(req).Execute()

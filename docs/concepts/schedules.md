@@ -41,6 +41,22 @@ spec:
 
 The `agent` block lets the schedule create its own dedicated agent on first fire. If you want the schedule to drive an **existing** agent instead, set `spec.agentName` (and omit `spec.agent`).
 
+## One agent, or a new agent per run
+
+`spec.agentNaming` decides whether runs share an agent:
+
+| Value | Each run uses |
+|---|---|
+| `Fixed` (default) | The same agent, `<schedule>-agent` (or `spec.agentName`), woken for every run |
+| `Date` | A new agent named `<schedule>-YYYYMMDD-HHMM`, in the schedule's timezone |
+| `Random` | A new agent named `<schedule>-<5 random characters>` |
+
+`Date` and `Random` need `spec.agent` — they can't be combined with `spec.agentName`. Each run's agent is created from the template with its lifecycle, so pick the lifecycle for what should happen once its run is done: `Archive` keeps it as a record with no pod or PVC (allowed without the S3 session store, since the agent never runs again), `AutoDelete` removes it, and `Sleep` keeps its workspace. A run is skipped while the previous run's agent is still working, and `status.agentName` names the latest run's agent. Two runs in the same minute (a manual trigger next to a cron run) get a short suffix so their names don't clash.
+
+```bash
+komputer schedule create nightly-report "Write the nightly report" --cron "0 2 * * *" --agent-naming Date --lifecycle Archive
+```
+
 ## Agent configuration
 
 `spec.agent` accepts **every field a `KomputerAgent` spec accepts except `instructions`** — the schedule supplies those from its own top-level `instructions`, so the same task text is used whether a run creates a fresh agent or wakes an existing one.
@@ -59,7 +75,7 @@ The full set:
 | `connectors` | [Connectors](./connectors.md) to attach |
 | `allowedTools` | Restrict to an explicit tool list (see [Tool permissions](./agents.md#tool-permissions)) |
 | `disallowedTools` | Remove specific tools |
-| `lifecycle` | `""`, `Sleep`, `AutoDelete`, or — with the [S3 session store](./session-store.md) — `Archive` (no pod or PVC between runs) |
+| `lifecycle` | `""`, `Sleep`, `AutoDelete`, or `Archive` (no pod or PVC between runs) — which needs the [S3 session store](./session-store.md), or `agentNaming: Date`/`Random` |
 | `priority` | Admission order under a template's concurrency cap |
 | `podSpec` | Pod overrides (resources, image, env) |
 | `storage` | PVC size and storage class |
@@ -139,7 +155,7 @@ kubectl delete komputeragent <agent-name>
 komputer agent delete <agent-name>
 ```
 
-The schedule's `status.agentName` tells you which agent it is currently driving. Schedules whose agents use `lifecycle: AutoDelete` are unaffected by this — each run creates a fresh agent, so a `spec.agent` edit lands on the very next run.
+The schedule's `status.agentName` tells you which agent it is currently driving. Schedules whose agents use `lifecycle: AutoDelete`, and schedules with `agentNaming: Date` or `Random`, are unaffected by this — each run creates a fresh agent, so a `spec.agent` edit lands on the very next run.
 
 ## One-off scheduled run
 
@@ -193,7 +209,7 @@ komputer schedule trigger my-schedule
 curl -X POST http://komputer-api/api/v1/schedules/my-schedule/trigger
 ```
 
-The trigger returns `409 Conflict` if the schedule's last run is still in progress.
+The trigger returns `409 Conflict` if the schedule's last run is still in progress. With `agentNaming: Date` or `Random`, a manual trigger creates a new agent too.
 
 ## Failure behavior
 

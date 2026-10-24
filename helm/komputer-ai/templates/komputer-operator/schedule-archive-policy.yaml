@@ -1,6 +1,7 @@
 {{- if .Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy" }}
-# Schedules reuse one agent across runs, and only the S3 session store lets an
-# archived agent run again, so lifecycle: Archive on a schedule needs it. A CRD rule
+# A Fixed-naming schedule reuses one agent across runs, and only the S3 session store
+# lets an archived agent run again, so lifecycle: Archive on it needs the store. Date and
+# Random naming create a new agent per run, so they can archive without it. A CRD rule
 # can't see KomputerConfig; this policy reads it as its parameter object.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
@@ -23,8 +24,9 @@ spec:
   - expression: >-
       !has(object.spec.agent) || !has(object.spec.agent.lifecycle) ||
       object.spec.agent.lifecycle != 'Archive' ||
+      (has(object.spec.agentNaming) && object.spec.agentNaming in ['Date', 'Random']) ||
       (has(params.spec.s3) && params.spec.s3.enabled && params.spec.s3.bucket != '')
-    message: "lifecycle: Archive on a schedule requires the S3 session store (KomputerConfig.spec.s3)"
+    message: "lifecycle: Archive on a schedule requires the S3 session store (KomputerConfig.spec.s3), or agentNaming Date or Random"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding

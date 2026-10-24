@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { V1alpha1ScheduleAgentNaming } from './V1alpha1ScheduleAgentNaming';
+import {
+    V1alpha1ScheduleAgentNamingFromJSON,
+    V1alpha1ScheduleAgentNamingFromJSONTyped,
+    V1alpha1ScheduleAgentNamingToJSON,
+    V1alpha1ScheduleAgentNamingToJSONTyped,
+} from './V1alpha1ScheduleAgentNaming';
 import type { V1alpha1ScheduleAgentSpec } from './V1alpha1ScheduleAgentSpec';
 import {
     V1alpha1ScheduleAgentSpecFromJSON,
@@ -39,6 +46,12 @@ export interface CreateScheduleRequest {
      * @memberof CreateScheduleRequest
      */
     agentName?: string;
+    /**
+     * AgentNaming: Fixed (default) reuses one agent; Date or Random creates a new agent per run (needs agent, not agentName).
+     * @type {V1alpha1ScheduleAgentNaming}
+     * @memberof CreateScheduleRequest
+     */
+    agentNaming?: V1alpha1ScheduleAgentNaming;
     /**
      * 
      * @type {boolean}
@@ -83,6 +96,8 @@ export interface CreateScheduleRequest {
     timezone?: string;
 }
 
+
+
 /**
  * Check if a given object implements the CreateScheduleRequest interface.
  */
@@ -105,6 +120,7 @@ export function CreateScheduleRequestFromJSONTyped(json: any, ignoreDiscriminato
         
         'agent': json['agent'] == null ? undefined : V1alpha1ScheduleAgentSpecFromJSON(json['agent']),
         'agentName': json['agentName'] == null ? undefined : json['agentName'],
+        'agentNaming': json['agentNaming'] == null ? undefined : V1alpha1ScheduleAgentNamingFromJSON(json['agentNaming']),
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'instructions': json['instructions'],
         'keepAgents': json['keepAgents'] == null ? undefined : json['keepAgents'],
@@ -128,6 +144,7 @@ export function CreateScheduleRequestToJSONTyped(value?: CreateScheduleRequest |
         
         'agent': V1alpha1ScheduleAgentSpecToJSON(value['agent']),
         'agentName': value['agentName'],
+        'agentNaming': V1alpha1ScheduleAgentNamingToJSON(value['agentNaming']),
         'autoDelete': value['autoDelete'],
         'instructions': value['instructions'],
         'keepAgents': value['keepAgents'],

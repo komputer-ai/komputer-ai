@@ -58,11 +58,12 @@ func validateScheduleAgentRef(ctx context.Context, k8s *K8sClient, ns, name stri
 }
 
 // validateScheduleLifecycle rejects Lifecycle=Archive for a schedule's agent
-// unless the S3 session store is on: every run reuses the same agent, and only
-// the session store lets an archived agent run again.
-func validateScheduleLifecycle(lifecycle komputerv1alpha1.AgentLifecycle, s3On bool) error {
-	if lifecycle == komputerv1alpha1.AgentLifecycleArchive && !s3On {
-		return fmt.Errorf("lifecycle: Archive on a schedule needs the S3 session store — every run reuses one agent, and an archived agent can only run again when its session is in S3. Use Sleep or AutoDelete, or configure KomputerConfig.spec.s3")
+// unless archiveOK: the S3 session store is on, or the schedule creates a new
+// agent per run. Otherwise every run reuses the same agent, and only the session
+// store lets an archived agent run again.
+func validateScheduleLifecycle(lifecycle komputerv1alpha1.AgentLifecycle, archiveOK bool) error {
+	if lifecycle == komputerv1alpha1.AgentLifecycleArchive && !archiveOK {
+		return fmt.Errorf("lifecycle: Archive on a schedule needs the S3 session store — every run reuses one agent, and an archived agent can only run again when its session is in S3. Use Sleep or AutoDelete, set agentNaming to Date or Random, or configure KomputerConfig.spec.s3")
 	}
 	return nil
 }

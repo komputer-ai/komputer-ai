@@ -97,6 +97,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - delete
 - apiGroups:
   - komputer.komputer.ai
@@ -104,6 +105,15 @@ rules:
   - komputerschedules/status
   verbs:
   - get
+  - patch
+# A manually triggered per-run schedule agent gets the schedule as its controller
+# owner; setting blockOwnerDeletion needs update on the owner's finalizers.
+- apiGroups:
+  - komputer.komputer.ai
+  resources:
+  - komputerschedules/finalizers
+  verbs:
+  - update
 - apiGroups:
   - komputer.komputer.ai
   resources:

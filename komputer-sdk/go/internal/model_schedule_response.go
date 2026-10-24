@@ -21,6 +21,7 @@ var _ MappedNullable = &ScheduleResponse{}
 type ScheduleResponse struct {
 	Agent *V1alpha1ScheduleAgentSpec `json:"agent,omitempty"`
 	AgentName *string `json:"agentName,omitempty"`
+	AgentNaming *string `json:"agentNaming,omitempty"`
 	AutoDelete *bool `json:"autoDelete,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
 	FailedRuns *int32 `json:"failedRuns,omitempty"`
@@ -122,6 +123,38 @@ func (o *ScheduleResponse) HasAgentName() bool {
 // SetAgentName gets a reference to the given string and assigns it to the AgentName field.
 func (o *ScheduleResponse) SetAgentName(v string) {
 	o.AgentName = &v
+}
+
+// GetAgentNaming returns the AgentNaming field value if set, zero value otherwise.
+func (o *ScheduleResponse) GetAgentNaming() string {
+	if o == nil || IsNil(o.AgentNaming) {
+		var ret string
+		return ret
+	}
+	return *o.AgentNaming
+}
+
+// GetAgentNamingOk returns a tuple with the AgentNaming field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ScheduleResponse) GetAgentNamingOk() (*string, bool) {
+	if o == nil || IsNil(o.AgentNaming) {
+		return nil, false
+	}
+	return o.AgentNaming, true
+}
+
+// HasAgentNaming returns a boolean if a field has been set.
+func (o *ScheduleResponse) HasAgentNaming() bool {
+	if o != nil && !IsNil(o.AgentNaming) {
+		return true
+	}
+
+	return false
+}
+
+// SetAgentNaming gets a reference to the given string and assigns it to the AgentNaming field.
+func (o *ScheduleResponse) SetAgentNaming(v string) {
+	o.AgentNaming = &v
 }
 
 // GetAutoDelete returns the AutoDelete field value if set, zero value otherwise.
@@ -779,6 +812,9 @@ func (o ScheduleResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.AgentName) {
 		toSerialize["agentName"] = o.AgentName
+	}
+	if !IsNil(o.AgentNaming) {
+		toSerialize["agentNaming"] = o.AgentNaming
 	}
 	if !IsNil(o.AutoDelete) {
 		toSerialize["autoDelete"] = o.AutoDelete

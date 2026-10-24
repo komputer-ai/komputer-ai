@@ -17,7 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getSchedule, deleteSchedule, patchSchedule, triggerSchedule, listAgents } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { cronToHuman, formatCost, fmtDuration } from "@/lib/utils";
-import type { ScheduleResponse, PatchScheduleRequest } from "@/lib/types";
+import type { ScheduleResponse, PatchScheduleRequest, ScheduleAgentNaming } from "@/lib/types";
+import { AGENT_NAMING_OPTIONS, archiveAllowedForSchedule, isPerRunNaming, scheduleAgentRef } from "@/lib/schedule-naming";
+import { AgentNamingField } from "@/components/schedules/agent-naming-field";
 import {
   AgentFieldsForm,
   type AgentFormValues,
@@ -74,6 +76,7 @@ export default function ScheduleDetailPage() {
   const [savingDetails, setSavingDetails] = useState(false);
   const [detailsDraft, setDetailsDraft] = useState<{
     agentName: string;
+    agentNaming: ScheduleAgentNaming;
     timezone: string;
     autoDelete: boolean;
     keepAgents: boolean;
@@ -120,7 +123,8 @@ export default function ScheduleDetailPage() {
   function openDetailsEditor() {
     if (!schedule) return;
     setDetailsDraft({
-      agentName: schedule.agentName ?? "",
+      agentName: scheduleAgentRef(schedule),
+      agentNaming: schedule.agentNaming ?? "Fixed",
       timezone: schedule.timezone ?? "",
       autoDelete: !!schedule.autoDelete,
       keepAgents: !!schedule.keepAgents,
@@ -138,8 +142,11 @@ export default function ScheduleDetailPage() {
     if (!schedule || !detailsDraft) return;
     const patch: PatchScheduleRequest = {};
     const draftAgent = detailsDraft.agentName.trim();
-    const currentAgent = schedule.agentName ?? "";
+    const currentAgent = scheduleAgentRef(schedule);
     if (draftAgent !== currentAgent) patch.agentName = draftAgent;
+    // Per-run naming needs a template; a reference always reuses its agent.
+    const draftNaming = draftAgent ? "Fixed" : detailsDraft.agentNaming;
+    if (draftNaming !== (schedule.agentNaming ?? "Fixed")) patch.agentNaming = draftNaming;
     if (detailsDraft.timezone !== (schedule.timezone ?? ""))
       patch.timezone = detailsDraft.timezone;
     if (detailsDraft.autoDelete !== !!schedule.autoDelete)
@@ -588,6 +595,12 @@ export default function ScheduleDetailPage() {
                     <span className="text-sm text-[var(--color-text-secondary)]">--</span>
                   )}
                 </p>
+                {isPerRunNaming(schedule.agentNaming) && (
+                  <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                    {AGENT_NAMING_OPTIONS.find((o) => o.value === schedule.agentNaming)?.label}
+                    {schedule.agentName ? " · showing the last run's agent" : ""}
+                  </p>
+                )}
               </div>
 
               {/* Timezone */}
@@ -757,13 +770,30 @@ export default function ScheduleDetailPage() {
                     </div>
                   </div>
                   <div className="sm:col-span-2">
+                    <AgentNamingField
+                      value={detailsDraft.agentNaming}
+                      scheduleName={schedule.name}
+                      onChange={(v) =>
+                        setDetailsDraft({
+                          ...detailsDraft,
+                          agentNaming: v,
+                          // Archive is only offered when allowed; drop it if it no longer is.
+                          agent:
+                            !archiveAllowedForSchedule(s3Enabled, v) && detailsDraft.agent.lifecycle === "Archive"
+                              ? { ...detailsDraft.agent, lifecycle: "Sleep" }
+                              : detailsDraft.agent,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
                     <AgentFieldsForm
                       values={detailsDraft.agent}
                       onChange={(agent) => setDetailsDraft({ ...detailsDraft, agent })}
                       active={editingDetails}
                       hideNameAndNamespace
                       hideInstructions
-                      hideArchive={!s3Enabled}
+                      hideArchive={!archiveAllowedForSchedule(s3Enabled, detailsDraft.agentNaming)}
                       idPrefix="sched-edit"
                     />
                   </div>

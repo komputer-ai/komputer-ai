@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Agent** | Pointer to [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **AgentName** | Pointer to **string** |  | [optional] 
+**AgentNaming** | Pointer to [**V1alpha1ScheduleAgentNaming**](V1alpha1ScheduleAgentNaming.md) | AgentNaming: Fixed, Date or Random (see CreateScheduleRequest). | [optional] 
 **AutoDelete** | Pointer to **bool** |  | [optional] 
 **Instructions** | Pointer to **string** |  | [optional] 
 **KeepAgents** | Pointer to **bool** |  | [optional] 
@@ -81,6 +82,31 @@ SetAgentName sets AgentName field to given value.
 `func (o *PatchScheduleRequest) HasAgentName() bool`
 
 HasAgentName returns a boolean if a field has been set.
+
+### GetAgentNaming
+
+`func (o *PatchScheduleRequest) GetAgentNaming() V1alpha1ScheduleAgentNaming`
+
+GetAgentNaming returns the AgentNaming field if non-nil, zero value otherwise.
+
+### GetAgentNamingOk
+
+`func (o *PatchScheduleRequest) GetAgentNamingOk() (*V1alpha1ScheduleAgentNaming, bool)`
+
+GetAgentNamingOk returns a tuple with the AgentNaming field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAgentNaming
+
+`func (o *PatchScheduleRequest) SetAgentNaming(v V1alpha1ScheduleAgentNaming)`
+
+SetAgentNaming sets AgentNaming field to given value.
+
+### HasAgentNaming
+
+`func (o *PatchScheduleRequest) HasAgentNaming() bool`
+
+HasAgentNaming returns a boolean if a field has been set.
 
 ### GetAutoDelete
 

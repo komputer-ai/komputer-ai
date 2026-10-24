@@ -41,6 +41,12 @@ export interface ScheduleResponse {
     agentName?: string;
     /**
      * 
+     * @type {string}
+     * @memberof ScheduleResponse
+     */
+    agentNaming?: string;
+    /**
+     * 
      * @type {boolean}
      * @memberof ScheduleResponse
      */
@@ -180,6 +186,7 @@ export function ScheduleResponseFromJSONTyped(json: any, ignoreDiscriminator: bo
         
         'agent': json['agent'] == null ? undefined : V1alpha1ScheduleAgentSpecFromJSON(json['agent']),
         'agentName': json['agentName'] == null ? undefined : json['agentName'],
+        'agentNaming': json['agentNaming'] == null ? undefined : json['agentNaming'],
         'autoDelete': json['autoDelete'] == null ? undefined : json['autoDelete'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
         'failedRuns': json['failedRuns'] == null ? undefined : json['failedRuns'],
@@ -216,6 +223,7 @@ export function ScheduleResponseToJSONTyped(value?: ScheduleResponse | null, ign
         
         'agent': V1alpha1ScheduleAgentSpecToJSON(value['agent']),
         'agentName': value['agentName'],
+        'agentNaming': value['agentNaming'],
         'autoDelete': value['autoDelete'],
         'createdAt': value['createdAt'],
         'failedRuns': value['failedRuns'],

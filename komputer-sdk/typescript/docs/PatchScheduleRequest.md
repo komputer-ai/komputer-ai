@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `agent` | [V1alpha1ScheduleAgentSpec](V1alpha1ScheduleAgentSpec.md)
 `agentName` | string
+`agentNaming` | [V1alpha1ScheduleAgentNaming](V1alpha1ScheduleAgentNaming.md)
 `autoDelete` | boolean
 `instructions` | string
 `keepAgents` | boolean
@@ -24,6 +25,7 @@ import type { PatchScheduleRequest } from '@komputer-ai/sdk'
 const example = {
   "agent": null,
   "agentName": null,
+  "agentNaming": null,
   "autoDelete": null,
   "instructions": null,
   "keepAgents": null,

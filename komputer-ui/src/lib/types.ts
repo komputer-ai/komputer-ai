@@ -158,6 +158,9 @@ export interface ScheduleAgentSpec {
   taskBudgetUSD?: string;
 }
 
+/** Fixed reuses one agent every run; Date and Random create a new agent per run. */
+export type ScheduleAgentNaming = 'Fixed' | 'Date' | 'Random';
+
 export interface ScheduleResponse {
   name: string;
   namespace: string;
@@ -168,6 +171,7 @@ export interface ScheduleResponse {
   keepAgents?: boolean;
   suspended?: boolean;
   agent?: ScheduleAgentSpec;
+  agentNaming?: ScheduleAgentNaming;
   phase: 'Active' | 'Suspended' | 'Error';
   agentName?: string;
   nextRunTime?: string;
@@ -192,6 +196,7 @@ export interface PatchScheduleRequest {
   suspended?: boolean;
   agentName?: string;
   agent?: ScheduleAgentSpec;
+  agentNaming?: ScheduleAgentNaming;
 }
 
 export interface ScheduleListResponse {
@@ -247,6 +252,7 @@ export interface CreateScheduleRequest {
   keepAgents?: boolean;
   agentName?: string;
   agent?: ScheduleAgentSpec;
+  agentNaming?: ScheduleAgentNaming;
   namespace?: string;
 }
 

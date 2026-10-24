@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Agent** | Pointer to [**V1alpha1ScheduleAgentSpec**](V1alpha1ScheduleAgentSpec.md) |  | [optional] 
 **AgentName** | Pointer to **string** |  | [optional] 
+**AgentNaming** | Pointer to **string** |  | [optional] 
 **AutoDelete** | Pointer to **bool** |  | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
 **FailedRuns** | Pointer to **int32** |  | [optional] 
@@ -95,6 +96,31 @@ SetAgentName sets AgentName field to given value.
 `func (o *ScheduleResponse) HasAgentName() bool`
 
 HasAgentName returns a boolean if a field has been set.
+
+### GetAgentNaming
+
+`func (o *ScheduleResponse) GetAgentNaming() string`
+
+GetAgentNaming returns the AgentNaming field if non-nil, zero value otherwise.
+
+### GetAgentNamingOk
+
+`func (o *ScheduleResponse) GetAgentNamingOk() (*string, bool)`
+
+GetAgentNamingOk returns a tuple with the AgentNaming field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetAgentNaming
+
+`func (o *ScheduleResponse) SetAgentNaming(v string)`
+
+SetAgentNaming sets AgentNaming field to given value.
+
+### HasAgentNaming
+
+`func (o *ScheduleResponse) HasAgentNaming() bool`
+
+HasAgentNaming returns a boolean if a field has been set.
 
 ### GetAutoDelete
 
