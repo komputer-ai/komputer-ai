@@ -48,6 +48,18 @@ export interface AgentResponse {
      */
     allowedTools?: Array<string>;
     /**
+     * 
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    archiveExpiresAt?: string;
+    /**
+     * idle timeout before auto-archive, e.g. "24h"
+     * @type {string}
+     * @memberof AgentResponse
+     */
+    archiveTTL?: string;
+    /**
      * BudgetExhausted is true when status.totalCostUSD has reached or passed the
      * EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's
      * default) — new tasks are refused with 409 until it's raised. Always false
@@ -229,8 +241,8 @@ export interface AgentResponse {
      */
     skills?: Array<string>;
     /**
-     * SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
-     * when the matching TTL is unset or its countdown isn't currently running.
+     * SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire
+     * (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.
      * @type {string}
      * @memberof AgentResponse
      */
@@ -336,6 +348,8 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'archiveExpiresAt': json['archiveExpiresAt'] == null ? undefined : json['archiveExpiresAt'],
+        'archiveTTL': json['archiveTTL'] == null ? undefined : json['archiveTTL'],
         'budgetExhausted': json['budgetExhausted'] == null ? undefined : json['budgetExhausted'],
         'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'completionTime': json['completionTime'] == null ? undefined : json['completionTime'],
@@ -393,6 +407,8 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
     return {
         
         'allowedTools': value['allowedTools'],
+        'archiveExpiresAt': value['archiveExpiresAt'],
+        'archiveTTL': value['archiveTTL'],
         'budgetExhausted': value['budgetExhausted'],
         'budgetUSD': value['budgetUSD'],
         'completionTime': value['completionTime'],

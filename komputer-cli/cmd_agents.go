@@ -233,6 +233,9 @@ func registerAgentCommands(root *cobra.Command) {
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
 			}
+			if attl, _ := cmd.Flags().GetString("archive-ttl"); attl != "" {
+				body["archiveTTL"] = attl
+			}
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
 			}
@@ -335,6 +338,7 @@ func registerAgentCommands(root *cobra.Command) {
 	createCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task), AutoDelete (delete agent after task), or Archive (delete pod + workspace, keep agent as a record)")
 	createCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	createCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	createCmd.Flags().String("archive-ttl", "", "Archive the agent after this long idle, sleeping time included (e.g. 24h). Empty to never auto-archive.")
 	createCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	createCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
 	createCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
@@ -385,6 +389,10 @@ func registerAgentCommands(root *cobra.Command) {
 			if cmd.Flags().Changed("delete-ttl") {
 				v, _ := cmd.Flags().GetString("delete-ttl")
 				body["deleteTTL"] = v
+			}
+			if cmd.Flags().Changed("archive-ttl") {
+				v, _ := cmd.Flags().GetString("archive-ttl")
+				body["archiveTTL"] = v
 			}
 			if cmd.Flags().Changed("task-timeout") {
 				v, _ := cmd.Flags().GetString("task-timeout")
@@ -468,6 +476,7 @@ func registerAgentCommands(root *cobra.Command) {
 	updateCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep, AutoDelete, or Archive (empty for default)")
 	updateCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	updateCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	updateCmd.Flags().String("archive-ttl", "", "Archive the agent after this long idle (e.g. 24h); \"\" clears it on patch")
 	updateCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	updateCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty string clears it.")
 	updateCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty string clears it.")
@@ -882,6 +891,9 @@ func registerAgentCommands(root *cobra.Command) {
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
 			}
+			if attl, _ := cmd.Flags().GetString("archive-ttl"); attl != "" {
+				body["archiveTTL"] = attl
+			}
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
 			}
@@ -977,6 +989,7 @@ func registerAgentCommands(root *cobra.Command) {
 	configCmd.Flags().String("lifecycle", "", "Lifecycle: Sleep, AutoDelete, or Archive (empty for default)")
 	configCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	configCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	configCmd.Flags().String("archive-ttl", "", "Archive the agent after this long idle, sleeping time included (e.g. 24h). Empty to never auto-archive.")
 	configCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	configCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
 	configCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
@@ -1137,6 +1150,9 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 				body["deleteTTL"] = dttl
+			}
+			if attl, _ := cmd.Flags().GetString("archive-ttl"); attl != "" {
+				body["archiveTTL"] = attl
 			}
 			if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 				body["taskTimeout"] = ttimeout
@@ -1312,6 +1328,7 @@ func registerAgentCommands(root *cobra.Command) {
 	runCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep (delete pod after task), AutoDelete (delete agent after task), or Archive (delete pod + workspace, keep agent as a record)")
 	runCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	runCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	runCmd.Flags().String("archive-ttl", "", "Archive the agent after this long idle, sleeping time included (e.g. 24h). Empty to never auto-archive.")
 	runCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	runCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
 	runCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")
@@ -1487,6 +1504,9 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 				if dttl, _ := cmd.Flags().GetString("delete-ttl"); dttl != "" {
 					body["deleteTTL"] = dttl
+				}
+				if attl, _ := cmd.Flags().GetString("archive-ttl"); attl != "" {
+					body["archiveTTL"] = attl
 				}
 				if ttimeout, _ := cmd.Flags().GetString("task-timeout"); ttimeout != "" {
 					body["taskTimeout"] = ttimeout
@@ -1745,6 +1765,7 @@ func registerAgentCommands(root *cobra.Command) {
 	chatCmd.Flags().String("lifecycle", "", "Agent lifecycle: Sleep, AutoDelete, or Archive (default: empty, pod stays running)")
 	chatCmd.Flags().String("sleep-ttl", "", "Put the agent to sleep after this long idle (e.g. 30m, 2h). Empty to never auto-sleep.")
 	chatCmd.Flags().String("delete-ttl", "", "Delete the agent this long after creation (e.g. 24h). Absolute — does not reset on wake.")
+	chatCmd.Flags().String("archive-ttl", "", "Archive the agent after this long idle, sleeping time included (e.g. 24h). Empty to never auto-archive.")
 	chatCmd.Flags().String("task-timeout", "", "Cancel a task that runs longer than this (e.g. 30m, 2h). Empty for no limit.")
 	chatCmd.Flags().String("budget", "", "Soft lifetime spending cap in USD (e.g. 10.00). New tasks are refused once spend reaches this; a running task still finishes. Empty for no cap.")
 	chatCmd.Flags().String("task-budget", "", "Hard per-task spending cap in USD (e.g. 2.50). The task stops the instant it is exceeded. Empty for no cap.")

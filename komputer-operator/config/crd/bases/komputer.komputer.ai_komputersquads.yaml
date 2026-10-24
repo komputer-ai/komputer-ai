@@ -88,6 +88,19 @@ spec:
                           items:
                             type: string
                           type: array
+                        archiveTTL:
+                          description: |-
+                            ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+                            has been idle for this long. Idle is measured exactly like SleepTTL — from
+                            Status.LastActivityAt, reset by any task event or wake, never while a task is
+                            in progress, and never on an agent that has never run a task — but it also runs
+                            while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+                            archives. With the S3 session store it waits until the latest task is saved;
+                            without it the archived agent can't run again. Not applied to squad members.
+                            When set, Lifecycle=Archive waits for it instead of archiving right after the
+                            task. Unset (default) means the agent never auto-archives.
+                            Overrides the template's archiveTTL when set.
+                          type: string
                         budgetUSD:
                           description: |-
                             BudgetUSD is a SOFT lifetime spending cap across every task this agent ever

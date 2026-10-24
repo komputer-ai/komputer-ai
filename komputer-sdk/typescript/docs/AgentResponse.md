@@ -7,6 +7,8 @@
 Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
+`archiveExpiresAt` | string
+`archiveTTL` | string
 `budgetExhausted` | boolean
 `budgetUSD` | string
 `completionTime` | string
@@ -58,6 +60,8 @@ import type { AgentResponse } from '@komputer-ai/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "allowedTools": null,
+  "archiveExpiresAt": null,
+  "archiveTTL": null,
   "budgetExhausted": null,
   "budgetUSD": null,
   "completionTime": null,

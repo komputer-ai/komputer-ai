@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
+**archive_ttl** | **str** | not allowed on squad members | [optional] 
 **budget_usd** | **str** | BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \&quot;10.00\&quot;). An explicit \&quot;\&quot; clears the cap; omitting the field leaves it unchanged. | [optional] 
 **connectors** | **List[str]** | connector names to attach | [optional] 
 **delete_ttl** | **str** |  | [optional] 

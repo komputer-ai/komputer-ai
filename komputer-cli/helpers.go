@@ -81,6 +81,9 @@ func printAgent(a AgentResponse) {
 	if a.SleepTTL != "" {
 		row("Sleep TTL:", a.SleepTTL+expiryHint("sleeps", a.SleepExpiresAt))
 	}
+	if a.ArchiveTTL != "" {
+		row("Archive TTL:", a.ArchiveTTL+expiryHint("archives", a.ArchiveExpiresAt))
+	}
 	if a.DeleteTTL != "" {
 		row("Delete TTL:", a.DeleteTTL+expiryHint("deletes", a.DeleteExpiresAt))
 	}

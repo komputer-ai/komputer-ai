@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \&quot;mcp__figma__*\&quot;. Empty keeps default behavior. | [optional] 
+**archive_ttl** | **str** | ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a record) after this long with no activity, as a Go duration string (e.g. \&quot;24h\&quot;). Keeps counting while the agent sleeps. Not allowed on squad members. Empty means never auto-archive. | [optional] 
 **budget_usd** | **str** | BudgetUSD is a SOFT lifetime spending cap across all of this agent&#39;s tasks, as a decimal USD string (e.g. \&quot;10.00\&quot;). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it&#39;s raised; a task already running is always allowed to finish. Empty means no lifetime cap. | [optional] 
 **connectors** | **List[str]** | optional KomputerConnector names to attach | [optional] 
 **delete_ttl** | **str** | DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \&quot;24h\&quot;). Absolute — it does not reset on wake. Empty means never auto-delete. | [optional] 

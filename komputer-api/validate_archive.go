@@ -54,16 +54,54 @@ func validateScheduleAgentRef(ctx context.Context, k8s *K8sClient, ns, name stri
 	if agentArchived(agent) {
 		return fmt.Errorf("agent %q is archived and can't run again", name)
 	}
-	return validateScheduleLifecycle(agent.Spec.Lifecycle, false)
+	return validateScheduleLifecycle(agent.Spec.AgentConfigSpec, false)
 }
 
-// validateScheduleLifecycle rejects Lifecycle=Archive for a schedule's agent
-// unless archiveOK: the S3 session store is on, or the schedule creates a new
-// agent per run. Otherwise every run reuses the same agent, and only the session
-// store lets an archived agent run again.
-func validateScheduleLifecycle(lifecycle komputerv1alpha1.AgentLifecycle, archiveOK bool) error {
-	if lifecycle == komputerv1alpha1.AgentLifecycleArchive && !archiveOK {
+// validateScheduleLifecycle rejects Lifecycle=Archive or an archiveTTL for a
+// schedule's agent unless archiveOK: the S3 session store is on, or the schedule
+// creates a new agent per run. Otherwise every run reuses the same agent, and only
+// the session store lets an archived agent run again.
+func validateScheduleLifecycle(cfg komputerv1alpha1.AgentConfigSpec, archiveOK bool) error {
+	if archiveOK {
+		return nil
+	}
+	if cfg.Lifecycle == komputerv1alpha1.AgentLifecycleArchive {
 		return fmt.Errorf("lifecycle: Archive on a schedule needs the S3 session store — every run reuses one agent, and an archived agent can only run again when its session is in S3. Use Sleep or AutoDelete, set agentNaming to Date or Random, or configure KomputerConfig.spec.s3")
+	}
+	if cfg.ArchiveTTL != nil {
+		return fmt.Errorf("archiveTTL on a schedule needs the S3 session store — every run reuses one agent, and an archived agent can only run again when its session is in S3. Use sleepTTL, set agentNaming to Date or Random, or configure KomputerConfig.spec.s3")
+	}
+	return nil
+}
+
+// ErrArchiveTTLInSquad is returned when archiveTTL is set on a squad member, or an
+// agent with one is added to a squad: archiving deletes the member's PVC, which the
+// shared squad pod mounts (the same reason ArchiveAgentNow refuses squad members).
+var ErrArchiveTTLInSquad = fmt.Errorf("archiveTTL isn't supported on squad members: remove the agent from the squad, or clear its archiveTTL")
+
+// agentInSquad reports whether the agent is a squad member. The label is written
+// when the squad controller creates the agent; Status.Squad when it adopts one.
+func agentInSquad(agent *komputerv1alpha1.KomputerAgent) bool {
+	return agent.Status.Squad || agent.Labels["komputer.ai/squad"] != ""
+}
+
+// validateSquadMembersNoArchiveTTL rejects squad members — inline specs or refs to
+// existing agents — that carry their own archiveTTL.
+func validateSquadMembersNoArchiveTTL(ctx context.Context, k8s *K8sClient, ns string, members []komputerv1alpha1.KomputerSquadMember) error {
+	for _, m := range members {
+		if m.Spec != nil && m.Spec.ArchiveTTL != nil {
+			return ErrArchiveTTLInSquad
+		}
+		if m.Ref == nil {
+			continue
+		}
+		refNs := m.Ref.Namespace
+		if refNs == "" {
+			refNs = ns
+		}
+		if a, err := k8s.GetAgent(ctx, refNs, m.Ref.Name); err == nil && a.Spec.ArchiveTTL != nil {
+			return fmt.Errorf("agent %q has an archiveTTL: %w", m.Ref.Name, ErrArchiveTTLInSquad)
+		}
 	}
 	return nil
 }

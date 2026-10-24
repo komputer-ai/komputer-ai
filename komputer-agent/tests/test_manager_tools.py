@@ -805,3 +805,51 @@ async def test_schedule_agent_forwards_agent_naming(mock_api):
         "agent_naming": "Date",
     })
     assert mock_api.last_json["agentNaming"] == "Date"
+
+
+# --- archiveTTL ---
+
+def test_create_agent_schema_exposes_archive_ttl():
+    props = manager_tools.create_agent.input_schema["properties"]
+    assert props["archiveTTL"]["type"] == "string"
+
+
+def test_patch_agent_schema_exposes_archive_ttl():
+    props = manager_tools.patch_agent.input_schema["properties"]
+    assert props["archiveTTL"]["type"] == "string"
+
+
+@pytest.mark.asyncio
+async def test_create_agent_forwards_archive_ttl(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "ttl"})
+    result = await manager_tools.create_agent.handler(
+        {"name": "ttl", "instructions": "work", "sleepTTL": "30m", "archiveTTL": "24h"}
+    )
+    assert not result.get("isError")
+    assert mock_api.last_json["archiveTTL"] == "24h"
+    assert mock_api.last_json["sleepTTL"] == "30m"
+
+
+@pytest.mark.asyncio
+async def test_create_agent_omits_archive_ttl_when_absent(mock_api):
+    mock_api.set("POST", "/api/v1/agents", {"name": "plain"})
+    result = await manager_tools.create_agent.handler({"name": "plain", "instructions": "work"})
+    assert not result.get("isError")
+    assert "archiveTTL" not in mock_api.last_json
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_forwards_archive_ttl(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler({"name": "a1", "archiveTTL": "12h"})
+    assert not result.get("isError")
+    assert mock_api.last_json == {"archiveTTL": "12h"}
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_clears_archive_ttl_with_empty_string(mock_api):
+    mock_api.set("PATCH", "/api/v1/agents/a1", {"name": "a1"})
+    result = await manager_tools.patch_agent.handler({"name": "a1", "archiveTTL": ""})
+    assert not result.get("isError")
+    # An explicit "" must survive to the API so it can clear the TTL.
+    assert mock_api.last_json == {"archiveTTL": ""}

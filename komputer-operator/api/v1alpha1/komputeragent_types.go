@@ -209,6 +209,12 @@ type KomputerAgentStatus struct {
 	// Owned by operator.
 	// +optional
 	DeleteExpiresAt *metav1.Time `json:"deleteExpiresAt,omitempty"`
+	// ArchiveExpiresAt is when the agent will be archived by ArchiveTTL.
+	// Recomputed from the idle clock on each reconcile; nil when ArchiveTTL is unset
+	// or a task is currently in progress.
+	// Owned by operator.
+	// +optional
+	ArchiveExpiresAt *metav1.Time `json:"archiveExpiresAt,omitempty"`
 	// TaskStartedAt is when the current (or most recent) task started. Stamped by the
 	// API worker when the agent transitions into an in-progress task status, and NOT
 	// refreshed while that task continues — a steer leaves it alone, which is what

@@ -2715,9 +2715,25 @@ components:
           - connectors
           role: role
           templateRef: templateRef
-          taskTimeout: "{}"
           effort: effort
           storage: "{}"
+          archiveTTL: "{}"
+          lifecycle: "{}"
+          skills:
+          - skills
+          - skills
+          budgetUSD: budgetUSD
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
+          memories:
+          - memories
+          - memories
+          model: model
+          taskBudgetUSD: taskBudgetUSD
+          deleteTTL: "{}"
+          internalSystemPrompt: internalSystemPrompt
+          taskTimeout: "{}"
           podSpec: "{}"
           priority: 0
           secrets:
@@ -2725,27 +2741,12 @@ components:
           - secrets
           labels:
             key: labels
-          lifecycle: "{}"
-          skills:
-          - skills
-          - skills
           sleepTTL: "{}"
           systemPrompt: systemPrompt
-          budgetUSD: budgetUSD
-          disallowedTools:
-          - disallowedTools
-          - disallowedTools
           officeManager: officeManager
-          memories:
-          - memories
-          - memories
-          model: model
-          taskBudgetUSD: taskBudgetUSD
           allowedTools:
           - allowedTools
           - allowedTools
-          deleteTTL: "{}"
-          internalSystemPrompt: internalSystemPrompt
       properties:
         name:
           description: Name is the desired KomputerAgent name when Spec is set. Optional.
@@ -2805,6 +2806,7 @@ components:
             size: size
             storageClassName: storageClassName
             ephemeral: true
+          archiveTTL: archiveTTL
           lifecycle: lifecycle
           skills:
           - skills
@@ -3460,6 +3462,7 @@ components:
             key: labels
           sleepTTL: sleepTTL
           systemPrompt: systemPrompt
+          archiveExpiresAt: archiveExpiresAt
           squad: true
           name: name
           namespace: namespace
@@ -3485,6 +3488,7 @@ components:
             size: size
             storageClassName: storageClassName
             ephemeral: true
+          archiveTTL: archiveTTL
           lifecycle: lifecycle
           skills:
           - skills
@@ -4140,6 +4144,7 @@ components:
             key: labels
           sleepTTL: sleepTTL
           systemPrompt: systemPrompt
+          archiveExpiresAt: archiveExpiresAt
           squad: true
           name: name
           namespace: namespace
@@ -4193,6 +4198,7 @@ components:
           size: size
           storageClassName: storageClassName
           ephemeral: true
+        archiveTTL: archiveTTL
         lifecycle: lifecycle
         skills:
         - skills
@@ -4848,6 +4854,7 @@ components:
           key: labels
         sleepTTL: sleepTTL
         systemPrompt: systemPrompt
+        archiveExpiresAt: archiveExpiresAt
         squad: true
         name: name
         namespace: namespace
@@ -4866,6 +4873,11 @@ components:
           items:
             type: string
           type: array
+        archiveExpiresAt:
+          type: string
+        archiveTTL:
+          description: "idle timeout before auto-archive, e.g. \"24h\""
+          type: string
         budgetExhausted:
           description: |-
             BudgetExhausted is true when status.totalCostUSD has reached or passed the
@@ -4972,8 +4984,8 @@ components:
           type: array
         sleepExpiresAt:
           description: |-
-            SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
-            when the matching TTL is unset or its countdown isn't currently running.
+            SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire
+            (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.
           type: string
         sleepTTL:
           description: "idle timeout before auto-sleep, e.g. \"30m\""
@@ -5177,6 +5189,7 @@ components:
           size: size
           storageClassName: storageClassName
           ephemeral: true
+        archiveTTL: archiveTTL
         lifecycle: lifecycle
         skills:
         - skills
@@ -5835,6 +5848,13 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          description: |-
+            ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a
+            record) after this long with no activity, as a Go duration string (e.g. "24h").
+            Keeps counting while the agent sleeps. Not allowed on squad members. Empty
+            means never auto-archive.
+          type: string
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
@@ -6025,6 +6045,7 @@ components:
           secrets:
           - secrets
           - secrets
+          archiveTTL: "{}"
           labels:
             key: labels
           lifecycle: "{}"
@@ -6133,9 +6154,25 @@ components:
             - connectors
             role: role
             templateRef: templateRef
-            taskTimeout: "{}"
             effort: effort
             storage: "{}"
+            archiveTTL: "{}"
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            budgetUSD: budgetUSD
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
+            model: model
+            taskBudgetUSD: taskBudgetUSD
+            deleteTTL: "{}"
+            internalSystemPrompt: internalSystemPrompt
+            taskTimeout: "{}"
             podSpec: "{}"
             priority: 0
             secrets:
@@ -6143,27 +6180,12 @@ components:
             - secrets
             labels:
               key: labels
-            lifecycle: "{}"
-            skills:
-            - skills
-            - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
-            budgetUSD: budgetUSD
-            disallowedTools:
-            - disallowedTools
-            - disallowedTools
             officeManager: officeManager
-            memories:
-            - memories
-            - memories
-            model: model
-            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
-            deleteTTL: "{}"
-            internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
           name: name
           spec:
@@ -6173,9 +6195,25 @@ components:
             - connectors
             role: role
             templateRef: templateRef
-            taskTimeout: "{}"
             effort: effort
             storage: "{}"
+            archiveTTL: "{}"
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            budgetUSD: budgetUSD
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
+            model: model
+            taskBudgetUSD: taskBudgetUSD
+            deleteTTL: "{}"
+            internalSystemPrompt: internalSystemPrompt
+            taskTimeout: "{}"
             podSpec: "{}"
             priority: 0
             secrets:
@@ -6183,27 +6221,12 @@ components:
             - secrets
             labels:
               key: labels
-            lifecycle: "{}"
-            skills:
-            - skills
-            - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
-            budgetUSD: budgetUSD
-            disallowedTools:
-            - disallowedTools
-            - disallowedTools
             officeManager: officeManager
-            memories:
-            - memories
-            - memories
-            model: model
-            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
-            deleteTTL: "{}"
-            internalSystemPrompt: internalSystemPrompt
         name: name
         namespace: namespace
         orphanTTL: orphanTTL
@@ -7002,6 +7025,7 @@ components:
           affinity: "{}"
           hostPID: true
         priority: 0
+        archiveTTL: archiveTTL
         labels:
           key: labels
         lifecycle: lifecycle
@@ -7034,6 +7058,9 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          description: not allowed on squad members
+          type: string
         budgetUSD:
           description: |-
             BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
@@ -7140,6 +7167,7 @@ components:
           secrets:
           - secrets
           - secrets
+          archiveTTL: "{}"
           labels:
             key: labels
           lifecycle: "{}"
@@ -7211,9 +7239,25 @@ components:
             - connectors
             role: role
             templateRef: templateRef
-            taskTimeout: "{}"
             effort: effort
             storage: "{}"
+            archiveTTL: "{}"
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            budgetUSD: budgetUSD
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
+            model: model
+            taskBudgetUSD: taskBudgetUSD
+            deleteTTL: "{}"
+            internalSystemPrompt: internalSystemPrompt
+            taskTimeout: "{}"
             podSpec: "{}"
             priority: 0
             secrets:
@@ -7221,27 +7265,12 @@ components:
             - secrets
             labels:
               key: labels
-            lifecycle: "{}"
-            skills:
-            - skills
-            - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
-            budgetUSD: budgetUSD
-            disallowedTools:
-            - disallowedTools
-            - disallowedTools
             officeManager: officeManager
-            memories:
-            - memories
-            - memories
-            model: model
-            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
-            deleteTTL: "{}"
-            internalSystemPrompt: internalSystemPrompt
         - ref: "{}"
           name: name
           spec:
@@ -7251,9 +7280,25 @@ components:
             - connectors
             role: role
             templateRef: templateRef
-            taskTimeout: "{}"
             effort: effort
             storage: "{}"
+            archiveTTL: "{}"
+            lifecycle: "{}"
+            skills:
+            - skills
+            - skills
+            budgetUSD: budgetUSD
+            disallowedTools:
+            - disallowedTools
+            - disallowedTools
+            memories:
+            - memories
+            - memories
+            model: model
+            taskBudgetUSD: taskBudgetUSD
+            deleteTTL: "{}"
+            internalSystemPrompt: internalSystemPrompt
+            taskTimeout: "{}"
             podSpec: "{}"
             priority: 0
             secrets:
@@ -7261,27 +7306,12 @@ components:
             - secrets
             labels:
               key: labels
-            lifecycle: "{}"
-            skills:
-            - skills
-            - skills
             sleepTTL: "{}"
             systemPrompt: systemPrompt
-            budgetUSD: budgetUSD
-            disallowedTools:
-            - disallowedTools
-            - disallowedTools
             officeManager: officeManager
-            memories:
-            - memories
-            - memories
-            model: model
-            taskBudgetUSD: taskBudgetUSD
             allowedTools:
             - allowedTools
             - allowedTools
-            deleteTTL: "{}"
-            internalSystemPrompt: internalSystemPrompt
         orphanTTL: orphanTTL
       properties:
         members:
@@ -7321,6 +7351,7 @@ components:
             secrets:
             - secrets
             - secrets
+            archiveTTL: "{}"
             labels:
               key: labels
             lifecycle: "{}"
@@ -7378,6 +7409,7 @@ components:
             secrets:
             - secrets
             - secrets
+            archiveTTL: "{}"
             labels:
               key: labels
             lifecycle: "{}"
@@ -7443,6 +7475,7 @@ components:
           secrets:
           - secrets
           - secrets
+          archiveTTL: "{}"
           labels:
             key: labels
           lifecycle: "{}"
@@ -14213,9 +14246,25 @@ components:
         - connectors
         role: role
         templateRef: templateRef
-        taskTimeout: "{}"
         effort: effort
         storage: "{}"
+        archiveTTL: "{}"
+        lifecycle: "{}"
+        skills:
+        - skills
+        - skills
+        budgetUSD: budgetUSD
+        disallowedTools:
+        - disallowedTools
+        - disallowedTools
+        memories:
+        - memories
+        - memories
+        model: model
+        taskBudgetUSD: taskBudgetUSD
+        deleteTTL: "{}"
+        internalSystemPrompt: internalSystemPrompt
+        taskTimeout: "{}"
         podSpec: "{}"
         priority: 0
         secrets:
@@ -14223,27 +14272,12 @@ components:
         - secrets
         labels:
           key: labels
-        lifecycle: "{}"
-        skills:
-        - skills
-        - skills
         sleepTTL: "{}"
         systemPrompt: systemPrompt
-        budgetUSD: budgetUSD
-        disallowedTools:
-        - disallowedTools
-        - disallowedTools
         officeManager: officeManager
-        memories:
-        - memories
-        - memories
-        model: model
-        taskBudgetUSD: taskBudgetUSD
         allowedTools:
         - allowedTools
         - allowedTools
-        deleteTTL: "{}"
-        internalSystemPrompt: internalSystemPrompt
       properties:
         allowedTools:
           description: |-
@@ -14260,6 +14294,22 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+            has been idle for this long. Idle is measured exactly like SleepTTL — from
+            Status.LastActivityAt, reset by any task event or wake, never while a task is
+            in progress, and never on an agent that has never run a task — but it also runs
+            while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+            archives. With the S3 session store it waits until the latest task is saved;
+            without it the archived agent can't run again. Not applied to squad members.
+            When set, Lifecycle=Archive waits for it instead of archiving right after the
+            task. Unset (default) means the agent never auto-archives.
+            Overrides the template's archiveTTL when set.
+            +optional
+          type: object
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
@@ -14477,9 +14527,25 @@ components:
           - connectors
           role: role
           templateRef: templateRef
-          taskTimeout: "{}"
           effort: effort
           storage: "{}"
+          archiveTTL: "{}"
+          lifecycle: "{}"
+          skills:
+          - skills
+          - skills
+          budgetUSD: budgetUSD
+          disallowedTools:
+          - disallowedTools
+          - disallowedTools
+          memories:
+          - memories
+          - memories
+          model: model
+          taskBudgetUSD: taskBudgetUSD
+          deleteTTL: "{}"
+          internalSystemPrompt: internalSystemPrompt
+          taskTimeout: "{}"
           podSpec: "{}"
           priority: 0
           secrets:
@@ -14487,27 +14553,12 @@ components:
           - secrets
           labels:
             key: labels
-          lifecycle: "{}"
-          skills:
-          - skills
-          - skills
           sleepTTL: "{}"
           systemPrompt: systemPrompt
-          budgetUSD: budgetUSD
-          disallowedTools:
-          - disallowedTools
-          - disallowedTools
           officeManager: officeManager
-          memories:
-          - memories
-          - memories
-          model: model
-          taskBudgetUSD: taskBudgetUSD
           allowedTools:
           - allowedTools
           - allowedTools
-          deleteTTL: "{}"
-          internalSystemPrompt: internalSystemPrompt
       properties:
         name:
           description: |-
@@ -14559,6 +14610,7 @@ components:
         secrets:
         - secrets
         - secrets
+        archiveTTL: "{}"
         labels:
           key: labels
         lifecycle: "{}"
@@ -14596,6 +14648,22 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+            has been idle for this long. Idle is measured exactly like SleepTTL — from
+            Status.LastActivityAt, reset by any task event or wake, never while a task is
+            in progress, and never on an agent that has never run a task — but it also runs
+            while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+            archives. With the S3 session store it waits until the latest task is saved;
+            without it the archived agent can't run again. Not applied to squad members.
+            When set, Lifecycle=Archive waits for it instead of archiving right after the
+            task. Unset (default) means the agent never auto-archives.
+            Overrides the template's archiveTTL when set.
+            +optional
+          type: object
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across every task this agent ever

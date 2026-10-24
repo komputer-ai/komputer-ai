@@ -12,6 +12,7 @@ describe("buildScheduleAgentSpec", () => {
   it("carries TTLs, task timeout, budgets and tool policy into the schedule spec", () => {
     const values = makeDefaultAgentFormValues({
       sleepTTL: "30m",
+      archiveTTL: "12h",
       deleteTTL: "24h",
       taskTimeout: "10m",
       budgetUSD: "10.00",
@@ -21,6 +22,7 @@ describe("buildScheduleAgentSpec", () => {
     });
     const spec = buildScheduleAgentSpec(values);
     expect(spec.sleepTTL).toBe("30m");
+    expect(spec.archiveTTL).toBe("12h");
     expect(spec.deleteTTL).toBe("24h");
     expect(spec.taskTimeout).toBe("10m");
     expect(spec.budgetUSD).toBe("10.00");
@@ -32,6 +34,7 @@ describe("buildScheduleAgentSpec", () => {
   it("omits empty TTLs, budgets and tool lists", () => {
     const spec = buildScheduleAgentSpec(makeDefaultAgentFormValues());
     expect(spec.sleepTTL).toBeUndefined();
+    expect(spec.archiveTTL).toBeUndefined();
     expect(spec.deleteTTL).toBeUndefined();
     expect(spec.taskTimeout).toBeUndefined();
     expect(spec.budgetUSD).toBeUndefined();
@@ -141,6 +144,7 @@ describe("agentFormValuesFromScheduleSpec", () => {
     storage: { size: "20Gi", ephemeral: true },
     // The API serialises Go durations with their zero-valued tail units.
     sleepTTL: "30m0s",
+    archiveTTL: "12h0m0s",
     deleteTTL: "24h0m0s",
     taskTimeout: "1h30m0s",
     budgetUSD: "10.00",
@@ -168,6 +172,7 @@ describe("agentFormValuesFromScheduleSpec", () => {
     expect(v.storageSize).toBe("20Gi");
     expect(v.ephemeral).toBe(true);
     expect(v.sleepTTL).toBe("30m");
+    expect(v.archiveTTL).toBe("12h");
     expect(v.deleteTTL).toBe("24h");
     expect(v.taskTimeout).toBe("1h30m");
     expect(v.budgetUSD).toBe("10.00");
@@ -176,7 +181,7 @@ describe("agentFormValuesFromScheduleSpec", () => {
 
   it("round-trips through buildScheduleAgentSpec without losing fields", () => {
     const rebuilt = buildScheduleAgentSpec(agentFormValuesFromScheduleSpec(spec, "default"));
-    expect(rebuilt).toEqual({ ...spec, sleepTTL: "30m", deleteTTL: "24h", taskTimeout: "1h30m" });
+    expect(rebuilt).toEqual({ ...spec, sleepTTL: "30m", archiveTTL: "12h", deleteTTL: "24h", taskTimeout: "1h30m" });
   });
 
   it("falls back to the form's sentinel defaults when a spec is empty", () => {

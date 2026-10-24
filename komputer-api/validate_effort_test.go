@@ -54,7 +54,7 @@ func TestPatchAgentSpecEffortSetAndClear(t *testing.T) {
 	t.Run("omitted leaves effort unchanged", func(t *testing.T) {
 		if err := k8s.PatchAgentSpec(context.Background(), "default", "a1",
 			nil, nil, nil, nil, nil, nil, nil,
-			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 			t.Fatalf("PatchAgentSpec: %v", err)
 		}
 		got, err := k8s.GetAgent(context.Background(), "default", "a1")
@@ -70,7 +70,7 @@ func TestPatchAgentSpecEffortSetAndClear(t *testing.T) {
 		low := "low"
 		if err := k8s.PatchAgentSpec(context.Background(), "default", "a1",
 			nil, &low, nil, nil, nil, nil, nil,
-			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 			t.Fatalf("PatchAgentSpec: %v", err)
 		}
 		got, err := k8s.GetAgent(context.Background(), "default", "a1")
@@ -86,7 +86,7 @@ func TestPatchAgentSpecEffortSetAndClear(t *testing.T) {
 		empty := ""
 		if err := k8s.PatchAgentSpec(context.Background(), "default", "a1",
 			nil, &empty, nil, nil, nil, nil, nil,
-			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+			TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 			t.Fatalf("PatchAgentSpec: %v", err)
 		}
 		got, err := k8s.GetAgent(context.Background(), "default", "a1")

@@ -71,6 +71,12 @@ spec:
                 - key
                 - name
                 type: object
+              archiveTTL:
+                description: |-
+                  ArchiveTTL is the default idle timeout after which agents using this template
+                  are archived. Individual agents override it via their own spec.archiveTTL.
+                  Unset (default) means agents never auto-archive.
+                type: string
               budgetUSD:
                 description: |-
                   BudgetUSD is the default SOFT lifetime spending cap for agents using this

@@ -427,7 +427,7 @@ func TestApplyTTL_SleepDeletesPodAndSetsSleepingPhase(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, false)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestApplyTTL_EphemeralWorkspaceIsNeverSlept(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, true)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "test-agent-pvc", dur(30*time.Minute), nil, nil, nil, true)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -501,7 +501,7 @@ func TestApplyTTL_SleepStillWatchesPendingDelete(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour), nil, false)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), dur(240*time.Hour), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -528,7 +528,7 @@ func TestApplyTTL_SleepWithNoPodStillSleeps(t *testing.T) {
 	r := newTTLReconciler(t, agent)
 
 	// A nil pod (deleted out from under us) must not panic or error.
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil, nil, false)
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", dur(30*time.Minute), nil, nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL with nil pod: %v", err)
 	}
@@ -544,7 +544,7 @@ func TestApplyTTL_DeleteRemovesAgent(t *testing.T) {
 	agent.CreationTimestamp = metav1.NewTime(time.Now().Add(-48 * time.Hour))
 	r := newTTLReconciler(t, agent)
 
-	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour), nil, false)
+	_, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, dur(24*time.Hour), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestApplyTTL_NoTTLsIsANoOp(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil, nil, false)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", nil, nil, nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -584,7 +584,7 @@ func TestApplyTTL_PublishesExpiryTimestampsWhenPending(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour), nil, false)
+	res, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(time.Hour), dur(240*time.Hour), nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}
@@ -614,7 +614,7 @@ func TestApplyTTL_ClearsStaleExpiriesWhenTTLsRemoved(t *testing.T) {
 	agent.Status.DeleteExpiresAt = &stale
 	r := newTTLReconciler(t, agent)
 
-	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil, nil, false); err != nil || handled {
+	if _, handled, err := r.applyTTL(ctx, agent, nil, "pvc", nil, nil, nil, nil, false); err != nil || handled {
 		t.Fatalf("applyTTL: handled=%v err=%v", handled, err)
 	}
 
@@ -633,7 +633,7 @@ func TestApplyTTL_InProgressTaskIsNotSlept(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil, nil, false)
+	_, handled, err := r.applyTTL(ctx, agent, pod, "pvc", dur(30*time.Minute), nil, nil, nil, false)
 	if err != nil {
 		t.Fatalf("applyTTL: %v", err)
 	}

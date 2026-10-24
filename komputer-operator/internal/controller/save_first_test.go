@@ -67,7 +67,7 @@ func TestArchive_S3OnUnsaved_DoesNotArchive(t *testing.T) {
 	startedTask(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent").Status.Phase; got == komputerv1alpha1.AgentPhaseArchived {
@@ -85,7 +85,7 @@ func TestArchive_S3OnSaved_Archives(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent").Status.Phase; got != komputerv1alpha1.AgentPhaseArchived {
@@ -107,7 +107,7 @@ func TestArchive_S3OnOldPod_CopiesOutThenArchives(t *testing.T) {
 		t.Fatalf("uploads = %d, want 1", up.n)
 	}
 	saved := getAgentT(t, c, "my-agent")
-	if err := r.reconcileStatus(context.Background(), saved, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), saved, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent").Status.Phase; got != komputerv1alpha1.AgentPhaseArchived {
@@ -124,7 +124,7 @@ func TestArchive_S3OnCopyOutFails_DoesNotArchive(t *testing.T) {
 
 	r.maybeCopyOut(context.Background(), agent, pod, s3KomputerConfig())
 	cur := getAgentT(t, c, "my-agent")
-	if err := r.reconcileStatus(context.Background(), cur, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), cur, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	got := getAgentT(t, c, "my-agent")
@@ -150,7 +150,7 @@ func TestEphemeralSleep_S3OnSaved_Sleeps(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, true); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent").Status.Phase; got != komputerv1alpha1.AgentPhaseSleeping {
@@ -164,7 +164,7 @@ func TestEphemeralSleep_S3OnUnsaved_StaysAwake(t *testing.T) {
 	agent := ephemeralSleepAgent()
 	r, c := saveFirstReconciler(t, nil, nil, pod, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, true); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent").Status.Phase; got == komputerv1alpha1.AgentPhaseSleeping {

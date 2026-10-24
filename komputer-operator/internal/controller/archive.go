@@ -15,7 +15,11 @@ import (
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
 
-// archiveAgentNow is the Lifecycle=Archive transition: mark the agent Archived,
+// archivedMessage is the status message of an agent archived after its task.
+const archivedMessage = "Archived — task complete, pod and workspace removed. The agent is kept as a record."
+
+// archiveAgentNow is the Archive transition (Lifecycle=Archive, an archive request,
+// or archiveTTL): mark the agent Archived,
 // then delete its pod, PVC and Service. The CR — spec, cost, tokens, last task
 // message — is kept as a read-only record.
 //
@@ -23,17 +27,18 @@ import (
 // takes the reconcileArchived path and retries them; deleting first and failing
 // the status write would instead let ensurePod build a fresh pod for an agent
 // whose task is already done.
-func (r *KomputerAgentReconciler) archiveAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+func (r *KomputerAgentReconciler) archiveAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, message string) error {
 	if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.Phase = komputerv1alpha1.AgentPhaseArchived
 		s.PodName = ""
 		s.PvcName = ""
-		s.Message = "Archived — task complete, pod and workspace removed. The agent is kept as a record."
+		s.Message = message
 		if s.CompletionTime == nil {
 			now := metav1.Now()
 			s.CompletionTime = &now
 		}
 		s.SleepExpiresAt = nil
+		s.ArchiveExpiresAt = nil
 		s.TaskExpiresAt = nil
 	}); err != nil {
 		return err

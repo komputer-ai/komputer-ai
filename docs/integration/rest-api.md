@@ -31,6 +31,7 @@ Content-Type: application/json
 | `namespace` | no | Target Kubernetes namespace |
 | `budgetUSD` | no | Soft lifetime spending cap, as a decimal USD string (e.g. `"10.00"`). New tasks are refused once `status.totalCostUSD` reaches this; a running task still finishes. |
 | `taskBudgetUSD` | no | Hard per-task spending cap, as a decimal USD string (e.g. `"2.50"`). The task stops the instant it is exceeded, mid-task. |
+| `archiveTTL` | no | Go duration (e.g. `"24h"`). Archives the agent once it has been idle this long, like [Archive now](#archive-an-agent-now); keeps counting while asleep. Rejected for squad members. See [agent TTLs](../concepts/agents.md#timeouts--auto-sleep-auto-delete-and-task-caps). |
 
 **Behavior:**
 - If the agent doesn't exist, it is created and starts working immediately
@@ -68,6 +69,8 @@ GET /api/v1/agents?namespace=production
       "lastTaskMessage": "Calling Bash: python analyze.py",
       "budgetUSD": "10.00",
       "budgetExhausted": false,
+      "archiveTTL": "24h",
+      "archiveExpiresAt": "2026-03-28T10:00:00Z",
       "createdAt": "2026-03-27T10:00:00Z"
     }
   ],
@@ -320,6 +323,8 @@ curl -X PATCH http://localhost:8080/api/v1/agents/my-agent \
   -H "Content-Type: application/json" \
   -d '{"connectors": []}'
 ```
+
+`PATCH /api/v1/agents/:name` also accepts `archiveTTL` (`""` clears it). The agent response carries `archiveTTL` and `archiveExpiresAt` (RFC3339, when it will fire; empty mid-task). On a schedule's agent spec, `archiveTTL` with `agentNaming: Fixed` needs the S3 session store, like `lifecycle: Archive`.
 
 ## Schedules
 

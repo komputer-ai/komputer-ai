@@ -31,6 +31,8 @@ class AgentResponse(BaseModel):
     AgentResponse
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="Tools this agent is restricted to (empty = defaults)", alias="allowedTools")
+    archive_expires_at: Optional[StrictStr] = Field(default=None, alias="archiveExpiresAt")
+    archive_ttl: Optional[StrictStr] = Field(default=None, description="idle timeout before auto-archive, e.g. \"24h\"", alias="archiveTTL")
     budget_exhausted: Optional[StrictBool] = Field(default=None, description="BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's default) — new tasks are refused with 409 until it's raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don't have to re-derive the template resolution themselves.", alias="budgetExhausted")
     budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.", alias="budgetUSD")
     completion_time: Optional[StrictStr] = Field(default=None, alias="completionTime")
@@ -59,7 +61,7 @@ class AgentResponse(BaseModel):
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Key names from K8s Secrets (not values)")
     session_store: Optional[SessionStoreResponse] = Field(default=None, description="SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent's own save, or the operator saving it on the agent's behalf). Nil when S3 isn't in use.", alias="sessionStore")
     skills: Optional[List[StrictStr]] = Field(default=None, description="KomputerSkill names attached to this agent")
-    sleep_expires_at: Optional[StrictStr] = Field(default=None, description="SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.", alias="sleepExpiresAt")
+    sleep_expires_at: Optional[StrictStr] = Field(default=None, description="SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.", alias="sleepExpiresAt")
     sleep_ttl: Optional[StrictStr] = Field(default=None, description="idle timeout before auto-sleep, e.g. \"30m\"", alias="sleepTTL")
     squad: Optional[StrictBool] = Field(default=None, description="True when this agent is managed by a KomputerSquad")
     squad_name: Optional[StrictStr] = Field(default=None, description="Name of the squad managing this agent (when Squad=true)", alias="squadName")
@@ -73,7 +75,7 @@ class AgentResponse(BaseModel):
     task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "sessionStore", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "archiveExpiresAt", "archiveTTL", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "sessionStore", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -136,6 +138,8 @@ class AgentResponse(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "archiveExpiresAt": obj.get("archiveExpiresAt"),
+            "archiveTTL": obj.get("archiveTTL"),
             "budgetExhausted": obj.get("budgetExhausted"),
             "budgetUSD": obj.get("budgetUSD"),
             "completionTime": obj.get("completionTime"),

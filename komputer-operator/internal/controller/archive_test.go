@@ -61,7 +61,7 @@ func TestReconcileStatus_ArchiveLifecycle_ArchivesOnComplete(t *testing.T) {
 		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 
@@ -96,7 +96,7 @@ func TestReconcileStatus_ArchiveLifecycle_ErrorDoesNotArchive(t *testing.T) {
 		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 	var got komputerv1alpha1.KomputerAgent
@@ -123,7 +123,7 @@ func TestReconcileStatus_ArchiveLifecycle_DeleteTTLDoesNotDelay(t *testing.T) {
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
 	deleteTTL := &metav1.Duration{Duration: 720 * time.Hour}
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, deleteTTL, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, deleteTTL, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 	var got komputerv1alpha1.KomputerAgent
@@ -201,7 +201,7 @@ func TestReconcileStatus_ArchiveLifecycle_NoPodDoesNotArchive(t *testing.T) {
 		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, nil, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, nil, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 	var got komputerv1alpha1.KomputerAgent
@@ -230,7 +230,7 @@ func TestReconcileStatus_ArchiveLifecycle_TerminatingPodDoesNotArchive(t *testin
 		WithStatusSubresource(&komputerv1alpha1.KomputerAgent{}).Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 	var got komputerv1alpha1.KomputerAgent

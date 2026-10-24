@@ -42,6 +42,12 @@ export interface PatchAgentRequest {
      */
     allowedTools?: Array<string>;
     /**
+     * not allowed on squad members
+     * @type {string}
+     * @memberof PatchAgentRequest
+     */
+    archiveTTL?: string;
+    /**
      * BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
      * "" clears the cap; omitting the field leaves it unchanged.
      * @type {string}
@@ -191,6 +197,7 @@ export function PatchAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: b
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'archiveTTL': json['archiveTTL'] == null ? undefined : json['archiveTTL'],
         'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
@@ -227,6 +234,7 @@ export function PatchAgentRequestToJSONTyped(value?: PatchAgentRequest | null, i
     return {
         
         'allowedTools': value['allowedTools'],
+        'archiveTTL': value['archiveTTL'],
         'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],

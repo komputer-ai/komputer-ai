@@ -69,6 +69,11 @@ func (in *AgentConfigSpec) DeepCopyInto(out *AgentConfigSpec) {
 		*out = new(v1.Duration)
 		**out = **in
 	}
+	if in.ArchiveTTL != nil {
+		in, out := &in.ArchiveTTL, &out.ArchiveTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.TaskTimeout != nil {
 		in, out := &in.TaskTimeout, &out.TaskTimeout
 		*out = new(v1.Duration)
@@ -259,6 +264,10 @@ func (in *KomputerAgentStatus) DeepCopyInto(out *KomputerAgentStatus) {
 		in, out := &in.DeleteExpiresAt, &out.DeleteExpiresAt
 		*out = (*in).DeepCopy()
 	}
+	if in.ArchiveExpiresAt != nil {
+		in, out := &in.ArchiveExpiresAt, &out.ArchiveExpiresAt
+		*out = (*in).DeepCopy()
+	}
 	if in.TaskStartedAt != nil {
 		in, out := &in.TaskStartedAt, &out.TaskStartedAt
 		*out = (*in).DeepCopy()
@@ -366,6 +375,11 @@ func (in *KomputerAgentTemplateSpec) DeepCopyInto(out *KomputerAgentTemplateSpec
 	}
 	if in.DeleteTTL != nil {
 		in, out := &in.DeleteTTL, &out.DeleteTTL
+		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.ArchiveTTL != nil {
+		in, out := &in.ArchiveTTL, &out.ArchiveTTL
 		*out = new(v1.Duration)
 		**out = **in
 	}

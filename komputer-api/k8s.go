@@ -130,6 +130,7 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 		wokeAt := metav1.Now()
 		agent.Status.LastActivityAt = &wokeAt
 		agent.Status.SleepExpiresAt = nil
+		agent.Status.ArchiveExpiresAt = nil
 		// TaskStatus was just reset out of band; the coalescer's memory of it is stale.
 		k.progress.forget(ns, name)
 		return k.client.Status().Patch(ctx, agent, client.MergeFromWithOptions(original2, client.MergeFromWithOptimisticLock{}))
@@ -200,6 +201,7 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 	wokeAt := metav1.Now()
 	agent.Status.LastActivityAt = &wokeAt
 	agent.Status.SleepExpiresAt = nil
+	agent.Status.ArchiveExpiresAt = nil
 	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 		return nil, fmt.Errorf("failed to patch status: %w", err)
 	}
@@ -512,9 +514,10 @@ func (k *K8sClient) TouchAgentActivity(ctx context.Context, ns, agentName string
 	original := agent.DeepCopy()
 	now := metav1.Now()
 	agent.Status.LastActivityAt = &now
-	// The pending sleep deadline is stale the moment the clock moves; the operator
-	// recomputes it on its next reconcile.
+	// The pending sleep/archive deadlines are stale the moment the clock moves; the
+	// operator recomputes them on its next reconcile.
 	agent.Status.SleepExpiresAt = nil
+	agent.Status.ArchiveExpiresAt = nil
 	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 		Logger.Warnw("failed to touch agent activity", "agent_name", agentName, "error", err)
 	}
@@ -1430,7 +1433,7 @@ func (k *K8sClient) DeleteSchedule(ctx context.Context, ns, name string) error {
 }
 
 // PatchAgentSpec patches mutable spec fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, effort, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, taskTimeout TTLUpdate, budgetUSD, taskBudgetUSD StringUpdate) error {
+func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, effort, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, archiveTTL, taskTimeout TTLUpdate, budgetUSD, taskBudgetUSD StringUpdate) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -1472,6 +1475,10 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	}
 	if deleteTTL.Set && !durationEqual(agent.Spec.DeleteTTL, deleteTTL.Value) {
 		agent.Spec.DeleteTTL = deleteTTL.Value
+		changed = true
+	}
+	if archiveTTL.Set && !durationEqual(agent.Spec.ArchiveTTL, archiveTTL.Value) {
+		agent.Spec.ArchiveTTL = archiveTTL.Value
 		changed = true
 	}
 	if taskTimeout.Set && !durationEqual(agent.Spec.TaskTimeout, taskTimeout.Value) {

@@ -76,6 +76,7 @@ The full set:
 | `allowedTools` | Restrict to an explicit tool list (see [Tool permissions](./agents.md#tool-permissions)) |
 | `disallowedTools` | Remove specific tools |
 | `lifecycle` | `""`, `Sleep`, `AutoDelete`, or `Archive` (no pod or PVC between runs) — which needs the [S3 session store](./session-store.md), or `agentNaming: Date`/`Random` |
+| `archiveTTL` | Archive the agent after this long idle. With `agentNaming: Fixed` (the default, one agent reused across runs) it needs the [S3 session store](./session-store.md), like `lifecycle: Archive`; `Date`/`Random` are always allowed |
 | `priority` | Admission order under a template's concurrency cap |
 | `podSpec` | Pod overrides (resources, image, env) |
 | `storage` | PVC size and storage class |

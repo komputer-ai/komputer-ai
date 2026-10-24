@@ -47,6 +47,11 @@ type CreateAgentRequest struct {
 	// DeleteTTL deletes the agent this long after creation, as a Go duration string
 	// (e.g. "24h"). Absolute — it does not reset on wake. Empty means never auto-delete.
 	DeleteTTL string `json:"deleteTTL,omitempty"`
+	// ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a
+	// record) after this long with no activity, as a Go duration string (e.g. "24h").
+	// Keeps counting while the agent sleeps. Not allowed on squad members. Empty
+	// means never auto-archive.
+	ArchiveTTL string `json:"archiveTTL,omitempty"`
 	// TaskTimeout cancels a running task once it has run this long, as a Go duration
 	// string (e.g. "30m"). A hard wall-clock cap per task — steering does not extend
 	// it. Empty means tasks run without a time limit.
@@ -84,6 +89,7 @@ type AgentResponse struct {
 	Lifecycle       string `json:"lifecycle,omitempty"`
 	SleepTTL        string `json:"sleepTTL,omitempty"`    // idle timeout before auto-sleep, e.g. "30m"
 	DeleteTTL       string `json:"deleteTTL,omitempty"`   // absolute lifetime before auto-delete, e.g. "24h"
+	ArchiveTTL      string `json:"archiveTTL,omitempty"`  // idle timeout before auto-archive, e.g. "24h"
 	TaskTimeout     string `json:"taskTimeout,omitempty"` // per-task wall-clock cap, e.g. "30m"
 	// BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as
 	// a decimal USD string. Empty when unset on the agent itself — note the agent
@@ -103,10 +109,11 @@ type AgentResponse struct {
 	// LastActivityAt is when the agent last saw task activity (RFC3339). The idle
 	// clock sleepTTL is measured against.
 	LastActivityAt string `json:"lastActivityAt,omitempty"`
-	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
-	// when the matching TTL is unset or its countdown isn't currently running.
-	SleepExpiresAt  string `json:"sleepExpiresAt,omitempty"`
-	DeleteExpiresAt string `json:"deleteExpiresAt,omitempty"`
+	// SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire
+	// (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.
+	SleepExpiresAt   string `json:"sleepExpiresAt,omitempty"`
+	DeleteExpiresAt  string `json:"deleteExpiresAt,omitempty"`
+	ArchiveExpiresAt string `json:"archiveExpiresAt,omitempty"`
 	// TaskStartedAt is when the current (or most recent) task started (RFC3339).
 	// TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
 	TaskStartedAt      string                        `json:"taskStartedAt,omitempty"`
@@ -383,6 +390,12 @@ func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 	if agent.Status.DeleteExpiresAt != nil {
 		resp.DeleteExpiresAt = agent.Status.DeleteExpiresAt.Format(time.RFC3339)
 	}
+	if agent.Spec.ArchiveTTL != nil {
+		resp.ArchiveTTL = agent.Spec.ArchiveTTL.Duration.String()
+	}
+	if agent.Status.ArchiveExpiresAt != nil {
+		resp.ArchiveExpiresAt = agent.Status.ArchiveExpiresAt.Format(time.RFC3339)
+	}
 	if agent.Spec.TaskTimeout != nil {
 		resp.TaskTimeout = agent.Spec.TaskTimeout.Duration.String()
 	}
@@ -418,6 +431,7 @@ type PatchAgentRequest struct {
 	// clears the TTL; omitting the field leaves it unchanged.
 	SleepTTL    *string `json:"sleepTTL,omitempty"`
 	DeleteTTL   *string `json:"deleteTTL,omitempty"`
+	ArchiveTTL  *string `json:"archiveTTL,omitempty"` // not allowed on squad members
 	TaskTimeout *string `json:"taskTimeout,omitempty"`
 	// BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
 	// "" clears the cap; omitting the field leaves it unchanged.
@@ -483,6 +497,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		archiveTTL, err := parseTTL("archiveTTL", req.ArchiveTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		taskTimeout, err := parseTTL("taskTimeout", req.TaskTimeout)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -538,6 +557,10 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 		s3On := k8s.S3Enabled(c.Request.Context())
 		if existing != nil && agentArchived(existing) && !s3On {
 			c.JSON(http.StatusConflict, gin.H{"error": ErrAgentArchived.Error()})
+			return
+		}
+		if existing != nil && archiveTTL != nil && agentInSquad(existing) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": ErrArchiveTTLInSquad.Error()})
 			return
 		}
 
@@ -683,7 +706,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					agentActionsTotal.WithLabelValues("wake", "error").Inc()
 					return
 				}
-				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 					Logger.Warnw("failed to patch instructions before forwarding new task", "agent_name", req.Name, "error", err)
 				}
 			}
@@ -716,10 +739,11 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			// values are applied — an omitted TTL/budget on a task request must not
 			// silently clear an existing one, since callers routinely send just
 			// name + instructions.
-			if sleepTTL != nil || deleteTTL != nil || taskTimeout != nil || budgetUSD != "" || taskBudgetUSD != "" {
+			if sleepTTL != nil || deleteTTL != nil || archiveTTL != nil || taskTimeout != nil || budgetUSD != "" || taskBudgetUSD != "" {
 				if err := k8s.PatchAgentSpec(c.Request.Context(), ns, req.Name, nil, nil, nil, nil, nil, nil, nil,
 					TTLUpdate{Set: sleepTTL != nil, Value: sleepTTL},
 					TTLUpdate{Set: deleteTTL != nil, Value: deleteTTL},
+					TTLUpdate{Set: archiveTTL != nil, Value: archiveTTL},
 					TTLUpdate{Set: taskTimeout != nil, Value: taskTimeout},
 					StringUpdate{Set: budgetUSD != "", Value: budgetUSD},
 					StringUpdate{Set: taskBudgetUSD != "", Value: taskBudgetUSD}); err != nil {
@@ -809,6 +833,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Lifecycle:       komputerv1alpha1.AgentLifecycle(req.Lifecycle),
 				SleepTTL:        sleepTTL,
 				DeleteTTL:       deleteTTL,
+				ArchiveTTL:      archiveTTL,
 				TaskTimeout:     taskTimeout,
 				BudgetUSD:       budgetUSD,
 				TaskBudgetUSD:   taskBudgetUSD,
@@ -1585,7 +1610,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Effort == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
+		if req.Model == nil && req.Effort == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.ArchiveTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1617,6 +1642,17 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+		archiveTTL, err := parseTTLUpdate("archiveTTL", req.ArchiveTTL)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if archiveTTL.Value != nil {
+			if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentInSquad(target) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": ErrArchiveTTLInSquad.Error()})
+				return
+			}
 		}
 		taskTimeout, err := parseTTLUpdate("taskTimeout", req.TaskTimeout)
 		if err != nil {
@@ -1685,7 +1721,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1. Patch CR spec first — this is the source of truth.
-		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Effort, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, taskTimeout, budgetUSD, taskBudgetUSD); err != nil {
+		if err := k8s.PatchAgentSpec(c.Request.Context(), ns, name, req.Model, req.Effort, req.Lifecycle, req.Instructions, req.TemplateRef, req.SystemPrompt, req.Priority, sleepTTL, deleteTTL, archiveTTL, taskTimeout, budgetUSD, taskBudgetUSD); err != nil {
 			agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to patch agent: " + err.Error()})
 			return
