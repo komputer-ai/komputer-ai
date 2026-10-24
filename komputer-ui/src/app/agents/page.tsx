@@ -260,8 +260,9 @@ export default function AgentsPage() {
             onConfirm={handleBulkArchive}
             confirmLabel={`Archive ${archivable.length}`}
             confirmVariant="primary"
+            confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
             trigger={
-              <Button variant="secondary" size="sm" disabled={bulkArchiving} className="!h-6 !px-2.5 text-xs">
+              <Button variant="secondary" size="sm" disabled={bulkArchiving} className="!h-6 !px-2.5 text-xs border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55">
                 <Archive className="size-3" data-icon="inline-start" />
                 {bulkArchiving ? "Archiving..." : `Archive ${archivable.length}`}
               </Button>

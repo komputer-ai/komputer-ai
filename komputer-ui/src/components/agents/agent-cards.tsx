@@ -31,7 +31,7 @@ const statusConfig: Record<string, { color: string; icon: typeof Bot; pulse?: bo
   Pending:   { color: "#FBBF24", icon: Clock },
   Failed:    { color: "#F87171", icon: Skull },
   Succeeded: { color: "#34D399", icon: CheckCircle2 },
-  Archived:  { color: "#94A3B8", icon: Archive },
+  Archived:  { color: "var(--color-status-archived)", icon: Archive },
 };
 
 const defaultStatus = { color: "#8899A6", icon: Bot };
@@ -235,9 +235,10 @@ export function ArchiveButton({ agent, onChanged }: { agent: AgentResponse; onCh
       onConfirm={archive}
       confirmLabel="Archive"
       confirmVariant="primary"
+      confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
       trigger={
         <Button variant="ghost" size="icon" className="h-5 w-5 p-0" title={error ?? `Archive ${agent.name}`} aria-label={`Archive ${agent.name}`}>
-          <Archive className={cn("w-2.5 h-2.5 transition-colors", error ? "text-[var(--color-status-error)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]")} />
+          <Archive className={cn("w-2.5 h-2.5 transition-colors", error ? "text-[var(--color-status-error)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-status-archived)]")} />
         </Button>
       }
     />

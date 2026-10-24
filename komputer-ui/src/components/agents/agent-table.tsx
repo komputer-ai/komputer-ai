@@ -36,7 +36,7 @@ const STATUS: Record<string, { color: string; icon: typeof Bot }> = {
   Queued: { color: "var(--color-status-pending)", icon: Clock },
   Failed: { color: "var(--color-status-error)", icon: Skull },
   Succeeded: { color: "var(--color-status-success)", icon: CheckCircle2 },
-  Archived: { color: "var(--color-text-muted)", icon: Archive },
+  Archived: { color: "var(--color-status-archived)", icon: Archive },
 };
 const DEFAULT_STATUS = { color: "var(--color-text-muted)", icon: Bot };
 
@@ -401,7 +401,7 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                   <td className={cn(cell, "hidden xl:table-cell")}>
                     {lifecycle ? (
                       <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[var(--color-text-secondary)]">
-                        <lifecycle.icon className="size-3" />
+                        <lifecycle.icon className={cn("size-3", lifecycle.icon === Archive && "text-[var(--color-status-archived)]")} />
                         {lifecycle.label}
                       </span>
                     ) : (

@@ -675,10 +675,12 @@ export default function AgentDetailPage() {
                         onConfirm={handleArchive}
                         confirmLabel="Archive"
                         confirmVariant="primary"
+                        confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
                         trigger={
                           <Button
                             variant="secondary"
                             size="sm"
+                            className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
                             disabled={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting"}
                             title={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" ? "Archive is available once the current task finishes (or cancel it)." : undefined}
                           >
@@ -875,7 +877,7 @@ function StatusStrip({ status, taskStatus }: { status: AgentResponse["status"]; 
     status === "Failed" ? "var(--color-status-error)" :
     status === "Pending" ? "var(--color-status-pending)" :
     status === "Succeeded" ? "var(--color-status-success)" :
-    status === "Archived" ? "var(--color-text-muted)" :
+    status === "Archived" ? "var(--color-status-archived)" :
     "var(--color-border)";
 
   const isRunning = status === "Running";
