@@ -264,3 +264,56 @@ func TestReconcile_ArchivedWokenToPending_BuildsFreshPVCAndPod(t *testing.T) {
 		t.Error("the new pod must carry the S3 env so it restores the session")
 	}
 }
+
+// An S3-backed ephemeral agent can sleep; its status must not then name a PVC,
+// or the next reconcile takes that for an existing workspace and creates one.
+func ephemeralReconcileObjects(lifecycle komputerv1alpha1.AgentLifecycle, sleepTTL *metav1.Duration) (*komputerv1alpha1.KomputerAgentTemplate, *corev1.Pod, *komputerv1alpha1.KomputerAgent) {
+	template := &komputerv1alpha1.KomputerAgentTemplate{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Spec: komputerv1alpha1.KomputerAgentTemplateSpec{PodSpec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "agent", Image: "img"}},
+		}},
+	}
+	pod, _, _ := archiveTestObjects()
+	ephemeral := true
+	agent := archiveAgent(komputerv1alpha1.AgentTaskComplete)
+	agent.Spec.Lifecycle = lifecycle
+	agent.Spec.SleepTTL = sleepTTL
+	agent.Spec.Storage = &komputerv1alpha1.StorageSpec{Ephemeral: &ephemeral}
+	agent.Status.PvcName = ""
+	startedTask(agent)
+	markSaved(agent)
+	idle := metav1.NewTime(time.Now().Add(-time.Hour))
+	agent.Status.LastActivityAt = &idle
+	return template, pod, agent
+}
+
+func assertSleptWithoutPVC(t *testing.T, r *KomputerAgentReconciler, c client.Client) {
+	t.Helper()
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Name: "my-agent", Namespace: "default"}}
+	for i := 0; i < 3; i++ {
+		if _, err := r.Reconcile(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := getAgentT(t, c, "my-agent")
+	if got.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+		t.Fatalf("phase = %q, want Sleeping", got.Status.Phase)
+	}
+	if got.Status.PvcName != "" {
+		t.Errorf("status.pvcName = %q, want empty for an emptyDir workspace", got.Status.PvcName)
+	}
+	assertGone(t, c, &corev1.PersistentVolumeClaim{}, "my-agent-pvc")
+}
+
+func TestReconcile_EphemeralSleepLifecycle_RecordsNoPVC(t *testing.T) {
+	template, pod, agent := ephemeralReconcileObjects(komputerv1alpha1.AgentLifecycleSleep, nil)
+	r, c := saveFirstReconciler(t, nil, nil, template, pod, agent, s3KomputerConfig())
+	assertSleptWithoutPVC(t, r, c)
+}
+
+func TestReconcile_EphemeralSleepTTL_RecordsNoPVC(t *testing.T) {
+	template, pod, agent := ephemeralReconcileObjects("", &metav1.Duration{Duration: time.Minute})
+	r, c := saveFirstReconciler(t, nil, nil, template, pod, agent, s3KomputerConfig())
+	assertSleptWithoutPVC(t, r, c)
+}

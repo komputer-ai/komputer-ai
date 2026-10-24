@@ -325,6 +325,13 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// above. It's this — not the raw config flag — that must never be slept: sleeping
 	// is safe for a PVC-backed workspace, since the data survives the pod deletion.
 	ephemeralWorkspace := !usePVC
+	// What status.pvcName records when the agent sleeps: nothing for an emptyDir
+	// workspace (an S3-backed ephemeral agent can sleep), or the next reconcile
+	// would take it for an existing PVC and create one.
+	sleepPVCName := pvcName
+	if ephemeralWorkspace {
+		sleepPVCName = ""
+	}
 
 	// 6. Ensure Pod exists
 	podName := agent.Name + "-pod"
@@ -340,7 +347,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Running on its way out, and an over-running task is cancelled rather than reported
 	// as merely running. An ephemeral (emptyDir) agent is never slept — see applyTTL.
 	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, pvcName, sleepTTL, deleteTTL, taskTimeout,
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, sleepPVCName, sleepTTL, deleteTTL, taskTimeout,
 		sleepUnsafe(ephemeralWorkspace, komputerConfig.Spec.S3.IsEnabled(), agent))
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
@@ -352,7 +359,7 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// 8. Update CR status based on pod state
-	if err := r.reconcileStatus(ctx, agent, pod, pvcName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, sleepPVCName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
 	}
