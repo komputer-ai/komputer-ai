@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import metrics as agent_metrics
+import session_store
 
 logger = logging.getLogger(__name__)
 
@@ -198,11 +199,16 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     if task_marker in instructions:
         user_task = instructions.split(task_marker, 1)[1]
 
-    publisher.publish("task_started", {
+    task_started = {
         "instructions": user_task,
         "resuming_session": session_id is not None,
         "model": model,
-    })
+    }
+    if session_store.enabled():
+        restore = session_store.last_restore or {"restored": False, "error": None}
+        task_started["restored_session"] = restore["restored"]
+        task_started["restore_error"] = restore["error"]
+    publisher.publish("task_started", task_started)
 
     # Tracks the most recent AssistantMessage usage so the PreCompact hook can
     # publish a snapshot of context size at compaction time. Updated in
@@ -439,6 +445,11 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
             # Persist session ID for future tasks
             _save_session_id(result.session_id)
 
+            # Save the session to S3 BEFORE the task-end event: the operator
+            # archives or sleeps the agent the moment it sees the task end, so
+            # "Complete" must already imply "saved".
+            store_fields = {"session_store": session_store.save()} if session_store.enabled() else {}
+
             if state.interrupted:
                 # A cancelled run still gets a ResultMessage back from the SDK
                 # (whatever work completed before the interrupt), so include
@@ -455,6 +466,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    **store_fields,
                 })
                 state.interrupted = False
             elif result.subtype == "error_max_budget_usd":
@@ -469,6 +481,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "cost_usd": cost,
                     "duration_ms": result.duration_ms,
                     "session_id": result.session_id,
+                    **store_fields,
                 })
             else:
                 publisher.publish("task_completed", {
@@ -481,6 +494,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    **store_fields,
                 })
 
     # Clear the queue reference so server.py won't try to push to a dead queue.

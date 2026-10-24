@@ -497,8 +497,9 @@ async def shutdown():
     # Phase 2: Task didn't finish — interrupt via SDK then cancel
     _interrupt_agent()
 
-    # Phase 3: Wait up to 5s for cancellation to flush events
-    for _ in range(10):
+    # Phase 3: Wait up to 20s for cancellation to flush events and save the
+    # session to S3 (the pod gets a 60s grace period when S3 is configured).
+    for _ in range(40):
         if not state.busy.locked():
             return {"status": "cancelled"}
         time.sleep(0.5)
