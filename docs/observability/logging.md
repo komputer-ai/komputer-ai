@@ -58,7 +58,7 @@ The agent suppresses these noisy library loggers below WARN by default: `httpx`,
 
 ## What's NOT structured-logged
 
-- **HTTP access logs** — covered by Prometheus metrics ([monitoring](./monitoring/)) instead. The default gin access logger is disabled.
+- **HTTP access logs** — covered by Prometheus metrics ([monitoring](./monitoring/index.md)) instead. The default gin access logger is disabled.
 - **Operator logs** — controller-runtime emits its own format; out of scope for this pass (issue #111 follow-up).
 - **CLI output** — `komputer-cli` is a human-facing terminal app, not a structured-log producer.
 

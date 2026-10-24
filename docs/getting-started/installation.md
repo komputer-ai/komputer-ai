@@ -68,4 +68,4 @@ komputer login http://localhost:8080
 komputer run my-agent "Write a haiku about Kubernetes"
 ```
 
-For custom installation options (external Redis, resource limits, etc.), see the Helm Chart's [`README`](https://github.com/komputer-ai/komputer-ai/tree/main/helm/komputer-ai). For building from source, see [Local Development](../contribution/local-development).
+For custom installation options (external Redis, resource limits, etc.), see the Helm Chart's [`README`](https://github.com/komputer-ai/komputer-ai/tree/main/helm/komputer-ai). For building from source, see [Local Development](../contribution/local-development.md).

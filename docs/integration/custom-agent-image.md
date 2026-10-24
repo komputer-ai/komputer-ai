@@ -83,7 +83,7 @@ Runtime package installs by agents persist to the workspace PVC:
 
 ## Using a completely different base image
 
-If you need a different Linux distribution (e.g., Ubuntu, Alpine, RHEL), you can use the [agent Dockerfile](../komputer-agent/Dockerfile) as a reference and rebuild from scratch. Do that at your own risk — you're responsible for ensuring all dependencies are present and the agent runtime works correctly.
+If you need a different Linux distribution (e.g., Ubuntu, Alpine, RHEL), you can use the [agent Dockerfile](https://github.com/komputer-ai/komputer-ai/blob/main/komputer-agent/Dockerfile) as a reference and rebuild from scratch. Do that at your own risk — you're responsible for ensuring all dependencies are present and the agent runtime works correctly.
 
 ## Important constraints
 

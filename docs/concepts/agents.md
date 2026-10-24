@@ -26,7 +26,7 @@ The workspace is not kept. An archived agent whose PVC survived would just be a 
 
 With the [S3 session store](./session-store.md) configured, an archived agent works like a sleeping agent with no workspace: every control works, and sending it a task brings it back with its conversation restored (its files are not kept). Schedules can use `Archive` too, and ephemeral agents can sleep, since their session is restored on wake.
 
-Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](/integration/rest-api) for details.
+Sleeping agents show a `Sleeping` phase in `kubectl get komputeragents`. When you send a new task to a sleeping agent, the API wakes it up automatically. To wake an agent without running anything — e.g. to have it ready for a command later — use `POST /agents/{name}/wake` (or `komputer agents wake <name>`) instead; it clears the sleeping phase but leaves instructions and task status untouched. See [REST API](../integration/rest-api.md) for details.
 
 To sleep an agent **right now** rather than set the `lifecycle: Sleep` policy above, use `POST /agents/{name}/sleep` (or `komputer agents sleep <name>`) instead. Unlike `lifecycle: Sleep`, it takes effect immediately regardless of a prior idle wake or a `sleepTTL`, and it does not change `spec.lifecycle` at all — it's a one-off action, not a policy change.
 
