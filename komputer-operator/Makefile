@@ -119,6 +119,9 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
+# The suite refuses any kube context but kind-$(KIND_CLUSTER) (override with
+# KOMPUTER_E2E_ALLOW_CONTEXT=<exact name> for a disposable cluster) and pins
+# every kubectl/make call to it. Never run `go test ./...` here — use `make test`.
 KIND_CLUSTER ?= komputer-operator-test-e2e
 
 .PHONY: setup-test-e2e
