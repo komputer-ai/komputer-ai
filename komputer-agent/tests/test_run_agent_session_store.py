@@ -138,3 +138,17 @@ async def test_task_started_reports_a_restore_from_previous(run, monkeypatch):
     started = [c[2] for c in calls if c[0] == "publish" and c[1] == "task_started"][0]
     assert started["restored_from"] == "previous"
     assert started["restore_error"] == "latest: not a gzip file"
+
+
+@pytest.mark.asyncio
+async def test_restore_is_reported_on_the_first_task_only(run, monkeypatch):
+    calls, _, publisher = run
+    monkeypatch.setattr(session_store, "enabled", lambda: True)
+    monkeypatch.setattr(session_store, "last_restore", {"restored": True, "from": "latest", "error": None})
+
+    await agent.run_agent("first", "claude-sonnet-4-6", publisher)
+    await agent.run_agent("second", "claude-sonnet-4-6", publisher)
+
+    started = [c[2] for c in calls if c[0] == "publish" and c[1] == "task_started"]
+    assert started[0]["restored_session"] is True
+    assert started[1]["restored_session"] is False

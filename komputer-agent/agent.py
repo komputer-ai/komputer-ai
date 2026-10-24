@@ -209,6 +209,8 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
         task_started["restored_session"] = restore["restored"]
         task_started["restored_from"] = restore.get("from")
         task_started["restore_error"] = restore["error"]
+        # The startup restore is reported once, on the pod's first task.
+        session_store.last_restore = None
     publisher.publish("task_started", task_started)
 
     # Tracks the most recent AssistantMessage usage so the PreCompact hook can

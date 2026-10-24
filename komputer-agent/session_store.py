@@ -30,6 +30,11 @@ _RETRY_DELAYS = (0, 1, 2)
 # Result of this pod's startup restore, reported on the next task_started.
 last_restore: dict | None = None
 
+# Set when the startup restore failed with the saved session still in the store
+# (S3 unreachable, denied, ...): saving would overwrite it with this pod's fresh
+# session, so saves are refused until a new pod restores it.
+_save_blocked: str | None = None
+
 
 def enabled() -> bool:
     return bool(os.environ.get("KOMPUTER_S3_BUCKET"))
@@ -123,6 +128,10 @@ def _keep_previous(s3, bucket: str, key: str) -> None:
 def save(workspace: Path = WORKSPACE, client=None) -> dict:
     """Upload the session tarball. Returns {"ok", "at", "bytes", "error"}."""
     at = _now()
+    if _save_blocked:
+        error = f"not saved: the saved session couldn't be restored ({_save_blocked}), and saving now would overwrite it"
+        logger.warning("session save to S3 skipped", extra={"error": error})
+        return {"ok": False, "at": at, "bytes": 0, "error": error}
     try:
         bucket, key = _bucket_and_key()
         with tempfile.TemporaryFile() as f:
@@ -167,9 +176,16 @@ def _restore_object(s3, bucket: str, key: str, workspace: Path) -> None:
                     tar.extractall(staging, filter=_restore_filter)
             except (tarfile.TarError, EOFError, gzip.BadGzipFile, zlib.error) as e:
                 raise _Corrupt(str(e)) from e
-        for name in (".claude", ".komputer-session"):
-            if (staging / name).exists():
-                shutil.move(str(staging / name), str(workspace / name))
+        restored_claude, local_claude = staging / ".claude", workspace / ".claude"
+        if restored_claude.exists():
+            if local_claude.is_dir():
+                # A task that never wrote .komputer-session can leave a .claude
+                # behind; merge into it (moving would nest the restore inside it).
+                shutil.copytree(restored_claude, local_claude, dirs_exist_ok=True)
+            else:
+                shutil.move(str(restored_claude), str(local_claude))
+        if (staging / ".komputer-session").exists():
+            os.replace(staging / ".komputer-session", workspace / ".komputer-session")
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
@@ -177,7 +193,7 @@ def _restore_object(s3, bucket: str, key: str, workspace: Path) -> None:
 def restore_if_needed(workspace: Path = WORKSPACE, client=None) -> dict:
     """Restore the session from S3 if this workspace has none.
     Returns {"restored", "from" ("latest"/"previous"/None), "error"}."""
-    global last_restore
+    global last_restore, _save_blocked
     result = {"restored": False, "from": None, "error": None}
     try:
         if (workspace / ".komputer-session").exists():
@@ -203,11 +219,20 @@ def restore_if_needed(workspace: Path = WORKSPACE, client=None) -> dict:
             try:
                 _restore_object(s3, bucket, previous, workspace)
             except Exception as e2:  # noqa: BLE001
+                if isinstance(e2, _Corrupt) or _missing(e2):
+                    raise _Corrupt(f"latest: {e}; previous: {e2}") from e2
                 raise RuntimeError(f"latest: {e}; previous: {e2}") from e2
             result = {"restored": True, "from": "previous", "error": f"latest: {e}"}
         logger.info("session restored from S3", extra={"from": result["from"]})
+    except _Corrupt as e:
+        # Nothing readable in the store: starting fresh and saving over it is fine.
+        logger.warning("session in S3 is unreadable; starting fresh", extra={"error": str(e)})
+        result = {"restored": False, "from": None, "error": str(e)}
     except Exception as e:  # noqa: BLE001
-        logger.warning("session restore from S3 failed; starting fresh", extra={"error": str(e)})
+        # The saved session may be fine, just unreachable right now: don't let this
+        # pod's fresh session overwrite it.
+        _save_blocked = str(e)
+        logger.warning("session restore from S3 failed; starting fresh without saving over it", extra={"error": str(e)})
         result = {"restored": False, "from": None, "error": str(e)}
     finally:
         last_restore = result

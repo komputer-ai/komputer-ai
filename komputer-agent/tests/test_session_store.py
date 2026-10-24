@@ -368,3 +368,52 @@ def test_restore_reports_both_failures_when_previous_is_bad_too(s3_env, tmp_path
     result = session_store.restore_if_needed(tmp_path, client=s3)
     assert result["restored"] is False and "previous" in result["error"]
     assert not (tmp_path / ".komputer-session").exists()
+
+
+# --- review fixes ---
+
+@pytest.fixture(autouse=True)
+def fresh_store_state(monkeypatch):
+    # Module state from a restore in one test must not leak into the next.
+    monkeypatch.setattr(session_store, "_save_blocked", None)
+    monkeypatch.setattr(session_store, "last_restore", None)
+
+
+def test_failed_restore_blocks_saving_over_the_store(s3_env, workspace, tmp_path_factory, fresh_store_state):
+    """A restore that couldn't reach S3 must not be followed by saves that overwrite the real session."""
+    s3 = FakeS3(head_exc=EndpointConnectionError(endpoint_url="http://s3.invalid"))
+    restored = session_store.restore_if_needed(tmp_path_factory.mktemp("fresh"), client=s3)
+    assert restored["restored"] is False and restored["error"]
+
+    s3_ok = FakeS3()
+    s3_ok.objects[("sessions", LATEST)] = b"the real session"
+    result = session_store.save(workspace, client=s3_ok)
+    assert result["ok"] is False and "restore" in result["error"]
+    assert s3_ok.objects[("sessions", LATEST)] == b"the real session"
+    assert s3_ok.calls == []
+
+
+def test_corrupt_store_does_not_block_saving(s3_env, workspace, tmp_path_factory, fresh_store_state):
+    """When latest and previous are both unreadable there's nothing to protect: saving goes on."""
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = b"not a tarball"
+    s3.objects[("sessions", PREVIOUS)] = b"not a tarball either"
+    restored = session_store.restore_if_needed(tmp_path_factory.mktemp("fresh"), client=s3)
+    assert restored["restored"] is False and restored["error"]
+    assert session_store.save(workspace, client=s3)["ok"] is True
+
+
+def test_restore_merges_into_an_existing_claude_dir(s3_env, tmp_path, fresh_store_state):
+    """A .claude left by a task that never wrote .komputer-session must not end up nesting the restore."""
+    (tmp_path / ".claude" / "debug").mkdir(parents=True)
+    (tmp_path / ".claude" / "debug" / "old.txt").write_text("left over")
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = _tarball_with([
+        (".komputer-session", "file", "s1"),
+        (".claude/projects/-workspace/s1.jsonl", "file", "{}\n"),
+    ])
+    result = session_store.restore_if_needed(tmp_path, client=s3)
+    assert result["restored"] is True
+    assert (tmp_path / ".claude" / "projects" / "-workspace" / "s1.jsonl").exists()
+    assert not (tmp_path / ".claude" / ".claude").exists()
+    assert (tmp_path / ".komputer-session").read_text() == "s1"
