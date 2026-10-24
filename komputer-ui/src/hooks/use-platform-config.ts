@@ -9,7 +9,8 @@ import type { ConfigResponse } from "@/lib/types";
 // one request at a time, re-checked every 30s so a change (e.g. the S3 session
 // store turned on or off) reaches open pages without a reload.
 const REFRESH_MS = 30_000;
-const loadConfig = createConfigLoader(getPlatformConfig, REFRESH_MS);
+// Answers stay fresh a little less than the refresh interval, so each tick asks again.
+const loadConfig = createConfigLoader(getPlatformConfig, REFRESH_MS - 5_000);
 // Last answer, so a newly mounted component starts from it instead of "unknown".
 let lastConfig: ConfigResponse | null = null;
 

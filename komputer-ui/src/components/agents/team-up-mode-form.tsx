@@ -14,6 +14,7 @@ import {
   buildAgentSpecForSquad,
 } from "./agent-fields-form";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { agentDormant } from "@/lib/session-store";
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -140,7 +141,7 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
   const partnerMustBeAsleep =
     selectedPartnerAgent !== null &&
     !matchingSquad &&
-    selectedPartnerAgent.status !== "Sleeping";
+    !agentDormant(selectedPartnerAgent.status, s3Enabled);
 
   // When matching squad changes, sync squadName
   useEffect(() => {

@@ -254,11 +254,31 @@ export default function AgentDetailPage() {
     fetchAgent();
   }, [fetchAgent]);
 
-  // Poll only while status is transient (Pending, or Running with an active task)
+  // Archive now is asynchronous (the operator archives once the session is
+  // saved), so poll until it shows up.
+  const [archiving, setArchiving] = useState(false);
+  const [archiveNote, setArchiveNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (archiving && agent?.status === "Archived") {
+      setArchiving(false);
+      setArchiveNote(null);
+    }
+  }, [archiving, agent?.status]);
+  useEffect(() => {
+    if (!archiving) return;
+    const timer = window.setTimeout(() => {
+      setArchiving(false);
+      setArchiveNote("Archive requested — it finishes once the session is saved");
+    }, 180_000);
+    return () => window.clearTimeout(timer);
+  }, [archiving]);
+
+  // Poll only while status is transient (Pending, Running with an active task, or archiving)
   const needsPolling = agent != null && (
     agent.status === "Pending" ||
     agent.taskStatus === "InProgress" ||
-    agent.taskStatus === "Compacting"
+    agent.taskStatus === "Compacting" ||
+    archiving
   );
   useEffect(() => {
     if (!needsPolling) return;
@@ -368,13 +388,15 @@ export default function AgentDetailPage() {
     }
   };
 
-  const [archiveNote, setArchiveNote] = useState<string | null>(null);
   const handleArchive = async () => {
     if (!agentName) return;
     setArchiveNote(null);
     try {
       const res = await archiveAgent(agentName, agentNs);
-      if (res.status !== "Archived") setArchiveNote("Archiving…");
+      if (res.status !== "Archived") {
+        setArchiving(true);
+        setArchiveNote("Archiving…");
+      }
       await fetchAgent();
     } catch (e: unknown) {
       setArchiveNote(e instanceof Error ? e.message : "Failed to archive agent");
@@ -669,6 +691,21 @@ export default function AgentDetailPage() {
                   // agent can run again, so it's how a live agent is retired;
                   // Delete is only offered once it's archived.
                   agent.status !== "Archived" ? (
+                    agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving ? (
+                      // No confirm dialog behind a disabled button (a click would still
+                      // reach the dialog's wrapper); the span carries the tooltip.
+                      <span title={archiving ? undefined : "Archive is available once the current task finishes (or cancel it)."}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled
+                          className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)]"
+                        >
+                          <Archive className="size-3" data-icon="inline-start" />
+                          {archiveNote ?? "Archive"}
+                        </Button>
+                      </span>
+                    ) : (
                       <ConfirmDialog
                         title="Archive Agent"
                         description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
@@ -681,14 +718,13 @@ export default function AgentDetailPage() {
                             variant="secondary"
                             size="sm"
                             className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
-                            disabled={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting"}
-                            title={agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" ? "Archive is available once the current task finishes (or cancel it)." : undefined}
                           >
                             <Archive className="size-3" data-icon="inline-start" />
                             {archiveNote ?? "Archive"}
                           </Button>
                         }
                       />
+                    )
                   ) : (
                     <ConfirmDialog
                       title="Delete Agent"

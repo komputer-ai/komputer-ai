@@ -24,6 +24,7 @@ import { listAgents, createSquad, addSquadMember, sleepAgent } from "@/lib/api";
 import { Moon } from "lucide-react";
 import type { Squad, AgentResponse } from "@/lib/types";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { agentDormant } from "@/lib/session-store";
 
 type TeamUpDialogProps = {
   open: boolean;
@@ -86,10 +87,11 @@ export function TeamUpDialog({
 
   // Both agents must be asleep before teaming up — adopting a running agent
   // would leave its solo pod stranded next to the new squad pod.
-  const currentAgentNotAsleep = !!agentStatus && agentStatus !== "Sleeping";
+  // (With the S3 session store an archived agent counts as asleep.)
+  const currentAgentNotAsleep = !!agentStatus && !agentDormant(agentStatus, s3Enabled);
   const partnerAgent = agents.find((a) => a.name === selectedAgent) ?? null;
   const partnerNotAsleep =
-    !!partnerAgent && !selectedAgentSquad && partnerAgent.status !== "Sleeping";
+    !!partnerAgent && !selectedAgentSquad && !agentDormant(partnerAgent.status, s3Enabled);
 
   // Build the list of agents the user needs to sleep before they can team up.
   // Each entry carries its namespace so the inline Sleep button can call sleepAgent.
