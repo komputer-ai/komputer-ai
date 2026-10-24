@@ -89,6 +89,16 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// 1a. S3 session store: a delete waits until the agent's latest session is
+	// saved (komputer.ai/session-store). Handled before everything else — squad
+	// members included — and a live agent gets the finalizer while S3 is on.
+	if !agent.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(agent, komputerv1alpha1.FinalizerSessionStore) {
+		return r.handleSessionFinalizer(ctx, agent)
+	}
+	if _, err := r.ensureSessionFinalizer(ctx, agent); err != nil {
+		return ctrl.Result{}, fmt.Errorf("add session-store finalizer: %w", err)
+	}
+
 	// 1b. Propagate Spec.Labels onto the agent CR's own metadata.labels so that
 	// kubectl label selectors and client.MatchingLabels work natively on the CR.
 	// Additive: start from the labels already on the object (e.g. komputer.ai/office,
