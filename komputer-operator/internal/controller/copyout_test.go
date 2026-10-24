@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -40,15 +41,23 @@ func (f *fakeExecer) ExecStream(ctx context.Context, ns, pod, container string, 
 
 // fakeUploader records uploads.
 type fakeUploader struct {
-	key  string
-	body []byte
-	n    int
-	err  error
+	key     string
+	body    []byte
+	n       int
+	err     error
+	copyErr error
+	calls   []string // "copy src->dst" / "upload key", in order
+}
+
+func (f *fakeUploader) Copy(ctx context.Context, src, dst string) error {
+	f.calls = append(f.calls, "copy "+src+"->"+dst)
+	return f.copyErr
 }
 
 func (f *fakeUploader) Upload(ctx context.Context, key string, body io.Reader) error {
 	f.n++
 	f.key = key
+	f.calls = append(f.calls, "upload "+key)
 	b, err := io.ReadAll(body)
 	if err != nil {
 		return err
@@ -136,7 +145,7 @@ func TestCopyOutSession_UploadsExecOutputToAgentKey(t *testing.T) {
 	if err := r.copyOutSession(context.Background(), agent, copyOutS3, "a1-pod", "agent"); err != nil {
 		t.Fatal(err)
 	}
-	if up.key != "komputer/default/a1/u-1/session.tar.gz" || !bytes.Equal(up.body, []byte("tarball-bytes")) {
+	if up.key != "komputer/default/a1/u-1/latest.tar.gz" || !bytes.Equal(up.body, []byte("tarball-bytes")) {
 		t.Errorf("upload = %q / %q", up.key, up.body)
 	}
 	if len(ex.calls) != 1 || ex.calls[0] != "default/a1-pod/agent" {
@@ -153,6 +162,51 @@ func TestCopyOutSession_UploadsExecOutputToAgentKey(t *testing.T) {
 	}
 	if !komputerv1alpha1.LatestTaskSaved(&got) {
 		t.Error("LatestTaskSaved should be true after a copy-out")
+	}
+}
+
+// Before overwriting latest, the operator keeps it as previous, so one bad save
+// can't destroy the last good session.
+func TestCopyOutSession_KeepsLatestAsPreviousBeforeUploading(t *testing.T) {
+	up := &fakeUploader{}
+	agent := copyOutAgent()
+	r, _ := copyOutReconciler(t, &fakeExecer{out: []byte("tarball-bytes")}, up, agent)
+
+	if err := r.copyOutSession(context.Background(), agent, copyOutS3, "a1-pod", "agent"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"copy komputer/default/a1/u-1/latest.tar.gz->komputer/default/a1/u-1/previous.tar.gz",
+		"upload komputer/default/a1/u-1/latest.tar.gz",
+	}
+	if !reflect.DeepEqual(up.calls, want) {
+		t.Errorf("calls = %v, want %v", up.calls, want)
+	}
+}
+
+// Keeping the previous copy is best effort: a failed copy never stops the save.
+func TestCopyOutSession_CopyFailure_StillSaves(t *testing.T) {
+	up := &fakeUploader{copyErr: errors.New("access denied")}
+	agent := copyOutAgent()
+	r, _ := copyOutReconciler(t, &fakeExecer{out: []byte("tarball-bytes")}, up, agent)
+
+	if err := r.copyOutSession(context.Background(), agent, copyOutS3, "a1-pod", "agent"); err != nil {
+		t.Fatalf("a failed copy must not fail the save: %v", err)
+	}
+	if up.n != 1 {
+		t.Errorf("uploads = %d, want 1", up.n)
+	}
+}
+
+// Nothing to save means nothing to rotate either: previous is left alone.
+func TestCopyOutSession_EmptySession_DoesNotRotate(t *testing.T) {
+	up := &fakeUploader{}
+	agent := copyOutAgent()
+	r, _ := copyOutReconciler(t, &fakeExecer{out: nil}, up, agent)
+
+	_ = r.copyOutSession(context.Background(), agent, copyOutS3, "a1-pod", "agent")
+	if len(up.calls) != 0 {
+		t.Errorf("calls = %v, want none", up.calls)
 	}
 }
 

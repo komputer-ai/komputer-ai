@@ -133,7 +133,13 @@ func (r *KomputerAgentReconciler) streamSessionToStore(ctx context.Context, agen
 		}
 		return err
 	}
-	if err := up.Upload(ctx, komputerv1alpha1.SessionStoreKey(s3, agent), body); err != nil {
+	// Keep the current latest as previous before overwriting it. Best effort:
+	// a failed copy never stops the save.
+	latest := komputerv1alpha1.SessionStoreKey(s3, agent)
+	if err := up.Copy(ctx, latest, komputerv1alpha1.SessionStorePreviousKey(s3, agent)); err != nil {
+		logf.FromContext(ctx).Info("couldn't keep the previous session in S3", "agent", agent.Name, "error", err.Error())
+	}
+	if err := up.Upload(ctx, latest, body); err != nil {
 		_ = pr.CloseWithError(err)
 		return err
 	}

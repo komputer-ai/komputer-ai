@@ -11,13 +11,16 @@ Any S3-compatible store works: AWS S3, MinIO, Cloudflare R2, GCS (interoperabili
 
 ## What's stored
 
-One object per agent, replaced at the end of every task:
+Two objects per agent:
 
 ```
-s3://<bucket>/<prefix>/<namespace>/<agent-name>/<agent-uid>/session.tar.gz
+s3://<bucket>/<prefix>/<namespace>/<agent-name>/<agent-uid>/latest.tar.gz
+s3://<bucket>/<prefix>/<namespace>/<agent-name>/<agent-uid>/previous.tar.gz
 ```
 
-It holds `/workspace/.claude` (minus `skills/`, which is regenerated on every start) and `/workspace/.komputer-session`. **Workspace files are not stored** — cloned repos, generated files, installed packages. An agent that needs its files across restarts should keep a PVC (`lifecycle: Sleep` or the default).
+Every save first copies `latest` to `previous` (server side), then replaces `latest`. Restores read `latest`; if it can't be read (a corrupt save), they fall back to `previous` and the task-started event reports `restored_from: previous`. A failed download never falls back — that could quietly roll the agent back to an older session.
+
+Each holds `/workspace/.claude` (minus `skills/`, which is regenerated on every start) and `/workspace/.komputer-session`. **Workspace files are not stored** — cloned repos, generated files, installed packages. An agent that needs its files across restarts should keep a PVC (`lifecycle: Sleep` or the default).
 
 The agent's UID is part of the key, so a new agent that reuses a deleted agent's name never resumes the old conversation.
 

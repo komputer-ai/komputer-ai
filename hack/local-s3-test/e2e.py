@@ -98,7 +98,7 @@ def objects(prefix):
 
 def session_key(name):
     c = cr(name)
-    return f"komputer/{NS}/{name}/{c['metadata']['uid']}/session.tar.gz" if c else None
+    return f"komputer/{NS}/{name}/{c['metadata']['uid']}/latest.tar.gz" if c else None
 
 
 def exists(kind, name, ns=NS):
@@ -343,9 +343,39 @@ def s9(notes):
     notes.append("archived, woke into a fresh PVC from S3, still recalled `HERON-5`")
 
 
+@scenario("10. A corrupt latest save falls back to the previous one")
+def s10(notes):
+    name = f"prev-{RUN}"
+    create(name, "Remember the codeword PUFFIN-2. Reply with just OK.", lifecycle="Sleep", storage={"ephemeral": True})
+    wait("asleep", lambda: (agent(name) or {}).get("status") == "Sleeping", timeout=480)
+    wait("pod gone", lambda: not exists("pod", f"{name}-pod"), timeout=120)
+    latest = session_key(name)
+    previous = latest.rsplit("/", 1)[0] + "/previous.tar.gz"
+    check(previous not in objects(f"komputer/{NS}/{name}/"), "first save has nothing to keep as previous")
+    send(name, "Reply with just OK.", "Sleep")
+    wait("woken", lambda: (agent(name) or {}).get("status") != "Sleeping", timeout=60)
+    wait("asleep again", lambda: (agent(name) or {}).get("status") == "Sleeping", timeout=480)
+    wait("pod gone", lambda: not exists("pod", f"{name}-pod"), timeout=120)
+    check(previous in objects(f"komputer/{NS}/{name}/"), "second save keeps the first as previous")
+    notes.append("two saves: `latest.tar.gz` and `previous.tar.gz` both present")
+    s3.put_object(Bucket=BUCKET, Key=latest, Body=b"not a tarball")
+    notes.append("overwrote `latest.tar.gz` with garbage")
+    send(name, "What codeword did I ask you to remember? Reply with just the codeword.", "Sleep")
+    wait("woken", lambda: (agent(name) or {}).get("status") != "Sleeping", timeout=60)
+    wait("asleep again", lambda: (agent(name) or {}).get("status") == "Sleeping", timeout=480)
+    text = events_text(name)
+    last = text.split('"task_started"')[-1]
+    check('"restored_from": "previous"' in last, "the wake should restore from previous")
+    check("PUFFIN-2" in last, "the agent should recall PUFFIN-2 from the previous save")
+    with __import__("io").BytesIO() as b:
+        s3.download_fileobj(BUCKET, latest, b)
+        check(b.getvalue()[:2] == b"\x1f\x8b", "the next save should leave a good latest again")
+    notes.append("wake reported `restored_from: previous`, recalled `PUFFIN-2`; its save left a good `latest` again")
+
+
 def main():
     print(f"API={API} MODEL={MODEL} RUN={RUN}", flush=True)
-    for i, fn in enumerate((s0, s1, s2, s3_ephemeral, s4, s5, s6, s7, s8, s9)):
+    for i, fn in enumerate((s0, s1, s2, s3_ephemeral, s4, s5, s6, s7, s8, s9, s10)):
         # 9 flips the Helm release's s3.enabled, so it only runs when asked for.
         if (not ONLY and i != 9) or str(i) in ONLY:
             fn()

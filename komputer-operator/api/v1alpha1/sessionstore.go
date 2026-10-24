@@ -65,15 +65,26 @@ func (s *S3Spec) IsEnabled() bool {
 	return s != nil && s.Enabled && s.Bucket != ""
 }
 
-// SessionStoreKey is the object key holding an agent's session:
-// <prefix>/<namespace>/<name>/<uid>/session.tar.gz. The UID keeps a new agent
-// that reuses a deleted agent's name from resuming the old session.
+// SessionStoreKey is the object key holding an agent's latest session, the one
+// restores read: <prefix>/<namespace>/<name>/<uid>/latest.tar.gz. The UID keeps
+// a new agent that reuses a deleted agent's name from resuming the old session.
 func SessionStoreKey(s *S3Spec, agent *KomputerAgent) string {
+	return sessionStoreObject(s, agent, "latest.tar.gz")
+}
+
+// SessionStorePreviousKey holds the session saved before the latest one. Every
+// save copies latest here first, so one bad save can't destroy the last good
+// session; restores fall back to it when latest can't be read.
+func SessionStorePreviousKey(s *S3Spec, agent *KomputerAgent) string {
+	return sessionStoreObject(s, agent, "previous.tar.gz")
+}
+
+func sessionStoreObject(s *S3Spec, agent *KomputerAgent, file string) string {
 	prefix := ""
 	if s != nil {
 		prefix = strings.Trim(s.Prefix, "/")
 	}
-	return path.Join(prefix, agent.Namespace, agent.Name, string(agent.UID), "session.tar.gz")
+	return path.Join(prefix, agent.Namespace, agent.Name, string(agent.UID), file)
 }
 
 // SessionStoreStatus is the result of the agent's own session saves.

@@ -11,11 +11,17 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 import session_store
 
 
+LATEST = "komputer/team-a/a1/u-1/latest.tar.gz"
+PREVIOUS = "komputer/team-a/a1/u-1/previous.tar.gz"
+
+
 class FakeS3:
     """Records uploads in memory; can be told to fail."""
 
-    def __init__(self, fail_times=0, download_exc=None, head_exc=None):
+    def __init__(self, fail_times=0, download_exc=None, head_exc=None, copy_exc=None):
         self.objects = {}
+        self.calls = []  # "copy src->dst" / "upload key", in order
+        self.copy_exc = copy_exc
         self.upload_calls = []
         self.put_object_calls = 0
         self.download_calls = 0
@@ -23,7 +29,16 @@ class FakeS3:
         self.download_exc = download_exc
         self.head_exc = head_exc
 
+    def copy_object(self, Bucket, Key, CopySource):
+        self.calls.append(f"copy {CopySource['Key']}->{Key}")
+        if self.copy_exc:
+            raise self.copy_exc
+        if (CopySource["Bucket"], CopySource["Key"]) not in self.objects:
+            raise ClientError({"Error": {"Code": "NoSuchKey", "Message": "no such key"}}, "CopyObject")
+        self.objects[(Bucket, Key)] = self.objects[(CopySource["Bucket"], CopySource["Key"])]
+
     def upload_fileobj(self, fileobj, bucket, key):
+        self.calls.append(f"upload {key}")
         self.upload_calls.append((fileobj, bucket, key))
         if self.fail_times > 0:
             self.fail_times -= 1
@@ -50,7 +65,8 @@ class FakeS3:
 @pytest.fixture
 def s3_env(monkeypatch):
     monkeypatch.setenv("KOMPUTER_S3_BUCKET", "sessions")
-    monkeypatch.setenv("KOMPUTER_S3_KEY", "komputer/team-a/a1/u-1/session.tar.gz")
+    monkeypatch.setenv("KOMPUTER_S3_KEY", LATEST)
+    monkeypatch.setenv("KOMPUTER_S3_PREVIOUS_KEY", PREVIOUS)
     monkeypatch.setattr(session_store, "_RETRY_DELAYS", (0, 0, 0))
 
 
@@ -82,7 +98,7 @@ def test_save_tarball_contents(s3_env, workspace):
     assert result["ok"] is True
     assert result["error"] is None
     assert result["bytes"] > 0
-    blob = s3.objects[("sessions", "komputer/team-a/a1/u-1/session.tar.gz")]
+    blob = s3.objects[("sessions", LATEST)]
     names = _members(blob)
     assert ".claude/projects/-workspace/s1.jsonl" in names
     assert ".komputer-session" in names
@@ -123,7 +139,7 @@ def test_restore_skips_when_local_session_exists(s3_env, workspace):
     s3 = FakeS3()
     result = session_store.restore_if_needed(workspace, client=s3)
 
-    assert result == {"restored": False, "error": None}
+    assert result == {"restored": False, "from": None, "error": None}
     assert s3.download_calls == 0
 
 
@@ -134,7 +150,7 @@ def test_restore_extracts_when_missing(s3_env, workspace, tmp_path_factory):
     fresh = tmp_path_factory.mktemp("fresh")
     result = session_store.restore_if_needed(fresh, client=s3)
 
-    assert result == {"restored": True, "error": None}
+    assert result == {"restored": True, "from": "latest", "error": None}
     assert (fresh / ".komputer-session").read_text() == "s1"
     assert (fresh / ".claude" / "projects" / "-workspace" / "s1.jsonl").exists()
     assert session_store.last_restore == result
@@ -142,7 +158,7 @@ def test_restore_extracts_when_missing(s3_env, workspace, tmp_path_factory):
 
 def test_restore_missing_object_starts_fresh(s3_env, tmp_path):
     result = session_store.restore_if_needed(tmp_path, client=FakeS3())
-    assert result == {"restored": False, "error": None}
+    assert result == {"restored": False, "from": None, "error": None}
     assert not (tmp_path / ".komputer-session").exists()
 
 
@@ -240,7 +256,7 @@ def test_restore_drops_links_instead_of_failing(s3_env, tmp_path):
         (".claude/debug/latest", "symlink", "/home/komputer/.claude/debug/x.txt"),
     ])
     result = session_store.restore_if_needed(tmp_path, client=s3)
-    assert result == {"restored": True, "error": None}
+    assert result == {"restored": True, "from": "latest", "error": None}
     assert (tmp_path / ".komputer-session").read_text() == "s1"
     assert not (tmp_path / ".claude" / "debug" / "latest").exists()
 
@@ -277,3 +293,78 @@ def test_task_end_fields(s3_env, workspace, monkeypatch):
     assert session_store.task_end_fields() == {"session_store": saved}
     monkeypatch.delenv("KOMPUTER_S3_BUCKET")
     assert session_store.task_end_fields() == {}
+
+
+# --- latest / previous: one bad save can't destroy the last good session ---
+
+def test_save_keeps_latest_as_previous_before_uploading(s3_env, workspace):
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = b"older session"
+    result = session_store.save(workspace, client=s3)
+    assert result["ok"] is True
+    assert s3.calls == [f"copy {LATEST}->{PREVIOUS}", f"upload {LATEST}"]
+    assert s3.objects[("sessions", PREVIOUS)] == b"older session"
+    assert ".komputer-session" in _members(s3.objects[("sessions", LATEST)])
+
+
+def test_save_first_time_has_nothing_to_keep(s3_env, workspace):
+    s3 = FakeS3()
+    result = session_store.save(workspace, client=s3)
+    assert result["ok"] is True and result["error"] is None
+    assert ("sessions", PREVIOUS) not in s3.objects
+
+
+def test_save_still_saves_when_keeping_previous_fails(s3_env, workspace):
+    s3 = FakeS3(copy_exc=ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "CopyObject"))
+    s3.objects[("sessions", LATEST)] = b"older session"
+    result = session_store.save(workspace, client=s3)
+    assert result["ok"] is True and result["error"] is None
+    assert f"upload {LATEST}" in s3.calls
+
+
+def test_save_without_previous_key_does_not_copy(s3_env, workspace, monkeypatch):
+    monkeypatch.delenv("KOMPUTER_S3_PREVIOUS_KEY")
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = b"older session"
+    assert session_store.save(workspace, client=s3)["ok"] is True
+    assert s3.calls == [f"upload {LATEST}"]
+
+
+def test_restore_reads_latest(s3_env, tmp_path):
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = _tarball_with([(".komputer-session", "file", "new")])
+    s3.objects[("sessions", PREVIOUS)] = _tarball_with([(".komputer-session", "file", "old")])
+    result = session_store.restore_if_needed(tmp_path, client=s3)
+    assert result == {"restored": True, "from": "latest", "error": None}
+    assert (tmp_path / ".komputer-session").read_text() == "new"
+
+
+def test_restore_falls_back_to_previous_when_latest_is_corrupt(s3_env, tmp_path):
+    s3 = FakeS3()
+    good = _tarball_with([(".komputer-session", "file", "old"), (".claude/projects/-workspace/s1.jsonl", "file", "{}\n")])
+    s3.objects[("sessions", LATEST)] = good[: len(good) // 2]  # a bad save
+    s3.objects[("sessions", PREVIOUS)] = good
+    result = session_store.restore_if_needed(tmp_path, client=s3)
+    assert result["restored"] is True and result["from"] == "previous"
+    assert result["error"]  # why latest was skipped
+    assert (tmp_path / ".komputer-session").read_text() == "old"
+
+
+def test_restore_does_not_fall_back_on_a_download_error(s3_env, tmp_path):
+    """A network blip on latest must not quietly roll the agent back to an older session."""
+    s3 = FakeS3(download_exc=EndpointConnectionError(endpoint_url="http://s3"))
+    s3.objects[("sessions", LATEST)] = _tarball_with([(".komputer-session", "file", "new")])
+    s3.objects[("sessions", PREVIOUS)] = _tarball_with([(".komputer-session", "file", "old")])
+    result = session_store.restore_if_needed(tmp_path, client=s3)
+    assert result["restored"] is False and result["error"]
+    assert s3.download_calls == 1
+    assert not (tmp_path / ".komputer-session").exists()
+
+
+def test_restore_reports_both_failures_when_previous_is_bad_too(s3_env, tmp_path):
+    s3 = FakeS3()
+    s3.objects[("sessions", LATEST)] = b"not a tarball"
+    s3.objects[("sessions", PREVIOUS)] = b"not a tarball either"
+    result = session_store.restore_if_needed(tmp_path, client=s3)
+    assert result["restored"] is False and "previous" in result["error"]
+    assert not (tmp_path / ".komputer-session").exists()

@@ -2,15 +2,19 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
@@ -18,6 +22,9 @@ import (
 // SessionUploader puts one session object into the S3 session store.
 type SessionUploader interface {
 	Upload(ctx context.Context, key string, body io.Reader) error
+	// Copy copies src to dst inside the bucket (server side). A missing src is
+	// not an error: there's nothing to keep yet.
+	Copy(ctx context.Context, src, dst string) error
 }
 
 // UploaderFactory builds a SessionUploader for the configured store. Swappable
@@ -25,12 +32,27 @@ type SessionUploader interface {
 type UploaderFactory func(ctx context.Context, s3 *komputerv1alpha1.S3Spec) (SessionUploader, error)
 
 type s3Uploader struct {
+	client   *s3.Client
 	uploader *manager.Uploader
 	bucket   string
 }
 
 func (u *s3Uploader) Upload(ctx context.Context, key string, body io.Reader) error {
 	_, err := u.uploader.Upload(ctx, &s3.PutObjectInput{Bucket: &u.bucket, Key: &key, Body: body})
+	return err
+}
+
+func (u *s3Uploader) Copy(ctx context.Context, src, dst string) error {
+	segments := strings.Split(u.bucket+"/"+src, "/")
+	for i, s := range segments {
+		segments[i] = url.PathEscape(s)
+	}
+	source := strings.Join(segments, "/")
+	_, err := u.client.CopyObject(ctx, &s3.CopyObjectInput{Bucket: &u.bucket, Key: &dst, CopySource: &source})
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound") {
+		return nil
+	}
 	return err
 }
 
@@ -71,5 +93,5 @@ func NewS3Uploader(ctx context.Context, spec *komputerv1alpha1.S3Spec) (SessionU
 		}
 		o.UsePathStyle = spec.ForcePathStyle
 	})
-	return &s3Uploader{uploader: manager.NewUploader(client), bucket: spec.Bucket}, nil
+	return &s3Uploader{client: client, uploader: manager.NewUploader(client), bucket: spec.Bucket}, nil
 }

@@ -40,7 +40,7 @@ then `kubectl rollout restart` the deployment (agent pods pick up the new image 
 export KUBECONFIG=~/.kube/komputer-s3-test.yaml
 ```
 
-Sessions land in the bucket at `komputer/<namespace>/<agent>/<uid>/session.tar.gz`.
+Sessions land in the bucket at `komputer/<namespace>/<agent>/<uid>/latest.tar.gz`, with the save before it at `previous.tar.gz`.
 
 ## Automated scenarios
 

@@ -47,7 +47,8 @@ func sessionTarball(t *testing.T, files map[string][]byte) []byte {
 }
 
 type fakeGetter struct {
-	body  []byte
+	body   []byte
+	bodies map[string][]byte // per key, when set
 	err   error
 	calls atomic.Int32
 	delay time.Duration
@@ -63,6 +64,9 @@ func (f *fakeGetter) GetObject(ctx context.Context, bucket, key string) (io.Read
 	time.Sleep(f.delay)
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.bodies != nil {
+		return io.NopCloser(bytes.NewReader(f.bodies[key])), nil
 	}
 	return io.NopCloser(bytes.NewReader(f.body)), nil
 }
@@ -96,8 +100,35 @@ func TestFetchSessionEventsFromStore_ConvertsJSONL(t *testing.T) {
 	if len(got) == 0 || !reflect.DeepEqual(got, want) {
 		t.Fatalf("events = %+v, want %+v", got, want)
 	}
-	if g.keys[0] != "sessions/komputer/default/a1/u-1/session.tar.gz" {
+	if g.keys[0] != "sessions/komputer/default/a1/u-1/latest.tar.gz" {
 		t.Errorf("fetched %q", g.keys[0])
+	}
+}
+
+func TestFetchSessionEventsFromStore_CorruptLatest_ReadsPrevious(t *testing.T) {
+	good := sessionTarball(t, map[string][]byte{".claude/projects/-workspace/s1.jsonl": sessionFixture})
+	g := &fakeGetter{bodies: map[string][]byte{
+		"komputer/default/a1/u-1/latest.tar.gz":   good[:len(good)/2], // a bad save
+		"komputer/default/a1/u-1/previous.tar.gz": good,
+	}}
+	s3 := &komputerv1alpha1.S3Spec{Enabled: true, Bucket: "sessions", Prefix: "komputer"}
+	got, err := fetchSessionEventsFromStore(context.Background(), g, s3, storeBackfillAgent(""), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := convertSessionJSONL(sessionFixture, "a1", 0, "claude-sonnet-4-6", 0); !reflect.DeepEqual(got, want) {
+		t.Fatalf("events = %+v, want the previous session's", got)
+	}
+}
+
+func TestFetchSessionEventsFromStore_FetchError_DoesNotTryPrevious(t *testing.T) {
+	g := &fakeGetter{err: errors.New("connection refused")}
+	s3 := &komputerv1alpha1.S3Spec{Enabled: true, Bucket: "sessions", Prefix: "komputer"}
+	if _, err := fetchSessionEventsFromStore(context.Background(), g, s3, storeBackfillAgent(""), 0); err == nil {
+		t.Fatal("want the fetch error")
+	}
+	if n := g.calls.Load(); n != 1 {
+		t.Errorf("GetObject calls = %d, want 1", n)
 	}
 }
 

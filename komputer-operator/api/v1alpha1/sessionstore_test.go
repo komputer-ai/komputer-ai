@@ -14,13 +14,20 @@ func TestSessionStoreKey(t *testing.T) {
 		prefix string
 		want   string
 	}{
-		{"komputer", "komputer/team-a/a1/u-1/session.tar.gz"},
-		{"/komputer/", "komputer/team-a/a1/u-1/session.tar.gz"},
-		{"", "team-a/a1/u-1/session.tar.gz"},
+		{"komputer", "komputer/team-a/a1/u-1/latest.tar.gz"},
+		{"/komputer/", "komputer/team-a/a1/u-1/latest.tar.gz"},
+		{"", "team-a/a1/u-1/latest.tar.gz"},
 	} {
 		if got := SessionStoreKey(&S3Spec{Prefix: tc.prefix}, agent); got != tc.want {
 			t.Errorf("prefix %q: got %q, want %q", tc.prefix, got, tc.want)
 		}
+	}
+}
+
+func TestSessionStorePreviousKey(t *testing.T) {
+	agent := &KomputerAgent{ObjectMeta: metav1.ObjectMeta{Name: "a1", Namespace: "team-a", UID: types.UID("u-1")}}
+	if got := SessionStorePreviousKey(&S3Spec{Prefix: "komputer"}, agent); got != "komputer/team-a/a1/u-1/previous.tar.gz" {
+		t.Errorf("got %q", got)
 	}
 }
 

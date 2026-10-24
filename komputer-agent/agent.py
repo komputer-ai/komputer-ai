@@ -207,6 +207,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     if session_store.enabled():
         restore = session_store.last_restore or {"restored": False, "error": None}
         task_started["restored_session"] = restore["restored"]
+        task_started["restored_from"] = restore.get("from")
         task_started["restore_error"] = restore["error"]
     publisher.publish("task_started", task_started)
 

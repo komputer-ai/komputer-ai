@@ -500,6 +500,7 @@ func buildS3EnvVars(s3 *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.Kompute
 		{Name: "KOMPUTER_S3_ENDPOINT", Value: s3.Endpoint},
 		{Name: "KOMPUTER_S3_FORCE_PATH_STYLE", Value: fmt.Sprintf("%t", s3.ForcePathStyle)},
 		{Name: s3KeyEnv, Value: komputerv1alpha1.SessionStoreKey(s3, agent)},
+		{Name: "KOMPUTER_S3_PREVIOUS_KEY", Value: komputerv1alpha1.SessionStorePreviousKey(s3, agent)},
 	}
 	if ref := s3.CredentialsSecret; ref != nil && ref.Name != "" {
 		optional := true

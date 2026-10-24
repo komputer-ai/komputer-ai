@@ -88,18 +88,30 @@ var (
 // download and one Redis write-back.
 var storeBackfills singleflight.Group
 
-// fetchSessionEventsFromStore downloads the agent's session tarball and converts
-// the transcript of its current session (status.sessionId). A tarball without
-// that transcript yields no events and no error.
+// errCorruptSession marks a session object that downloaded but can't be read.
+var errCorruptSession = errors.New("corrupt session tarball")
+
+// fetchSessionEventsFromStore downloads the agent's latest session tarball and
+// converts the transcript of its current session (status.sessionId). A corrupt
+// latest falls back to the previous save; a failed download doesn't. A tarball
+// without that transcript yields no events and no error.
 func fetchSessionEventsFromStore(ctx context.Context, g sessionObjectGetter, spec *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.KomputerAgent, totalCostUSD float64) ([]AgentEvent, error) {
-	body, err := g.GetObject(ctx, spec.Bucket, komputerv1alpha1.SessionStoreKey(spec, agent))
+	events, err := readSessionEvents(ctx, g, spec.Bucket, komputerv1alpha1.SessionStoreKey(spec, agent), agent, totalCostUSD)
+	if errors.Is(err, errCorruptSession) {
+		return readSessionEvents(ctx, g, spec.Bucket, komputerv1alpha1.SessionStorePreviousKey(spec, agent), agent, totalCostUSD)
+	}
+	return events, err
+}
+
+func readSessionEvents(ctx context.Context, g sessionObjectGetter, bucket, key string, agent *komputerv1alpha1.KomputerAgent, totalCostUSD float64) ([]AgentEvent, error) {
+	body, err := g.GetObject(ctx, bucket, key)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 	gz, err := gzip.NewReader(body)
 	if err != nil {
-		return nil, fmt.Errorf("open session tarball: %w", err)
+		return nil, fmt.Errorf("open session tarball: %w: %w", errCorruptSession, err)
 	}
 	want := fmt.Sprintf(".claude/projects/-workspace/%s.jsonl", agent.Status.SessionID)
 	tr := tar.NewReader(gz)
@@ -109,14 +121,14 @@ func fetchSessionEventsFromStore(ctx context.Context, g sessionObjectGetter, spe
 			return nil, nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read session tarball: %w", err)
+			return nil, fmt.Errorf("read session tarball: %w: %w", errCorruptSession, err)
 		}
 		if hdr.Name != want {
 			continue
 		}
 		raw, err := io.ReadAll(tr)
 		if err != nil {
-			return nil, fmt.Errorf("read session transcript: %w", err)
+			return nil, fmt.Errorf("read session transcript: %w: %w", errCorruptSession, err)
 		}
 		return convertSessionJSONL(raw, agent.Name, 0, agent.Spec.Model, totalCostUSD), nil
 	}

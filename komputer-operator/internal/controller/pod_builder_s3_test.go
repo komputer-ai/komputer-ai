@@ -49,7 +49,8 @@ func TestBuildS3EnvVars_StaticKeys(t *testing.T) {
 		"KOMPUTER_S3_REGION":           "eu-west-1",
 		"KOMPUTER_S3_ENDPOINT":         "http://minio:9000",
 		"KOMPUTER_S3_FORCE_PATH_STYLE": "true",
-		"KOMPUTER_S3_KEY":              "komputer/team-a/a1/u-1/session.tar.gz",
+		"KOMPUTER_S3_KEY":              "komputer/team-a/a1/u-1/latest.tar.gz",
+		"KOMPUTER_S3_PREVIOUS_KEY":     "komputer/team-a/a1/u-1/previous.tar.gz",
 	} {
 		if got := env[name].Value; got != want {
 			t.Errorf("%s = %q, want %q", name, got, want)

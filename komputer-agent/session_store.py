@@ -4,16 +4,20 @@ The operator turns this on by injecting KOMPUTER_S3_* env vars (only when
 KomputerConfig.spec.s3 is configured). One gzip tarball per agent holds
 `.claude/**` (minus the skills dir, regenerated from env on every start) and
 `.komputer-session`, so the resume pointer and the transcript it points to always
-travel together.
+travel together. It lives at KOMPUTER_S3_KEY ("latest"); each save first copies
+latest to KOMPUTER_S3_PREVIOUS_KEY, so one bad save can't destroy the last good
+session, and a restore falls back to previous when latest is corrupt.
 
 Neither function ever raises: S3 must never block or fail a task.
 """
+import gzip
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
 import time
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -99,6 +103,23 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _missing(e: Exception) -> bool:
+    return getattr(e, "response", {}).get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound")
+
+
+def _keep_previous(s3, bucket: str, key: str) -> None:
+    """Copy latest to previous (server side) before it's overwritten. Best
+    effort: nothing saved yet is fine, and a failure never stops the save."""
+    previous = os.environ.get("KOMPUTER_S3_PREVIOUS_KEY")
+    if not previous:
+        return
+    try:
+        s3.copy_object(Bucket=bucket, Key=previous, CopySource={"Bucket": bucket, "Key": key})
+    except Exception as e:  # noqa: BLE001
+        if not _missing(e):
+            logger.warning("couldn't keep the previous session in S3", extra={"error": str(e)})
+
+
 def save(workspace: Path = WORKSPACE, client=None) -> dict:
     """Upload the session tarball. Returns {"ok", "at", "bytes", "error"}."""
     at = _now()
@@ -111,6 +132,7 @@ def save(workspace: Path = WORKSPACE, client=None) -> dict:
                         tar.add(workspace / name, arcname=name, filter=_skip_skills)
             size = f.tell()
             s3 = client or _client()
+            _keep_previous(s3, bucket, key)
             last_err = None
             for delay in _RETRY_DELAYS:
                 if delay:
@@ -128,10 +150,35 @@ def save(workspace: Path = WORKSPACE, client=None) -> dict:
         return {"ok": False, "at": at, "bytes": 0, "error": str(e)}
 
 
+class _Corrupt(Exception):
+    """The object downloaded fine but isn't a readable session tarball."""
+
+
+def _restore_object(s3, bucket: str, key: str, workspace: Path) -> None:
+    # Extract into a scratch dir on the same filesystem, then move into
+    # place: a failed or truncated download never leaves half a session.
+    staging = Path(tempfile.mkdtemp(prefix=".komputer-restore-", dir=workspace))
+    try:
+        with tempfile.TemporaryFile() as f:
+            s3.download_fileobj(bucket, key, f)
+            f.seek(0)
+            try:
+                with tarfile.open(fileobj=f, mode="r:gz") as tar:
+                    tar.extractall(staging, filter=_restore_filter)
+            except (tarfile.TarError, EOFError, gzip.BadGzipFile, zlib.error) as e:
+                raise _Corrupt(str(e)) from e
+        for name in (".claude", ".komputer-session"):
+            if (staging / name).exists():
+                shutil.move(str(staging / name), str(workspace / name))
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
 def restore_if_needed(workspace: Path = WORKSPACE, client=None) -> dict:
-    """Restore the session from S3 if this workspace has none. Returns {"restored", "error"}."""
+    """Restore the session from S3 if this workspace has none.
+    Returns {"restored", "from" ("latest"/"previous"/None), "error"}."""
     global last_restore
-    result = {"restored": False, "error": None}
+    result = {"restored": False, "from": None, "error": None}
     try:
         if (workspace / ".komputer-session").exists():
             return result
@@ -140,29 +187,28 @@ def restore_if_needed(workspace: Path = WORKSPACE, client=None) -> dict:
         try:
             s3.head_object(Bucket=bucket, Key=key)
         except Exception as e:  # noqa: BLE001
-            code = getattr(e, "response", {}).get("Error", {}).get("Code")
-            if code in ("404", "NoSuchKey", "NotFound"):
+            if _missing(e):
                 return result  # brand-new agent: nothing saved yet
             raise
-        # Extract into a scratch dir on the same filesystem, then move into
-        # place: a failed or truncated download never leaves half a session.
-        staging = Path(tempfile.mkdtemp(prefix=".komputer-restore-", dir=workspace))
         try:
-            with tempfile.TemporaryFile() as f:
-                s3.download_fileobj(bucket, key, f)
-                f.seek(0)
-                with tarfile.open(fileobj=f, mode="r:gz") as tar:
-                    tar.extractall(staging, filter=_restore_filter)
-            for name in (".claude", ".komputer-session"):
-                if (staging / name).exists():
-                    shutil.move(str(staging / name), str(workspace / name))
-        finally:
-            shutil.rmtree(staging, ignore_errors=True)
-        result["restored"] = True
-        logger.info("session restored from S3")
+            _restore_object(s3, bucket, key, workspace)
+            result = {"restored": True, "from": "latest", "error": None}
+        except _Corrupt as e:
+            # Only a corrupt latest falls back: after a download error, latest may
+            # be fine, and restoring previous would quietly roll the agent back.
+            previous = os.environ.get("KOMPUTER_S3_PREVIOUS_KEY")
+            if not previous:
+                raise
+            logger.warning("latest session in S3 is unreadable; restoring the previous one", extra={"error": str(e)})
+            try:
+                _restore_object(s3, bucket, previous, workspace)
+            except Exception as e2:  # noqa: BLE001
+                raise RuntimeError(f"latest: {e}; previous: {e2}") from e2
+            result = {"restored": True, "from": "previous", "error": f"latest: {e}"}
+        logger.info("session restored from S3", extra={"from": result["from"]})
     except Exception as e:  # noqa: BLE001
         logger.warning("session restore from S3 failed; starting fresh", extra={"error": str(e)})
-        result = {"restored": False, "error": str(e)}
+        result = {"restored": False, "from": None, "error": str(e)}
     finally:
         last_restore = result
     return result
