@@ -79,10 +79,11 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect, onChang
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ duration: 0.25, delay: i * 0.04, layout: { duration: 0.25, ease: "easeOut" } }}
+              className="h-full"
             >
-              <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block group" onClick={handleCardClick}>
+              <Link href={`/agents/${agent.name}?namespace=${agent.namespace}`} className="block h-full group" onClick={handleCardClick}>
                 <div
-                  className={`relative rounded-[var(--radius-md)] border bg-[var(--color-surface)] ${
+                  className={`relative h-full rounded-[var(--radius-md)] border bg-[var(--color-surface)] ${
                     isSelected
                       ? "border-[var(--color-border)]"
                       : "border-[var(--color-border)] transition-[border-color,box-shadow] duration-150 group-hover:border-[var(--color-border-hover)] group-hover:shadow-[0_0_20px_rgba(63,133,217,0.06),0_0_40px_rgba(139,92,246,0.04)]"
@@ -184,17 +185,19 @@ export function AgentCards({ agents, onDelete, selected, onToggleSelect, onChang
                           {formatRelativeTime(agent.createdAt)}
                         </span>
                       </div>
-                      {agent.storage?.ephemeral && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">storage</span>
-                          <span
-                            className="text-[11px] font-medium text-[var(--color-warning,#FBBF24)]"
-                            title="Ephemeral workspace — no PVC, lost on pod restart"
-                          >
-                            Ephemeral
-                          </span>
-                        </div>
-                      )}
+                      {/* Always laid out (blank when not ephemeral) so every card is the same height. */}
+                      <div
+                        className={cn("flex items-center justify-between", !agent.storage?.ephemeral && "invisible")}
+                        aria-hidden={!agent.storage?.ephemeral}
+                      >
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">storage</span>
+                        <span
+                          className="text-[11px] font-medium text-[var(--color-warning,#FBBF24)]"
+                          title="Ephemeral workspace — no PVC, lost on pod restart"
+                        >
+                          Ephemeral
+                        </span>
+                      </div>
                     </div>
                   </div>
 
