@@ -60,3 +60,25 @@ The empty-string sentinel lets callers conditionally omit `serviceAccountName:` 
 {{ .Values.externalRedis.address }}
 {{- end -}}
 {{- end }}
+
+{{/*
+S3 session store credentials for the operator and API containers: injected from
+s3.credentials.secretName when set (optional, so a missing Secret never blocks
+startup). Without it, the AWS default credential chain applies.
+*/}}
+{{- define "komputer.s3CredentialsEnv" -}}
+{{- if and .Values.s3.enabled .Values.s3.credentials.secretName }}
+- name: AWS_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.s3.credentials.secretName }}
+      key: AWS_ACCESS_KEY_ID
+      optional: true
+- name: AWS_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.s3.credentials.secretName }}
+      key: AWS_SECRET_ACCESS_KEY
+      optional: true
+{{- end }}
+{{- end }}

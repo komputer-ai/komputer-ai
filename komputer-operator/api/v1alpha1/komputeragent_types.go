@@ -225,6 +225,15 @@ type KomputerAgentStatus struct {
 	// Owned by the controller that owns the pod (agent for solo, squad for squad members).
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// SessionStore is the result of the agent's own S3 session saves.
+	// Owned by the API worker.
+	// +optional
+	SessionStore *SessionStoreStatus `json:"sessionStore,omitempty"`
+	// SessionCopiedOutAt is when the operator last saved this agent's session to
+	// S3 on its behalf (for pods that can't save themselves).
+	// Owned by the operator.
+	// +optional
+	SessionCopiedOutAt *metav1.Time `json:"sessionCopiedOutAt,omitempty"`
 	// Conditions holds the latest observations about the agent's state.
 	// Owned by the operator.
 	// +optional

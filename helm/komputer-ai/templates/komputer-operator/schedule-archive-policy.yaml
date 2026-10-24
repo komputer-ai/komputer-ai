@@ -1,0 +1,41 @@
+{{- if .Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy" }}
+# Schedules reuse one agent across runs, and only the S3 session store lets an
+# archived agent run again, so lifecycle: Archive on a schedule needs it. A CRD rule
+# can't see KomputerConfig; this policy reads it as its parameter object.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: komputer-schedule-archive-requires-s3
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  paramKind:
+    apiVersion: komputer.komputer.ai/v1alpha1
+    kind: KomputerConfig
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["komputer.komputer.ai"]
+      apiVersions: ["v1alpha1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["komputerschedules"]
+  validations:
+  - expression: >-
+      !has(object.spec.agent) || !has(object.spec.agent.lifecycle) ||
+      object.spec.agent.lifecycle != 'Archive' ||
+      (has(params.spec.s3) && params.spec.s3.enabled && params.spec.s3.bucket != '')
+    message: "lifecycle: Archive on a schedule requires the S3 session store (KomputerConfig.spec.s3)"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: komputer-schedule-archive-requires-s3
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+spec:
+  policyName: komputer-schedule-archive-requires-s3
+  validationActions: [Deny]
+  paramRef:
+    selector: {}
+    parameterNotFoundAction: Allow
+{{- end }}
