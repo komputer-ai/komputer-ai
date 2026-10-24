@@ -189,8 +189,9 @@ def s2(notes):
     name = f"arch-{RUN}"
     create(name, "Remember the codeword ORCA-3. Reply with just OK.", lifecycle="Archive")
     wait("archived", lambda: (agent(name) or {}).get("status") == "Archived", timeout=480)
-    check(not exists("pod", f"{name}-pod"), "pod should be gone")
-    check(not exists("pvc", f"{name}-pvc"), "PVC should be gone")
+    # Archived is recorded as the deletes start; the pod takes its grace period to go.
+    wait("pod gone", lambda: not exists("pod", f"{name}-pod"), timeout=120)
+    wait("PVC gone", lambda: not exists("pvc", f"{name}-pvc"), timeout=120)
     key = session_key(name)
     check(key in objects(f"komputer/{NS}/{name}/"), "session object should exist")
     a = agent(name)
