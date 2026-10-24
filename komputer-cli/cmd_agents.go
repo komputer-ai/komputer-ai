@@ -552,7 +552,7 @@ func registerAgentCommands(root *cobra.Command) {
 	root.AddCommand(getCmd)
 
 	// ── delete ───────────────────────────────────────────────────────────
-	root.AddCommand(&cobra.Command{
+	deleteCmd := &cobra.Command{
 		Use:     "delete <name> [name...]",
 		Aliases: []string{"rm"},
 		Short:   "Delete one or more agents and all their resources",
@@ -568,7 +568,7 @@ func registerAgentCommands(root *cobra.Command) {
 			}
 			var results []deleteResult
 			for _, name := range args {
-				data, status, err := apiRequest("DELETE", fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(name), nsQuery(cmd)), nil)
+				data, status, err := apiRequest("DELETE", agentDeleteURL(ep, name, cmd), nil)
 				if err != nil {
 					if jsonMode {
 						results = append(results, deleteResult{Name: name, Deleted: false, Error: err.Error()})
@@ -616,7 +616,9 @@ func registerAgentCommands(root *cobra.Command) {
 				os.Exit(1)
 			}
 		},
-	})
+	}
+	deleteCmd.Flags().Bool("force", false, "Delete without waiting for the session to be saved to the S3 session store")
+	root.AddCommand(deleteCmd)
 
 	// ── cancel ───────────────────────────────────────────────────────────
 	root.AddCommand(&cobra.Command{

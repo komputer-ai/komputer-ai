@@ -301,7 +301,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_agent**
-> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
+> Dict[str, str] delete_agent(name, namespace=namespace, recreate_pod=recreate_pod, force=force)
 
 Delete agent
 
@@ -329,10 +329,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     name = 'name_example' # str | Agent name
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     recreate_pod = True # bool | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
+    force = True # bool | Skip saving the session to the S3 session store before deleting (optional)
 
     try:
         # Delete agent
-        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod)
+        api_response = api_instance.delete_agent(name, namespace=namespace, recreate_pod=recreate_pod, force=force)
         print("The response of AgentsApi->delete_agent:\n")
         pprint(api_response)
     except Exception as e:
@@ -349,6 +350,7 @@ Name | Type | Description  | Notes
  **name** | **str**| Agent name | 
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **recreate_pod** | **bool**| If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [optional] 
+ **force** | **bool**| Skip saving the session to the S3 session store before deleting | [optional] 
 
 ### Return type
 
@@ -601,7 +603,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
+> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
 
 List agents
 
@@ -629,6 +631,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     api_instance = komputer_ai.AgentsApi(api_client)
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
+    hide_archived = True # bool | Leave out Archived agents unless status asks for them (optional)
     label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
     q = 'q_example' # str | Case-insensitive substring match against agent name (optional)
     sort = '-created' # str | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to '-created')
@@ -637,7 +640,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -653,6 +656,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
+ **hide_archived** | **bool**| Leave out Archived agents unless status asks for them | [optional] 
  **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
  **q** | **str**| Case-insensitive substring match against agent name | [optional] 
  **sort** | **str**| Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [optional] [default to &#39;-created&#39;]

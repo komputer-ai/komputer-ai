@@ -40,6 +40,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Leave out Archived agents unless status asks for them",
+                        "name": "hideArchived",
+                        "in": "query"
+                    },
+                    {
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -244,6 +250,12 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member",
                         "name": "recreatePod",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Skip saving the session to the S3 session store before deleting",
+                        "name": "force",
                         "in": "query"
                     }
                 ],

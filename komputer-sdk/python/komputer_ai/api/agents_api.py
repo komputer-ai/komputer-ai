@@ -1198,6 +1198,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1221,6 +1222,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1247,6 +1250,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1275,6 +1279,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1298,6 +1303,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1324,6 +1331,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1352,6 +1360,7 @@ class AgentsApi:
         name: Annotated[StrictStr, Field(description="Agent name")],
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         recreate_pod: Annotated[Optional[StrictBool], Field(description="If the agent is a squad member, also delete the squad pod so it is rebuilt without this member")] = None,
+        force: Annotated[Optional[StrictBool], Field(description="Skip saving the session to the S3 session store before deleting")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1375,6 +1384,8 @@ class AgentsApi:
         :type namespace: str
         :param recreate_pod: If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
         :type recreate_pod: bool
+        :param force: Skip saving the session to the S3 session store before deleting
+        :type force: bool
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1401,6 +1412,7 @@ class AgentsApi:
             name=name,
             namespace=namespace,
             recreate_pod=recreate_pod,
+            force=force,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1424,6 +1436,7 @@ class AgentsApi:
         name,
         namespace,
         recreate_pod,
+        force,
         _request_auth,
         _content_type,
         _headers,
@@ -1455,6 +1468,10 @@ class AgentsApi:
         if recreate_pod is not None:
             
             _query_params.append(('recreatePod', recreate_pod))
+            
+        if force is not None:
+            
+            _query_params.append(('force', force))
             
         # process the header parameters
         # process the form parameters
@@ -2448,6 +2465,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2474,6 +2492,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2509,6 +2529,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2541,6 +2562,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2567,6 +2589,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2602,6 +2626,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2634,6 +2659,7 @@ class AgentsApi:
         self,
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
+        hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2660,6 +2686,8 @@ class AgentsApi:
         :type namespace: str
         :param status: Filter by agent phase (case-insensitive), e.g. Running, Sleeping
         :type status: str
+        :param hide_archived: Leave out Archived agents unless status asks for them
+        :type hide_archived: bool
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2695,6 +2723,7 @@ class AgentsApi:
         _param = self._list_agents_serialize(
             namespace=namespace,
             status=status,
+            hide_archived=hide_archived,
             label=label,
             q=q,
             sort=sort,
@@ -2722,6 +2751,7 @@ class AgentsApi:
         self,
         namespace,
         status,
+        hide_archived,
         label,
         q,
         sort,
@@ -2757,6 +2787,10 @@ class AgentsApi:
         if status is not None:
             
             _query_params.append(('status', status))
+            
+        if hide_archived is not None:
+            
+            _query_params.append(('hideArchived', hide_archived))
             
         if label is not None:
             

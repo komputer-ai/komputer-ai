@@ -6807,6 +6807,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Leave out Archived agents unless status asks for them
+        in: query
+        name: hideArchived
+        type: boolean
       - collectionFormat: multi
         description: Label filter key=value; repeat for multiple (AND)
         in: query
@@ -6916,6 +6920,10 @@ paths:
           it is rebuilt without this member
         in: query
         name: recreatePod
+        type: boolean
+      - description: Skip saving the session to the S3 session store before deleting
+        in: query
+        name: force
         type: boolean
       produces:
       - application/json

@@ -27,6 +27,11 @@ paths:
         name: status
         schema:
           type: string
+      - description: Leave out Archived agents unless status asks for them
+        in: query
+        name: hideArchived
+        schema:
+          type: boolean
       - description: Label filter key=value; repeat for multiple (AND)
         explode: true
         in: query
@@ -153,6 +158,11 @@ paths:
           \ it is rebuilt without this member"
         in: query
         name: recreatePod
+        schema:
+          type: boolean
+      - description: Skip saving the session to the S3 session store before deleting
+        in: query
+        name: force
         schema:
           type: boolean
       responses:
@@ -653,6 +663,21 @@ paths:
       summary: Stream agent events (WebSocket)
       tags:
       - agents
+  /config:
+    get:
+      description: "Returns platform settings that change what clients can offer,\
+        \ such as whether the S3 session store is enabled. Never returns credentials."
+      operationId: getConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigResponse"
+          description: Platform configuration
+      summary: Get platform configuration
+      tags:
+      - config
   /connector-templates:
     get:
       description: "Returns the built-in connector templates (GitHub, Slack, Linear,\
@@ -2417,6 +2442,7 @@ components:
           connectors:
           - connectors
           - connectors
+          sessionStore: "{}"
           sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
           effort: effort
@@ -3096,6 +3122,7 @@ components:
           connectors:
           - connectors
           - connectors
+          sessionStore: "{}"
           sleepExpiresAt: sleepExpiresAt
           totalCostUSD: totalCostUSD
           effort: effort
@@ -3803,6 +3830,7 @@ components:
         connectors:
         - connectors
         - connectors
+        sessionStore: "{}"
         sleepExpiresAt: sleepExpiresAt
         totalCostUSD: totalCostUSD
         effort: effort
@@ -4575,6 +4603,14 @@ components:
           items:
             type: string
           type: array
+        sessionStore:
+          allOf:
+          - $ref: "#/components/schemas/SessionStoreResponse"
+          description: |-
+            SessionStore is the S3 session store state: when the session was last
+            saved and whether the last save worked (the agent's own save, or the
+            operator saving it on the agent's behalf). Nil when S3 isn't in use.
+          type: object
         skills:
           description: KomputerSkill names attached to this agent
           items:
@@ -4628,6 +4664,15 @@ components:
       properties:
         instructions:
           type: string
+      type: object
+    ConfigResponse:
+      example:
+        s3:
+          bucket: bucket
+          enabled: true
+      properties:
+        s3:
+          $ref: "#/components/schemas/S3ConfigResponse"
       type: object
     ConnectorResponse:
       example:
@@ -5267,6 +5312,16 @@ components:
         orphanTTL:
           type: string
       type: object
+    S3ConfigResponse:
+      example:
+        bucket: bucket
+        enabled: true
+      properties:
+        bucket:
+          type: string
+        enabled:
+          type: boolean
+      type: object
     ScheduleListResponse:
       example:
         schedules:
@@ -5560,6 +5615,15 @@ components:
           type: string
         namespace:
           type: string
+      type: object
+    SessionStoreResponse:
+      properties:
+        error:
+          type: string
+        lastSavedAt:
+          type: string
+        ok:
+          type: boolean
       type: object
     SkillResponse:
       example:

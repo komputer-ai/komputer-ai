@@ -10,6 +10,22 @@ from komputer_ai.api.secrets_api import SecretsApi
 from komputer_ai.api.connectors_api import ConnectorsApi
 
 
+class TestSessionStoreWrappers:
+    def test_config_api_and_force_delete(self, monkeypatch):
+        from komputer_ai.api.config_api import ConfigApi
+
+        client = KomputerClient("http://localhost:8080")
+        assert isinstance(client.config, ConfigApi)
+
+        calls = {}
+        monkeypatch.setattr(client.agents, "delete_agent", lambda name, **kw: calls.update(name=name, **kw))
+        client.delete_agent("a1", force=True)
+        assert calls == {"name": "a1", "force": True}
+        client.delete_agent("a2")
+        assert calls == {"name": "a2", "force": None}
+        client.close()
+
+
 class TestKomputerClient:
     def test_instantiation(self):
         client = KomputerClient("http://localhost:8080")

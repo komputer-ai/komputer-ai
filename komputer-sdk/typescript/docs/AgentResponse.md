@@ -33,6 +33,7 @@ Name | Type
 `queuePosition` | number
 `queueReason` | string
 `secrets` | Array&lt;string&gt;
+`sessionStore` | [SessionStoreResponse](SessionStoreResponse.md)
 `skills` | Array&lt;string&gt;
 `sleepExpiresAt` | string
 `sleepTTL` | string
@@ -83,6 +84,7 @@ const example = {
   "queuePosition": null,
   "queueReason": null,
   "secrets": null,
+  "sessionStore": null,
   "skills": null,
   "sleepExpiresAt": null,
   "sleepTTL": null,

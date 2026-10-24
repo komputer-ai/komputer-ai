@@ -84,6 +84,13 @@ func printAgent(a AgentResponse) {
 	if a.DeleteTTL != "" {
 		row("Delete TTL:", a.DeleteTTL+expiryHint("deletes", a.DeleteExpiresAt))
 	}
+	if summary := sessionStoreSummary(a.SessionStore); summary != "" {
+		if a.SessionStore.OK {
+			row("Session:", summary)
+		} else {
+			row("Session:", errorStyle.Render(summary))
+		}
+	}
 	if a.TaskTimeout != "" {
 		row("Task Timeout:", a.TaskTimeout+expiryHint("cancels", a.TaskExpiresAt))
 	}
@@ -367,4 +374,31 @@ func dieJSON(msg string, httpStatus int) {
 	enc.SetIndent("", "  ")
 	enc.Encode(map[string]any{"error": msg, "status": httpStatus})
 	os.Exit(1)
+}
+
+// sessionStoreSummary renders the S3 session store state for `agents get`.
+func sessionStoreSummary(s *SessionStoreView) string {
+	if s == nil {
+		return ""
+	}
+	if !s.OK {
+		return "save failed: " + s.Error
+	}
+	if s.LastSavedAt == "" {
+		return "saved"
+	}
+	return "saved " + s.LastSavedAt
+}
+
+// agentDeleteURL is the DELETE URL for an agent, with --namespace and --force.
+func agentDeleteURL(ep, name string, cmd *cobra.Command) string {
+	u := fmt.Sprintf("%s/api/v1/agents/%s%s", ep, url.PathEscape(name), nsQuery(cmd))
+	if force, _ := cmd.Flags().GetBool("force"); force {
+		if strings.Contains(u, "?") {
+			u += "&force=true"
+		} else {
+			u += "?force=true"
+		}
+	}
+	return u
 }

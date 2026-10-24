@@ -61,6 +61,7 @@ export interface DeleteAgentRequest {
     name: string;
     namespace?: string;
     recreatePod?: boolean;
+    force?: boolean;
 }
 
 export interface GetAgentRequest {
@@ -87,6 +88,7 @@ export interface GetAgentEventsRequest {
 export interface ListAgentsRequest {
     namespace?: string;
     status?: string;
+    hideArchived?: boolean;
     label?: Array<string>;
     q?: string;
     sort?: string;
@@ -340,6 +342,10 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['recreatePod'] = requestParameters['recreatePod'];
         }
 
+        if (requestParameters['force'] != null) {
+            queryParameters['force'] = requestParameters['force'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -563,6 +569,10 @@ export class AgentsApi extends runtime.BaseAPI {
 
         if (requestParameters['status'] != null) {
             queryParameters['status'] = requestParameters['status'];
+        }
+
+        if (requestParameters['hideArchived'] != null) {
+            queryParameters['hideArchived'] = requestParameters['hideArchived'];
         }
 
         if (requestParameters['label'] != null) {

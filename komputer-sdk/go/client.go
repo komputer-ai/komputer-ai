@@ -314,6 +314,18 @@ func (c *Client) DeleteAgent(ctx context.Context, name string) (map[string]strin
 	return c.api.AgentsAPI.DeleteAgent(ctx, name).Execute()
 }
 
+// DeleteAgentForce deletes an agent without waiting for its session to be saved
+// to the S3 session store (for when the store is broken and a delete is stuck).
+func (c *Client) DeleteAgentForce(ctx context.Context, name string) (map[string]string, *http.Response, error) {
+	return c.api.AgentsAPI.DeleteAgent(ctx, name).Force(true).Execute()
+}
+
+// GetConfig returns platform settings clients adapt to, such as whether the S3
+// session store is enabled.
+func (c *Client) GetConfig(ctx context.Context) (*komputer.ConfigResponse, *http.Response, error) {
+	return c.api.ConfigAPI.GetConfig(ctx).Execute()
+}
+
 func (c *Client) CancelAgentTask(ctx context.Context, name string) (map[string]string, *http.Response, error) {
 	return c.api.AgentsAPI.CancelAgentTask(ctx, name).Execute()
 }

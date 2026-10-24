@@ -305,7 +305,7 @@ No authorization required
 
 ## deleteAgent
 
-> { [key: string]: string; } deleteAgent(name, namespace, recreatePod)
+> { [key: string]: string; } deleteAgent(name, namespace, recreatePod, force)
 
 Delete agent
 
@@ -331,6 +331,8 @@ async function example() {
     namespace: namespace_example,
     // boolean | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member (optional)
     recreatePod: true,
+    // boolean | Skip saving the session to the S3 session store before deleting (optional)
+    force: true,
   } satisfies DeleteAgentRequest;
 
   try {
@@ -353,6 +355,7 @@ example().catch(console.error);
 | **name** | `string` | Agent name | [Defaults to `undefined`] |
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **recreatePod** | `boolean` | If the agent is a squad member, also delete the squad pod so it is rebuilt without this member | [Optional] [Defaults to `undefined`] |
+| **force** | `boolean` | Skip saving the session to the S3 session store before deleting | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -614,7 +617,7 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace, status, label, q, sort, limit, offset)
+> AgentListResponse listAgents(namespace, status, hideArchived, label, q, sort, limit, offset)
 
 List agents
 
@@ -638,6 +641,8 @@ async function example() {
     namespace: namespace_example,
     // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
     status: status_example,
+    // boolean | Leave out Archived agents unless status asks for them (optional)
+    hideArchived: true,
     // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
     label: ...,
     // string | Case-insensitive substring match against agent name (optional)
@@ -669,6 +674,7 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
+| **hideArchived** | `boolean` | Leave out Archived agents unless status asks for them | [Optional] [Defaults to `undefined`] |
 | **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
 | **q** | `string` | Case-insensitive substring match against agent name | [Optional] [Defaults to `undefined`] |
 | **sort** | `string` | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [Optional] [Defaults to `&#39;-created&#39;`] |

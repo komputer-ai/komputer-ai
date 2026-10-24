@@ -575,6 +575,7 @@ type ApiDeleteAgentRequest struct {
 	name string
 	namespace *string
 	recreatePod *bool
+	force *bool
 }
 
 // Kubernetes namespace
@@ -586,6 +587,12 @@ func (r ApiDeleteAgentRequest) Namespace(namespace string) ApiDeleteAgentRequest
 // If the agent is a squad member, also delete the squad pod so it is rebuilt without this member
 func (r ApiDeleteAgentRequest) RecreatePod(recreatePod bool) ApiDeleteAgentRequest {
 	r.recreatePod = &recreatePod
+	return r
+}
+
+// Skip saving the session to the S3 session store before deleting
+func (r ApiDeleteAgentRequest) Force(force bool) ApiDeleteAgentRequest {
+	r.force = &force
 	return r
 }
 
@@ -637,6 +644,9 @@ func (a *AgentsAPIService) DeleteAgentExecute(r ApiDeleteAgentRequest) (map[stri
 	}
 	if r.recreatePod != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "recreatePod", r.recreatePod, "form", "")
+	}
+	if r.force != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "force", r.force, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1184,6 +1194,7 @@ type ApiListAgentsRequest struct {
 	ApiService *AgentsAPIService
 	namespace *string
 	status *string
+	hideArchived *bool
 	label *[]string
 	q *string
 	sort *string
@@ -1200,6 +1211,12 @@ func (r ApiListAgentsRequest) Namespace(namespace string) ApiListAgentsRequest {
 // Filter by agent phase (case-insensitive), e.g. Running, Sleeping
 func (r ApiListAgentsRequest) Status(status string) ApiListAgentsRequest {
 	r.status = &status
+	return r
+}
+
+// Leave out Archived agents unless status asks for them
+func (r ApiListAgentsRequest) HideArchived(hideArchived bool) ApiListAgentsRequest {
+	r.hideArchived = &hideArchived
 	return r
 }
 
@@ -1278,6 +1295,9 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 	}
 	if r.status != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "status", r.status, "form", "")
+	}
+	if r.hideArchived != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "hideArchived", r.hideArchived, "form", "")
 	}
 	if r.label != nil {
 		t := *r.label

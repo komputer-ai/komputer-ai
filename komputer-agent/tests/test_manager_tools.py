@@ -766,3 +766,10 @@ async def test_schedule_agent_omits_effort_when_absent(mock_api):
     })
     agent = mock_api.last_json.get("agent", {})
     assert "effort" not in agent
+
+
+def test_schedule_agent_accepts_archive_lifecycle():
+    """With the S3 session store, schedules can archive their agent between runs."""
+    lifecycle = manager_tools.schedule_agent.input_schema["properties"]["lifecycle"]
+    assert "Archive" in lifecycle["enum"]
+    assert "S3 session store" in lifecycle["description"]
