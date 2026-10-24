@@ -46,7 +46,7 @@ kubectl create secret generic komputer-s3 -n komputer-ai \
   --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=...
 ```
 
-The chart injects it into the operator and the API, and the operator copies it into every agent namespace (the same way it copies the Anthropic key). The env vars are marked optional, so a missing Secret never stops pods from starting — saves just fail, and the agent shows it.
+The chart injects it into the operator and the API, and the operator copies it into every agent namespace (the same way it copies the Anthropic key) and gives agents the keys as `KOMPUTER_S3_ACCESS_KEY_ID`/`KOMPUTER_S3_SECRET_ACCESS_KEY`. A missing Secret never stops pods from starting — saves just fail, and the agent shows it.
 
 ### IAM roles (EKS IRSA / Pod Identity, GKE Workload Identity)
 
@@ -67,12 +67,12 @@ For agents, set `podSpec.serviceAccountName` on the agent template to a ServiceA
 
 ### Other credentials
 
-To use credentials in any other form, leave `s3.credentials.secretName` empty and add the env vars yourself — the AWS default credential chain picks them up:
+The store's credentials use their own env var names, `KOMPUTER_S3_ACCESS_KEY_ID` and `KOMPUTER_S3_SECRET_ACCESS_KEY`, so they never collide with an agent's other AWS use (such as Bedrock's `AWS_REGION` and credentials). To provide credentials some other way, leave `s3.credentials.secretName` empty and either:
 
-- **Agents** — in the agent template's `podSpec.containers[0].env` (for example `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` from your own Secret, `AWS_SESSION_TOKEN`, `AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE`, or `AWS_PROFILE`).
-- **Operator and API** — in Helm `operator.extraEnv` and `api.extraEnv`.
+- **Set the store's own variables yourself** — `KOMPUTER_S3_ACCESS_KEY_ID`/`KOMPUTER_S3_SECRET_ACCESS_KEY` from your own Secret, in the agent template's `podSpec.containers[0].env` for agents and in Helm `operator.extraEnv` / `api.extraEnv` for the operator and API; or
+- **Rely on the AWS default credential chain** — when the `KOMPUTER_S3_*` keys aren't set, the store uses whatever the AWS SDK finds: `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE`, `AWS_PROFILE`, or an IAM role on the ServiceAccount. These are shared with anything else in the pod that uses AWS.
 
-When `secretName` is set, the injected `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` take precedence over template env vars with the same name. Credentials are read when a pod starts, so after rotating them restart the operator, the API, and the agents.
+When `secretName` is set, the injected `KOMPUTER_S3_*` variables take precedence over template env vars with the same name. Credentials are read when a pod starts, so after rotating them restart the operator, the API, and the agents.
 
 ### MinIO, R2 and other stores
 

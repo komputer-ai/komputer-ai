@@ -486,6 +486,10 @@ const defaultS3TerminationGraceSeconds int64 = 60
 // the agent just reports a failed save. Without a Secret, the AWS default
 // credential chain applies (an IAM role on the pod's ServiceAccount, or env vars
 // added through the agent template).
+//
+// Every name is KOMPUTER_S3_*: operator env vars replace template env vars of
+// the same name, so setting AWS_REGION or AWS_ACCESS_KEY_ID here would clobber
+// the agent's own AWS settings (e.g. Bedrock's region and credentials).
 func buildS3EnvVars(s3 *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.KomputerAgent) []corev1.EnvVar {
 	if !s3.IsEnabled() {
 		return nil
@@ -493,7 +497,6 @@ func buildS3EnvVars(s3 *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.Kompute
 	env := []corev1.EnvVar{
 		{Name: "KOMPUTER_S3_BUCKET", Value: s3.Bucket},
 		{Name: "KOMPUTER_S3_REGION", Value: s3.Region},
-		{Name: "AWS_REGION", Value: s3.Region},
 		{Name: "KOMPUTER_S3_ENDPOINT", Value: s3.Endpoint},
 		{Name: "KOMPUTER_S3_FORCE_PATH_STYLE", Value: fmt.Sprintf("%t", s3.ForcePathStyle)},
 		{Name: s3KeyEnv, Value: komputerv1alpha1.SessionStoreKey(s3, agent)},
@@ -501,8 +504,8 @@ func buildS3EnvVars(s3 *komputerv1alpha1.S3Spec, agent *komputerv1alpha1.Kompute
 	if ref := s3.CredentialsSecret; ref != nil && ref.Name != "" {
 		optional := true
 		for _, kv := range [][2]string{
-			{"AWS_ACCESS_KEY_ID", komputerv1alpha1.S3CredentialsAccessKeyKey},
-			{"AWS_SECRET_ACCESS_KEY", komputerv1alpha1.S3CredentialsSecretKeyKey},
+			{"KOMPUTER_S3_ACCESS_KEY_ID", komputerv1alpha1.S3CredentialsAccessKeyKey},
+			{"KOMPUTER_S3_SECRET_ACCESS_KEY", komputerv1alpha1.S3CredentialsSecretKeyKey},
 		} {
 			env = append(env, corev1.EnvVar{
 				Name: kv[0],

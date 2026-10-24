@@ -14,8 +14,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"golang.org/x/sync/singleflight"
 
@@ -27,10 +30,8 @@ type sessionObjectGetter interface {
 	GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, error)
 }
 
-// s3Getter is the aws-sdk-go-v2 sessionObjectGetter. Credentials come from the
-// AWS default chain: AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (injected by Helm
-// from s3.credentials.secretName, or added via api.extraEnv), or an IAM role on
-// the API's ServiceAccount.
+// s3Getter is the aws-sdk-go-v2 sessionObjectGetter (see loadS3Config for
+// credentials).
 type s3Getter struct{ client *s3.Client }
 
 func (g *s3Getter) GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, error) {
@@ -41,14 +42,32 @@ func (g *s3Getter) GetObject(ctx context.Context, bucket, key string) (io.ReadCl
 	return out.Body, nil
 }
 
-func newS3Getter(ctx context.Context, spec *komputerv1alpha1.S3Spec) (sessionObjectGetter, error) {
+// loadS3Config builds the AWS config for the session store. Static keys arrive
+// as KOMPUTER_S3_ACCESS_KEY_ID/KOMPUTER_S3_SECRET_ACCESS_KEY, injected by Helm
+// from s3.credentials.secretName (or added via api.extraEnv) — named apart from
+// AWS_* so they never clobber the API's other AWS settings (Bedrock). Without
+// them, the AWS default credential chain applies (an IAM role on the API's
+// ServiceAccount, or AWS_* env vars).
+func loadS3Config(ctx context.Context, spec *komputerv1alpha1.S3Spec) (aws.Config, error) {
 	region := spec.Region
 	if region == "" {
 		region = "us-east-1"
 	}
-	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+	opts := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(region)}
+	if ak, sk := os.Getenv("KOMPUTER_S3_ACCESS_KEY_ID"), os.Getenv("KOMPUTER_S3_SECRET_ACCESS_KEY"); ak != "" && sk != "" {
+		opts = append(opts, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(ak, sk, "")))
+	}
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("load AWS config: %w", err)
+		return aws.Config{}, fmt.Errorf("load AWS config: %w", err)
+	}
+	return cfg, nil
+}
+
+func newS3Getter(ctx context.Context, spec *komputerv1alpha1.S3Spec) (sessionObjectGetter, error) {
+	cfg, err := loadS3Config(ctx, spec)
+	if err != nil {
+		return nil, err
 	}
 	return &s3Getter{client: s3.NewFromConfig(cfg, func(o *s3.Options) {
 		if spec.Endpoint != "" {

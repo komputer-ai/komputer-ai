@@ -47,7 +47,6 @@ func TestBuildS3EnvVars_StaticKeys(t *testing.T) {
 	for name, want := range map[string]string{
 		"KOMPUTER_S3_BUCKET":           "sessions",
 		"KOMPUTER_S3_REGION":           "eu-west-1",
-		"AWS_REGION":                   "eu-west-1",
 		"KOMPUTER_S3_ENDPOINT":         "http://minio:9000",
 		"KOMPUTER_S3_FORCE_PATH_STYLE": "true",
 		"KOMPUTER_S3_KEY":              "komputer/team-a/a1/u-1/session.tar.gz",
@@ -57,8 +56,8 @@ func TestBuildS3EnvVars_StaticKeys(t *testing.T) {
 		}
 	}
 	for name, key := range map[string]string{
-		"AWS_ACCESS_KEY_ID":     komputerv1alpha1.S3CredentialsAccessKeyKey,
-		"AWS_SECRET_ACCESS_KEY": komputerv1alpha1.S3CredentialsSecretKeyKey,
+		"KOMPUTER_S3_ACCESS_KEY_ID":     komputerv1alpha1.S3CredentialsAccessKeyKey,
+		"KOMPUTER_S3_SECRET_ACCESS_KEY": komputerv1alpha1.S3CredentialsSecretKeyKey,
 	} {
 		ref := env[name].ValueFrom
 		if ref == nil || ref.SecretKeyRef == nil {
@@ -74,7 +73,7 @@ func TestBuildS3EnvVars_StaticKeys(t *testing.T) {
 func TestBuildS3EnvVars_CredentialRefsAreOptional(t *testing.T) {
 	s3 := &komputerv1alpha1.S3Spec{Enabled: true, Bucket: "b", CredentialsSecret: &komputerv1alpha1.S3CredentialsSecretRef{Name: "s3-creds"}}
 	env := envByName(buildS3EnvVars(s3, s3TestAgent()))
-	for _, name := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} {
+	for _, name := range []string{"KOMPUTER_S3_ACCESS_KEY_ID", "KOMPUTER_S3_SECRET_ACCESS_KEY"} {
 		ref := env[name].ValueFrom.SecretKeyRef
 		if ref.Optional == nil || !*ref.Optional {
 			t.Errorf("%s: secretKeyRef.optional must be true", name)
@@ -84,8 +83,8 @@ func TestBuildS3EnvVars_CredentialRefsAreOptional(t *testing.T) {
 
 func TestBuildS3EnvVars_IAMRole_NoCredentialVars(t *testing.T) {
 	env := envByName(buildS3EnvVars(&komputerv1alpha1.S3Spec{Enabled: true, Bucket: "b"}, s3TestAgent()))
-	if _, ok := env["AWS_ACCESS_KEY_ID"]; ok {
-		t.Error("no credentials Secret configured: AWS_ACCESS_KEY_ID must not be set")
+	if _, ok := env["KOMPUTER_S3_ACCESS_KEY_ID"]; ok {
+		t.Error("no credentials Secret configured: KOMPUTER_S3_ACCESS_KEY_ID must not be set")
 	}
 	if env["KOMPUTER_S3_FORCE_PATH_STYLE"].Value != "false" {
 		t.Errorf("KOMPUTER_S3_FORCE_PATH_STYLE = %q, want false", env["KOMPUTER_S3_FORCE_PATH_STYLE"].Value)
@@ -168,5 +167,32 @@ func TestBuildPod_S3SetsGracePeriodUnlessTemplateSets(t *testing.T) {
 		if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
 			t.Errorf("%s: terminationGracePeriodSeconds = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// The store's settings must never clobber the agent's own AWS settings: the
+// cluster template sets AWS_REGION (and maybe AWS keys) for Bedrock, and
+// operator env vars replace template ones with the same name.
+func TestBuildS3EnvVars_DoesNotSetGenericAWSVars(t *testing.T) {
+	s3 := &komputerv1alpha1.S3Spec{Enabled: true, Bucket: "b", Region: "eu-west-1",
+		CredentialsSecret: &komputerv1alpha1.S3CredentialsSecretRef{Name: "s3-creds"}}
+	for _, e := range buildS3EnvVars(s3, s3TestAgent()) {
+		if e.Name == "AWS_REGION" || e.Name == "AWS_ACCESS_KEY_ID" || e.Name == "AWS_SECRET_ACCESS_KEY" {
+			t.Errorf("buildS3EnvVars sets %s, which would override Bedrock settings", e.Name)
+		}
+	}
+}
+
+// A missing S3 credentials Secret must not stop agents from starting: the
+// Anthropic/Redis secrets are hard requirements, the session store's isn't.
+func TestReconcileAgentSecrets_MissingS3SecretDoesNotBlock(t *testing.T) {
+	scheme := newTestScheme(t)
+	tpl := &komputerv1alpha1.KomputerAgentTemplate{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "team-a"}}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tpl).Build()
+	config := &komputerv1alpha1.KomputerConfig{Spec: komputerv1alpha1.KomputerConfigSpec{S3: &komputerv1alpha1.S3Spec{
+		Enabled: true, Bucket: "b", CredentialsSecret: &komputerv1alpha1.S3CredentialsSecretRef{Name: "s3-creds"},
+	}}}
+	if _, err := reconcileAgentSecrets(context.Background(), c, s3TestAgent(), config, "komputer-system"); err != nil {
+		t.Fatalf("a missing S3 credentials Secret must not block the agent: %v", err)
 	}
 }
