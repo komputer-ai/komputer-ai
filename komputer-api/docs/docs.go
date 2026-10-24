@@ -800,6 +800,27 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/config": {
+            "get": {
+                "description": "Returns platform settings that change what clients can offer, such as whether the S3 session store is enabled. Never returns credentials.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "config"
+                ],
+                "summary": "Get platform configuration",
+                "operationId": "getConfig",
+                "responses": {
+                    "200": {
+                        "description": "Platform configuration",
+                        "schema": {
+                            "$ref": "#/definitions/main.ConfigResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/connector-templates": {
             "get": {
                 "description": "Returns the built-in connector templates (GitHub, Slack, Linear, Notion, ...) with their MCP URL, auth type and setup guide.",
@@ -3195,6 +3216,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "sessionStore": {
+                    "description": "SessionStore is the S3 session store state: when the session was last\nsaved and whether the last save worked (the agent's own save, or the\noperator saving it on the agent's behalf). Nil when S3 isn't in use.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.SessionStoreResponse"
+                        }
+                    ]
+                },
                 "skills": {
                     "description": "KomputerSkill names attached to this agent",
                     "type": "array",
@@ -3259,6 +3288,14 @@ const docTemplate = `{
             "properties": {
                 "instructions": {
                     "type": "string"
+                }
+            }
+        },
+        "main.ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "s3": {
+                    "$ref": "#/definitions/main.S3ConfigResponse"
                 }
             }
         },
@@ -3917,6 +3954,17 @@ const docTemplate = `{
                 }
             }
         },
+        "main.S3ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "bucket": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "main.ScheduleListResponse": {
             "type": "object",
             "properties": {
@@ -4042,6 +4090,20 @@ const docTemplate = `{
                 },
                 "namespace": {
                     "type": "string"
+                }
+            }
+        },
+        "main.SessionStoreResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "lastSavedAt": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
                 }
             }
         },

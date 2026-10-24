@@ -199,6 +199,13 @@ definitions:
         items:
           type: string
         type: array
+      sessionStore:
+        allOf:
+        - $ref: '#/definitions/main.SessionStoreResponse'
+        description: |-
+          SessionStore is the S3 session store state: when the session was last
+          saved and whether the last save worked (the agent's own save, or the
+          operator saving it on the agent's behalf). Nil when S3 isn't in use.
       skills:
         description: KomputerSkill names attached to this agent
         items:
@@ -252,6 +259,11 @@ definitions:
     properties:
       instructions:
         type: string
+    type: object
+  main.ConfigResponse:
+    properties:
+      s3:
+        $ref: '#/definitions/main.S3ConfigResponse'
     type: object
   main.ConnectorResponse:
     properties:
@@ -738,6 +750,13 @@ definitions:
       orphanTTL:
         type: string
     type: object
+  main.S3ConfigResponse:
+    properties:
+      bucket:
+        type: string
+      enabled:
+        type: boolean
+    type: object
   main.ScheduleListResponse:
     properties:
       schedules:
@@ -821,6 +840,15 @@ definitions:
         type: string
       namespace:
         type: string
+    type: object
+  main.SessionStoreResponse:
+    properties:
+      error:
+        type: string
+      lastSavedAt:
+        type: string
+      ok:
+        type: boolean
     type: object
   main.SkillResponse:
     properties:
@@ -7315,6 +7343,21 @@ paths:
       summary: Stream agent events (WebSocket)
       tags:
       - agents
+  /config:
+    get:
+      description: Returns platform settings that change what clients can offer, such
+        as whether the S3 session store is enabled. Never returns credentials.
+      operationId: getConfig
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Platform configuration
+          schema:
+            $ref: '#/definitions/main.ConfigResponse'
+      summary: Get platform configuration
+      tags:
+      - config
   /connector-templates:
     get:
       description: Returns the built-in connector templates (GitHub, Slack, Linear,
