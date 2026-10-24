@@ -38,6 +38,7 @@
   --color-status-sleeping: #FBBF24;
   --color-status-success: #34D399;
   --color-status-error: #F87171;
+  --color-status-archived: #818CF8;
 
   /*
    * Outer shadow. On dark surfaces a black drop-shadow is invisible — we use
@@ -91,6 +92,7 @@
   --color-status-sleeping: #d97706;
   --color-status-success: #059669;
   --color-status-error: #dc2626;
+  --color-status-archived: #4F46E5;
 
   /* Outer drop-shadow on light surfaces: neutral hue, soft. */
   --shadow-color: 0, 0, 0;

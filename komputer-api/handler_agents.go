@@ -13,6 +13,7 @@ import (
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -136,6 +137,10 @@ type AgentResponse struct {
 	Errors         []string          `json:"errors,omitempty"`
 	Labels         map[string]string `json:"labels,omitempty"`
 	CompletionTime string            `json:"completionTime,omitempty"`
+	// SessionStore is the S3 session store state: when the session was last
+	// saved and whether the last save worked (the agent's own save, or the
+	// operator saving it on the agent's behalf). Nil when S3 isn't in use.
+	SessionStore *SessionStoreResponse `json:"sessionStore,omitempty"`
 }
 
 // buildAgentInternalSystemPrompt assembles the internal system prompt for an
@@ -326,7 +331,43 @@ func withAgentTTL(ctx context.Context, k8s *K8sClient, resp AgentResponse, agent
 
 // fillAgentTTL copies an agent's TTL spec and status timestamps onto a response.
 // Kept as a helper because every response path needs all eight fields.
+// SessionStoreResponse is the S3 session store state of one agent.
+type SessionStoreResponse struct {
+	LastSavedAt string `json:"lastSavedAt,omitempty"`
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+}
+
+// sessionStoreResponse folds status.sessionStore (the agent's own saves) and the
+// operator's SessionSaved condition (saves it makes on the agent's behalf) into
+// one view. A False condition newer than the agent's last attempt wins: it's the
+// most recent save attempt, and it's what blocks an archive or a delete.
+func sessionStoreResponse(agent *komputerv1alpha1.KomputerAgent) *SessionStoreResponse {
+	ss := agent.Status.SessionStore
+	cond := meta.FindStatusCondition(agent.Status.Conditions, komputerv1alpha1.ConditionSessionSaved)
+	if ss == nil && cond == nil && agent.Status.SessionCopiedOutAt == nil {
+		return nil
+	}
+	resp := &SessionStoreResponse{OK: true}
+	last := agent.Status.SessionCopiedOutAt
+	if ss != nil {
+		resp.OK, resp.Error = ss.OK, ss.Error
+		if ss.LastSavedAt != nil && (last == nil || ss.LastSavedAt.After(last.Time)) {
+			last = ss.LastSavedAt
+		}
+	}
+	// A failed operator save only counts if it's newer than the agent's own
+	// last attempt; otherwise a later successful save has superseded it.
+	if cond != nil && cond.Status == metav1.ConditionFalse &&
+		(ss == nil || ss.LastAttemptAt == nil || cond.LastTransitionTime.After(ss.LastAttemptAt.Time)) {
+		resp.OK, resp.Error = false, cond.Message
+	}
+	resp.LastSavedAt = formatTime(last)
+	return resp
+}
+
 func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
+	resp.SessionStore = sessionStoreResponse(agent)
 	if agent.Spec.SleepTTL != nil {
 		resp.SleepTTL = agent.Spec.SleepTTL.Duration.String()
 	}
@@ -494,7 +535,8 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check agent: " + err.Error()})
 			return
 		}
-		if existing != nil && agentArchived(existing) {
+		s3On := k8s.S3Enabled(c.Request.Context())
+		if existing != nil && agentArchived(existing) && !s3On {
 			c.JSON(http.StatusConflict, gin.H{"error": ErrAgentArchived.Error()})
 			return
 		}
@@ -533,15 +575,17 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				})
 				sleepTTLToCheck = sleepTTL
 			}
-			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 		}
 
 		if existing != nil {
-			// Wake-up flow for sleeping agents
-			if existing.Status.Phase == komputerv1alpha1.AgentPhaseSleeping {
+			// Wake-up flow for sleeping agents (and, with the S3 session store,
+			// archived ones — they wake into a fresh workspace and restore their
+			// session from S3).
+			if agentDormant(existing, s3On) {
 				// A wake-with-task always starts a brand new task, so the lifetime
 				// budget gates it the same way it gates a forward below. A plain idle
 				// wake (no task) goes through the separate /wake endpoint instead,
@@ -821,6 +865,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 // @Param name path string true "Agent name"
 // @Param namespace query string false "Kubernetes namespace"
 // @Param recreatePod query bool false "If the agent is a squad member, also delete the squad pod so it is rebuilt without this member"
+// @Param force query bool false "Skip saving the session to the S3 session store before deleting"
 // @Success 200 {object} map[string]string "Agent deleted"
 // @Failure 404 {object} map[string]string "Agent not found"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -845,7 +890,13 @@ func deleteAgent(k8s *K8sClient, worker *RedisWorker) gin.HandlerFunc {
 			}
 		}
 
-		if err := k8s.DeleteAgent(c.Request.Context(), ns, name); err != nil {
+		deleteFn := k8s.DeleteAgent
+		if c.Query("force") == "true" {
+			// The operator holds deletes until the session is saved to S3; force
+			// skips that (e.g. the bucket is broken and the delete is stuck).
+			deleteFn = k8s.ForceDeleteAgent
+		}
+		if err := deleteFn(c.Request.Context(), ns, name); err != nil {
 			if errors.IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 				return
@@ -1022,6 +1073,82 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 
 		Logger.Infow("idle-woke agent", "namespace", ns, "agent_name", name)
 		agentActionsTotal.WithLabelValues("idle_wake", "success").Inc()
+		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
+			Name:               agent.Name,
+			Namespace:          agent.Namespace,
+			Model:              agent.Spec.Model,
+			Effort:             agent.Spec.Effort,
+			Status:             string(agent.Status.Phase),
+			TaskStatus:         string(agent.Status.TaskStatus),
+			LastTaskMessage:    agent.Status.LastTaskMessage,
+			Lifecycle:          string(agent.Spec.Lifecycle),
+			LastTaskCostUSD:    agent.Status.LastTaskCostUSD,
+			TotalCostUSD:       agent.Status.TotalCostUSD,
+			TotalTokens:        agent.Status.TotalTokens,
+			ModelContextWindow: agent.Status.ModelContextWindow,
+			Secrets:            collectSecretKeys(*c, k8s, ns, agent.Spec.Secrets),
+			Memories:           agent.Spec.Memories,
+			Skills:             mergeDefaultSkills(agent.Spec.Skills, defaultSkills),
+			Connectors:         agent.Spec.Connectors,
+			AllowedTools:       agent.Spec.AllowedTools,
+			DisallowedTools:    agent.Spec.DisallowedTools,
+			Instructions:       agent.Spec.Instructions,
+			SystemPrompt:       agent.Spec.SystemPrompt,
+			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
+			Priority:           agent.Spec.Priority,
+			QueuePosition:      agent.Status.QueuePosition,
+			QueueReason:        agent.Status.QueueReason,
+			PodSpec:            agent.Spec.PodSpec,
+			Storage:            agent.Spec.Storage,
+			Squad:              agent.Status.Squad,
+			SquadName:          resolveSquadName(c.Request.Context(), k8s, agent),
+			Labels:             agent.Spec.Labels,
+			CompletionTime:     formatTime(agent.Status.CompletionTime),
+		}, agent))
+	}
+}
+
+// archiveAgent archives an agent as soon as it's idle, without changing its
+// lifecycle — the "archive now" counterpart to sleepAgent. Already Archived is a
+// no-op (200, current state).
+// @ID archiveAgent
+// @Summary Archive an agent now
+// @Description Archives an agent once it's idle (pod and workspace/PVC deleted, the agent kept as a record), without changing spec.lifecycle. With the S3 session store on, the latest session is saved first and the archived agent can run again later. A no-op (200, current state) if already archived.
+// @Tags agents
+// @Produce json
+// @Param name path string true "Agent name"
+// @Param namespace query string false "Kubernetes namespace"
+// @Success 200 {object} AgentResponse "Archive requested (or already archived)"
+// @Failure 404 {object} map[string]string "Agent not found"
+// @Failure 409 {object} map[string]string "Agent is running a task, or is in a squad"
+// @Failure 500 {object} map[string]string "Internal error"
+// @Router /agents/{name}/archive [post]
+func archiveAgent(k8s *K8sClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		ns := resolveNamespace(c, k8s)
+		defaultSkills, _ := k8s.ListDefaultSkillNames(c.Request.Context())
+
+		agent, err := k8s.ArchiveAgentNow(c.Request.Context(), ns, name)
+		if err != nil {
+			switch {
+			case errors.IsNotFound(err):
+				c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			case err == ErrAgentBusy:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": "agent is running a task; cancel it first"})
+			case err == ErrAgentInSquad:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			default:
+				agentActionsTotal.WithLabelValues("archive_now", "error").Inc()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to archive agent: " + err.Error()})
+			}
+			return
+		}
+
+		Logger.Infow("archive-requested agent", "namespace", ns, "agent_name", name)
+		agentActionsTotal.WithLabelValues("archive_now", "success").Inc()
 		c.JSON(http.StatusOK, withAgentTTL(c.Request.Context(), k8s, AgentResponse{
 			Name:               agent.Name,
 			Namespace:          agent.Namespace,
@@ -1266,16 +1393,14 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 		if len(events) == 0 && shouldBackfillEvents(before, after, around) {
 			ns := resolveNamespace(c, k8s)
 			agent, getErr := k8s.GetAgent(c.Request.Context(), ns, name)
-			if getErr == nil && agent.Status.PodName != "" && agent.Status.SessionID != "" {
-				// Fetch ALL events (no limit) so we backfill the full history.
-				var totalCost float64
-				if agent.Status.TotalCostUSD != "" {
-					fmt.Sscanf(agent.Status.TotalCostUSD, "%f", &totalCost)
-				}
-				allSessionEvents := fetchSessionEvents(c.Request.Context(), k8s, ns, agent.Status.PodName, agent.Status.SessionID, name, 0, agent.Spec.Model, totalCost)
+			if getErr == nil {
+				// Fetch ALL events (no limit) so we backfill the full history: from
+				// the pod, or — when it has none — from the S3 session store.
+				// Backfilled synchronously so pagination works on the next request.
+				allSessionEvents := sessionBackfillEvents(c.Request.Context(), k8s, ns, agent, func(evs []AgentEvent) {
+					backfillRedisHistory(worker.Rdb, name, evs)
+				})
 				if len(allSessionEvents) > 0 {
-					// Backfill synchronously so pagination works on the next request.
-					backfillRedisHistory(worker.Rdb, name, allSessionEvents)
 					// Serve only the requested limit.
 					if int64(len(allSessionEvents)) > limit {
 						events = allSessionEvents[int64(len(allSessionEvents))-limit:]
@@ -1308,6 +1433,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 // @Produce json
 // @Param namespace query string false "Kubernetes namespace"
 // @Param status query string false "Filter by agent phase (case-insensitive), e.g. Running, Sleeping"
+// @Param hideArchived query bool false "Leave out Archived agents unless status asks for them"
 // @Param label query []string false "Label filter key=value; repeat for multiple (AND)" collectionFormat(multi)
 // @Param q query string false "Case-insensitive substring match against agent name"
 // @Param sort query string false "Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created" default(-created)
@@ -1411,6 +1537,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 
 		page, total, nextOffset, facets, err := filterSortPaginateAgents(all, AgentListQuery{
 			Status:       statusFilter,
+			HideArchived: c.Query("hideArchived") == "true",
 			Labels:       labelFilter,
 			FilterLabels: metaLabels,
 			Q:            c.Query("q"),
@@ -1475,7 +1602,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 				return
 			}
 		}
-		if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentArchived(target) {
+		if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil && agentArchived(target) && !k8s.S3Enabled(c.Request.Context()) {
 			if err := validateArchivedPatch(req); err != nil {
 				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 				return
@@ -1530,7 +1657,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			if sleepTTL.Set {
 				sleepTTLToCheck = sleepTTL.Value
 			}
-			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, lifecycleToCheck, sleepTTLToCheck, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

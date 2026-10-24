@@ -18,3 +18,17 @@ spec:
       {{- end }}
     {{- end }}
   apiURL: {{ include "komputer.apiURL" . }}
+  {{- if .Values.s3.enabled }}
+  s3:
+    enabled: true
+    bucket: {{ required "s3.bucket is required when s3.enabled is true" .Values.s3.bucket | quote }}
+    region: {{ .Values.s3.region | quote }}
+    endpoint: {{ .Values.s3.endpoint | quote }}
+    forcePathStyle: {{ .Values.s3.forcePathStyle }}
+    prefix: {{ .Values.s3.prefix | quote }}
+    {{- if .Values.s3.credentials.secretName }}
+    credentialsSecret:
+      name: {{ .Values.s3.credentials.secretName | quote }}
+      namespace: {{ .Release.Namespace | quote }}
+    {{- end }}
+  {{- end }}

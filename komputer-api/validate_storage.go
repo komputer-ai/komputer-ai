@@ -12,8 +12,12 @@ import (
 // workspace — sleeping deletes the pod, which would wipe it — so letting such a
 // request through would mean the user's Sleep/sleepTTL setting is silently ignored.
 // Rejecting it here surfaces that mismatch immediately instead of at reconcile time.
-func validateEphemeralStorage(ephemeral bool, lifecycle string, sleepTTL *metav1.Duration) error {
-	if !ephemeral {
+//
+// With the S3 session store on (s3On), sleeping an ephemeral agent is allowed:
+// its session is saved to S3 and restored on wake, and the operator only sleeps
+// it once the latest task is saved.
+func validateEphemeralStorage(ephemeral bool, lifecycle string, sleepTTL *metav1.Duration, s3On bool) error {
+	if !ephemeral || s3On {
 		return nil
 	}
 	if lifecycle == string(komputerv1alpha1.AgentLifecycleSleep) {

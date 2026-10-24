@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { SessionStoreResponse } from './SessionStoreResponse';
+import {
+    SessionStoreResponseFromJSON,
+    SessionStoreResponseFromJSONTyped,
+    SessionStoreResponseToJSON,
+    SessionStoreResponseToJSONTyped,
+} from './SessionStoreResponse';
 import type { V1alpha1StorageSpec } from './V1alpha1StorageSpec';
 import {
     V1alpha1StorageSpecFromJSON,
@@ -208,6 +215,14 @@ export interface AgentResponse {
      */
     secrets?: Array<string>;
     /**
+     * SessionStore is the S3 session store state: when the session was last
+     * saved and whether the last save worked (the agent's own save, or the
+     * operator saving it on the agent's behalf). Nil when S3 isn't in use.
+     * @type {SessionStoreResponse}
+     * @memberof AgentResponse
+     */
+    sessionStore?: SessionStoreResponse;
+    /**
      * KomputerSkill names attached to this agent
      * @type {Array<string>}
      * @memberof AgentResponse
@@ -347,6 +362,7 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'queuePosition': json['queuePosition'] == null ? undefined : json['queuePosition'],
         'queueReason': json['queueReason'] == null ? undefined : json['queueReason'],
         'secrets': json['secrets'] == null ? undefined : json['secrets'],
+        'sessionStore': json['sessionStore'] == null ? undefined : SessionStoreResponseFromJSON(json['sessionStore']),
         'skills': json['skills'] == null ? undefined : json['skills'],
         'sleepExpiresAt': json['sleepExpiresAt'] == null ? undefined : json['sleepExpiresAt'],
         'sleepTTL': json['sleepTTL'] == null ? undefined : json['sleepTTL'],
@@ -403,6 +419,7 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'queuePosition': value['queuePosition'],
         'queueReason': value['queueReason'],
         'secrets': value['secrets'],
+        'sessionStore': SessionStoreResponseToJSON(value['sessionStore']),
         'skills': value['skills'],
         'sleepExpiresAt': value['sleepExpiresAt'],
         'sleepTTL': value['sleepTTL'],

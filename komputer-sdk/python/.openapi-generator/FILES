@@ -6,6 +6,8 @@ docs/AgentListResponse.md
 docs/AgentResponse.md
 docs/AgentsApi.md
 docs/CompactAgentRequest.md
+docs/ConfigApi.md
+docs/ConfigResponse.md
 docs/ConnectorResponse.md
 docs/ConnectorsApi.md
 docs/CostBreakdownResponse.md
@@ -30,12 +32,14 @@ docs/PatchMemoryRequest.md
 docs/PatchScheduleRequest.md
 docs/PatchSkillRequest.md
 docs/PatchSquadRequest.md
+docs/S3ConfigResponse.md
 docs/ScheduleListResponse.md
 docs/ScheduleResponse.md
 docs/SchedulesApi.md
 docs/SecretListResponse.md
 docs/SecretResponse.md
 docs/SecretsApi.md
+docs/SessionStoreResponse.md
 docs/SkillResponse.md
 docs/SkillsApi.md
 docs/SquadListResponse.md
@@ -201,6 +205,7 @@ docs/V1alpha1StorageSpec.md
 komputer_ai/__init__.py
 komputer_ai/api/__init__.py
 komputer_ai/api/agents_api.py
+komputer_ai/api/config_api.py
 komputer_ai/api/connectors_api.py
 komputer_ai/api/memories_api.py
 komputer_ai/api/offices_api.py
@@ -220,6 +225,7 @@ komputer_ai/models/agent_list_facets.py
 komputer_ai/models/agent_list_response.py
 komputer_ai/models/agent_response.py
 komputer_ai/models/compact_agent_request.py
+komputer_ai/models/config_response.py
 komputer_ai/models/connector_response.py
 komputer_ai/models/cost_breakdown_response.py
 komputer_ai/models/create_agent_request.py
@@ -241,10 +247,12 @@ komputer_ai/models/patch_memory_request.py
 komputer_ai/models/patch_schedule_request.py
 komputer_ai/models/patch_skill_request.py
 komputer_ai/models/patch_squad_request.py
+komputer_ai/models/s3_config_response.py
 komputer_ai/models/schedule_list_response.py
 komputer_ai/models/schedule_response.py
 komputer_ai/models/secret_list_response.py
 komputer_ai/models/secret_response.py
+komputer_ai/models/session_store_response.py
 komputer_ai/models/skill_response.py
 komputer_ai/models/squad_list_response.py
 komputer_ai/models/squad_member_response.py

@@ -54,6 +54,12 @@ spec:
         - name: DISABLE_WEBHOOKS
           value: "true"
         {{- end }}
+        - name: KOMPUTER_MAX_CONCURRENT_SESSION_SAVERS
+          value: {{ .Values.operator.sessionSaver.maxConcurrent | quote }}
+        {{- include "komputer.s3CredentialsEnv" . | nindent 8 }}
+        {{- with .Values.operator.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

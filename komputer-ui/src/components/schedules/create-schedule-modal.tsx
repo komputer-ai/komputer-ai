@@ -33,6 +33,7 @@ import {
 import { createSchedule, listAgents } from "@/lib/api";
 import type { CreateScheduleRequest } from "@/lib/types";
 import { namespacedHref } from "@/lib/namespaced-href";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
 
 type CreateScheduleModalProps = {
   open: boolean;
@@ -43,6 +44,7 @@ type CreateScheduleModalProps = {
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateScheduleModalProps) {
+  const { s3Enabled } = usePlatformConfig();
   const router = useRouter();
   const [name, setName] = useState("");
   const [namespace, setNamespace] = useState("default");
@@ -300,7 +302,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
                             active={open}
                             hideNameAndNamespace
                             hideInstructions
-                            hideArchive
+                            hideArchive={!s3Enabled}
                             idPrefix="schedule"
                           />
                         </div>

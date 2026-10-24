@@ -199,6 +199,13 @@ definitions:
         items:
           type: string
         type: array
+      sessionStore:
+        allOf:
+        - $ref: '#/definitions/main.SessionStoreResponse'
+        description: |-
+          SessionStore is the S3 session store state: when the session was last
+          saved and whether the last save worked (the agent's own save, or the
+          operator saving it on the agent's behalf). Nil when S3 isn't in use.
       skills:
         description: KomputerSkill names attached to this agent
         items:
@@ -252,6 +259,11 @@ definitions:
     properties:
       instructions:
         type: string
+    type: object
+  main.ConfigResponse:
+    properties:
+      s3:
+        $ref: '#/definitions/main.S3ConfigResponse'
     type: object
   main.ConnectorResponse:
     properties:
@@ -738,6 +750,13 @@ definitions:
       orphanTTL:
         type: string
     type: object
+  main.S3ConfigResponse:
+    properties:
+      bucket:
+        type: string
+      enabled:
+        type: boolean
+    type: object
   main.ScheduleListResponse:
     properties:
       schedules:
@@ -821,6 +840,15 @@ definitions:
         type: string
       namespace:
         type: string
+    type: object
+  main.SessionStoreResponse:
+    properties:
+      error:
+        type: string
+      lastSavedAt:
+        type: string
+      ok:
+        type: boolean
     type: object
   main.SkillResponse:
     properties:
@@ -6779,6 +6807,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Leave out Archived agents unless status asks for them
+        in: query
+        name: hideArchived
+        type: boolean
       - collectionFormat: multi
         description: Label filter key=value; repeat for multiple (AND)
         in: query
@@ -6889,6 +6921,10 @@ paths:
         in: query
         name: recreatePod
         type: boolean
+      - description: Skip saving the session to the S3 session store before deleting
+        in: query
+        name: force
+        type: boolean
       produces:
       - application/json
       responses:
@@ -6996,6 +7032,51 @@ paths:
               type: string
             type: object
       summary: Patch agent
+      tags:
+      - agents
+  /agents/{name}/archive:
+    post:
+      description: Archives an agent once it's idle (pod and workspace/PVC deleted,
+        the agent kept as a record), without changing spec.lifecycle. With the S3
+        session store on, the latest session is saved first and the archived agent
+        can run again later. A no-op (200, current state) if already archived.
+      operationId: archiveAgent
+      parameters:
+      - description: Agent name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Kubernetes namespace
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Archive requested (or already archived)
+          schema:
+            $ref: '#/definitions/main.AgentResponse'
+        "404":
+          description: Agent not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Agent is running a task, or is in a squad
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Archive an agent now
       tags:
       - agents
   /agents/{name}/cancel:
@@ -7315,6 +7396,21 @@ paths:
       summary: Stream agent events (WebSocket)
       tags:
       - agents
+  /config:
+    get:
+      description: Returns platform settings that change what clients can offer, such
+        as whether the S3 session store is enabled. Never returns credentials.
+      operationId: getConfig
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Platform configuration
+          schema:
+            $ref: '#/definitions/main.ConfigResponse'
+      summary: Get platform configuration
+      tags:
+      - config
   /connector-templates:
     get:
       description: Returns the built-in connector templates (GitHub, Slack, Linear,

@@ -32,6 +32,7 @@ Name | Type | Description | Notes
 **queue_position** | **int** |  | [optional] 
 **queue_reason** | **str** |  | [optional] 
 **secrets** | **List[str]** | Key names from K8s Secrets (not values) | [optional] 
+**session_store** | [**SessionStoreResponse**](SessionStoreResponse.md) | SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent&#39;s own save, or the operator saving it on the agent&#39;s behalf). Nil when S3 isn&#39;t in use. | [optional] 
 **skills** | **List[str]** | KomputerSkill names attached to this agent | [optional] 
 **sleep_expires_at** | **str** | SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t currently running. | [optional] 
 **sleep_ttl** | **str** | idle timeout before auto-sleep, e.g. \&quot;30m\&quot; | [optional] 

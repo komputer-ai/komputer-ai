@@ -32,6 +32,15 @@ type AgentResponse struct {
 	DisallowedTools []string          `json:"disallowedTools,omitempty"`
 	Storage         *StorageOverride  `json:"storage,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
+	// SessionStore is the S3 session store state (nil when S3 isn't in use).
+	SessionStore *SessionStoreView `json:"sessionStore,omitempty"`
+}
+
+// SessionStoreView mirrors the API's sessionStore block.
+type SessionStoreView struct {
+	LastSavedAt string `json:"lastSavedAt,omitempty"`
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
 }
 
 // StorageOverride mirrors the operator's StorageSpec: PVC settings for an agent's

@@ -43,6 +43,10 @@ type KomputerConfigSpec struct {
 	// Used by manager agents to create/manage sub-agents.
 	// +kubebuilder:default="http://komputer-api.default.svc.cluster.local:8080"
 	APIURL string `json:"apiURL,omitempty"`
+	// S3 configures the S3 session store, where agent sessions are saved and
+	// restored from. Unset means the session store is off.
+	// +optional
+	S3 *S3Spec `json:"s3,omitempty"`
 }
 
 // KomputerConfigStatus defines the observed state of KomputerConfig.

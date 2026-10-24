@@ -6,13 +6,15 @@ import { useRouter } from "next/navigation";
 import { Archive, ArrowUp, ArrowUpDown, Bot, Check, CheckCircle2, Clock, HardDriveDownload, Loader2, Moon, Power, Skull, Timer, Users, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RelativeTime } from "@/components/shared/relative-time";
-import { AgentDeleteButton, agentKey } from "@/components/agents/agent-cards";
+import { AgentDeleteButton, ArchiveButton, agentKey } from "@/components/agents/agent-cards";
 import { useSquads } from "@/hooks/use-squads";
 import { sleepAgent, wakeAgent } from "@/lib/api";
 import { toggleTableSort, type AgentTableSortKey } from "@/lib/agent-list-query";
 import { shortModelLabel } from "@/lib/model-utils";
 import { cn, formatCost } from "@/lib/utils";
 import type { AgentResponse, Squad } from "@/lib/types";
+import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { agentDormant } from "@/lib/session-store";
 
 type AgentTableProps = {
   agents: AgentResponse[];
@@ -34,7 +36,7 @@ const STATUS: Record<string, { color: string; icon: typeof Bot }> = {
   Queued: { color: "var(--color-status-pending)", icon: Clock },
   Failed: { color: "var(--color-status-error)", icon: Skull },
   Succeeded: { color: "var(--color-status-success)", icon: CheckCircle2 },
-  Archived: { color: "var(--color-text-muted)", icon: Archive },
+  Archived: { color: "var(--color-status-archived)", icon: Archive },
 };
 const DEFAULT_STATUS = { color: "var(--color-text-muted)", icon: Bot };
 
@@ -105,14 +107,19 @@ function SortHeader({ column, sort, onSortChange }: { column: Column; sort: stri
   );
 }
 
-// Wake for sleeping agents, Sleep for idle running ones; nothing otherwise
-// (busy agents can't be slept, and ephemeral ones have no workspace to keep).
+// Wake for sleeping agents (and archived ones when the S3 session store can
+// restore them), Sleep for idle running ones; nothing otherwise (busy agents
+// can't be slept, and ephemeral ones can only sleep when their session is in S3).
 function SleepWakeButton({ agent, onChanged }: { agent: AgentResponse; onChanged?: () => void }) {
+  const { s3Enabled } = usePlatformConfig();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting";
-  const action =
-    agent.status === "Sleeping" ? "wake" : agent.status === "Running" && !busy && !agent.storage?.ephemeral ? "sleep" : null;
+  const action = agentDormant(agent.status, s3Enabled)
+    ? "wake"
+    : agent.status === "Running" && !busy && (!agent.storage?.ephemeral || s3Enabled)
+      ? "sleep"
+      : null;
   if (!action) return null;
 
   const run = async () => {
@@ -394,7 +401,7 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                   <td className={cn(cell, "hidden xl:table-cell")}>
                     {lifecycle ? (
                       <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[var(--color-text-secondary)]">
-                        <lifecycle.icon className="size-3" />
+                        <lifecycle.icon className={cn("size-3", lifecycle.icon === Archive && "text-[var(--color-status-archived)]")} />
                         {lifecycle.label}
                       </span>
                     ) : (
@@ -406,11 +413,13 @@ export function AgentTable({ agents, onDelete, sort, onSortChange, selected, onT
                   <td className={cn(cell, "pr-3 text-right")}>
                     <span className="inline-flex items-center justify-end gap-1.5">
                       <SleepWakeButton agent={agent} onChanged={onChanged} />
-                      <span className="inline-flex opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                      <span className="inline-flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+                      {!squad && <ArchiveButton agent={agent} onChanged={onChanged} />}
                       <AgentDeleteButton
                         agentName={agent.name}
                         agentNamespace={agent.namespace}
                         squad={squad}
+                        status={agent.status}
                         onConfirm={(opts) => onDelete(agent.name, agent.namespace, opts)}
                       />
                       </span>

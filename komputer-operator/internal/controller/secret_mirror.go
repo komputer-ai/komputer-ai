@@ -55,6 +55,9 @@ func isMissingSourceError(err error) bool {
 type sourceRef struct {
 	Namespace string
 	Name      string
+	// Optional sources that are missing are skipped instead of blocking the
+	// agent (the S3 session store's credentials: S3 must never stop an agent).
+	Optional bool
 }
 
 // mirrorSourceToNamespace copies a source Secret into targetNs under the same name.
@@ -185,9 +188,21 @@ func reconcileAgentSecrets(
 		sources = append(sources, sourceRef{Namespace: redisRef.Namespace, Name: redisRef.Name})
 	}
 
+	if s3 := config.Spec.S3; s3.IsEnabled() && s3.CredentialsSecret != nil && s3.CredentialsSecret.Name != "" {
+		ns := s3.CredentialsSecret.Namespace
+		if ns == "" {
+			ns = controlNs
+		}
+		sources = append(sources, sourceRef{Namespace: ns, Name: s3.CredentialsSecret.Name, Optional: true})
+	}
+
 	// Mirror each source.
 	for _, src := range sources {
 		if err := mirrorSourceToNamespace(ctx, c, src.Namespace, src.Name, agent.Namespace); err != nil {
+			if src.Optional && isMissingSourceError(err) {
+				log.Info("optional secret is missing; skipping", "source", src.Namespace+"/"+src.Name)
+				continue
+			}
 			log.Error(err, "Failed to mirror secret", "source", src.Namespace+"/"+src.Name, "target", agent.Namespace)
 			return nil, err
 		}

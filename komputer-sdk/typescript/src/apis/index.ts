@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * from './AgentsApi';
+export * from './ConfigApi';
 export * from './ConnectorsApi';
 export * from './MemoriesApi';
 export * from './OfficesApi';

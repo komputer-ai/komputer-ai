@@ -170,10 +170,11 @@ func validateMemberRefForAdoption(c *gin.Context, k8s *K8sClient, ns, agentName 
 	if agent.Status.Squad {
 		return "", false
 	}
-	if agentArchived(agent) {
+	s3On := k8s.S3Enabled(c.Request.Context())
+	if agentArchived(agent) && !s3On {
 		return fmt.Sprintf("agent %q is archived and can't join a squad", agentName), true
 	}
-	if agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping {
+	if !agentDormant(agent, s3On) {
 		return fmt.Sprintf("agent %q must be asleep in order to team up (current phase: %s). Sleep the agent first, then retry.", agentName, agent.Status.Phase), true
 	}
 	return "", false
@@ -240,7 +241,7 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 				continue
 			}
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, m.Spec.AgentConfigSpec)
-			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -391,7 +392,7 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 				continue
 			}
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, m.Spec.AgentConfigSpec)
-			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, string(m.Spec.Lifecycle), m.Spec.SleepTTL, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -454,7 +455,9 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 			}
 
 			if req.Members != nil {
-				// An archived agent never runs again — refuse to add one by ref.
+				// Without the S3 session store an archived agent never runs again —
+				// refuse to add one by ref.
+				s3On := k8s.S3Enabled(c.Request.Context())
 				for _, m := range req.Members {
 					if m.Ref == nil {
 						continue
@@ -463,7 +466,7 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 					if refNs == "" {
 						refNs = ns
 					}
-					if a, getErr := k8s.GetAgent(c.Request.Context(), refNs, m.Ref.Name); getErr == nil && agentArchived(a) {
+					if a, getErr := k8s.GetAgent(c.Request.Context(), refNs, m.Ref.Name); getErr == nil && agentArchived(a) && !s3On {
 						c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("agent %q is archived and can't join a squad", m.Ref.Name)})
 						return
 					}
@@ -635,7 +638,7 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		// workspace.
 		if req.Spec != nil {
 			effectiveEphemeral := k8s.ResolveEffectiveEphemeral(c.Request.Context(), ns, req.Spec.AgentConfigSpec)
-			if err := validateEphemeralStorage(effectiveEphemeral, string(req.Spec.Lifecycle), req.Spec.SleepTTL); err != nil {
+			if err := validateEphemeralStorage(effectiveEphemeral, string(req.Spec.Lifecycle), req.Spec.SleepTTL, k8s.S3Enabled(c.Request.Context())); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
