@@ -74,12 +74,12 @@ func (c *progressCoalescer) forget(ns, agentName string) {
 
 // PatchAgentTaskEvent is the worker's entry point for an agent event: it applies the
 // progress coalescing above, then defers to PatchAgentTaskStatus for the write.
-func (k *K8sClient) PatchAgentTaskEvent(ctx context.Context, eventType, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
+func (k *K8sClient) PatchAgentTaskEvent(ctx context.Context, eventType, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64, store *SessionStoreResult) error {
 	now := time.Now()
 	if k.progress.skip(ns, agentName, eventType, taskStatus, now) {
 		return nil
 	}
-	if err := k.PatchAgentTaskStatus(ctx, ns, agentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow); err != nil {
+	if err := k.patchAgentTaskStatus(ctx, ns, agentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow, store); err != nil {
 		return err
 	}
 	k.progress.record(ns, agentName, taskStatus, now)

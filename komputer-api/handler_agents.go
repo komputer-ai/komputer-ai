@@ -13,6 +13,7 @@ import (
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -136,6 +137,10 @@ type AgentResponse struct {
 	Errors         []string          `json:"errors,omitempty"`
 	Labels         map[string]string `json:"labels,omitempty"`
 	CompletionTime string            `json:"completionTime,omitempty"`
+	// SessionStore is the S3 session store state: when the session was last
+	// saved and whether the last save worked (the agent's own save, or the
+	// operator saving it on the agent's behalf). Nil when S3 isn't in use.
+	SessionStore *SessionStoreResponse `json:"sessionStore,omitempty"`
 }
 
 // buildAgentInternalSystemPrompt assembles the internal system prompt for an
@@ -326,7 +331,40 @@ func withAgentTTL(ctx context.Context, k8s *K8sClient, resp AgentResponse, agent
 
 // fillAgentTTL copies an agent's TTL spec and status timestamps onto a response.
 // Kept as a helper because every response path needs all eight fields.
+// SessionStoreResponse is the S3 session store state of one agent.
+type SessionStoreResponse struct {
+	LastSavedAt string `json:"lastSavedAt,omitempty"`
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+}
+
+// sessionStoreResponse folds status.sessionStore (the agent's own saves) and the
+// operator's SessionSaved condition (saves it makes on the agent's behalf) into
+// one view. A False condition wins: it's the most recent save attempt that
+// blocks something (an archive, a delete).
+func sessionStoreResponse(agent *komputerv1alpha1.KomputerAgent) *SessionStoreResponse {
+	ss := agent.Status.SessionStore
+	cond := meta.FindStatusCondition(agent.Status.Conditions, komputerv1alpha1.ConditionSessionSaved)
+	if ss == nil && cond == nil && agent.Status.SessionCopiedOutAt == nil {
+		return nil
+	}
+	resp := &SessionStoreResponse{OK: true}
+	last := agent.Status.SessionCopiedOutAt
+	if ss != nil {
+		resp.OK, resp.Error = ss.OK, ss.Error
+		if ss.LastSavedAt != nil && (last == nil || ss.LastSavedAt.After(last.Time)) {
+			last = ss.LastSavedAt
+		}
+	}
+	if cond != nil && cond.Status == metav1.ConditionFalse {
+		resp.OK, resp.Error = false, cond.Message
+	}
+	resp.LastSavedAt = formatTime(last)
+	return resp
+}
+
 func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
+	resp.SessionStore = sessionStoreResponse(agent)
 	if agent.Spec.SleepTTL != nil {
 		resp.SleepTTL = agent.Spec.SleepTTL.Duration.String()
 	}

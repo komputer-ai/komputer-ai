@@ -57,6 +57,8 @@ type K8sClient struct {
 	defaultNamespace string
 	// progress coalesces the worker's per-event status writes; see progress_coalesce.go.
 	progress progressCoalescer
+	// s3cfg caches KomputerConfig.spec.s3; see s3_config.go.
+	s3cfg s3ConfigCache
 }
 
 func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
@@ -2092,6 +2094,20 @@ func (k *K8sClient) SwapAgentTaskStatus(ctx context.Context, ns, name string, fr
 }
 
 func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64) error {
+	return k.patchAgentTaskStatus(ctx, ns, agentName, taskStatus, lastMessage, sessionID, costUSD, totalTokens, contextWindow, nil)
+}
+
+// sessionSaveFailedPrefix starts the task message when a failed S3 save stops
+// Archive or AutoDelete from destroying the agent's only copy of its session.
+const sessionSaveFailedPrefix = "Couldn't save the session to S3: "
+
+// patchAgentTaskStatus is PatchAgentTaskStatus plus the task-end event's S3
+// session store result (store, nil when the event carried none). It records
+// status.sessionStore, and when the save failed on an agent whose lifecycle
+// would now destroy its last local copy (Archive deletes the PVC, AutoDelete the
+// agent), it records the task as Error instead of Complete — both transitions
+// only fire on Complete, so the session survives until the next task or a delete.
+func (k *K8sClient) patchAgentTaskStatus(ctx context.Context, ns, agentName, taskStatus, lastMessage, sessionID string, costUSD float64, totalTokens int64, contextWindow int64, store *SessionStoreResult) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -2099,6 +2115,26 @@ func (k *K8sClient) PatchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	}
 
 	original := agent.DeepCopy()
+	if store != nil {
+		at := metav1.NewTime(store.At)
+		ss := agent.Status.SessionStore.DeepCopy()
+		if ss == nil {
+			ss = &komputerv1alpha1.SessionStoreStatus{}
+		}
+		ss.LastAttemptAt = &at
+		ss.OK = store.OK
+		ss.Error = store.Error
+		if store.OK {
+			ss.LastSavedAt = &at
+		}
+		agent.Status.SessionStore = ss
+		lc := agent.Spec.Lifecycle
+		if !store.OK && taskStatus == string(komputerv1alpha1.AgentTaskComplete) &&
+			(lc == komputerv1alpha1.AgentLifecycleArchive || lc == komputerv1alpha1.AgentLifecycleAutoDelete) {
+			taskStatus = string(komputerv1alpha1.AgentTaskError)
+			lastMessage = truncate(sessionSaveFailedPrefix+store.Error, 256)
+		}
+	}
 	prevTaskStatus := agent.Status.TaskStatus
 	agent.Status.TaskStatus = komputerv1alpha1.AgentTaskStatus(taskStatus)
 	agent.Status.LastTaskMessage = lastMessage
