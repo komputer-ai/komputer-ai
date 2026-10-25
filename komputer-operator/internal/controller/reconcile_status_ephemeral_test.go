@@ -40,7 +40,7 @@ func TestReconcileStatus_EphemeralAgentSkipsSleepLifecycle(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	if err := r.reconcileStatus(ctx, agent, pod, "test-agent-pvc", "test-agent-pod", nil, nil, true); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, "test-agent-pvc", "test-agent-pod", nil, nil, nil, true); err != nil {
 		t.Fatalf("reconcileStatus: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestReconcileStatus_NonEphemeralAgentStillSleeps(t *testing.T) {
 	pod := agentPod("test-agent-pod", "default")
 	r := newTTLReconciler(t, agent, pod)
 
-	if err := r.reconcileStatus(ctx, agent, pod, "test-agent-pvc", "test-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, "test-agent-pvc", "test-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus: %v", err)
 	}
 

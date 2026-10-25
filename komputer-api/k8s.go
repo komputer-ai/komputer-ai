@@ -130,6 +130,8 @@ func (k *K8sClient) WakeAgent(ctx context.Context, ns, name, instructions, inter
 		wokeAt := metav1.Now()
 		agent.Status.LastActivityAt = &wokeAt
 		agent.Status.SleepExpiresAt = nil
+		agent.Status.ArchiveExpiresAt = nil
+		resolveDormantConditions(&agent.Status)
 		// TaskStatus was just reset out of band; the coalescer's memory of it is stale.
 		k.progress.forget(ns, name)
 		return k.client.Status().Patch(ctx, agent, client.MergeFromWithOptions(original2, client.MergeFromWithOptimisticLock{}))
@@ -200,6 +202,8 @@ func (k *K8sClient) IdleWakeAgent(ctx context.Context, ns, name string) (*komput
 	wokeAt := metav1.Now()
 	agent.Status.LastActivityAt = &wokeAt
 	agent.Status.SleepExpiresAt = nil
+	agent.Status.ArchiveExpiresAt = nil
+	resolveDormantConditions(&agent.Status)
 	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 		return nil, fmt.Errorf("failed to patch status: %w", err)
 	}
@@ -266,7 +270,7 @@ func (k *K8sClient) SleepAgentNow(ctx context.Context, ns, name string) (*komput
 	}
 
 	if agent.Status.Squad {
-		if err := k.PatchAgentPhase(ctx, ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — requested via API"); err != nil {
+		if err := k.PatchAgentPhase(ctx, ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — requested via API", komputerv1alpha1.ReasonSleepRequested); err != nil {
 			return nil, fmt.Errorf("failed to set sleeping phase: %w", err)
 		}
 		if err := k.clearSleepMetadata(ctx, ns, name); err != nil {
@@ -512,9 +516,10 @@ func (k *K8sClient) TouchAgentActivity(ctx context.Context, ns, agentName string
 	original := agent.DeepCopy()
 	now := metav1.Now()
 	agent.Status.LastActivityAt = &now
-	// The pending sleep deadline is stale the moment the clock moves; the operator
-	// recomputes it on its next reconcile.
+	// The pending sleep/archive deadlines are stale the moment the clock moves; the
+	// operator recomputes them on its next reconcile.
 	agent.Status.SleepExpiresAt = nil
+	agent.Status.ArchiveExpiresAt = nil
 	if err := k.client.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 		Logger.Warnw("failed to touch agent activity", "agent_name", agentName, "error", err)
 	}
@@ -1430,7 +1435,7 @@ func (k *K8sClient) DeleteSchedule(ctx context.Context, ns, name string) error {
 }
 
 // PatchAgentSpec patches mutable spec fields on a KomputerAgent CR.
-func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, effort, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, taskTimeout TTLUpdate, budgetUSD, taskBudgetUSD StringUpdate) error {
+func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, model, effort, lifecycle, instructions, templateRef, systemPrompt *string, priority *int32, sleepTTL, deleteTTL, archiveTTL, taskTimeout TTLUpdate, budgetUSD, taskBudgetUSD StringUpdate) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	key := types.NamespacedName{Name: agentName, Namespace: ns}
 	if err := k.client.Get(ctx, key, agent); err != nil {
@@ -1472,6 +1477,10 @@ func (k *K8sClient) PatchAgentSpec(ctx context.Context, ns, agentName string, mo
 	}
 	if deleteTTL.Set && !durationEqual(agent.Spec.DeleteTTL, deleteTTL.Value) {
 		agent.Spec.DeleteTTL = deleteTTL.Value
+		changed = true
+	}
+	if archiveTTL.Set && !durationEqual(agent.Spec.ArchiveTTL, archiveTTL.Value) {
+		agent.Spec.ArchiveTTL = archiveTTL.Value
 		changed = true
 	}
 	if taskTimeout.Set && !durationEqual(agent.Spec.TaskTimeout, taskTimeout.Value) {
@@ -2132,7 +2141,7 @@ func (k *K8sClient) PatchAgentContextWindow(ctx context.Context, ns, agentName s
 // PatchAgentPhase sets Status.Phase (and optionally Message) on a KomputerAgent.
 // Used by the API to drive squad-member sleep/wake transitions, since the agent
 // controller skips squad-managed agents.
-func (k *K8sClient) PatchAgentPhase(ctx context.Context, ns, agentName string, phase komputerv1alpha1.KomputerAgentPhase, message string) error {
+func (k *K8sClient) PatchAgentPhase(ctx context.Context, ns, agentName string, phase komputerv1alpha1.KomputerAgentPhase, message, sleepReason string) error {
 	agent := &komputerv1alpha1.KomputerAgent{}
 	if err := k.client.Get(ctx, types.NamespacedName{Name: agentName, Namespace: ns}, agent); err != nil {
 		return err
@@ -2142,7 +2151,20 @@ func (k *K8sClient) PatchAgentPhase(ctx context.Context, ns, agentName string, p
 	if message != "" {
 		agent.Status.Message = message
 	}
+	// The API sleeps squad members itself (the agent controller skips them), so it
+	// records why, as the operator does for the agents it sleeps.
+	if phase == komputerv1alpha1.AgentPhaseSleeping && sleepReason != "" {
+		agent.Status.SetCondition(komputerv1alpha1.ConditionAsleep, sleepReason, message)
+	}
 	return k.client.Status().Patch(ctx, agent, client.MergeFrom(original))
+}
+
+// resolveDormantConditions marks a woken agent as no longer asleep or archived.
+// Waking is the API's transition, so it records the reason in the same status
+// patch that clears the phase.
+func resolveDormantConditions(s *komputerv1alpha1.KomputerAgentStatus) {
+	s.ResolveCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonWoken, "Woken via API")
+	s.ResolveCondition(komputerv1alpha1.ConditionArchived, komputerv1alpha1.ReasonWoken, "Woken via API")
 }
 
 // agentTaskInProgress reports whether a task status means the agent is mid-task.
@@ -2255,6 +2277,7 @@ func (k *K8sClient) patchAgentTaskStatus(ctx context.Context, ns, agentName, tas
 	// spec.taskTimeout stays a hard cap that steering cannot extend.
 	if taskStatusStartsTask(prevTaskStatus, agent.Status.TaskStatus) {
 		agent.Status.TaskStartedAt = &now
+		agent.Status.ResolveCondition(komputerv1alpha1.ConditionTaskTimedOut, komputerv1alpha1.ReasonTaskStarted, "A new task started")
 	}
 	if sessionID != "" {
 		agent.Status.SessionID = sessionID

@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,6 +58,8 @@ type KomputerAgentReconciler struct {
 	NewUploader UploaderFactory
 	// MaxConcurrentSavers caps the short-lived saver pods (see session_finalizer.go).
 	MaxConcurrentSavers int
+	// Recorder emits a Kubernetes Event for each TTL/lifecycle transition. Optional.
+	Recorder record.EventRecorder
 	// copyOutRetryAt holds, per agent UID, when a failed copy-out may be retried.
 	copyOutRetryAt sync.Map
 }
@@ -65,6 +68,7 @@ type KomputerAgentReconciler struct {
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragenttemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragentclustertemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerconfigs,verbs=get;list;watch
@@ -346,20 +350,20 @@ func (r *KomputerAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// values). Runs before status reconciliation so an expired agent isn't reported
 	// Running on its way out, and an over-running task is cancelled rather than reported
 	// as merely running. An ephemeral (emptyDir) agent is never slept — see applyTTL.
-	sleepTTL, deleteTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.TaskTimeout
-	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, sleepPVCName, sleepTTL, deleteTTL, taskTimeout,
+	sleepTTL, deleteTTL, archiveTTL, taskTimeout := template.Spec.SleepTTL, template.Spec.DeleteTTL, template.Spec.ArchiveTTL, template.Spec.TaskTimeout
+	ttlResult, ttlHandled, err := r.applyTTL(ctx, agent, pod, sleepPVCName, sleepTTL, deleteTTL, archiveTTL, taskTimeout,
 		sleepUnsafe(ephemeralWorkspace, komputerConfig.Spec.S3.IsEnabled(), agent))
 	if err != nil {
 		log.Error(err, "Failed to apply TTL")
 		return ctrl.Result{}, err
 	}
 	if ttlHandled {
-		// Agent was slept or deleted — nothing further to reconcile for it.
+		// Agent was slept, archived or deleted — nothing further to reconcile for it.
 		return ttlResult, nil
 	}
 
 	// 8. Update CR status based on pod state
-	if err := r.reconcileStatus(ctx, agent, pod, sleepPVCName, podName, sleepTTL, deleteTTL, ephemeralWorkspace); err != nil {
+	if err := r.reconcileStatus(ctx, agent, pod, sleepPVCName, podName, sleepTTL, deleteTTL, archiveTTL, ephemeralWorkspace); err != nil {
 		log.Error(err, "Failed to reconcile status")
 		return ctrl.Result{}, err
 	}
@@ -718,6 +722,13 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
 	if err == nil {
+		// The pod a sleep just deleted lingers while it terminates, reporting a
+		// terminal phase. Handing it back would let reconcileStatus overwrite
+		// Sleeping with that phase, and the sleep would then re-run until the pod
+		// was gone. For a sleeping agent it is already gone.
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping && !pod.DeletionTimestamp.IsZero() {
+			return nil, nil
+		}
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			// If agent status already reflects the terminal state, delete the pod
 			// so a new one can be created on the next task request.
@@ -910,8 +921,8 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 // Also handles lifecycle transitions (Sleep → delete pod, AutoDelete → delete CR,
 // Archive → delete pod + PVC, keep CR).
 //
-// sleepTTL/deleteTTL are the resolved TTLs. When one is set it turns its matching
-// lifecycle action into a delayed one: the immediate transition below is skipped and
+// sleepTTL/deleteTTL/archiveTTL are the resolved TTLs. When one is set it turns its
+// matching lifecycle action into a delayed one: the immediate transition below is skipped and
 // applyTTL fires it once the TTL elapses. That makes `lifecycle: Sleep` + `sleepTTL: 30m`
 // mean "sleep after 30m idle" rather than the two rules racing each other.
 //
@@ -929,7 +940,7 @@ func (r *KomputerAgentReconciler) buildPod(ctx context.Context, agent *komputerv
 // ephemeralWorkspace is true when the agent's workspace is currently an emptyDir (no
 // PVC) — such an agent is never slept, since sleeping deletes the pod and an emptyDir
 // doesn't survive that, which would silently wipe the workspace.
-func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL *metav1.Duration, ephemeralWorkspace bool) error {
+func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, podName string, sleepTTL, deleteTTL, archiveTTL *metav1.Duration, ephemeralWorkspace bool) error {
 	log := logf.FromContext(ctx)
 	wakeIdle := agent.Annotations[komputerv1alpha1.AnnotationWakeIdle] == "true"
 	// With the S3 session store an ephemeral agent may sleep once its latest
@@ -946,7 +957,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!taskInProgress(agent.Status.TaskStatus) &&
 		savedBeforeDestroy(s3On, agent) {
 		log.Info("archive requested via API: archiving agent", "agent", agent.Name)
-		if err := r.archiveAgentNow(ctx, agent); err != nil {
+		if err := r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonArchiveRequested, archivedMessage); err != nil {
 			return err
 		}
 		return r.clearArchiveRequestAnnotations(ctx, agent)
@@ -965,7 +976,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 				"agent", agent.Name)
 		} else {
 			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
-			if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."); err != nil {
+			if err := r.sleepAgentNow(ctx, agent, pod, pvcName, komputerv1alpha1.ReasonLifecycleSleep, "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."); err != nil {
 				return err
 			}
 			// A pending sleep-requested annotation is satisfied by this transition
@@ -991,7 +1002,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!unsafeToSleep &&
 		!taskInProgress(agent.Status.TaskStatus) {
 		log.Info("sleep requested via API: deleting pod", "agent", agent.Name)
-		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
+		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, komputerv1alpha1.ReasonSleepRequested, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
 			return err
 		}
 		return r.clearSleepRequestAnnotations(ctx, agent)
@@ -1007,20 +1018,21 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	}
 
 	// Archive mode: same trigger as AutoDelete, but keep the CR as a record and
-	// delete only the pod and PVC. deleteTTL does not delay it — on an archived
-	// agent deleteTTL is the record's retention window (see reconcileArchived).
+	// delete only the pod and PVC. archiveTTL delays it; deleteTTL does not — on an
+	// archived agent deleteTTL is the record's retention window (see reconcileArchived).
 	// Requires a live pod on an awake agent: a sleeping agent woken with
 	// lifecycle=Archive still has its previous task's Complete status until the
 	// wake resets it (and its old pod may still be terminating), and archiving
 	// then would delete the workspace the wake is about to use.
 	if agent.Spec.Lifecycle == komputerv1alpha1.AgentLifecycleArchive &&
+		archiveTTL == nil &&
 		!wakeIdle &&
 		agent.Status.TaskStatus == komputerv1alpha1.AgentTaskComplete &&
 		pod != nil && pod.DeletionTimestamp.IsZero() &&
 		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping &&
 		savedBeforeDestroy(s3On, agent) {
 		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
-		return r.archiveAgentNow(ctx, agent)
+		return r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonLifecycleArchive, archivedMessage)
 	}
 
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
@@ -1080,18 +1092,26 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 // (AnnotationSleepRequested) transition in reconcileStatus — both end the agent
 // up in the exact same state, differing only in what triggers them and in the
 // human-readable message.
-func (r *KomputerAgentReconciler) sleepAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, message string) error {
+func (r *KomputerAgentReconciler) sleepAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, reason, message string) error {
 	if err := r.Delete(ctx, pod); err != nil {
 		return err
 	}
-	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+	var changed bool
+	if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.Phase = komputerv1alpha1.AgentPhaseSleeping
 		s.PodName = ""
 		s.PvcName = pvcName
 		s.Message = message
+		changed = s.SetCondition(komputerv1alpha1.ConditionAsleep, reason, message)
 		// No future sleep deadline once the agent is actually asleep.
 		s.SleepExpiresAt = nil
-	})
+	}); err != nil {
+		return err
+	}
+	if changed {
+		recordEvent(r.Recorder, agent, reason, message)
+	}
+	return nil
 }
 
 // clearSleepRequestAnnotations removes AnnotationSleepRequested and

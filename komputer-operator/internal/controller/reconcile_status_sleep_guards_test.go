@@ -72,7 +72,7 @@ func TestReconcileStatus_SleepLifecycle_BothGuards(t *testing.T) {
 				Build()
 			r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, tc.ephemeral); err != nil {
+			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, tc.ephemeral); err != nil {
 				t.Fatalf("reconcileStatus: %v", err)
 			}
 

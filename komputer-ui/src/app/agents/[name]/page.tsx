@@ -38,8 +38,9 @@ import {
 } from "@/components/kit/select";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
-import type { AgentResponse, AgentEvent } from "@/lib/types";
+import type { AgentResponse, AgentEvent, AgentCondition } from "@/lib/types";
 import { fmtDuration } from "@/lib/utils";
+import { humanizeConditionReason } from "@/lib/agent-conditions";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
@@ -88,6 +89,34 @@ function TtlBadge({
         {value}
       </Badge>
     </Tooltip>
+  );
+}
+
+// Read-only list of why the agent is in its state (status.conditions). Hidden when empty.
+function ConditionsSection({ conditions }: { conditions?: AgentCondition[] }) {
+  if (!conditions || conditions.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>Conditions</Label>
+      <ul className="flex flex-col divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
+        {conditions.map((c) => {
+          const active = c.status === "True";
+          return (
+            <li key={c.type} className="px-3 py-2 flex flex-col gap-0.5" title={c.message || undefined}>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="font-medium text-[var(--color-text)]">{c.type}</span>
+                <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
+                {c.reason && <span className="text-[var(--color-text-secondary)]">{humanizeConditionReason(c.reason)}</span>}
+                {c.lastTransitionTime && (
+                  <span className="ml-auto"><RelativeTime timestamp={c.lastTransitionTime} /></span>
+                )}
+              </div>
+              {c.message && <p className="text-[11px] text-[var(--color-text-muted)]">{c.message}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -517,6 +546,14 @@ export default function AgentDetailPage() {
                     label="Sleep TTL"
                     detail={ttlTitle("Sleeps", agent.sleepExpiresAt)}
                     value={fmtDuration(agent.sleepTTL)}
+                  />
+                )}
+                {agent.archiveTTL && (
+                  <TtlBadge
+                    icon={Archive}
+                    label="Archive TTL"
+                    detail={ttlTitle("Archives", agent.archiveExpiresAt)}
+                    value={fmtDuration(agent.archiveTTL)}
                   />
                 )}
                 {agent.deleteTTL && (
@@ -1030,6 +1067,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   // TTLs round-trip as Go duration strings; show the compact form so editing "30m"
   // doesn't turn into "30m0s" on every save.
   const [sleepTTL, setSleepTTL] = useState(fmtDuration(agent.sleepTTL ?? ""));
+  const [archiveTTL, setArchiveTTL] = useState(fmtDuration(agent.archiveTTL ?? ""));
   const [deleteTTL, setDeleteTTL] = useState(fmtDuration(agent.deleteTTL ?? ""));
   const [taskTimeout, setTaskTimeout] = useState(fmtDuration(agent.taskTimeout ?? ""));
   // Decimal USD strings, not Go durations — no fmtDuration needed.
@@ -1088,6 +1126,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
   const systemPromptChanged = systemPrompt !== (agent.systemPrompt ?? "");
   const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
+  const archiveTTLChanged = archiveTTL.trim() !== fmtDuration(agent.archiveTTL ?? "");
   const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
   const taskTimeoutChanged = taskTimeout.trim() !== fmtDuration(agent.taskTimeout ?? "");
   const budgetUSDChanged = budgetUSD.trim() !== (agent.budgetUSD ?? "");
@@ -1098,7 +1137,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const labelsInvalid = hasLabelErrors(labelErrors);
   const labelDiff = diffLabels(agent.labels, labelRows);
   const labelsChanged = Object.keys(labelDiff.labels).length > 0 || labelDiff.removeLabels.length > 0;
-  const hasChanges = labelsChanged || model !== agent.model || effort !== agentEffort || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
+  const hasChanges = labelsChanged || model !== agent.model || effort !== agentEffort || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || archiveTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
 
   async function handleSave() {
     setSaving(true);
@@ -1117,6 +1156,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       // Send "" to clear a TTL — the API treats explicit empty as "remove" and an
       // omitted field as "leave unchanged".
       if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
+      if (archiveTTLChanged) patch.archiveTTL = archiveTTL.trim();
       if (deleteTTLChanged) patch.deleteTTL = deleteTTL.trim();
       if (taskTimeoutChanged) patch.taskTimeout = taskTimeout.trim();
       if (budgetUSDChanged) patch.budgetUSD = budgetUSD.trim();
@@ -1250,6 +1290,17 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
+          <Label>Archive TTL</Label>
+          <Input
+            value={archiveTTL}
+            onChange={(e) => setArchiveTTL(e.target.value)}
+            placeholder="e.g. 24h"
+          />
+          <p className="text-[11px] text-[var(--color-text-muted)]">
+            Archive after this long idle (keeps counting while asleep). Pod and workspace are removed; the agent is kept. Empty to never archive.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
           <Label>Delete TTL</Label>
           <Input
             value={deleteTTL}
@@ -1294,6 +1345,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           </p>
         </div>
       </div>
+
+      <ConditionsSection conditions={agent.conditions} />
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">

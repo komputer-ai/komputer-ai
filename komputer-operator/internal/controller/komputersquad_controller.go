@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -52,6 +53,8 @@ const squadCleanupFinalizer = "komputer.ai/squad-cleanup"
 type KomputerSquadReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// Recorder emits a Kubernetes Event for each member TTL transition. Optional.
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputersquads,verbs=get;list;watch;create;update;patch;delete
@@ -374,6 +377,16 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			// TODO: pass reason="timeout" once interruption reasons are supported.
 			if err := cancelAgentTaskViaAPI(ctx, r.Client, agent.Namespace, agent.Name); err != nil {
 				log.Error(err, "Failed to cancel squad member task on taskTimeout", "agent", agent.Name)
+			} else {
+				msg := taskTimedOutMessage(taskTimeout)
+				original := agent.DeepCopy()
+				if agent.Status.SetCondition(komputerv1alpha1.ConditionTaskTimedOut, komputerv1alpha1.ReasonTaskTimeout, msg) {
+					if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
+						log.Error(err, "Failed to record taskTimeout on squad member", "agent", agent.Name)
+					} else {
+						recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonTaskTimeout, msg)
+					}
+				}
 			}
 		}
 
@@ -418,6 +431,7 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 		case ttlActionDelete:
 			log.Info("deleteTTL elapsed, deleting squad member",
 				"squad", squad.Name, "agent", agent.Name, "deleteTTL", deleteTTL.Duration)
+			recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonDeleteTTL, deleteTTLMessage(deleteTTL))
 			if err := r.Delete(ctx, agent); err != nil && !apierrors.IsNotFound(err) {
 				// Keep it as a survivor so the pod keeps working until the delete lands.
 				log.Error(err, "Failed to delete squad member on deleteTTL", "agent", agent.Name)
@@ -431,11 +445,14 @@ func (r *KomputerSquadReconciler) applyMemberTTLs(
 			original := agent.DeepCopy()
 			agent.Status.Phase = komputerv1alpha1.AgentPhaseSleeping
 			agent.Status.Message = "Sleeping — idle past sleepTTL. Send a new task to wake up."
+			changed := agent.Status.SetCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonSleepTTL, agent.Status.Message)
 			agent.Status.SleepExpiresAt = nil
 			agent.Status.DeleteExpiresAt = d.DeleteExpiresAt
 			agent.Status.TaskExpiresAt = nil
 			if err := r.Status().Patch(ctx, agent, client.MergeFrom(original)); err != nil {
 				log.Error(err, "Failed to sleep squad member on sleepTTL", "agent", agent.Name)
+			} else if changed {
+				recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonSleepTTL, agent.Status.Message)
 			}
 			survivors = append(survivors, agent)
 

@@ -6,9 +6,12 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **allowed_tools** | **List[str]** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
+**archive_expires_at** | **str** |  | [optional] 
+**archive_ttl** | **str** | idle timeout before auto-archive, e.g. \&quot;24h\&quot; | [optional] 
 **budget_exhausted** | **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
 **budget_usd** | **str** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **completion_time** | **str** |  | [optional] 
+**conditions** | [**List[AgentCondition]**](AgentCondition.md) | Conditions say why the agent is in its current state, e.g. Asleep&#x3D;True with reason SleepTTL, Archived&#x3D;True with reason ArchiveTTL, TaskTimedOut&#x3D;True with reason TaskTimeout. Mirrors status.conditions on the CR. | [optional] 
 **connectors** | **List[str]** | KomputerConnector names attached to this agent | [optional] 
 **created_at** | **str** |  | [optional] 
 **delete_expires_at** | **str** |  | [optional] 
@@ -34,7 +37,7 @@ Name | Type | Description | Notes
 **secrets** | **List[str]** | Key names from K8s Secrets (not values) | [optional] 
 **session_store** | [**SessionStoreResponse**](SessionStoreResponse.md) | SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent&#39;s own save, or the operator saving it on the agent&#39;s behalf). Nil when S3 isn&#39;t in use. | [optional] 
 **skills** | **List[str]** | KomputerSkill names attached to this agent | [optional] 
-**sleep_expires_at** | **str** | SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t currently running. | [optional] 
+**sleep_expires_at** | **str** | SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t running. | [optional] 
 **sleep_ttl** | **str** | idle timeout before auto-sleep, e.g. \&quot;30m\&quot; | [optional] 
 **squad** | **bool** | True when this agent is managed by a KomputerSquad | [optional] 
 **squad_name** | **str** | Name of the squad managing this agent (when Squad&#x3D;true) | [optional] 

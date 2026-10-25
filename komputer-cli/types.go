@@ -2,36 +2,48 @@ package main
 
 // ─── API Types ───────────────────────────────────────────────────────────────
 
+// AgentCondition mirrors a Kubernetes status condition: why the agent is in its state.
+type AgentCondition struct {
+	Type               string `json:"type"`
+	Status             string `json:"status"`
+	Reason             string `json:"reason,omitempty"`
+	Message            string `json:"message,omitempty"`
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
+}
+
 type AgentResponse struct {
-	Name            string            `json:"name"`
-	Namespace       string            `json:"namespace"`
-	Model           string            `json:"model"`
-	Effort          string            `json:"effort,omitempty"`
-	Status          string            `json:"status"`
-	TaskStatus      string            `json:"taskStatus"`
-	LastTaskMessage string            `json:"lastTaskMessage"`
-	Lifecycle       string            `json:"lifecycle"`
-	SleepTTL        string            `json:"sleepTTL,omitempty"`
-	DeleteTTL       string            `json:"deleteTTL,omitempty"`
-	LastActivityAt  string            `json:"lastActivityAt,omitempty"`
-	SleepExpiresAt  string            `json:"sleepExpiresAt,omitempty"`
-	DeleteExpiresAt string            `json:"deleteExpiresAt,omitempty"`
-	TaskTimeout     string            `json:"taskTimeout,omitempty"`
-	TaskStartedAt   string            `json:"taskStartedAt,omitempty"`
-	TaskExpiresAt   string            `json:"taskExpiresAt,omitempty"`
-	BudgetUSD       string            `json:"budgetUSD,omitempty"`
-	TaskBudgetUSD   string            `json:"taskBudgetUSD,omitempty"`
-	BudgetExhausted bool              `json:"budgetExhausted,omitempty"`
-	LastTaskCostUSD string            `json:"lastTaskCostUSD"`
-	TotalCostUSD    string            `json:"totalCostUSD"`
-	CreatedAt       string            `json:"createdAt"`
-	Priority        int32             `json:"priority"`
-	QueuePosition   int32             `json:"queuePosition"`
-	QueueReason     string            `json:"queueReason"`
-	AllowedTools    []string          `json:"allowedTools,omitempty"`
-	DisallowedTools []string          `json:"disallowedTools,omitempty"`
-	Storage         *StorageOverride  `json:"storage,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty"`
+	Name             string            `json:"name"`
+	Namespace        string            `json:"namespace"`
+	Model            string            `json:"model"`
+	Effort           string            `json:"effort,omitempty"`
+	Status           string            `json:"status"`
+	TaskStatus       string            `json:"taskStatus"`
+	LastTaskMessage  string            `json:"lastTaskMessage"`
+	Lifecycle        string            `json:"lifecycle"`
+	SleepTTL         string            `json:"sleepTTL,omitempty"`
+	ArchiveTTL       string            `json:"archiveTTL,omitempty"`
+	DeleteTTL        string            `json:"deleteTTL,omitempty"`
+	LastActivityAt   string            `json:"lastActivityAt,omitempty"`
+	SleepExpiresAt   string            `json:"sleepExpiresAt,omitempty"`
+	ArchiveExpiresAt string            `json:"archiveExpiresAt,omitempty"`
+	DeleteExpiresAt  string            `json:"deleteExpiresAt,omitempty"`
+	TaskTimeout      string            `json:"taskTimeout,omitempty"`
+	TaskStartedAt    string            `json:"taskStartedAt,omitempty"`
+	TaskExpiresAt    string            `json:"taskExpiresAt,omitempty"`
+	BudgetUSD        string            `json:"budgetUSD,omitempty"`
+	TaskBudgetUSD    string            `json:"taskBudgetUSD,omitempty"`
+	BudgetExhausted  bool              `json:"budgetExhausted,omitempty"`
+	LastTaskCostUSD  string            `json:"lastTaskCostUSD"`
+	TotalCostUSD     string            `json:"totalCostUSD"`
+	CreatedAt        string            `json:"createdAt"`
+	Priority         int32             `json:"priority"`
+	QueuePosition    int32             `json:"queuePosition"`
+	QueueReason      string            `json:"queueReason"`
+	AllowedTools     []string          `json:"allowedTools,omitempty"`
+	DisallowedTools  []string          `json:"disallowedTools,omitempty"`
+	Storage          *StorageOverride  `json:"storage,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	Conditions       []AgentCondition  `json:"conditions,omitempty"`
 	// SessionStore is the S3 session store state (nil when S3 isn't in use).
 	SessionStore *SessionStoreView `json:"sessionStore,omitempty"`
 }

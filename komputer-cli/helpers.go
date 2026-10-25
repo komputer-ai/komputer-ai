@@ -81,6 +81,9 @@ func printAgent(a AgentResponse) {
 	if a.SleepTTL != "" {
 		row("Sleep TTL:", a.SleepTTL+expiryHint("sleeps", a.SleepExpiresAt))
 	}
+	if a.ArchiveTTL != "" {
+		row("Archive TTL:", a.ArchiveTTL+expiryHint("archives", a.ArchiveExpiresAt))
+	}
 	if a.DeleteTTL != "" {
 		row("Delete TTL:", a.DeleteTTL+expiryHint("deletes", a.DeleteExpiresAt))
 	}
@@ -142,7 +145,26 @@ func printAgent(a AgentResponse) {
 		}
 		row("Labels:", strings.Join(parts, ", "))
 	}
+	if len(a.Conditions) > 0 {
+		fmt.Printf("  %s\n", labelStyle.Render("Conditions:"))
+		for _, c := range a.Conditions {
+			fmt.Printf("    %s\n", valueStyle.Render(formatCondition(c)))
+		}
+	}
 	fmt.Println()
+}
+
+// formatCondition renders one status condition as `Type=Status (Reason) since <time>`;
+// the reason and time are omitted when the API doesn't send them.
+func formatCondition(c AgentCondition) string {
+	out := c.Type + "=" + c.Status
+	if c.Reason != "" {
+		out += " (" + c.Reason + ")"
+	}
+	if c.LastTransitionTime != "" {
+		out += " since " + c.LastTransitionTime
+	}
+	return out
 }
 
 func apiRequest(method, url string, body interface{}) ([]byte, int, error) {

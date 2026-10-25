@@ -125,12 +125,13 @@ Agents get the store's credentials, and they cover the whole prefix: code runnin
 | Ephemeral agent restarts | restored — the conversation survives, files don't |
 | Ephemeral agent sleeps (`lifecycle: Sleep`, `sleepTTL`, sleep now) | allowed once its latest task is saved; the wake restores it |
 | Archived agent | works like a sleeping agent with no workspace (below) |
+| Agent hits `archiveTTL` | archived once its latest task is saved; it can be woken later and restores its session. Without the store it is still archived, but can't run again |
 | Schedule with `lifecycle: Archive` | allowed — each run wakes the agent, restores it, and archives it again |
 | Agent deleted (any way) | saved first, then deleted; the session stays in the bucket |
 
 ### Nothing destroys the last copy before it's saved
 
-Archive (which deletes the PVC), sleeping an ephemeral agent, AutoDelete, and any delete all wait until the latest task's session is saved:
+Archive (which deletes the PVC, including via `archiveTTL`), sleeping an ephemeral agent, AutoDelete, and any delete all wait until the latest task's session is saved:
 
 - If the agent's own save fails and its lifecycle is Archive or AutoDelete, the task is marked **Error** with the reason (for example `Couldn't save the session to S3: AccessDenied`), so the transition doesn't happen. Fix the store, then send the agent its next task — or delete it.
 - **Deletes wait.** While the store is on, agents carry a `komputer.ai/session-store` finalizer. On delete, the operator cancels a running task (the agent saves as it ends), or saves the session itself. An agent that only has a PVC left gets a short-lived **saver pod** that mounts it read-only; at most `operator.sessionSaver.maxConcurrent` (default 4) saver pods run at once. If saving keeps failing, the delete waits and the agent's status says why.

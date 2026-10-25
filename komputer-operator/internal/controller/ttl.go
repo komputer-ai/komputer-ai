@@ -185,6 +185,41 @@ func evaluateTaskDeadline(
 	return d
 }
 
+// archiveDecision is the outcome of evaluating an agent's archiveTTL at one instant.
+type archiveDecision struct {
+	// Archive is true when the agent has been idle past archiveTTL.
+	Archive bool
+	// ExpiresAt is the projected (or elapsed) archive time, for status. Nil when the
+	// clock isn't running.
+	ExpiresAt *metav1.Time
+	// RequeueAfter is when to re-evaluate. Zero means no deadline is pending.
+	RequeueAfter time.Duration
+}
+
+// evaluateArchiveTTL decides whether an agent has been idle past archiveTTL at time
+// `now`. Pure function. The clock is sleepTTL's — idleSince, held while a task is in
+// progress, absent on an agent that never ran one — except that it keeps running on
+// a sleeping agent, so sleepTTL < archiveTTL means sleep first, then archive.
+func evaluateArchiveTTL(agent *komputerv1alpha1.KomputerAgent, archiveTTL *metav1.Duration, now time.Time) archiveDecision {
+	var d archiveDecision
+	since, ok := idleSince(agent)
+	if !ok || archiveTTL == nil || archiveTTL.Duration <= 0 || taskInProgress(agent.Status.TaskStatus) {
+		return d
+	}
+	deadline := since.Add(archiveTTL.Duration)
+	t := metav1.NewTime(deadline)
+	d.ExpiresAt = &t
+	if !now.Before(deadline) {
+		d.Archive = true
+		return d
+	}
+	d.RequeueAfter = deadline.Sub(now)
+	if d.RequeueAfter < minTTLRequeue {
+		d.RequeueAfter = minTTLRequeue
+	}
+	return d
+}
+
 // idleSince returns the instant the agent's idle clock started, and whether it is
 // running at all. The clock is Status.LastActivityAt, which the API worker stamps on
 // every agent event — the first of them when a task starts.
@@ -302,7 +337,7 @@ func readTemplateSpec(ctx context.Context, c client.Client, name, namespace stri
 
 // applyTTL evaluates the agent's TTLs and performs any transition they require.
 //
-// Returns handled=true when it slept or deleted the agent, in which case the caller
+// Returns handled=true when it slept, archived or deleted the agent, in which case the caller
 // must stop reconciling — the agent is either gone or its pod has been torn down.
 // When nothing fired, it persists the projected expiry timestamps and returns the
 // requeue hint so the controller wakes exactly when the next TTL comes due.
@@ -311,7 +346,7 @@ func (r *KomputerAgentReconciler) applyTTL(
 	agent *komputerv1alpha1.KomputerAgent,
 	pod *corev1.Pod,
 	pvcName string,
-	sleepTTL, deleteTTL, taskTimeout *metav1.Duration,
+	sleepTTL, deleteTTL, archiveTTL, taskTimeout *metav1.Duration,
 	ephemeralWorkspace bool,
 ) (ctrl.Result, bool, error) {
 	log := logf.FromContext(ctx)
@@ -321,13 +356,14 @@ func (r *KomputerAgentReconciler) applyTTL(
 			"agent", agent.Name, "sleepTTL", sleepTTL.Duration)
 	}
 
-	if sleepTTL == nil && deleteTTL == nil && taskTimeout == nil {
+	if sleepTTL == nil && deleteTTL == nil && archiveTTL == nil && taskTimeout == nil {
 		// Clear stale expiry timestamps if the TTLs were removed from the spec.
 		if agent.Status.SleepExpiresAt != nil || agent.Status.DeleteExpiresAt != nil ||
-			agent.Status.TaskExpiresAt != nil {
+			agent.Status.ArchiveExpiresAt != nil || agent.Status.TaskExpiresAt != nil {
 			if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 				s.SleepExpiresAt = nil
 				s.DeleteExpiresAt = nil
+				s.ArchiveExpiresAt = nil
 				s.TaskExpiresAt = nil
 			}); err != nil {
 				return ctrl.Result{}, false, err
@@ -353,6 +389,16 @@ func (r *KomputerAgentReconciler) applyTTL(
 			log.Error(err, "Failed to cancel task on taskTimeout", "agent", agent.Name)
 			return ctrl.Result{RequeueAfter: taskCancelRetryInterval}, false, nil
 		}
+		msg := taskTimedOutMessage(taskTimeout)
+		var changed bool
+		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+			changed = s.SetCondition(komputerv1alpha1.ConditionTaskTimedOut, komputerv1alpha1.ReasonTaskTimeout, msg)
+		}); err != nil {
+			return ctrl.Result{}, false, err
+		}
+		if changed {
+			recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonTaskTimeout, msg)
+		}
 		// Fall through: the TTL clocks still need evaluating this reconcile.
 	}
 
@@ -363,12 +409,39 @@ func (r *KomputerAgentReconciler) applyTTL(
 			"agent", agent.Name, "sleepTTL", sleepTTL.Duration, "deleteTTL", deleteTTL.Duration)
 	}
 
-	d := evaluateTTL(agent, sleepTTL, deleteTTL, time.Now(), ephemeralWorkspace)
+	now := time.Now()
+	d := evaluateTTL(agent, sleepTTL, deleteTTL, now, ephemeralWorkspace)
+	ad := evaluateArchiveTTL(agent, archiveTTL, now)
+
+	// Archiving subsumes sleeping, and deleting subsumes both. While an elapsed
+	// archive waits for the S3 save, sleep is held off too: it would remove the pod
+	// that still has to save the session (maybeCopyOut's status write re-triggers us).
+	if d.Action == ttlActionDelete {
+		ad.Archive = false
+	} else if ad.Archive {
+		d.Action = ttlActionNone
+		if !savedBeforeDestroy(s3SpecFromCluster(ctx, r.Client).IsEnabled(), agent) {
+			log.Info("archiveTTL elapsed, waiting for the latest task to be saved before archiving",
+				"agent", agent.Name, "archiveTTL", archiveTTL.Duration)
+			ad.Archive = false
+		}
+	}
+	if ad.Archive {
+		idleFrom, _ := idleSince(agent) // always set: the archive can't fire without it
+		log.Info("archiveTTL elapsed, archiving agent",
+			"agent", agent.Name, "archiveTTL", archiveTTL.Duration, "idleSince", idleFrom)
+		if err := r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonArchiveTTL,
+			"Archived — idle past archiveTTL, pod and workspace removed. The agent is kept as a record."); err != nil {
+			return ctrl.Result{}, false, err
+		}
+		return ctrl.Result{}, true, nil
+	}
 
 	switch d.Action {
 	case ttlActionDelete:
 		log.Info("deleteTTL elapsed, deleting agent",
 			"agent", agent.Name, "deleteTTL", deleteTTL.Duration, "createdAt", agent.CreationTimestamp)
+		recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonDeleteTTL, deleteTTLMessage(deleteTTL))
 		if err := r.Delete(ctx, agent); err != nil && !errors.IsNotFound(err) {
 			return ctrl.Result{}, false, err
 		}
@@ -383,40 +456,60 @@ func (r *KomputerAgentReconciler) applyTTL(
 				return ctrl.Result{}, false, err
 			}
 		}
+		var changed bool
 		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 			s.Phase = komputerv1alpha1.AgentPhaseSleeping
 			s.PodName = ""
 			s.PvcName = pvcName
 			s.Message = "Sleeping — idle past sleepTTL, workspace preserved. Send a new task to wake up."
-			// No pending sleep once asleep; the lifetime cap keeps its deadline.
+			changed = s.SetCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonSleepTTL, s.Message)
+			// No pending sleep once asleep; the lifetime cap and the archive
+			// clock keep their deadlines.
 			s.SleepExpiresAt = nil
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			s.ArchiveExpiresAt = ad.ExpiresAt
 			// A sleeping agent has no running task.
 			s.TaskExpiresAt = nil
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
-		return ctrl.Result{RequeueAfter: d.RequeueAfter}, true, nil
+		// The condition survives the brief phase flap while the slept pod terminates
+		// (which re-runs this branch), so only the first pass emits the event.
+		if changed {
+			recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonSleepTTL,
+				"Sleeping — idle past sleepTTL, workspace preserved. Send a new task to wake up.")
+		}
+		return ctrl.Result{RequeueAfter: minPositive(d.RequeueAfter, ad.RequeueAfter)}, true, nil
 	}
 
 	// Nothing fired — publish the projected deadlines so clients can show a countdown.
 	if !timeEqual(agent.Status.SleepExpiresAt, d.SleepExpiresAt) ||
 		!timeEqual(agent.Status.DeleteExpiresAt, d.DeleteExpiresAt) ||
+		!timeEqual(agent.Status.ArchiveExpiresAt, ad.ExpiresAt) ||
 		!timeEqual(agent.Status.TaskExpiresAt, td.ExpiresAt) {
 		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 			s.SleepExpiresAt = d.SleepExpiresAt
 			s.DeleteExpiresAt = d.DeleteExpiresAt
+			s.ArchiveExpiresAt = ad.ExpiresAt
 			s.TaskExpiresAt = td.ExpiresAt
 		}); err != nil {
 			return ctrl.Result{}, false, err
 		}
 	}
 
-	requeue := d.RequeueAfter
-	if td.RequeueAfter > 0 && (requeue == 0 || td.RequeueAfter < requeue) {
-		requeue = td.RequeueAfter
+	return ctrl.Result{RequeueAfter: minPositive(d.RequeueAfter, ad.RequeueAfter, td.RequeueAfter)}, false, nil
+}
+
+// minPositive returns the smallest non-zero duration, or zero when all are zero —
+// the soonest pending deadline among the clocks.
+func minPositive(ds ...time.Duration) time.Duration {
+	var out time.Duration
+	for _, d := range ds {
+		if d > 0 && (out == 0 || d < out) {
+			out = d
+		}
 	}
-	return ctrl.Result{RequeueAfter: requeue}, false, nil
+	return out
 }
 
 // timeEqual compares two optional timestamps at second granularity, matching how

@@ -3109,6 +3109,28 @@ const docTemplate = `{
                 }
             }
         },
+        "main.AgentCondition": {
+            "type": "object",
+            "properties": {
+                "lastTransitionTime": {
+                    "description": "RFC3339",
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"True\", \"False\" or \"Unknown\"",
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "main.AgentEvent": {
             "type": "object",
             "properties": {
@@ -3184,6 +3206,13 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "archiveExpiresAt": {
+                    "type": "string"
+                },
+                "archiveTTL": {
+                    "description": "idle timeout before auto-archive, e.g. \"24h\"",
+                    "type": "string"
+                },
                 "budgetExhausted": {
                     "description": "BudgetExhausted is true when status.totalCostUSD has reached or passed the\nEFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's\ndefault) — new tasks are refused with 409 until it's raised. Always false\nwhen no lifetime budget applies anywhere. Computed by the API so clients\ndon't have to re-derive the template resolution themselves.",
                     "type": "boolean"
@@ -3194,6 +3223,13 @@ const docTemplate = `{
                 },
                 "completionTime": {
                     "type": "string"
+                },
+                "conditions": {
+                    "description": "Conditions say why the agent is in its current state, e.g. Asleep=True with\nreason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with\nreason TaskTimeout. Mirrors status.conditions on the CR.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.AgentCondition"
+                    }
                 },
                 "connectors": {
                     "description": "KomputerConnector names attached to this agent",
@@ -3307,7 +3343,7 @@ const docTemplate = `{
                     }
                 },
                 "sleepExpiresAt": {
-                    "description": "SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty\nwhen the matching TTL is unset or its countdown isn't currently running.",
+                    "description": "SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire\n(RFC3339). Empty when the matching TTL is unset or its countdown isn't running.",
                     "type": "string"
                 },
                 "sleepTTL": {
@@ -3469,6 +3505,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "archiveTTL": {
+                    "description": "ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a\nrecord) after this long with no activity, as a Go duration string (e.g. \"24h\").\nKeeps counting while the agent sleeps. Not allowed on squad members. Empty\nmeans never auto-archive.",
+                    "type": "string"
                 },
                 "budgetUSD": {
                     "description": "BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as\na decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or\nexceeds it, new tasks are refused with 409 until it's raised; a task already\nrunning is always allowed to finish. Empty means no lifetime cap.",
@@ -3879,6 +3919,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "archiveTTL": {
+                    "description": "not allowed on squad members",
+                    "type": "string"
                 },
                 "budgetUSD": {
                     "description": "BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \"10.00\"). An explicit\n\"\" clears the cap; omitting the field leaves it unchanged.",
@@ -8578,6 +8622,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "archiveTTL": {
+                    "description": "ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it\nhas been idle for this long. Idle is measured exactly like SleepTTL — from\nStatus.LastActivityAt, reset by any task event or wake, never while a task is\nin progress, and never on an agent that has never run a task — but it also runs\nwhile the agent is Sleeping, so SleepTTL \u003c ArchiveTTL sleeps first, then\narchives. With the S3 session store it waits until the latest task is saved;\nwithout it the archived agent can't run again. Not applied to squad members.\nWhen set, Lifecycle=Archive waits for it instead of archiving right after the\ntask. Unset (default) means the agent never auto-archives.\nOverrides the template's archiveTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
+                },
                 "budgetUSD": {
                     "description": "BudgetUSD is a SOFT lifetime spending cap across every task this agent ever\nruns, as a decimal USD string (e.g. \"10.00\"). Measured against\nStatus.TotalCostUSD: once spent reaches or exceeds this, the API refuses to\nstart any NEW task for the agent. A task already in progress when the cap is\ncrossed is always allowed to finish, even if it overshoots — the cap only\ngates starting the next one. Raising (or clearing) BudgetUSD unblocks the\nagent again.\n\nA string rather than a float to match how the rest of the CRD represents USD\n(see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for\nfloats. Unset (default) means no lifetime cap. Overrides the template's\nbudgetUSD when set.\n+kubebuilder:validation:Pattern=` + "`" + `^[0-9]+(\\.[0-9]+)?$` + "`" + `\n+optional",
                     "type": "string"
@@ -8768,6 +8820,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "archiveTTL": {
+                    "description": "ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it\nhas been idle for this long. Idle is measured exactly like SleepTTL — from\nStatus.LastActivityAt, reset by any task event or wake, never while a task is\nin progress, and never on an agent that has never run a task — but it also runs\nwhile the agent is Sleeping, so SleepTTL \u003c ArchiveTTL sleeps first, then\narchives. With the S3 session store it waits until the latest task is saved;\nwithout it the archived agent can't run again. Not applied to squad members.\nWhen set, Lifecycle=Archive waits for it instead of archiving right after the\ntask. Unset (default) means the agent never auto-archives.\nOverrides the template's archiveTTL when set.\n+optional",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.Duration"
+                        }
+                    ]
                 },
                 "budgetUSD": {
                     "description": "BudgetUSD is a SOFT lifetime spending cap across every task this agent ever\nruns, as a decimal USD string (e.g. \"10.00\"). Measured against\nStatus.TotalCostUSD: once spent reaches or exceeds this, the API refuses to\nstart any NEW task for the agent. A task already in progress when the cap is\ncrossed is always allowed to finish, even if it overshoots — the cap only\ngates starting the next one. Raising (or clearing) BudgetUSD unblocks the\nagent again.\n\nA string rather than a float to match how the rest of the CRD represents USD\n(see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for\nfloats. Unset (default) means no lifetime cap. Overrides the template's\nbudgetUSD when set.\n+kubebuilder:validation:Pattern=` + "`" + `^[0-9]+(\\.[0-9]+)?$` + "`" + `\n+optional",

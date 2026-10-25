@@ -5,9 +5,12 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | Tools this agent is restricted to (empty &#x3D; defaults) | [optional] 
+**ArchiveExpiresAt** | Pointer to **string** |  | [optional] 
+**ArchiveTTL** | Pointer to **string** | idle timeout before auto-archive, e.g. \&quot;24h\&quot; | [optional] 
 **BudgetExhausted** | Pointer to **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
 **BudgetUSD** | Pointer to **string** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **CompletionTime** | Pointer to **string** |  | [optional] 
+**Conditions** | Pointer to [**[]AgentCondition**](AgentCondition.md) | Conditions say why the agent is in its current state, e.g. Asleep&#x3D;True with reason SleepTTL, Archived&#x3D;True with reason ArchiveTTL, TaskTimedOut&#x3D;True with reason TaskTimeout. Mirrors status.conditions on the CR. | [optional] 
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
 **DeleteExpiresAt** | Pointer to **string** |  | [optional] 
@@ -33,7 +36,7 @@ Name | Type | Description | Notes
 **Secrets** | Pointer to **[]string** | Key names from K8s Secrets (not values) | [optional] 
 **SessionStore** | Pointer to [**SessionStoreResponse**](SessionStoreResponse.md) | SessionStore is the S3 session store state: when the session was last saved and whether the last save worked (the agent&#39;s own save, or the operator saving it on the agent&#39;s behalf). Nil when S3 isn&#39;t in use. | [optional] 
 **Skills** | Pointer to **[]string** | KomputerSkill names attached to this agent | [optional] 
-**SleepExpiresAt** | Pointer to **string** | SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t currently running. | [optional] 
+**SleepExpiresAt** | Pointer to **string** | SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn&#39;t running. | [optional] 
 **SleepTTL** | Pointer to **string** | idle timeout before auto-sleep, e.g. \&quot;30m\&quot; | [optional] 
 **Squad** | Pointer to **bool** | True when this agent is managed by a KomputerSquad | [optional] 
 **SquadName** | Pointer to **string** | Name of the squad managing this agent (when Squad&#x3D;true) | [optional] 
@@ -91,6 +94,56 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *AgentResponse) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetArchiveExpiresAt
+
+`func (o *AgentResponse) GetArchiveExpiresAt() string`
+
+GetArchiveExpiresAt returns the ArchiveExpiresAt field if non-nil, zero value otherwise.
+
+### GetArchiveExpiresAtOk
+
+`func (o *AgentResponse) GetArchiveExpiresAtOk() (*string, bool)`
+
+GetArchiveExpiresAtOk returns a tuple with the ArchiveExpiresAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetArchiveExpiresAt
+
+`func (o *AgentResponse) SetArchiveExpiresAt(v string)`
+
+SetArchiveExpiresAt sets ArchiveExpiresAt field to given value.
+
+### HasArchiveExpiresAt
+
+`func (o *AgentResponse) HasArchiveExpiresAt() bool`
+
+HasArchiveExpiresAt returns a boolean if a field has been set.
+
+### GetArchiveTTL
+
+`func (o *AgentResponse) GetArchiveTTL() string`
+
+GetArchiveTTL returns the ArchiveTTL field if non-nil, zero value otherwise.
+
+### GetArchiveTTLOk
+
+`func (o *AgentResponse) GetArchiveTTLOk() (*string, bool)`
+
+GetArchiveTTLOk returns a tuple with the ArchiveTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetArchiveTTL
+
+`func (o *AgentResponse) SetArchiveTTL(v string)`
+
+SetArchiveTTL sets ArchiveTTL field to given value.
+
+### HasArchiveTTL
+
+`func (o *AgentResponse) HasArchiveTTL() bool`
+
+HasArchiveTTL returns a boolean if a field has been set.
 
 ### GetBudgetExhausted
 
@@ -166,6 +219,31 @@ SetCompletionTime sets CompletionTime field to given value.
 `func (o *AgentResponse) HasCompletionTime() bool`
 
 HasCompletionTime returns a boolean if a field has been set.
+
+### GetConditions
+
+`func (o *AgentResponse) GetConditions() []AgentCondition`
+
+GetConditions returns the Conditions field if non-nil, zero value otherwise.
+
+### GetConditionsOk
+
+`func (o *AgentResponse) GetConditionsOk() (*[]AgentCondition, bool)`
+
+GetConditionsOk returns a tuple with the Conditions field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetConditions
+
+`func (o *AgentResponse) SetConditions(v []AgentCondition)`
+
+SetConditions sets Conditions field to given value.
+
+### HasConditions
+
+`func (o *AgentResponse) HasConditions() bool`
+
+HasConditions returns a boolean if a field has been set.
 
 ### GetConnectors
 

@@ -7,6 +7,7 @@
 Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
+`archiveTTL` | [V1Duration](V1Duration.md)
 `budgetUSD` | string
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | [V1Duration](V1Duration.md)
@@ -39,6 +40,7 @@ import type { V1alpha1KomputerAgentSpec } from '@komputer-ai/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "allowedTools": null,
+  "archiveTTL": null,
   "budgetUSD": null,
   "connectors": null,
   "deleteTTL": null,

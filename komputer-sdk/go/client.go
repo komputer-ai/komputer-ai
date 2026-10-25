@@ -94,6 +94,7 @@ type CreateAgentOpts struct {
 	SecretRefs      []string
 	Skills          []string
 	SleepTTL        *string
+	ArchiveTTL      *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
 	TaskBudgetUSD   *string
@@ -137,6 +138,9 @@ func (c *Client) CreateAgent(ctx context.Context, name string, instructions stri
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.ArchiveTTL != nil {
+			req.ArchiveTTL = o.ArchiveTTL
 		}
 		if o.TaskBudgetUSD != nil {
 			req.TaskBudgetUSD = o.TaskBudgetUSD
@@ -229,6 +233,7 @@ type PatchAgentOpts struct {
 	SecretRefs      []string
 	Skills          []string
 	SleepTTL        *string
+	ArchiveTTL      *string
 	Storage         *komputer.V1alpha1StorageSpec
 	SystemPrompt    *string
 	TaskBudgetUSD   *string
@@ -290,6 +295,9 @@ func (c *Client) PatchAgent(ctx context.Context, name string, opts ...PatchAgent
 		}
 		if o.SleepTTL != nil {
 			req.SleepTTL = o.SleepTTL
+		}
+		if o.ArchiveTTL != nil {
+			req.ArchiveTTL = o.ArchiveTTL
 		}
 		if o.TaskBudgetUSD != nil {
 			req.TaskBudgetUSD = o.TaskBudgetUSD

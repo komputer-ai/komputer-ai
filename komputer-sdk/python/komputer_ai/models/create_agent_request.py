@@ -30,6 +30,7 @@ class CreateAgentRequest(BaseModel):
     CreateAgentRequest
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.", alias="allowedTools")
+    archive_ttl: Optional[StrictStr] = Field(default=None, description="ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a record) after this long with no activity, as a Go duration string (e.g. \"24h\"). Keeps counting while the agent sleeps. Not allowed on squad members. Empty means never auto-archive.", alias="archiveTTL")
     budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as a decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it's raised; a task already running is always allowed to finish. Empty means no lifetime cap.", alias="budgetUSD")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="optional KomputerConnector names to attach")
     delete_ttl: Optional[StrictStr] = Field(default=None, description="DeleteTTL deletes the agent this long after creation, as a Go duration string (e.g. \"24h\"). Absolute — it does not reset on wake. Empty means never auto-delete.", alias="deleteTTL")
@@ -54,7 +55,7 @@ class CreateAgentRequest(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). The SDK stops a task the instant it is exceeded, mid-task. Empty means tasks run without a per-task cap.", alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, description="TaskTimeout cancels a running task once it has run this long, as a Go duration string (e.g. \"30m\"). A hard wall-clock cap per task — steering does not extend it. Empty means tasks run without a time limit.", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "archiveTTL", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "name", "namespace", "officeManager", "podSpec", "priority", "role", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -114,6 +115,7 @@ class CreateAgentRequest(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "archiveTTL": obj.get("archiveTTL"),
             "budgetUSD": obj.get("budgetUSD"),
             "connectors": obj.get("connectors"),
             "deleteTTL": obj.get("deleteTTL"),

@@ -30,6 +30,7 @@ class PatchAgentRequest(BaseModel):
     PatchAgentRequest
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.", alias="allowedTools")
+    archive_ttl: Optional[StrictStr] = Field(default=None, description="not allowed on squad members", alias="archiveTTL")
     budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \"10.00\"). An explicit \"\" clears the cap; omitting the field leaves it unchanged.", alias="budgetUSD")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="connector names to attach")
     delete_ttl: Optional[StrictStr] = Field(default=None, alias="deleteTTL")
@@ -51,7 +52,7 @@ class PatchAgentRequest(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, alias="taskBudgetUSD")
     task_timeout: Optional[StrictStr] = Field(default=None, alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "removeLabels", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "archiveTTL", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "labels", "lifecycle", "memories", "model", "podSpec", "priority", "removeLabels", "secretRefs", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -111,6 +112,7 @@ class PatchAgentRequest(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "archiveTTL": obj.get("archiveTTL"),
             "budgetUSD": obj.get("budgetUSD"),
             "connectors": obj.get("connectors"),
             "deleteTTL": obj.get("deleteTTL"),

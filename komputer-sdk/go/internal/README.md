@@ -132,6 +132,7 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [AddSquadMemberRequest](docs/AddSquadMemberRequest.md)
+ - [AgentCondition](docs/AgentCondition.md)
  - [AgentEvent](docs/AgentEvent.md)
  - [AgentListFacets](docs/AgentListFacets.md)
  - [AgentListResponse](docs/AgentListResponse.md)

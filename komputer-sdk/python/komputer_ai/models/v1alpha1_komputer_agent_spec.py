@@ -32,6 +32,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     V1alpha1KomputerAgentSpec
     """ # noqa: E501
     allowed_tools: Optional[List[StrictStr]] = Field(default=None, description="AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional", alias="allowedTools")
+    archive_ttl: Optional[V1Duration] = Field(default=None, description="ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it has been idle for this long. Idle is measured exactly like SleepTTL — from Status.LastActivityAt, reset by any task event or wake, never while a task is in progress, and never on an agent that has never run a task — but it also runs while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then archives. With the S3 session store it waits until the latest task is saved; without it the archived agent can't run again. Not applied to squad members. When set, Lifecycle=Archive waits for it instead of archiving right after the task. Unset (default) means the agent never auto-archives. Overrides the template's archiveTTL when set. +optional", alias="archiveTTL")
     budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is a SOFT lifetime spending cap across every task this agent ever runs, as a decimal USD string (e.g. \"10.00\"). Measured against Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to start any NEW task for the agent. A task already in progress when the cap is crossed is always allowed to finish, even if it overshoots — the cap only gates starting the next one. Raising (or clearing) BudgetUSD unblocks the agent again.  A string rather than a float to match how the rest of the CRD represents USD (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for floats. Unset (default) means no lifetime cap. Overrides the template's budgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional", alias="budgetUSD")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional")
     delete_ttl: Optional[V1Duration] = Field(default=None, description="DeleteTTL deletes the entire agent (pod + PVC) once this long has elapsed since metadata.creationTimestamp. This is an absolute lifetime cap: unlike SleepTTL it does not reset on wake and applies in every phase, including Sleeping. Unset (default) means the agent never auto-deletes. Overrides the template's deleteTTL when set. +optional", alias="deleteTTL")
@@ -55,7 +56,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
     task_budget_usd: Optional[StrictStr] = Field(default=None, description="TaskBudgetUSD is a HARD per-task spending cap, as a decimal USD string (e.g. \"2.50\"). Passed to the Claude Agent SDK as max_budget_usd for each task the agent runs: the SDK itself stops the task the instant this is exceeded, wherever it is mid-task, returning an error_max_budget_usd result. Unlike BudgetUSD this is enforced inside the running task rather than by refusing to start one.  Unset (default) means tasks run without a per-task cap. Overrides the template's taskBudgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional", alias="taskBudgetUSD")
     task_timeout: Optional[V1Duration] = Field(default=None, description="TaskTimeout cancels the agent's running task once it has been running for this long. The clock starts when a task starts (Status.TaskStartedAt) and never resets — steering a task does not extend it — so this is a hard wall-clock cap on a single task, not an idle timeout.  Only the task is cancelled; the agent itself stays alive and any configured Lifecycle (Sleep / AutoDelete) then applies as it would after any other task end. Unset (default) means tasks run without a time limit. Overrides the template's taskTimeout when set. +optional", alias="taskTimeout")
     template_ref: Optional[StrictStr] = Field(default=None, description="TemplateRef is the name of the KomputerAgentTemplate to use. +kubebuilder:default=\"default\"", alias="templateRef")
-    __properties: ClassVar[List[str]] = ["allowedTools", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "archiveTTL", "budgetUSD", "connectors", "deleteTTL", "disallowedTools", "effort", "instructions", "internalSystemPrompt", "labels", "lifecycle", "memories", "model", "officeManager", "podSpec", "priority", "role", "secrets", "skills", "sleepTTL", "storage", "systemPrompt", "taskBudgetUSD", "taskTimeout", "templateRef"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -96,6 +97,9 @@ class V1alpha1KomputerAgentSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of archive_ttl
+        if self.archive_ttl:
+            _dict['archiveTTL'] = self.archive_ttl.to_dict()
         # override the default output from pydantic by calling `to_dict()` of delete_ttl
         if self.delete_ttl:
             _dict['deleteTTL'] = self.delete_ttl.to_dict()
@@ -124,6 +128,7 @@ class V1alpha1KomputerAgentSpec(BaseModel):
 
         _obj = cls.model_validate({
             "allowedTools": obj.get("allowedTools"),
+            "archiveTTL": V1Duration.from_dict(obj["archiveTTL"]) if obj.get("archiveTTL") is not None else None,
             "budgetUSD": obj.get("budgetUSD"),
             "connectors": obj.get("connectors"),
             "deleteTTL": V1Duration.from_dict(obj["deleteTTL"]) if obj.get("deleteTTL") is not None else None,

@@ -15,7 +15,11 @@ import (
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
 
-// archiveAgentNow is the Lifecycle=Archive transition: mark the agent Archived,
+// archivedMessage is the status message of an agent archived after its task.
+const archivedMessage = "Archived — task complete, pod and workspace removed. The agent is kept as a record."
+
+// archiveAgentNow is the Archive transition (Lifecycle=Archive, an archive request,
+// or archiveTTL): mark the agent Archived,
 // then delete its pod, PVC and Service. The CR — spec, cost, tokens, last task
 // message — is kept as a read-only record.
 //
@@ -23,20 +27,27 @@ import (
 // takes the reconcileArchived path and retries them; deleting first and failing
 // the status write would instead let ensurePod build a fresh pod for an agent
 // whose task is already done.
-func (r *KomputerAgentReconciler) archiveAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent) error {
+func (r *KomputerAgentReconciler) archiveAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, reason, message string) error {
+	var changed bool
 	if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.Phase = komputerv1alpha1.AgentPhaseArchived
 		s.PodName = ""
 		s.PvcName = ""
-		s.Message = "Archived — task complete, pod and workspace removed. The agent is kept as a record."
+		s.Message = message
+		changed = s.SetCondition(komputerv1alpha1.ConditionArchived, reason, message)
+		s.ResolveCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonArchived, "Archived while asleep")
 		if s.CompletionTime == nil {
 			now := metav1.Now()
 			s.CompletionTime = &now
 		}
 		s.SleepExpiresAt = nil
+		s.ArchiveExpiresAt = nil
 		s.TaskExpiresAt = nil
 	}); err != nil {
 		return err
+	}
+	if changed {
+		recordEvent(r.Recorder, agent, reason, message)
 	}
 	return r.deleteArchivedResources(ctx, agent)
 }
@@ -63,6 +74,7 @@ func (r *KomputerAgentReconciler) reconcileArchived(ctx context.Context, agent *
 	if d.Action == ttlActionDelete {
 		logf.FromContext(ctx).Info("deleteTTL elapsed, deleting archived agent",
 			"agent", agent.Name, "deleteTTL", deleteTTL.Duration)
+		recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonDeleteTTL, deleteTTLMessage(deleteTTL))
 		if err := r.Delete(ctx, agent); err != nil && !errors.IsNotFound(err) {
 			return ctrl.Result{}, err
 		}

@@ -209,6 +209,11 @@ func createSquad(k8s *K8sClient) gin.HandlerFunc {
 			ns = resolveNamespace(c, k8s)
 		}
 
+		if err := validateSquadMembersNoArchiveTTL(c.Request.Context(), k8s, ns, req.Members); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		// On Bedrock, reject friendly model names on inline member specs before
 		// they reach the SDK. Inline specs are new agents, so a model is required.
 		for _, m := range req.Members {
@@ -455,6 +460,10 @@ func patchSquad(k8s *K8sClient) gin.HandlerFunc {
 			}
 
 			if req.Members != nil {
+				if err := validateSquadMembersNoArchiveTTL(c.Request.Context(), k8s, ns, req.Members); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
 				// Without the S3 session store an archived agent never runs again —
 				// refuse to add one by ref.
 				s3On := k8s.S3Enabled(c.Request.Context())
@@ -614,6 +623,11 @@ func addSquadMember(k8s *K8sClient) gin.HandlerFunc {
 		}
 		if req.Ref != nil && req.Spec != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "exactly one of ref or spec must be set"})
+			return
+		}
+		if err := validateSquadMembersNoArchiveTTL(c.Request.Context(), k8s, ns,
+			[]komputerv1alpha1.KomputerSquadMember{{Ref: req.Ref, Spec: req.Spec}}); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		// On Bedrock, reject a friendly model name on an inline member spec.

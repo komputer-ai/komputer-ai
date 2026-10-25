@@ -198,7 +198,7 @@ func createSchedule(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context()) || req.AgentNaming.PerRun()); err != nil {
+			if err := validateScheduleLifecycle(*cfg, k8s.S3Enabled(c.Request.Context()) || req.AgentNaming.PerRun()); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -378,7 +378,7 @@ func triggerScheduleNow(ctx context.Context, k8s *K8sClient, ns, name string) (s
 			// Confirmed not busy above (TaskStatus != InProgress), so this is a new
 			// task — patch spec.Instructions first so a pod reschedule re-runs this
 			// scheduled run instead of stale creation-time instructions.
-			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
+			if err := k8s.PatchAgentSpec(ctx, ns, agentName, nil, nil, nil, &instructions, nil, nil, nil, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, TTLUpdate{}, StringUpdate{}, StringUpdate{}); err != nil {
 				Logger.Warnw("manual trigger: failed to patch instructions before forwarding", "agent", agentName, "error", err)
 			}
 			effectiveTaskBudget := k8s.ResolveEffectiveTaskBudgetUSD(ctx, ns, agent.Spec.AgentConfigSpec)
@@ -544,7 +544,7 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 		}
 		// Switching an unchanged Archive template back to Fixed naming.
 		if req.AgentNaming != nil && req.Agent == nil && template != nil {
-			if err := validateScheduleLifecycle(template.Lifecycle, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
+			if err := validateScheduleLifecycle(template.AgentConfigSpec, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -574,7 +574,7 @@ func patchSchedule(k8s *K8sClient) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			if err := validateScheduleLifecycle(cfg.Lifecycle, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
+			if err := validateScheduleLifecycle(*cfg, k8s.S3Enabled(c.Request.Context()) || naming.PerRun()); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

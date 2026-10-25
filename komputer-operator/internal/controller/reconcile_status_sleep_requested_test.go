@@ -77,7 +77,7 @@ func TestReconcileStatus_SleepRequested_SleepsNow(t *testing.T) {
 				Build()
 			r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", tc.sleepTTL, nil, false); err != nil {
+			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", tc.sleepTTL, nil, nil, false); err != nil {
 				t.Fatalf("reconcileStatus: %v", err)
 			}
 
@@ -138,7 +138,7 @@ func TestReconcileStatus_SleepRequested_WaitsForInProgressTask(t *testing.T) {
 				Build()
 			r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+			if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 				t.Fatalf("reconcileStatus: %v", err)
 			}
 
@@ -187,7 +187,7 @@ func TestReconcileStatus_SleepRequested_EphemeralWorkspace_NotSlept(t *testing.T
 		Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "", "my-agent-pod", nil, nil, true); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "", "my-agent-pod", nil, nil, nil, true); err != nil {
 		t.Fatalf("reconcileStatus: %v", err)
 	}
 

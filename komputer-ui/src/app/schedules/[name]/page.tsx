@@ -823,6 +823,7 @@ export default function ScheduleDetailPage() {
                   ["Priority", agentSpec.priority ? String(agentSpec.priority) : undefined, false],
                   ["Storage", agentSpec.storage?.size, false],
                   ["Sleep TTL", agentSpec.sleepTTL ? fmtDuration(agentSpec.sleepTTL) : undefined, false],
+                  ["Archive TTL", agentSpec.archiveTTL ? fmtDuration(agentSpec.archiveTTL) : undefined, false],
                   ["Delete TTL", agentSpec.deleteTTL ? fmtDuration(agentSpec.deleteTTL) : undefined, false],
                   ["Task Timeout", agentSpec.taskTimeout ? fmtDuration(agentSpec.taskTimeout) : undefined, false],
                   ["Budget (USD)", agentSpec.budgetUSD ? `$${agentSpec.budgetUSD}` : undefined, false],

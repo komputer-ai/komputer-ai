@@ -21,11 +21,16 @@ var _ MappedNullable = &AgentResponse{}
 type AgentResponse struct {
 	// Tools this agent is restricted to (empty = defaults)
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	ArchiveExpiresAt *string `json:"archiveExpiresAt,omitempty"`
+	// idle timeout before auto-archive, e.g. \"24h\"
+	ArchiveTTL *string `json:"archiveTTL,omitempty"`
 	// BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's default) — new tasks are refused with 409 until it's raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don't have to re-derive the template resolution themselves.
 	BudgetExhausted *bool `json:"budgetExhausted,omitempty"`
 	// BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.
 	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	CompletionTime *string `json:"completionTime,omitempty"`
+	// Conditions say why the agent is in its current state, e.g. Asleep=True with reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with reason TaskTimeout. Mirrors status.conditions on the CR.
+	Conditions []AgentCondition `json:"conditions,omitempty"`
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
@@ -62,7 +67,7 @@ type AgentResponse struct {
 	SessionStore *SessionStoreResponse `json:"sessionStore,omitempty"`
 	// KomputerSkill names attached to this agent
 	Skills []string `json:"skills,omitempty"`
-	// SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't currently running.
+	// SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.
 	SleepExpiresAt *string `json:"sleepExpiresAt,omitempty"`
 	// idle timeout before auto-sleep, e.g. \"30m\"
 	SleepTTL *string `json:"sleepTTL,omitempty"`
@@ -133,6 +138,70 @@ func (o *AgentResponse) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *AgentResponse) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetArchiveExpiresAt returns the ArchiveExpiresAt field value if set, zero value otherwise.
+func (o *AgentResponse) GetArchiveExpiresAt() string {
+	if o == nil || IsNil(o.ArchiveExpiresAt) {
+		var ret string
+		return ret
+	}
+	return *o.ArchiveExpiresAt
+}
+
+// GetArchiveExpiresAtOk returns a tuple with the ArchiveExpiresAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetArchiveExpiresAtOk() (*string, bool) {
+	if o == nil || IsNil(o.ArchiveExpiresAt) {
+		return nil, false
+	}
+	return o.ArchiveExpiresAt, true
+}
+
+// HasArchiveExpiresAt returns a boolean if a field has been set.
+func (o *AgentResponse) HasArchiveExpiresAt() bool {
+	if o != nil && !IsNil(o.ArchiveExpiresAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchiveExpiresAt gets a reference to the given string and assigns it to the ArchiveExpiresAt field.
+func (o *AgentResponse) SetArchiveExpiresAt(v string) {
+	o.ArchiveExpiresAt = &v
+}
+
+// GetArchiveTTL returns the ArchiveTTL field value if set, zero value otherwise.
+func (o *AgentResponse) GetArchiveTTL() string {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		var ret string
+		return ret
+	}
+	return *o.ArchiveTTL
+}
+
+// GetArchiveTTLOk returns a tuple with the ArchiveTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetArchiveTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		return nil, false
+	}
+	return o.ArchiveTTL, true
+}
+
+// HasArchiveTTL returns a boolean if a field has been set.
+func (o *AgentResponse) HasArchiveTTL() bool {
+	if o != nil && !IsNil(o.ArchiveTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchiveTTL gets a reference to the given string and assigns it to the ArchiveTTL field.
+func (o *AgentResponse) SetArchiveTTL(v string) {
+	o.ArchiveTTL = &v
 }
 
 // GetBudgetExhausted returns the BudgetExhausted field value if set, zero value otherwise.
@@ -229,6 +298,38 @@ func (o *AgentResponse) HasCompletionTime() bool {
 // SetCompletionTime gets a reference to the given string and assigns it to the CompletionTime field.
 func (o *AgentResponse) SetCompletionTime(v string) {
 	o.CompletionTime = &v
+}
+
+// GetConditions returns the Conditions field value if set, zero value otherwise.
+func (o *AgentResponse) GetConditions() []AgentCondition {
+	if o == nil || IsNil(o.Conditions) {
+		var ret []AgentCondition
+		return ret
+	}
+	return o.Conditions
+}
+
+// GetConditionsOk returns a tuple with the Conditions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetConditionsOk() ([]AgentCondition, bool) {
+	if o == nil || IsNil(o.Conditions) {
+		return nil, false
+	}
+	return o.Conditions, true
+}
+
+// HasConditions returns a boolean if a field has been set.
+func (o *AgentResponse) HasConditions() bool {
+	if o != nil && !IsNil(o.Conditions) {
+		return true
+	}
+
+	return false
+}
+
+// SetConditions gets a reference to the given []AgentCondition and assigns it to the Conditions field.
+func (o *AgentResponse) SetConditions(v []AgentCondition) {
+	o.Conditions = v
 }
 
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
@@ -1492,6 +1593,12 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
 	}
+	if !IsNil(o.ArchiveExpiresAt) {
+		toSerialize["archiveExpiresAt"] = o.ArchiveExpiresAt
+	}
+	if !IsNil(o.ArchiveTTL) {
+		toSerialize["archiveTTL"] = o.ArchiveTTL
+	}
 	if !IsNil(o.BudgetExhausted) {
 		toSerialize["budgetExhausted"] = o.BudgetExhausted
 	}
@@ -1500,6 +1607,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CompletionTime) {
 		toSerialize["completionTime"] = o.CompletionTime
+	}
+	if !IsNil(o.Conditions) {
+		toSerialize["conditions"] = o.Conditions
 	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors

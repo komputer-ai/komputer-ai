@@ -78,6 +78,15 @@ var _ = Describe("Schedule archive admission policy", func() {
 			return err.Error()
 		}, 20*time.Second, 500*time.Millisecond).Should(ContainSubstring("requires the S3 session store"))
 
+		By("denying archiveTTL on a Fixed-naming schedule while no KomputerConfig has S3")
+		withTTL := schedule("archive-ttl-no-s3", "")
+		withTTL.Spec.Agent.ArchiveTTL = &metav1.Duration{Duration: time.Hour}
+		err := k8sClient.Create(ctx, withTTL)
+		if err == nil {
+			_ = k8sClient.Delete(ctx, withTTL)
+		}
+		Expect(err).To(MatchError(ContainSubstring("requires the S3 session store")))
+
 		By("still allowing other lifecycles")
 		s := schedule("sleep-no-s3", komputerv1alpha1.AgentLifecycleSleep)
 		Expect(k8sClient.Create(ctx, s)).To(Succeed())

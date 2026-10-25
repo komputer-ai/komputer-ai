@@ -50,6 +50,8 @@ export interface AgentFormValues {
   image: string;
   /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
   sleepTTL: string;
+  /** Go duration string (e.g. "24h"). Archive the agent after this long idle (keeps counting while it sleeps). */
+  archiveTTL: string;
   /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */
   deleteTTL: string;
   /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
@@ -89,6 +91,7 @@ export function makeDefaultAgentFormValues(overrides?: Partial<AgentFormValues>)
     storageSize: "",
     ephemeral: false,
     sleepTTL: "",
+    archiveTTL: "",
     deleteTTL: "",
     taskTimeout: "",
     budgetUSD: "",
@@ -523,6 +526,19 @@ export function AgentFieldsForm({
                         autoComplete="off"
                       />
                     </div>
+                    {/* Squad members can't have an archiveTTL (the API rejects it). */}
+                    {!hideNamespaceOnly && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`${idPrefix}-archive-ttl`}>Archive TTL</Label>
+                        <Input
+                          id={`${idPrefix}-archive-ttl`}
+                          placeholder="e.g. 24h"
+                          value={values.archiveTTL}
+                          onChange={(e) => patch("archiveTTL", e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
+                    )}
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor={`${idPrefix}-delete-ttl`}>Delete TTL</Label>
                       <Input
@@ -686,6 +702,7 @@ export function buildCreateAgentRequest(values: AgentFormValues, opts?: { includ
       ? { size: values.storageSize.trim() || undefined, ephemeral: values.ephemeral || undefined }
       : undefined,
     sleepTTL: values.sleepTTL.trim() || undefined,
+    archiveTTL: values.archiveTTL.trim() || undefined,
     deleteTTL: values.deleteTTL.trim() || undefined,
     taskTimeout: values.taskTimeout.trim() || undefined,
     budgetUSD: values.budgetUSD.trim() || undefined,
@@ -721,6 +738,7 @@ export function buildScheduleAgentSpec(values: AgentFormValues): ScheduleAgentSp
     podSpec: base.podSpec,
     storage: base.storage,
     sleepTTL: base.sleepTTL,
+    archiveTTL: base.archiveTTL,
     deleteTTL: base.deleteTTL,
     taskTimeout: base.taskTimeout,
     budgetUSD: base.budgetUSD,
@@ -760,6 +778,7 @@ export function agentFormValuesFromScheduleSpec(spec: ScheduleAgentSpec, namespa
     storageSize: spec.storage?.size ?? "",
     ephemeral: spec.storage?.ephemeral ?? false,
     sleepTTL: fmtDuration(spec.sleepTTL ?? ""),
+    archiveTTL: fmtDuration(spec.archiveTTL ?? ""),
     deleteTTL: fmtDuration(spec.deleteTTL ?? ""),
     taskTimeout: fmtDuration(spec.taskTimeout ?? ""),
     budgetUSD: spec.budgetUSD ?? "",

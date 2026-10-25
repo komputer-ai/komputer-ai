@@ -64,6 +64,22 @@ export interface V1alpha1ScheduleAgentSpec {
      */
     allowedTools?: Array<string>;
     /**
+     * ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+     * has been idle for this long. Idle is measured exactly like SleepTTL — from
+     * Status.LastActivityAt, reset by any task event or wake, never while a task is
+     * in progress, and never on an agent that has never run a task — but it also runs
+     * while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+     * archives. With the S3 session store it waits until the latest task is saved;
+     * without it the archived agent can't run again. Not applied to squad members.
+     * When set, Lifecycle=Archive waits for it instead of archiving right after the
+     * task. Unset (default) means the agent never auto-archives.
+     * Overrides the template's archiveTTL when set.
+     * +optional
+     * @type {V1Duration}
+     * @memberof V1alpha1ScheduleAgentSpec
+     */
+    archiveTTL?: V1Duration;
+    /**
      * BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
      * runs, as a decimal USD string (e.g. "10.00"). Measured against
      * Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to
@@ -294,6 +310,7 @@ export function V1alpha1ScheduleAgentSpecFromJSONTyped(json: any, ignoreDiscrimi
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'archiveTTL': json['archiveTTL'] == null ? undefined : V1DurationFromJSON(json['archiveTTL']),
         'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : V1DurationFromJSON(json['deleteTTL']),
@@ -329,6 +346,7 @@ export function V1alpha1ScheduleAgentSpecToJSONTyped(value?: V1alpha1ScheduleAge
     return {
         
         'allowedTools': value['allowedTools'],
+        'archiveTTL': V1DurationToJSON(value['archiveTTL']),
         'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': V1DurationToJSON(value['deleteTTL']),

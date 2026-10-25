@@ -61,7 +61,7 @@ func TestReconcileStatus_SleepLifecycle_WakeIdleAnnotation_SkipsImmediateSleep(t
 		Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func TestReconcileStatus_SleepLifecycle_WithoutAnnotation_StillSleepsImmediately
 		Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 
@@ -150,7 +150,7 @@ func TestReconcileStatus_AutoDeleteLifecycle_WakeIdleAnnotation_SkipsImmediateDe
 		Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 
@@ -183,7 +183,7 @@ func TestReconcileStatus_AutoDeleteLifecycle_WithoutAnnotation_StillDeletes(t *t
 		Build()
 	r := &KomputerAgentReconciler{Client: c, Scheme: scheme}
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus returned error: %v", err)
 	}
 

@@ -13,6 +13,16 @@ export interface StorageOverride {
   ephemeral?: boolean;
 }
 
+/** A Kubernetes-style status condition explaining why an agent is in its state (e.g. Asleep/SleepTTL). */
+export interface AgentCondition {
+  type: string;
+  status: 'True' | 'False' | 'Unknown';
+  reason?: string;
+  message?: string;
+  /** RFC3339. */
+  lastTransitionTime?: string;
+}
+
 export interface AgentResponse {
   name: string;
   namespace: string;
@@ -20,11 +30,15 @@ export interface AgentResponse {
   /** Reasoning effort override ('low'|'medium'|'high'|'xhigh'|'max'). Empty/unset means the model's own default effort. */
   effort?: string;
   status: AgentStatus;
+  /** Why the agent is in its state (Asleep, Archived, TaskTimedOut, ...). Mirrors status.conditions. */
+  conditions?: AgentCondition[];
   taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
   lifecycle?: '' | 'Sleep' | 'AutoDelete' | 'Archive';
   /** Idle timeout before auto-sleep, as a Go duration string (e.g. "30m0s"). */
   sleepTTL?: string;
+  /** Idle timeout before auto-archive, as a Go duration string (e.g. "24h0m0s"). Keeps counting while the agent sleeps. */
+  archiveTTL?: string;
   /** Absolute lifetime before auto-delete, as a Go duration string (e.g. "24h0m0s"). */
   deleteTTL?: string;
   /** Per-task wall-clock cap, as a Go duration string (e.g. "30m0s"). */
@@ -37,6 +51,7 @@ export interface AgentResponse {
   lastActivityAt?: string;
   /** RFC3339. When the TTL will fire. Absent when the TTL is unset or its clock isn't running. */
   sleepExpiresAt?: string;
+  archiveExpiresAt?: string;
   deleteExpiresAt?: string;
   /** RFC3339. When the current task started. */
   taskStartedAt?: string;
@@ -151,6 +166,7 @@ export interface ScheduleAgentSpec {
   labels?: Record<string, string>;
   /** Go duration strings; the API echoes them as e.g. "30m0s". */
   sleepTTL?: string;
+  archiveTTL?: string;
   deleteTTL?: string;
   taskTimeout?: string;
   /** Decimal USD strings (e.g. "10.00"). */
@@ -228,6 +244,8 @@ export interface CreateAgentRequest {
   lifecycle?: '' | 'Sleep' | 'AutoDelete' | 'Archive';
   /** Go duration string (e.g. "30m"). Sleep the agent after this long idle. */
   sleepTTL?: string;
+  /** Go duration string (e.g. "24h"). Archive the agent after this long idle (keeps counting while it sleeps). */
+  archiveTTL?: string;
   /** Go duration string (e.g. "24h"). Delete the agent this long after creation. */
   deleteTTL?: string;
   /** Go duration string (e.g. "30m"). Hard wall-clock cap on a single task. */
@@ -270,6 +288,8 @@ export interface PatchAgentRequest {
   disallowedTools?: string[];
   /** Go duration string (e.g. "30m"). Send "" to clear; omit to leave unchanged. */
   sleepTTL?: string;
+  /** Go duration string (e.g. "24h"). Send "" to clear; omit to leave unchanged. */
+  archiveTTL?: string;
   /** Go duration string (e.g. "24h"). Send "" to clear; omit to leave unchanged. */
   deleteTTL?: string;
   /** Go duration string (e.g. "30m"). Send "" to clear; omit to leave unchanged. */

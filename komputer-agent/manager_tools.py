@@ -51,6 +51,7 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
             "role": {"type": "string", "enum": ["worker", "manager"], "description": "Agent role. 'worker' (default) has Bash+WebSearch only. 'manager' can create its own sub-agents."},
             "lifecycle": {"type": "string", "enum": ["", "Sleep", "AutoDelete", "Archive"], "description": "Post-task behavior. Empty=pod stays running, 'Sleep'=pod deleted/PVC kept, 'AutoDelete'=everything deleted, 'Archive'=pod+PVC deleted, agent kept as a read-only record (cost, settings)."},
             "sleepTTL": {"type": "string", "description": "Sleep the sub-agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Omit to never auto-sleep."},
+            "archiveTTL": {"type": "string", "description": "Archive the sub-agent (pod and workspace deleted, kept as a read-only record) after this long with no activity, e.g. '24h'. Resets on every task and keeps counting while asleep. Without the S3 session store an archived agent can't run again. Not for squad members. Omit to never auto-archive."},
             "deleteTTL": {"type": "string", "description": "Delete the sub-agent this long after creation, e.g. '24h'. Absolute — does not reset on wake, and applies even while sleeping. Omit to never auto-delete."},
             "taskTimeout": {"type": "string", "description": "Cancel the sub-agent's task if it runs longer than this, e.g. '30m', '2h'. A hard wall-clock cap per task — steering does not extend it, and only the task is cancelled, not the agent. Omit for no limit."},
             "budgetUSD": {"type": "string", "description": "Soft lifetime spending cap in USD, e.g. '10.00'. Once the sub-agent's total spend reaches this, new tasks are refused (a running task still finishes). Omit for no cap."},
@@ -93,6 +94,8 @@ async def create_agent(args):
         payload["lifecycle"] = args["lifecycle"]
     if args.get("sleepTTL"):
         payload["sleepTTL"] = args["sleepTTL"]
+    if args.get("archiveTTL"):
+        payload["archiveTTL"] = args["archiveTTL"]
     if args.get("deleteTTL"):
         payload["deleteTTL"] = args["deleteTTL"]
     if args.get("taskTimeout"):
@@ -688,6 +691,7 @@ async def list_agents(args):
                 "description": "Replace the agent's blocked-tool list, keeping everything else available. Supports wildcards. Takes precedence over allowedTools. Pass [] to clear.",
             },
             "sleepTTL": {"type": "string", "description": "Sleep the agent after this long with no activity, e.g. '30m', '2h'. Resets on every task. Pass '' to remove."},
+            "archiveTTL": {"type": "string", "description": "Archive the agent (pod and workspace deleted, kept as a read-only record) after this long with no activity, e.g. '24h'. Resets on every task and keeps counting while asleep. Pass '' to remove."},
             "deleteTTL": {"type": "string", "description": "Delete the agent this long after creation, e.g. '24h'. Absolute — does not reset on wake. Pass '' to remove."},
             "taskTimeout": {"type": "string", "description": "Cancel the agent's task if it runs longer than this, e.g. '30m', '2h'. Pass '' to remove."},
             "budgetUSD": {"type": "string", "description": "Soft lifetime spending cap in USD, e.g. '10.00'. New tasks are refused once total spend reaches this. Pass '' to remove."},
@@ -711,6 +715,8 @@ async def patch_agent(args):
     # `is not None` so an explicit "" reaches the API and clears the TTL.
     if args.get("sleepTTL") is not None:
         body["sleepTTL"] = args["sleepTTL"]
+    if args.get("archiveTTL") is not None:
+        body["archiveTTL"] = args["archiveTTL"]
     if args.get("deleteTTL") is not None:
         body["deleteTTL"] = args["deleteTTL"]
     if args.get("taskTimeout") is not None:

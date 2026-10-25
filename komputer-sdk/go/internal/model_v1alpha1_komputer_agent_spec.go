@@ -21,6 +21,8 @@ var _ MappedNullable = &V1alpha1KomputerAgentSpec{}
 type V1alpha1KomputerAgentSpec struct {
 	// AllowedTools restricts the agent to exactly these tools. When empty, the default built-in tool set is used and all tools from attached connectors are permitted.  Setting this REPLACES the default set rather than extending it, so an agent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector tools are not auto-added either — list them explicitly, e.g. \"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\" for a single tool. +optional
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it has been idle for this long. Idle is measured exactly like SleepTTL — from Status.LastActivityAt, reset by any task event or wake, never while a task is in progress, and never on an agent that has never run a task — but it also runs while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then archives. With the S3 session store it waits until the latest task is saved; without it the archived agent can't run again. Not applied to squad members. When set, Lifecycle=Archive waits for it instead of archiving right after the task. Unset (default) means the agent never auto-archives. Overrides the template's archiveTTL when set. +optional
+	ArchiveTTL *V1Duration `json:"archiveTTL,omitempty"`
 	// BudgetUSD is a SOFT lifetime spending cap across every task this agent ever runs, as a decimal USD string (e.g. \"10.00\"). Measured against Status.TotalCostUSD: once spent reaches or exceeds this, the API refuses to start any NEW task for the agent. A task already in progress when the cap is crossed is always allowed to finish, even if it overshoots — the cap only gates starting the next one. Raising (or clearing) BudgetUSD unblocks the agent again.  A string rather than a float to match how the rest of the CRD represents USD (see Status.TotalCostUSD) and avoid controller-gen's allowDangerousTypes for floats. Unset (default) means no lifetime cap. Overrides the template's budgetUSD when set. +kubebuilder:validation:Pattern=`^[0-9]+(\\.[0-9]+)?$` +optional
 	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// Connectors is a list of KomputerConnector names to attach to this agent. Names can be \"name\" (same namespace) or \"namespace/name\" (cross-namespace). +optional
@@ -116,6 +118,38 @@ func (o *V1alpha1KomputerAgentSpec) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *V1alpha1KomputerAgentSpec) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetArchiveTTL returns the ArchiveTTL field value if set, zero value otherwise.
+func (o *V1alpha1KomputerAgentSpec) GetArchiveTTL() V1Duration {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		var ret V1Duration
+		return ret
+	}
+	return *o.ArchiveTTL
+}
+
+// GetArchiveTTLOk returns a tuple with the ArchiveTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V1alpha1KomputerAgentSpec) GetArchiveTTLOk() (*V1Duration, bool) {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		return nil, false
+	}
+	return o.ArchiveTTL, true
+}
+
+// HasArchiveTTL returns a boolean if a field has been set.
+func (o *V1alpha1KomputerAgentSpec) HasArchiveTTL() bool {
+	if o != nil && !IsNil(o.ArchiveTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchiveTTL gets a reference to the given V1Duration and assigns it to the ArchiveTTL field.
+func (o *V1alpha1KomputerAgentSpec) SetArchiveTTL(v V1Duration) {
+	o.ArchiveTTL = &v
 }
 
 // GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
@@ -866,6 +900,9 @@ func (o V1alpha1KomputerAgentSpec) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
+	}
+	if !IsNil(o.ArchiveTTL) {
+		toSerialize["archiveTTL"] = o.ArchiveTTL
 	}
 	if !IsNil(o.BudgetUSD) {
 		toSerialize["budgetUSD"] = o.BudgetUSD

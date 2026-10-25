@@ -21,6 +21,8 @@ var _ MappedNullable = &PatchAgentRequest{}
 type PatchAgentRequest struct {
 	// AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set.
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// not allowed on squad members
+	ArchiveTTL *string `json:"archiveTTL,omitempty"`
 	// BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \"10.00\"). An explicit \"\" clears the cap; omitting the field leaves it unchanged.
 	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// connector names to attach
@@ -102,6 +104,38 @@ func (o *PatchAgentRequest) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *PatchAgentRequest) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetArchiveTTL returns the ArchiveTTL field value if set, zero value otherwise.
+func (o *PatchAgentRequest) GetArchiveTTL() string {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		var ret string
+		return ret
+	}
+	return *o.ArchiveTTL
+}
+
+// GetArchiveTTLOk returns a tuple with the ArchiveTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *PatchAgentRequest) GetArchiveTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		return nil, false
+	}
+	return o.ArchiveTTL, true
+}
+
+// HasArchiveTTL returns a boolean if a field has been set.
+func (o *PatchAgentRequest) HasArchiveTTL() bool {
+	if o != nil && !IsNil(o.ArchiveTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchiveTTL gets a reference to the given string and assigns it to the ArchiveTTL field.
+func (o *PatchAgentRequest) SetArchiveTTL(v string) {
+	o.ArchiveTTL = &v
 }
 
 // GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
@@ -788,6 +822,9 @@ func (o PatchAgentRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
+	}
+	if !IsNil(o.ArchiveTTL) {
+		toSerialize["archiveTTL"] = o.ArchiveTTL
 	}
 	if !IsNil(o.BudgetUSD) {
 		toSerialize["budgetUSD"] = o.BudgetUSD

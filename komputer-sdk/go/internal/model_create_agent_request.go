@@ -23,6 +23,8 @@ var _ MappedNullable = &CreateAgentRequest{}
 type CreateAgentRequest struct {
 	// AllowedTools restricts the agent to exactly these tools. REPLACES the default built-in set rather than extending it, and connector tools are not auto-added. Supports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.
 	AllowedTools []string `json:"allowedTools,omitempty"`
+	// ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a record) after this long with no activity, as a Go duration string (e.g. \"24h\"). Keeps counting while the agent sleeps. Not allowed on squad members. Empty means never auto-archive.
+	ArchiveTTL *string `json:"archiveTTL,omitempty"`
 	// BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as a decimal USD string (e.g. \"10.00\"). Once status.totalCostUSD reaches or exceeds it, new tasks are refused with 409 until it's raised; a task already running is always allowed to finish. Empty means no lifetime cap.
 	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	// optional KomputerConnector names to attach
@@ -118,6 +120,38 @@ func (o *CreateAgentRequest) HasAllowedTools() bool {
 // SetAllowedTools gets a reference to the given []string and assigns it to the AllowedTools field.
 func (o *CreateAgentRequest) SetAllowedTools(v []string) {
 	o.AllowedTools = v
+}
+
+// GetArchiveTTL returns the ArchiveTTL field value if set, zero value otherwise.
+func (o *CreateAgentRequest) GetArchiveTTL() string {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		var ret string
+		return ret
+	}
+	return *o.ArchiveTTL
+}
+
+// GetArchiveTTLOk returns a tuple with the ArchiveTTL field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CreateAgentRequest) GetArchiveTTLOk() (*string, bool) {
+	if o == nil || IsNil(o.ArchiveTTL) {
+		return nil, false
+	}
+	return o.ArchiveTTL, true
+}
+
+// HasArchiveTTL returns a boolean if a field has been set.
+func (o *CreateAgentRequest) HasArchiveTTL() bool {
+	if o != nil && !IsNil(o.ArchiveTTL) {
+		return true
+	}
+
+	return false
+}
+
+// SetArchiveTTL gets a reference to the given string and assigns it to the ArchiveTTL field.
+func (o *CreateAgentRequest) SetArchiveTTL(v string) {
+	o.ArchiveTTL = &v
 }
 
 // GetBudgetUSD returns the BudgetUSD field value if set, zero value otherwise.
@@ -884,6 +918,9 @@ func (o CreateAgentRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.AllowedTools) {
 		toSerialize["allowedTools"] = o.AllowedTools
+	}
+	if !IsNil(o.ArchiveTTL) {
+		toSerialize["archiveTTL"] = o.ArchiveTTL
 	}
 	if !IsNil(o.BudgetUSD) {
 		toSerialize["budgetUSD"] = o.BudgetUSD

@@ -2455,6 +2455,27 @@ components:
         spec:
           $ref: "#/components/schemas/v1alpha1.KomputerAgentSpec"
       type: object
+    AgentCondition:
+      example:
+        reason: reason
+        lastTransitionTime: lastTransitionTime
+        message: message
+        type: type
+        status: status
+      properties:
+        lastTransitionTime:
+          description: RFC3339
+          type: string
+        message:
+          type: string
+        reason:
+          type: string
+        status:
+          description: "\"True\", \"False\" or \"Unknown\""
+          type: string
+        type:
+          type: string
+      type: object
     AgentEvent:
       example:
         payload:
@@ -2505,6 +2526,7 @@ components:
             size: size
             storageClassName: storageClassName
             ephemeral: true
+          archiveTTL: archiveTTL
           lifecycle: lifecycle
           skills:
           - skills
@@ -3160,10 +3182,22 @@ components:
             key: labels
           sleepTTL: sleepTTL
           systemPrompt: systemPrompt
+          archiveExpiresAt: archiveExpiresAt
           squad: true
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          conditions:
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
           budgetExhausted: true
           errors:
           - errors
@@ -3185,6 +3219,7 @@ components:
             size: size
             storageClassName: storageClassName
             ephemeral: true
+          archiveTTL: archiveTTL
           lifecycle: lifecycle
           skills:
           - skills
@@ -3840,10 +3875,22 @@ components:
             key: labels
           sleepTTL: sleepTTL
           systemPrompt: systemPrompt
+          archiveExpiresAt: archiveExpiresAt
           squad: true
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          conditions:
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
           budgetExhausted: true
           errors:
           - errors
@@ -3893,6 +3940,7 @@ components:
           size: size
           storageClassName: storageClassName
           ephemeral: true
+        archiveTTL: archiveTTL
         lifecycle: lifecycle
         skills:
         - skills
@@ -4548,10 +4596,22 @@ components:
           key: labels
         sleepTTL: sleepTTL
         systemPrompt: systemPrompt
+        archiveExpiresAt: archiveExpiresAt
         squad: true
         name: name
         namespace: namespace
         taskExpiresAt: taskExpiresAt
+        conditions:
+        - reason: reason
+          lastTransitionTime: lastTransitionTime
+          message: message
+          type: type
+          status: status
+        - reason: reason
+          lastTransitionTime: lastTransitionTime
+          message: message
+          type: type
+          status: status
         budgetExhausted: true
         errors:
         - errors
@@ -4566,6 +4626,11 @@ components:
           items:
             type: string
           type: array
+        archiveExpiresAt:
+          type: string
+        archiveTTL:
+          description: "idle timeout before auto-archive, e.g. \"24h\""
+          type: string
         budgetExhausted:
           description: |-
             BudgetExhausted is true when status.totalCostUSD has reached or passed the
@@ -4583,6 +4648,14 @@ components:
           type: string
         completionTime:
           type: string
+        conditions:
+          description: |-
+            Conditions say why the agent is in its current state, e.g. Asleep=True with
+            reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with
+            reason TaskTimeout. Mirrors status.conditions on the CR.
+          items:
+            $ref: "#/components/schemas/AgentCondition"
+          type: array
         connectors:
           description: KomputerConnector names attached to this agent
           items:
@@ -4672,8 +4745,8 @@ components:
           type: array
         sleepExpiresAt:
           description: |-
-            SleepExpiresAt / DeleteExpiresAt are when the TTLs will fire (RFC3339). Empty
-            when the matching TTL is unset or its countdown isn't currently running.
+            SleepExpiresAt / DeleteExpiresAt / ArchiveExpiresAt are when the TTLs will fire
+            (RFC3339). Empty when the matching TTL is unset or its countdown isn't running.
           type: string
         sleepTTL:
           description: "idle timeout before auto-sleep, e.g. \"30m\""
@@ -4872,6 +4945,13 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          description: |-
+            ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a
+            record) after this long with no activity, as a Go duration string (e.g. "24h").
+            Keeps counting while the agent sleeps. Not allowed on squad members. Empty
+            means never auto-archive.
+          type: string
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
@@ -5253,6 +5333,9 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          description: not allowed on squad members
+          type: string
         budgetUSD:
           description: |-
             BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. "10.00"). An explicit
@@ -5407,6 +5490,7 @@ components:
             secrets:
             - secrets
             - secrets
+            archiveTTL: "{}"
             labels:
               key: labels
             lifecycle: "{}"
@@ -5464,6 +5548,7 @@ components:
             secrets:
             - secrets
             - secrets
+            archiveTTL: "{}"
             labels:
               key: labels
             lifecycle: "{}"
@@ -5529,6 +5614,7 @@ components:
           secrets:
           - secrets
           - secrets
+          archiveTTL: "{}"
           labels:
             key: labels
           lifecycle: "{}"
@@ -12300,6 +12386,22 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+            has been idle for this long. Idle is measured exactly like SleepTTL — from
+            Status.LastActivityAt, reset by any task event or wake, never while a task is
+            in progress, and never on an agent that has never run a task — but it also runs
+            while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+            archives. With the S3 session store it waits until the latest task is saved;
+            without it the archived agent can't run again. Not applied to squad members.
+            When set, Lifecycle=Archive waits for it instead of archiving right after the
+            task. Unset (default) means the agent never auto-archives.
+            Overrides the template's archiveTTL when set.
+            +optional
+          type: object
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across every task this agent ever
@@ -12557,6 +12659,7 @@ components:
         secrets:
         - secrets
         - secrets
+        archiveTTL: "{}"
         labels:
           key: labels
         lifecycle: "{}"
@@ -12594,6 +12697,22 @@ components:
           items:
             type: string
           type: array
+        archiveTTL:
+          allOf:
+          - $ref: "#/components/schemas/v1.Duration"
+          description: |-
+            ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+            has been idle for this long. Idle is measured exactly like SleepTTL — from
+            Status.LastActivityAt, reset by any task event or wake, never while a task is
+            in progress, and never on an agent that has never run a task — but it also runs
+            while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+            archives. With the S3 session store it waits until the latest task is saved;
+            without it the archived agent can't run again. Not applied to squad members.
+            When set, Lifecycle=Archive waits for it instead of archiving right after the
+            task. Unset (default) means the agent never auto-archives.
+            Overrides the template's archiveTTL when set.
+            +optional
+          type: object
         budgetUSD:
           description: |-
             BudgetUSD is a SOFT lifetime spending cap across every task this agent ever

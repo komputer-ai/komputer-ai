@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AllowedTools** | Pointer to **[]string** | AllowedTools restricts the agent to these tools; an explicit [] clears the restriction and restores the default tool set. | [optional] 
+**ArchiveTTL** | Pointer to **string** | not allowed on squad members | [optional] 
 **BudgetUSD** | Pointer to **string** | BudgetUSD / TaskBudgetUSD are decimal USD strings (e.g. \&quot;10.00\&quot;). An explicit \&quot;\&quot; clears the cap; omitting the field leaves it unchanged. | [optional] 
 **Connectors** | Pointer to **[]string** | connector names to attach | [optional] 
 **DeleteTTL** | Pointer to **string** |  | [optional] 
@@ -70,6 +71,31 @@ SetAllowedTools sets AllowedTools field to given value.
 `func (o *PatchAgentRequest) HasAllowedTools() bool`
 
 HasAllowedTools returns a boolean if a field has been set.
+
+### GetArchiveTTL
+
+`func (o *PatchAgentRequest) GetArchiveTTL() string`
+
+GetArchiveTTL returns the ArchiveTTL field if non-nil, zero value otherwise.
+
+### GetArchiveTTLOk
+
+`func (o *PatchAgentRequest) GetArchiveTTLOk() (*string, bool)`
+
+GetArchiveTTLOk returns a tuple with the ArchiveTTL field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetArchiveTTL
+
+`func (o *PatchAgentRequest) SetArchiveTTL(v string)`
+
+SetArchiveTTL sets ArchiveTTL field to given value.
+
+### HasArchiveTTL
+
+`func (o *PatchAgentRequest) HasArchiveTTL() bool`
+
+HasArchiveTTL returns a boolean if a field has been set.
 
 ### GetBudgetUSD
 

@@ -43,6 +43,15 @@ export interface CreateAgentRequest {
      */
     allowedTools?: Array<string>;
     /**
+     * ArchiveTTL archives the agent (pod and workspace deleted, the agent kept as a
+     * record) after this long with no activity, as a Go duration string (e.g. "24h").
+     * Keeps counting while the agent sleeps. Not allowed on squad members. Empty
+     * means never auto-archive.
+     * @type {string}
+     * @memberof CreateAgentRequest
+     */
+    archiveTTL?: string;
+    /**
      * BudgetUSD is a SOFT lifetime spending cap across all of this agent's tasks, as
      * a decimal USD string (e.g. "10.00"). Once status.totalCostUSD reaches or
      * exceeds it, new tasks are refused with 409 until it's raised; a task already
@@ -222,6 +231,7 @@ export function CreateAgentRequestFromJSONTyped(json: any, ignoreDiscriminator: 
     return {
         
         'allowedTools': json['allowedTools'] == null ? undefined : json['allowedTools'],
+        'archiveTTL': json['archiveTTL'] == null ? undefined : json['archiveTTL'],
         'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'deleteTTL': json['deleteTTL'] == null ? undefined : json['deleteTTL'],
@@ -261,6 +271,7 @@ export function CreateAgentRequestToJSONTyped(value?: CreateAgentRequest | null,
     return {
         
         'allowedTools': value['allowedTools'],
+        'archiveTTL': value['archiveTTL'],
         'budgetUSD': value['budgetUSD'],
         'connectors': value['connectors'],
         'deleteTTL': value['deleteTTL'],

@@ -72,6 +72,11 @@ type KomputerAgentTemplateSpec struct {
 	// Unset (default) means agents never auto-delete.
 	// +optional
 	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
+	// ArchiveTTL is the default idle timeout after which agents using this template
+	// are archived. Individual agents override it via their own spec.archiveTTL.
+	// Unset (default) means agents never auto-archive.
+	// +optional
+	ArchiveTTL *metav1.Duration `json:"archiveTTL,omitempty"`
 	// TaskTimeout is the default per-task wall-clock cap for agents using this
 	// template. Individual agents override it via their own spec.taskTimeout.
 	// Unset (default) means tasks run without a time limit.

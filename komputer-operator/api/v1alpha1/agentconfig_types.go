@@ -110,6 +110,18 @@ type AgentConfigSpec struct {
 	// Overrides the template's deleteTTL when set.
 	// +optional
 	DeleteTTL *metav1.Duration `json:"deleteTTL,omitempty"`
+	// ArchiveTTL archives the agent (pod and PVC deleted, CR kept as a record) once it
+	// has been idle for this long. Idle is measured exactly like SleepTTL — from
+	// Status.LastActivityAt, reset by any task event or wake, never while a task is
+	// in progress, and never on an agent that has never run a task — but it also runs
+	// while the agent is Sleeping, so SleepTTL < ArchiveTTL sleeps first, then
+	// archives. With the S3 session store it waits until the latest task is saved;
+	// without it the archived agent can't run again. Not applied to squad members.
+	// When set, Lifecycle=Archive waits for it instead of archiving right after the
+	// task. Unset (default) means the agent never auto-archives.
+	// Overrides the template's archiveTTL when set.
+	// +optional
+	ArchiveTTL *metav1.Duration `json:"archiveTTL,omitempty"`
 	// TaskTimeout cancels the agent's running task once it has been running for this
 	// long. The clock starts when a task starts (Status.TaskStartedAt) and never
 	// resets — steering a task does not extend it — so this is a hard wall-clock cap

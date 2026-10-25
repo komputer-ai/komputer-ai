@@ -33,7 +33,7 @@ func TestArchiveRequested_IdleAndSaved_Archives(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	got := getAgentT(t, c, "my-agent")
@@ -56,7 +56,7 @@ func TestArchiveRequested_TaskInProgress_Waits(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	got := getAgentT(t, c, "my-agent")
@@ -73,7 +73,7 @@ func TestArchiveRequested_S3OnUnsaved_WaitsForTheSave(t *testing.T) {
 	agent := archiveRequestedAgent(komputerv1alpha1.AgentTaskComplete)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent"); got.Status.Phase == komputerv1alpha1.AgentPhaseArchived {
@@ -89,7 +89,7 @@ func TestArchiveRequested_SleepingAndSaved_Archives(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, nil, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, nil, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent"); got.Status.Phase != komputerv1alpha1.AgentPhaseArchived {
@@ -103,7 +103,7 @@ func TestArchiveRequested_S3Off_ArchivesWithoutASave(t *testing.T) {
 	agent := archiveRequestedAgent(komputerv1alpha1.AgentTaskComplete)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3OffKomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent"); got.Status.Phase != komputerv1alpha1.AgentPhaseArchived {
@@ -119,7 +119,7 @@ func TestArchiveRequested_NoRequest_NoArchive(t *testing.T) {
 	markSaved(agent)
 	r, c := saveFirstReconciler(t, nil, nil, pod, pvc, svc, agent, s3KomputerConfig())
 
-	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, false); err != nil {
+	if err := r.reconcileStatus(context.Background(), agent, pod, "my-agent-pvc", "my-agent-pod", nil, nil, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := getAgentT(t, c, "my-agent"); got.Status.Phase == komputerv1alpha1.AgentPhaseArchived {

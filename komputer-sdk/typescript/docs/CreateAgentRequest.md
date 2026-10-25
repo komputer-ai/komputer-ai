@@ -7,6 +7,7 @@
 Name | Type
 ------------ | -------------
 `allowedTools` | Array&lt;string&gt;
+`archiveTTL` | string
 `budgetUSD` | string
 `connectors` | Array&lt;string&gt;
 `deleteTTL` | string
@@ -40,6 +41,7 @@ import type { CreateAgentRequest } from '@komputer-ai/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "allowedTools": null,
+  "archiveTTL": null,
   "budgetUSD": null,
   "connectors": null,
   "deleteTTL": null,
