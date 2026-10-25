@@ -61,6 +61,18 @@ spec:
 
 The operator publishes the projected transition times as `status.sleepExpiresAt`, `status.archiveExpiresAt` and `status.deleteExpiresAt`, and requeues to wake exactly when the next TTL comes due. `sleepExpiresAt` is empty whenever the idle clock isn't running — mid-task, or already asleep; `archiveExpiresAt` is empty mid-task but still shown while asleep.
 
+**Why an agent changed state.** The phase says *what* state an agent is in; `status.conditions` says *why*. Each condition is a standard Kubernetes condition (`type`, `status`, `reason`, `message`, `lastTransitionTime`):
+
+| Type | `status: "True"` reason | `status: "False"` reason |
+|---|---|---|
+| `Asleep` | `SleepTTL` (idle past `sleepTTL`), `LifecycleSleep` (`lifecycle: Sleep` after a task, or a user patching a squad member to `lifecycle: Sleep`), `SleepRequested` ([Sleep now](../integration/rest-api.md#sleep-an-agent-now) via API/UI) | `Woken` (woken via the API), `Archived` (archived while asleep) |
+| `Archived` | `ArchiveTTL`, `LifecycleArchive`, `ArchiveRequested` ([Archive now](../integration/rest-api.md#archive-an-agent-now)) | `Woken` (woken from archive, with the S3 session store) |
+| `TaskTimedOut` | `TaskTimeout` (`taskTimeout` cancelled the latest task) | `TaskStarted` (the next task started) |
+
+`SecretsMirrored` and `SessionSaved` may also appear. Conditions are in `kubectl get komputeragent <name> -o yaml` under `status.conditions`, in the `conditions` field of the API agent response, in `komputer get <name>`, and on the agent's Settings card in the UI. `phase` and `message` are unchanged.
+
+The operator also emits a Kubernetes Event per transition (type `Normal`, same reason), so history survives after a condition flips back: `kubectl get events --field-selector involvedObject.name=<agent>`. A `deleteTTL` deletion emits reason `DeleteTTL` — the Event is the only trace, since the agent itself is gone.
+
 **Interaction with `lifecycle`.** A TTL turns its matching lifecycle action into a delayed one. `lifecycle: Sleep` alone sleeps immediately on task completion; adding `sleepTTL: 30m` gives it a 30-minute grace period instead. `archiveTTL` does the same for `lifecycle: Archive` — it waits for the TTL instead of archiving right after the task. Likewise `deleteTTL` defers `lifecycle: AutoDelete`. So `lifecycle: AutoDelete` + `deleteTTL: 7d` means "stay usable, but clean yourself up after a week".
 
 **Template-level defaults.** `sleepTTL`, `archiveTTL` and `deleteTTL` can also be set on a `KomputerAgentTemplate` (or `KomputerAgentClusterTemplate`) to apply to every agent using it. A per-agent value overrides the template's, each field independently. A schedule's agent spec can set them too; `archiveTTL` there with `agentNaming: Fixed` needs the [S3 session store](./session-store.md), like `lifecycle: Archive`.

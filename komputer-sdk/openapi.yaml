@@ -2454,6 +2454,27 @@ components:
         spec:
           $ref: "#/components/schemas/v1alpha1.KomputerAgentSpec"
       type: object
+    AgentCondition:
+      example:
+        reason: reason
+        lastTransitionTime: lastTransitionTime
+        message: message
+        type: type
+        status: status
+      properties:
+        lastTransitionTime:
+          description: RFC3339
+          type: string
+        message:
+          type: string
+        reason:
+          type: string
+        status:
+          description: "\"True\", \"False\" or \"Unknown\""
+          type: string
+        type:
+          type: string
+      type: object
     AgentEvent:
       example:
         payload:
@@ -3165,6 +3186,17 @@ components:
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          conditions:
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
           budgetExhausted: true
           errors:
           - errors
@@ -3847,6 +3879,17 @@ components:
           name: name
           namespace: namespace
           taskExpiresAt: taskExpiresAt
+          conditions:
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
+          - reason: reason
+            lastTransitionTime: lastTransitionTime
+            message: message
+            type: type
+            status: status
           budgetExhausted: true
           errors:
           - errors
@@ -4557,6 +4600,17 @@ components:
         name: name
         namespace: namespace
         taskExpiresAt: taskExpiresAt
+        conditions:
+        - reason: reason
+          lastTransitionTime: lastTransitionTime
+          message: message
+          type: type
+          status: status
+        - reason: reason
+          lastTransitionTime: lastTransitionTime
+          message: message
+          type: type
+          status: status
         budgetExhausted: true
         errors:
         - errors
@@ -4593,6 +4647,14 @@ components:
           type: string
         completionTime:
           type: string
+        conditions:
+          description: |-
+            Conditions say why the agent is in its current state, e.g. Asleep=True with
+            reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with
+            reason TaskTimeout. Mirrors status.conditions on the CR.
+          items:
+            $ref: "#/components/schemas/AgentCondition"
+          type: array
         connectors:
           description: KomputerConnector names attached to this agent
           items:

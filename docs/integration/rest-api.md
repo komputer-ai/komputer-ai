@@ -79,6 +79,8 @@ GET /api/v1/agents?namespace=production
 }
 ```
 
+Each agent also carries `conditions` (omitted when empty): a list of `{type, status, reason, message, lastTransitionTime}` mirroring the CR's `status.conditions`, explaining *why* the agent is in its state (e.g. `Asleep`/`SleepTTL`, `Archived`/`ArchiveRequested`, `TaskTimedOut`/`TaskTimeout`). `phase` and `message` are unchanged. See [why an agent changed state](../concepts/agents.md#timeouts--auto-sleep-auto-delete-and-task-caps).
+
 `budgetExhausted` is computed by the API (agent's own `budgetUSD`, else its template's default, compared against `status.totalCostUSD`) so clients don't need to re-derive the template resolution themselves.
 
 **Query params** (all optional):

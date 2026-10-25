@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { AgentCondition } from './AgentCondition';
+import {
+    AgentConditionFromJSON,
+    AgentConditionFromJSONTyped,
+    AgentConditionToJSON,
+    AgentConditionToJSONTyped,
+} from './AgentCondition';
 import type { SessionStoreResponse } from './SessionStoreResponse';
 import {
     SessionStoreResponseFromJSON,
@@ -84,6 +91,14 @@ export interface AgentResponse {
      * @memberof AgentResponse
      */
     completionTime?: string;
+    /**
+     * Conditions say why the agent is in its current state, e.g. Asleep=True with
+     * reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with
+     * reason TaskTimeout. Mirrors status.conditions on the CR.
+     * @type {Array<AgentCondition>}
+     * @memberof AgentResponse
+     */
+    conditions?: Array<AgentCondition>;
     /**
      * KomputerConnector names attached to this agent
      * @type {Array<string>}
@@ -353,6 +368,7 @@ export function AgentResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'budgetExhausted': json['budgetExhausted'] == null ? undefined : json['budgetExhausted'],
         'budgetUSD': json['budgetUSD'] == null ? undefined : json['budgetUSD'],
         'completionTime': json['completionTime'] == null ? undefined : json['completionTime'],
+        'conditions': json['conditions'] == null ? undefined : ((json['conditions'] as Array<any>).map(AgentConditionFromJSON)),
         'connectors': json['connectors'] == null ? undefined : json['connectors'],
         'createdAt': json['createdAt'] == null ? undefined : json['createdAt'],
         'deleteExpiresAt': json['deleteExpiresAt'] == null ? undefined : json['deleteExpiresAt'],
@@ -412,6 +428,7 @@ export function AgentResponseToJSONTyped(value?: AgentResponse | null, ignoreDis
         'budgetExhausted': value['budgetExhausted'],
         'budgetUSD': value['budgetUSD'],
         'completionTime': value['completionTime'],
+        'conditions': value['conditions'] == null ? undefined : ((value['conditions'] as Array<any>).map(AgentConditionToJSON)),
         'connectors': value['connectors'],
         'createdAt': value['createdAt'],
         'deleteExpiresAt': value['deleteExpiresAt'],

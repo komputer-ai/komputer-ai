@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,6 +58,8 @@ type KomputerAgentReconciler struct {
 	NewUploader UploaderFactory
 	// MaxConcurrentSavers caps the short-lived saver pods (see session_finalizer.go).
 	MaxConcurrentSavers int
+	// Recorder emits a Kubernetes Event for each TTL/lifecycle transition. Optional.
+	Recorder record.EventRecorder
 	// copyOutRetryAt holds, per agent UID, when a failed copy-out may be retried.
 	copyOutRetryAt sync.Map
 }
@@ -65,6 +68,7 @@ type KomputerAgentReconciler struct {
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragents/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragenttemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputeragentclustertemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=komputer.komputer.ai,resources=komputerconfigs,verbs=get;list;watch
@@ -946,7 +950,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!taskInProgress(agent.Status.TaskStatus) &&
 		savedBeforeDestroy(s3On, agent) {
 		log.Info("archive requested via API: archiving agent", "agent", agent.Name)
-		if err := r.archiveAgentNow(ctx, agent, archivedMessage); err != nil {
+		if err := r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonArchiveRequested, archivedMessage); err != nil {
 			return err
 		}
 		return r.clearArchiveRequestAnnotations(ctx, agent)
@@ -965,7 +969,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 				"agent", agent.Name)
 		} else {
 			log.Info("Sleep mode: deleting pod after task completion", "agent", agent.Name)
-			if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."); err != nil {
+			if err := r.sleepAgentNow(ctx, agent, pod, pvcName, komputerv1alpha1.ReasonLifecycleSleep, "Sleeping — pod deleted, workspace preserved. Send a new task to wake up."); err != nil {
 				return err
 			}
 			// A pending sleep-requested annotation is satisfied by this transition
@@ -991,7 +995,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		!unsafeToSleep &&
 		!taskInProgress(agent.Status.TaskStatus) {
 		log.Info("sleep requested via API: deleting pod", "agent", agent.Name)
-		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
+		if err := r.sleepAgentNow(ctx, agent, pod, pvcName, komputerv1alpha1.ReasonSleepRequested, "Sleeping — requested via API. Send a new task to wake up."); err != nil {
 			return err
 		}
 		return r.clearSleepRequestAnnotations(ctx, agent)
@@ -1021,7 +1025,7 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 		agent.Status.Phase != komputerv1alpha1.AgentPhaseSleeping &&
 		savedBeforeDestroy(s3On, agent) {
 		log.Info("Archive mode: archiving agent after task completion", "agent", agent.Name)
-		return r.archiveAgentNow(ctx, agent, archivedMessage)
+		return r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonLifecycleArchive, archivedMessage)
 	}
 
 	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
@@ -1081,18 +1085,26 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 // (AnnotationSleepRequested) transition in reconcileStatus — both end the agent
 // up in the exact same state, differing only in what triggers them and in the
 // human-readable message.
-func (r *KomputerAgentReconciler) sleepAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, message string) error {
+func (r *KomputerAgentReconciler) sleepAgentNow(ctx context.Context, agent *komputerv1alpha1.KomputerAgent, pod *corev1.Pod, pvcName, reason, message string) error {
 	if err := r.Delete(ctx, pod); err != nil {
 		return err
 	}
-	return r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+	var changed bool
+	if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 		s.Phase = komputerv1alpha1.AgentPhaseSleeping
 		s.PodName = ""
 		s.PvcName = pvcName
 		s.Message = message
+		changed = s.SetCondition(komputerv1alpha1.ConditionAsleep, reason, message)
 		// No future sleep deadline once the agent is actually asleep.
 		s.SleepExpiresAt = nil
-	})
+	}); err != nil {
+		return err
+	}
+	if changed {
+		recordEvent(r.Recorder, agent, reason, message)
+	}
+	return nil
 }
 
 // clearSleepRequestAnnotations removes AnnotationSleepRequested and

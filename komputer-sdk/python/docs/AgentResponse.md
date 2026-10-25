@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **budget_exhausted** | **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
 **budget_usd** | **str** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **completion_time** | **str** |  | [optional] 
+**conditions** | [**List[AgentCondition]**](AgentCondition.md) | Conditions say why the agent is in its current state, e.g. Asleep&#x3D;True with reason SleepTTL, Archived&#x3D;True with reason ArchiveTTL, TaskTimedOut&#x3D;True with reason TaskTimeout. Mirrors status.conditions on the CR. | [optional] 
 **connectors** | **List[str]** | KomputerConnector names attached to this agent | [optional] 
 **created_at** | **str** |  | [optional] 
 **delete_expires_at** | **str** |  | [optional] 

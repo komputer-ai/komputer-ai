@@ -3109,6 +3109,28 @@ const docTemplate = `{
                 }
             }
         },
+        "main.AgentCondition": {
+            "type": "object",
+            "properties": {
+                "lastTransitionTime": {
+                    "description": "RFC3339",
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"True\", \"False\" or \"Unknown\"",
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "main.AgentEvent": {
             "type": "object",
             "properties": {
@@ -3201,6 +3223,13 @@ const docTemplate = `{
                 },
                 "completionTime": {
                     "type": "string"
+                },
+                "conditions": {
+                    "description": "Conditions say why the agent is in its current state, e.g. Asleep=True with\nreason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with\nreason TaskTimeout. Mirrors status.conditions on the CR.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.AgentCondition"
+                    }
                 },
                 "connectors": {
                     "description": "KomputerConnector names attached to this agent",

@@ -2,6 +2,15 @@ package main
 
 // ─── API Types ───────────────────────────────────────────────────────────────
 
+// AgentCondition mirrors a Kubernetes status condition: why the agent is in its state.
+type AgentCondition struct {
+	Type               string `json:"type"`
+	Status             string `json:"status"`
+	Reason             string `json:"reason,omitempty"`
+	Message            string `json:"message,omitempty"`
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
+}
+
 type AgentResponse struct {
 	Name             string            `json:"name"`
 	Namespace        string            `json:"namespace"`
@@ -34,6 +43,7 @@ type AgentResponse struct {
 	DisallowedTools  []string          `json:"disallowedTools,omitempty"`
 	Storage          *StorageOverride  `json:"storage,omitempty"`
 	Labels           map[string]string `json:"labels,omitempty"`
+	Conditions       []AgentCondition  `json:"conditions,omitempty"`
 	// SessionStore is the S3 session store state (nil when S3 isn't in use).
 	SessionStore *SessionStoreView `json:"sessionStore,omitempty"`
 }

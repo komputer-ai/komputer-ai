@@ -1,5 +1,6 @@
 .gitignore
 docs/AddSquadMemberRequest.md
+docs/AgentCondition.md
 docs/AgentEvent.md
 docs/AgentListFacets.md
 docs/AgentListResponse.md
@@ -215,6 +216,7 @@ src/apis/SquadsApi.ts
 src/apis/TemplatesApi.ts
 src/apis/index.ts
 src/models/AddSquadMemberRequest.ts
+src/models/AgentCondition.ts
 src/models/AgentEvent.ts
 src/models/AgentListFacets.ts
 src/models/AgentListResponse.ts

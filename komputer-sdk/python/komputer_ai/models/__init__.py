@@ -14,6 +14,7 @@
 
 # import models into model package
 from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest
+from komputer_ai.models.agent_condition import AgentCondition
 from komputer_ai.models.agent_event import AgentEvent
 from komputer_ai.models.agent_list_facets import AgentListFacets
 from komputer_ai.models.agent_list_response import AgentListResponse

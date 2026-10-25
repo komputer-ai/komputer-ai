@@ -389,6 +389,16 @@ func (r *KomputerAgentReconciler) applyTTL(
 			log.Error(err, "Failed to cancel task on taskTimeout", "agent", agent.Name)
 			return ctrl.Result{RequeueAfter: taskCancelRetryInterval}, false, nil
 		}
+		msg := taskTimedOutMessage(taskTimeout)
+		var changed bool
+		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
+			changed = s.SetCondition(komputerv1alpha1.ConditionTaskTimedOut, komputerv1alpha1.ReasonTaskTimeout, msg)
+		}); err != nil {
+			return ctrl.Result{}, false, err
+		}
+		if changed {
+			recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonTaskTimeout, msg)
+		}
 		// Fall through: the TTL clocks still need evaluating this reconcile.
 	}
 
@@ -420,7 +430,7 @@ func (r *KomputerAgentReconciler) applyTTL(
 		idleFrom, _ := idleSince(agent) // always set: the archive can't fire without it
 		log.Info("archiveTTL elapsed, archiving agent",
 			"agent", agent.Name, "archiveTTL", archiveTTL.Duration, "idleSince", idleFrom)
-		if err := r.archiveAgentNow(ctx, agent,
+		if err := r.archiveAgentNow(ctx, agent, komputerv1alpha1.ReasonArchiveTTL,
 			"Archived — idle past archiveTTL, pod and workspace removed. The agent is kept as a record."); err != nil {
 			return ctrl.Result{}, false, err
 		}
@@ -431,6 +441,7 @@ func (r *KomputerAgentReconciler) applyTTL(
 	case ttlActionDelete:
 		log.Info("deleteTTL elapsed, deleting agent",
 			"agent", agent.Name, "deleteTTL", deleteTTL.Duration, "createdAt", agent.CreationTimestamp)
+		recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonDeleteTTL, deleteTTLMessage(deleteTTL))
 		if err := r.Delete(ctx, agent); err != nil && !errors.IsNotFound(err) {
 			return ctrl.Result{}, false, err
 		}
@@ -445,11 +456,13 @@ func (r *KomputerAgentReconciler) applyTTL(
 				return ctrl.Result{}, false, err
 			}
 		}
+		var changed bool
 		if err := r.updateStatus(ctx, agent, func(s *komputerv1alpha1.KomputerAgentStatus) {
 			s.Phase = komputerv1alpha1.AgentPhaseSleeping
 			s.PodName = ""
 			s.PvcName = pvcName
 			s.Message = "Sleeping — idle past sleepTTL, workspace preserved. Send a new task to wake up."
+			changed = s.SetCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonSleepTTL, s.Message)
 			// No pending sleep once asleep; the lifetime cap and the archive
 			// clock keep their deadlines.
 			s.SleepExpiresAt = nil
@@ -459,6 +472,12 @@ func (r *KomputerAgentReconciler) applyTTL(
 			s.TaskExpiresAt = nil
 		}); err != nil {
 			return ctrl.Result{}, false, err
+		}
+		// The condition survives the brief phase flap while the slept pod terminates
+		// (which re-runs this branch), so only the first pass emits the event.
+		if changed {
+			recordEvent(r.Recorder, agent, komputerv1alpha1.ReasonSleepTTL,
+				"Sleeping — idle past sleepTTL, workspace preserved. Send a new task to wake up.")
 		}
 		return ctrl.Result{RequeueAfter: minPositive(d.RequeueAfter, ad.RequeueAfter)}, true, nil
 	}

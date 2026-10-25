@@ -38,6 +38,7 @@ __all__ = [
     "ApiAttributeError",
     "ApiException",
     "AddSquadMemberRequest",
+    "AgentCondition",
     "AgentEvent",
     "AgentListFacets",
     "AgentListResponse",
@@ -258,6 +259,7 @@ from komputer_ai.exceptions import ApiException as ApiException
 
 # import models into sdk package
 from komputer_ai.models.add_squad_member_request import AddSquadMemberRequest as AddSquadMemberRequest
+from komputer_ai.models.agent_condition import AgentCondition as AgentCondition
 from komputer_ai.models.agent_event import AgentEvent as AgentEvent
 from komputer_ai.models.agent_list_facets import AgentListFacets as AgentListFacets
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse

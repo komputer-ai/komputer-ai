@@ -13,6 +13,16 @@ export interface StorageOverride {
   ephemeral?: boolean;
 }
 
+/** A Kubernetes-style status condition explaining why an agent is in its state (e.g. Asleep/SleepTTL). */
+export interface AgentCondition {
+  type: string;
+  status: 'True' | 'False' | 'Unknown';
+  reason?: string;
+  message?: string;
+  /** RFC3339. */
+  lastTransitionTime?: string;
+}
+
 export interface AgentResponse {
   name: string;
   namespace: string;
@@ -20,6 +30,8 @@ export interface AgentResponse {
   /** Reasoning effort override ('low'|'medium'|'high'|'xhigh'|'max'). Empty/unset means the model's own default effort. */
   effort?: string;
   status: AgentStatus;
+  /** Why the agent is in its state (Asleep, Archived, TaskTimedOut, ...). Mirrors status.conditions. */
+  conditions?: AgentCondition[];
   taskStatus?: 'InProgress' | 'Compacting' | 'Complete' | 'Error';
   lastTaskMessage?: string;
   lifecycle?: '' | 'Sleep' | 'AutoDelete' | 'Archive';

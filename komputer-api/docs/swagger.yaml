@@ -51,6 +51,21 @@ definitions:
       spec:
         $ref: '#/definitions/v1alpha1.KomputerAgentSpec'
     type: object
+  main.AgentCondition:
+    properties:
+      lastTransitionTime:
+        description: RFC3339
+        type: string
+      message:
+        type: string
+      reason:
+        type: string
+      status:
+        description: '"True", "False" or "Unknown"'
+        type: string
+      type:
+        type: string
+    type: object
   main.AgentEvent:
     properties:
       agentName:
@@ -130,6 +145,14 @@ definitions:
         type: string
       completionTime:
         type: string
+      conditions:
+        description: |-
+          Conditions say why the agent is in its current state, e.g. Asleep=True with
+          reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with
+          reason TaskTimeout. Mirrors status.conditions on the CR.
+        items:
+          $ref: '#/definitions/main.AgentCondition'
+        type: array
       connectors:
         description: KomputerConnector names attached to this agent
         items:

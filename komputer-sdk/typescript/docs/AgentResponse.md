@@ -12,6 +12,7 @@ Name | Type
 `budgetExhausted` | boolean
 `budgetUSD` | string
 `completionTime` | string
+`conditions` | [Array&lt;AgentCondition&gt;](AgentCondition.md)
 `connectors` | Array&lt;string&gt;
 `createdAt` | string
 `deleteExpiresAt` | string
@@ -65,6 +66,7 @@ const example = {
   "budgetExhausted": null,
   "budgetUSD": null,
   "completionTime": null,
+  "conditions": null,
   "connectors": null,
   "createdAt": null,
   "deleteExpiresAt": null,

@@ -114,6 +114,10 @@ type AgentResponse struct {
 	SleepExpiresAt   string `json:"sleepExpiresAt,omitempty"`
 	DeleteExpiresAt  string `json:"deleteExpiresAt,omitempty"`
 	ArchiveExpiresAt string `json:"archiveExpiresAt,omitempty"`
+	// Conditions say why the agent is in its current state, e.g. Asleep=True with
+	// reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with
+	// reason TaskTimeout. Mirrors status.conditions on the CR.
+	Conditions []AgentCondition `json:"conditions,omitempty"`
 	// TaskStartedAt is when the current (or most recent) task started (RFC3339).
 	// TaskExpiresAt is when taskTimeout will cancel it; empty when no task is running.
 	TaskStartedAt      string                        `json:"taskStartedAt,omitempty"`
@@ -373,8 +377,29 @@ func sessionStoreResponse(agent *komputerv1alpha1.KomputerAgent) *SessionStoreRe
 	return resp
 }
 
+// AgentCondition is one entry of an agent's status.conditions.
+type AgentCondition struct {
+	Type               string `json:"type"`
+	Status             string `json:"status"` // "True", "False" or "Unknown"
+	Reason             string `json:"reason,omitempty"`
+	Message            string `json:"message,omitempty"`
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"` // RFC3339
+}
+
+func agentConditions(agent *komputerv1alpha1.KomputerAgent) []AgentCondition {
+	var out []AgentCondition
+	for _, c := range agent.Status.Conditions {
+		out = append(out, AgentCondition{
+			Type: c.Type, Status: string(c.Status), Reason: c.Reason, Message: c.Message,
+			LastTransitionTime: formatTime(&c.LastTransitionTime),
+		})
+	}
+	return out
+}
+
 func fillAgentTTL(resp *AgentResponse, agent *komputerv1alpha1.KomputerAgent) {
 	resp.SessionStore = sessionStoreResponse(agent)
+	resp.Conditions = agentConditions(agent)
 	if agent.Spec.SleepTTL != nil {
 		resp.SleepTTL = agent.Spec.SleepTTL.Duration.String()
 	}
@@ -1738,7 +1763,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 						Logger.Warnw("squad-sleep cancel failed (continuing)", "agent_name", name, "error", cancelErr)
 					}
 				}
-				if patchErr := k8s.PatchAgentPhase(c.Request.Context(), ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — set by user"); patchErr != nil {
+				if patchErr := k8s.PatchAgentPhase(c.Request.Context(), ns, name, komputerv1alpha1.AgentPhaseSleeping, "Sleeping — set by user", komputerv1alpha1.ReasonLifecycleSleep); patchErr != nil {
 					agentActionsTotal.WithLabelValues(patchAction, "error").Inc()
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to set sleeping phase: " + patchErr.Error()})
 					return

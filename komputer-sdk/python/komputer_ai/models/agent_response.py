@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from komputer_ai.models.agent_condition import AgentCondition
 from komputer_ai.models.session_store_response import SessionStoreResponse
 from komputer_ai.models.v1_pod_spec import V1PodSpec
 from komputer_ai.models.v1alpha1_storage_spec import V1alpha1StorageSpec
@@ -36,6 +37,7 @@ class AgentResponse(BaseModel):
     budget_exhausted: Optional[StrictBool] = Field(default=None, description="BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent's own BudgetUSD, else its template's default) — new tasks are refused with 409 until it's raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don't have to re-derive the template resolution themselves.", alias="budgetExhausted")
     budget_usd: Optional[StrictStr] = Field(default=None, description="BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.", alias="budgetUSD")
     completion_time: Optional[StrictStr] = Field(default=None, alias="completionTime")
+    conditions: Optional[List[AgentCondition]] = Field(default=None, description="Conditions say why the agent is in its current state, e.g. Asleep=True with reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with reason TaskTimeout. Mirrors status.conditions on the CR.")
     connectors: Optional[List[StrictStr]] = Field(default=None, description="KomputerConnector names attached to this agent")
     created_at: Optional[StrictStr] = Field(default=None, alias="createdAt")
     delete_expires_at: Optional[StrictStr] = Field(default=None, alias="deleteExpiresAt")
@@ -75,7 +77,7 @@ class AgentResponse(BaseModel):
     task_timeout: Optional[StrictStr] = Field(default=None, description="per-task wall-clock cap, e.g. \"30m\"", alias="taskTimeout")
     total_cost_usd: Optional[StrictStr] = Field(default=None, alias="totalCostUSD")
     total_tokens: Optional[StrictInt] = Field(default=None, alias="totalTokens")
-    __properties: ClassVar[List[str]] = ["allowedTools", "archiveExpiresAt", "archiveTTL", "budgetExhausted", "budgetUSD", "completionTime", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "sessionStore", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
+    __properties: ClassVar[List[str]] = ["allowedTools", "archiveExpiresAt", "archiveTTL", "budgetExhausted", "budgetUSD", "completionTime", "conditions", "connectors", "createdAt", "deleteExpiresAt", "deleteTTL", "disallowedTools", "effort", "errors", "instructions", "labels", "lastActivityAt", "lastTaskCostUSD", "lastTaskMessage", "lifecycle", "memories", "model", "modelContextWindow", "name", "namespace", "podSpec", "priority", "queuePosition", "queueReason", "secrets", "sessionStore", "skills", "sleepExpiresAt", "sleepTTL", "squad", "squadName", "status", "storage", "systemPrompt", "taskBudgetUSD", "taskExpiresAt", "taskStartedAt", "taskStatus", "taskTimeout", "totalCostUSD", "totalTokens"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -116,6 +118,13 @@ class AgentResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in conditions (list)
+        _items = []
+        if self.conditions:
+            for _item_conditions in self.conditions:
+                if _item_conditions:
+                    _items.append(_item_conditions.to_dict())
+            _dict['conditions'] = _items
         # override the default output from pydantic by calling `to_dict()` of pod_spec
         if self.pod_spec:
             _dict['podSpec'] = self.pod_spec.to_dict()
@@ -143,6 +152,7 @@ class AgentResponse(BaseModel):
             "budgetExhausted": obj.get("budgetExhausted"),
             "budgetUSD": obj.get("budgetUSD"),
             "completionTime": obj.get("completionTime"),
+            "conditions": [AgentCondition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
             "connectors": obj.get("connectors"),
             "createdAt": obj.get("createdAt"),
             "deleteExpiresAt": obj.get("deleteExpiresAt"),

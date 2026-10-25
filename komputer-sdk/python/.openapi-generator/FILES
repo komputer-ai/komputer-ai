@@ -1,5 +1,6 @@
 .gitignore
 docs/AddSquadMemberRequest.md
+docs/AgentCondition.md
 docs/AgentEvent.md
 docs/AgentListFacets.md
 docs/AgentListResponse.md
@@ -221,6 +222,7 @@ komputer_ai/configuration.py
 komputer_ai/exceptions.py
 komputer_ai/models/__init__.py
 komputer_ai/models/add_squad_member_request.py
+komputer_ai/models/agent_condition.py
 komputer_ai/models/agent_event.py
 komputer_ai/models/agent_list_facets.py
 komputer_ai/models/agent_list_response.py

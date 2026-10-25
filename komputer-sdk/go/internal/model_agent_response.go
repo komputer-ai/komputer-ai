@@ -29,6 +29,8 @@ type AgentResponse struct {
 	// BudgetUSD is this agent's own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty.
 	BudgetUSD *string `json:"budgetUSD,omitempty"`
 	CompletionTime *string `json:"completionTime,omitempty"`
+	// Conditions say why the agent is in its current state, e.g. Asleep=True with reason SleepTTL, Archived=True with reason ArchiveTTL, TaskTimedOut=True with reason TaskTimeout. Mirrors status.conditions on the CR.
+	Conditions []AgentCondition `json:"conditions,omitempty"`
 	// KomputerConnector names attached to this agent
 	Connectors []string `json:"connectors,omitempty"`
 	CreatedAt *string `json:"createdAt,omitempty"`
@@ -296,6 +298,38 @@ func (o *AgentResponse) HasCompletionTime() bool {
 // SetCompletionTime gets a reference to the given string and assigns it to the CompletionTime field.
 func (o *AgentResponse) SetCompletionTime(v string) {
 	o.CompletionTime = &v
+}
+
+// GetConditions returns the Conditions field value if set, zero value otherwise.
+func (o *AgentResponse) GetConditions() []AgentCondition {
+	if o == nil || IsNil(o.Conditions) {
+		var ret []AgentCondition
+		return ret
+	}
+	return o.Conditions
+}
+
+// GetConditionsOk returns a tuple with the Conditions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentResponse) GetConditionsOk() ([]AgentCondition, bool) {
+	if o == nil || IsNil(o.Conditions) {
+		return nil, false
+	}
+	return o.Conditions, true
+}
+
+// HasConditions returns a boolean if a field has been set.
+func (o *AgentResponse) HasConditions() bool {
+	if o != nil && !IsNil(o.Conditions) {
+		return true
+	}
+
+	return false
+}
+
+// SetConditions gets a reference to the given []AgentCondition and assigns it to the Conditions field.
+func (o *AgentResponse) SetConditions(v []AgentCondition) {
+	o.Conditions = v
 }
 
 // GetConnectors returns the Connectors field value if set, zero value otherwise.
@@ -1573,6 +1607,9 @@ func (o AgentResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CompletionTime) {
 		toSerialize["completionTime"] = o.CompletionTime
+	}
+	if !IsNil(o.Conditions) {
+		toSerialize["conditions"] = o.Conditions
 	}
 	if !IsNil(o.Connectors) {
 		toSerialize["connectors"] = o.Connectors

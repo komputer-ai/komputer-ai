@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **BudgetExhausted** | Pointer to **bool** | BudgetExhausted is true when status.totalCostUSD has reached or passed the EFFECTIVE lifetime budget (this agent&#39;s own BudgetUSD, else its template&#39;s default) — new tasks are refused with 409 until it&#39;s raised. Always false when no lifetime budget applies anywhere. Computed by the API so clients don&#39;t have to re-derive the template resolution themselves. | [optional] 
 **BudgetUSD** | Pointer to **string** | BudgetUSD is this agent&#39;s own SOFT lifetime spending cap (spec.budgetUSD), as a decimal USD string. Empty when unset on the agent itself — note the agent may still be bound by a template default; BudgetExhausted reflects that effective value even when this field is empty. | [optional] 
 **CompletionTime** | Pointer to **string** |  | [optional] 
+**Conditions** | Pointer to [**[]AgentCondition**](AgentCondition.md) | Conditions say why the agent is in its current state, e.g. Asleep&#x3D;True with reason SleepTTL, Archived&#x3D;True with reason ArchiveTTL, TaskTimedOut&#x3D;True with reason TaskTimeout. Mirrors status.conditions on the CR. | [optional] 
 **Connectors** | Pointer to **[]string** | KomputerConnector names attached to this agent | [optional] 
 **CreatedAt** | Pointer to **string** |  | [optional] 
 **DeleteExpiresAt** | Pointer to **string** |  | [optional] 
@@ -218,6 +219,31 @@ SetCompletionTime sets CompletionTime field to given value.
 `func (o *AgentResponse) HasCompletionTime() bool`
 
 HasCompletionTime returns a boolean if a field has been set.
+
+### GetConditions
+
+`func (o *AgentResponse) GetConditions() []AgentCondition`
+
+GetConditions returns the Conditions field if non-nil, zero value otherwise.
+
+### GetConditionsOk
+
+`func (o *AgentResponse) GetConditionsOk() (*[]AgentCondition, bool)`
+
+GetConditionsOk returns a tuple with the Conditions field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetConditions
+
+`func (o *AgentResponse) SetConditions(v []AgentCondition)`
+
+SetConditions sets Conditions field to given value.
+
+### HasConditions
+
+`func (o *AgentResponse) HasConditions() bool`
+
+HasConditions returns a boolean if a field has been set.
 
 ### GetConnectors
 

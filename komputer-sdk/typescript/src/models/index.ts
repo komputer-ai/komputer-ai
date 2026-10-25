@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * from './AddSquadMemberRequest';
+export * from './AgentCondition';
 export * from './AgentEvent';
 export * from './AgentListFacets';
 export * from './AgentListResponse';

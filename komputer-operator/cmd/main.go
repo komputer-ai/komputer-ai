@@ -223,6 +223,7 @@ func main() {
 		Exec:                podExecer,
 		NewUploader:         controller.NewS3Uploader,
 		MaxConcurrentSavers: controller.MaxConcurrentSaversFromEnv(),
+		Recorder:            mgr.GetEventRecorderFor("komputer-operator"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerAgent")
 		os.Exit(1)
@@ -242,8 +243,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controller.KomputerSquadReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("komputer-operator"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KomputerSquad")
 		os.Exit(1)

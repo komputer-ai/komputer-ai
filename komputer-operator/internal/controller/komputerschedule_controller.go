@@ -258,6 +258,9 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			woken.Status.Phase = komputerv1alpha1.AgentPhasePending
 			woken.Status.TaskStatus = ""
 			woken.Status.LastTaskMessage = ""
+			wokeMsg := fmt.Sprintf("Woken by schedule %q", schedule.Name)
+			woken.Status.ResolveCondition(komputerv1alpha1.ConditionAsleep, komputerv1alpha1.ReasonWoken, wokeMsg)
+			woken.Status.ResolveCondition(komputerv1alpha1.ConditionArchived, komputerv1alpha1.ReasonWoken, wokeMsg)
 			if err := r.Status().Patch(ctx, woken, client.MergeFromWithOptions(agent, client.MergeFromWithOptimisticLock{})); err != nil {
 				log.Error(err, "Failed to wake sleeping agent", "agent", agentName)
 				return ctrl.Result{}, err
