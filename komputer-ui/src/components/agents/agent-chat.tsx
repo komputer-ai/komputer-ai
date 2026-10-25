@@ -28,6 +28,7 @@ import {
   Play,
   Sparkles,
   Archive,
+  Loader2,
 } from "lucide-react";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
 import { archivedReadOnly } from "@/lib/session-store";
@@ -1557,8 +1558,9 @@ export function AgentChat({
               <div ref={bottomSentinelRef} className="h-1 shrink-0" />
             )}
             {loadingNewer && (
-              <div className="flex justify-center py-2">
-                <span className="text-xs text-[var(--color-text-muted)]">Loading...</span>
+              <div className="flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--color-text-muted)]">
+                <Loader2 className="size-3 animate-spin" />
+                Loading…
               </div>
             )}
             <div ref={bottomRef} />

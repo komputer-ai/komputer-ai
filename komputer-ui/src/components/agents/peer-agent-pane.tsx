@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { getAgent, getAgentEvents } from "@/lib/api";
@@ -147,7 +147,10 @@ export function PeerAgentPane({ agentName, agentNamespace, onRemove }: PeerAgent
   if (!agent) {
     return (
       <div className="flex flex-1 min-w-0 flex-col items-center justify-center border-l border-[var(--color-border)]">
-        <p className="text-sm text-[var(--color-text-muted)]">Loading {agentName}…</p>
+        <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+          <Loader2 className="size-4 animate-spin" />
+          Loading {agentName}…
+        </p>
       </div>
     );
   }

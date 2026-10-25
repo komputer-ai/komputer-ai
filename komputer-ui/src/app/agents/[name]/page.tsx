@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -437,8 +437,9 @@ export default function AgentDetailPage() {
   if (showLoading) {
     return (
       <div className="flex h-full flex-col">
-        <div className="flex flex-1 items-center justify-center text-sm text-[var(--color-text-secondary)]">
-          Loading agent...
+        <div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--color-text-secondary)]">
+          <Loader2 className="size-4 animate-spin" />
+          Loading agent…
         </div>
       </div>
     );
