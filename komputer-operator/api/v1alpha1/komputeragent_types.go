@@ -59,8 +59,9 @@ const AnnotationWakeIdle = "komputer.ai/wake-idle"
 // Owned by the API (set by SleepAgentNow, the handler for POST
 // /agents/{name}/sleep, on a non-squad agent). Consumed and cleared by the
 // operator's reconcileStatus: present + a pod exists + no task in progress +
-// a non-ephemeral workspace → sleep the agent now (delete pod, Phase=Sleeping,
-// keep PVC) via the same transition the Lifecycle=Sleep rule uses, then clear
+// safe to sleep (a PVC workspace, or an ephemeral one whose latest task is saved
+// to the S3 session store) → sleep the agent now (delete pod, Phase=Sleeping,
+// keep any PVC) via the same transition the Lifecycle=Sleep rule uses, then clear
 // this annotation and AnnotationWakeIdle (stale once asleep). If a task is in
 // progress when the request arrives, the operator leaves the pod running and
 // keeps the annotation set — it never kills a running task — and honors the

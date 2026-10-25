@@ -903,7 +903,7 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 **200** | Agent sleeping (or already asleep) |  -  |
-**400** | Ephemeral-workspace agents can&#39;t sleep |  -  |
+**400** | Ephemeral-workspace agents can&#39;t sleep without the S3 session store |  -  |
 **404** | Agent not found |  -  |
 **409** | Agent is running a task, or is archived |  -  |
 **500** | Internal error |  -  |

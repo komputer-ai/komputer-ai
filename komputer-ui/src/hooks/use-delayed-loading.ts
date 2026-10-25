@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 
 /**
  * Returns true only after `delay` ms have passed while `loading` is true.
- * Prevents skeleton placeholders from flashing on fast loads.
+ * Prevents skeleton placeholders from flashing on fast loads, while anything
+ * slower shows them almost at once instead of a blank page.
  */
-export function useDelayedLoading(loading: boolean, delay = 2000): boolean {
+export function useDelayedLoading(loading: boolean, delay = 300): boolean {
   const [showLoading, setShowLoading] = useState(false);
 
   useEffect(() => {

@@ -8,10 +8,11 @@ import (
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
 
-// ErrAgentArchived is returned for any request that would run, wake or sleep an
-// archived agent. Archiving deletes the pod and workspace and keeps the CR only
-// as a record, so the agent can never run again.
-var ErrAgentArchived = fmt.Errorf("agent is archived: its pod and workspace were removed and it can't run again — create a new agent, or delete this one to reuse its name")
+// ErrAgentArchived is returned for a request an archived agent can't take:
+// without the S3 session store, anything that would run, wake or sleep it
+// (archiving deleted the pod and workspace, so it can't run again); with the
+// store, only sleeping it, since it already has no pod.
+var ErrAgentArchived = fmt.Errorf("agent is archived: its pod and workspace were removed. Without the S3 session store it can't run again — create a new agent, or delete this one to reuse its name")
 
 func agentArchived(agent *komputerv1alpha1.KomputerAgent) bool {
 	return agent.Status.Phase == komputerv1alpha1.AgentPhaseArchived

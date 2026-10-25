@@ -993,10 +993,10 @@ func (r *KomputerAgentReconciler) reconcileStatus(ctx context.Context, agent *ko
 	// comment. Still never kills a running task: if one is in progress, the pod
 	// is left alone and the annotation stays set for a later reconcile (fired
 	// again once TaskStatus leaves InProgress/Compacting, since the API worker's
-	// status write re-triggers this controller). Also skipped for an ephemeral
-	// workspace, same reasoning as the Lifecycle=Sleep guard above — the API is
-	// expected to reject that case before ever setting the annotation, so this
-	// is defense in depth, not the primary guard.
+	// status write re-triggers this controller). Also waits while sleeping would
+	// lose the session (unsafeToSleep: an ephemeral workspace whose latest task
+	// isn't saved to the S3 session store). Without the store the API rejects
+	// sleep-now on an ephemeral agent, so this is defense in depth there.
 	if agent.Annotations[komputerv1alpha1.AnnotationSleepRequested] == "true" &&
 		pod != nil &&
 		!unsafeToSleep &&
