@@ -722,6 +722,13 @@ func (r *KomputerAgentReconciler) ensurePod(ctx context.Context, agent *komputer
 	pod := &corev1.Pod{}
 	err := r.Get(ctx, types.NamespacedName{Name: podName, Namespace: agent.Namespace}, pod)
 	if err == nil {
+		// The pod a sleep just deleted lingers while it terminates, reporting a
+		// terminal phase. Handing it back would let reconcileStatus overwrite
+		// Sleeping with that phase, and the sleep would then re-run until the pod
+		// was gone. For a sleeping agent it is already gone.
+		if agent.Status.Phase == komputerv1alpha1.AgentPhaseSleeping && !pod.DeletionTimestamp.IsZero() {
+			return nil, nil
+		}
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			// If agent status already reflects the terminal state, delete the pod
 			// so a new one can be created on the next task request.
