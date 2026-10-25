@@ -37,7 +37,7 @@ func TestEnsurePod_SleepingAgentIgnoresTerminatingPod(t *testing.T) {
 		t.Fatalf("ensurePod returned the terminating pod (phase %s) for a sleeping agent, want nil", got.Status.Phase)
 	}
 
-	if err := r.reconcileStatus(ctx, agent, got, "test-agent-pvc", "test-agent-pod", dur(30*time.Minute), nil, false); err != nil {
+	if err := r.reconcileStatus(ctx, agent, got, "test-agent-pvc", "test-agent-pod", dur(30*time.Minute), nil, nil, false); err != nil {
 		t.Fatalf("reconcileStatus: %v", err)
 	}
 	if phase := getAgentT(t, r.Client, "test-agent").Status.Phase; phase != komputerv1alpha1.AgentPhaseSleeping {
