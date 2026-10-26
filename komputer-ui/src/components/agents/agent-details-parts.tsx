@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, X, Copy, Check, Plus, Loader2 } from "lucide-react";
+import { Maximize2, X, Copy, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Textarea } from "@/components/kit/textarea";
 import { Tooltip } from "@/components/kit/tooltip";
@@ -91,7 +91,7 @@ export function fmtIn(at?: string): string {
 }
 
 function textMeta(s: string): string {
-  if (!s.trim()) return "not set";
+  if (!s.trim()) return "";
   const lines = s.split("\n").length;
   return lines > 1 ? `${lines} lines · ${s.length} chars` : `${s.length} chars`;
 }
@@ -107,17 +107,14 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
   onSystemPromptChange: (v: string) => void;
 }) {
   const [tab, setTab] = useState<PromptTab>("instructions");
-  const [adding, setAdding] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const current = tab === "instructions" ? instructions : systemPrompt;
-  const showSystemEmpty = tab === "system" && !systemPrompt && !adding;
 
   const openFocus = useCallback(() => {
     setTab("system");
-    setAdding(true);
     setFocusOpen(true);
   }, []);
 
@@ -150,25 +147,20 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
       aria-selected={tab === id}
       onClick={() => setTab(id)}
       className={cn(
-        "inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-1 text-[12.5px] transition-colors cursor-pointer",
-        tab === id ? "bg-[var(--color-surface-raised)] text-[var(--color-text)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+        "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-[12.5px] transition-colors cursor-pointer",
+        tab === id
+          ? "border-[var(--color-brand-blue)] font-medium text-[var(--color-text)]"
+          : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
       )}
     >
-      <span
-        className={cn(
-          "size-1.5 rounded-full",
-          value.trim() ? "bg-[var(--color-status-running)]" : "border border-[var(--color-text-muted)]",
-        )}
-        aria-hidden
-      />
       {label}
-      <span className="font-mono text-[11px] text-[var(--color-text-muted)]">{textMeta(value)}</span>
+      {value.trim() && <span className="font-mono text-[11px] font-normal text-[var(--color-text-muted)]">{textMeta(value)}</span>}
     </button>
   );
 
   return (
     <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
-      <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-1.5 py-1" role="tablist" aria-label="Prompt">
+      <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-1.5" role="tablist" aria-label="Prompt">
         {tabBtn("instructions", "Instructions", instructions)}
         {tabBtn("system", "System prompt", systemPrompt)}
         <span className="ml-auto inline-flex gap-0.5">
@@ -189,25 +181,6 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
         <div className="min-h-[120px] whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]">
           {instructions || <span className="text-[var(--color-text-muted)]">No instructions yet. Send the agent a task from the chat.</span>}
         </div>
-      ) : showSystemEmpty ? (
-        <div className="flex flex-col items-start gap-2 px-4 py-5">
-          <span className="text-[13.5px] font-medium text-[var(--color-text)]">No system prompt</span>
-          <span className="max-w-[62ch] text-[12.5px] text-[var(--color-text-secondary)]">
-            The agent uses its role&apos;s built-in prompt. Add one to give it a persona, rules or an output format it keeps on every task.
-          </span>
-          <Button
-            size="sm"
-            variant="primary"
-            className="mt-1"
-            onClick={() => {
-              setAdding(true);
-              setTimeout(() => textareaRef.current?.focus(), 0);
-            }}
-          >
-            <Plus className="size-3" data-icon="inline-start" />
-            Add system prompt
-          </Button>
-        </div>
       ) : (
         <Textarea
           ref={textareaRef}
@@ -217,11 +190,6 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
           className="min-h-[160px] max-h-[60vh] rounded-none border-0 bg-transparent shadow-none [field-sizing:content] focus:shadow-none"
         />
       )}
-
-      <div className="flex justify-between gap-3 border-t border-[var(--color-border)] px-3 py-1.5 text-[11.5px] text-[var(--color-text-muted)]">
-        <span>{tab === "instructions" ? "From the last task · read-only here" : "Markdown supported · grows as you type"}</span>
-        <span>{tab === "instructions" ? "Send a new task from the chat to change it" : "Replaced on each task, never accumulates"}</span>
-      </div>
 
       {focusOpen && (
         <FocusEditor
