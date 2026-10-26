@@ -187,21 +187,34 @@ var modelPricing = []struct {
 // generation's rate for that family — when the id is unrecognized (most
 // likely a release newer than this table).
 func ratesForModel(model string) modelRates {
+	if r, ok := lookupRates(model); ok {
+		return r
+	}
+	// A family we don't recognize at all — e.g. an opaque Bedrock
+	// application-inference-profile ARN. Callers that must not guess use
+	// lookupRates instead.
+	return modelRates{2, 10, 0.20, 2.50}
+}
+
+// lookupRates is ratesForModel without the final guess: ok is false when the id
+// names no model family at all.
+func lookupRates(model string) (modelRates, bool) {
 	for _, p := range modelPricing {
 		if strings.Contains(model, p.suffix) {
-			return p.rates
+			return p.rates, true
 		}
 	}
 	switch {
 	case strings.Contains(model, "fable"), strings.Contains(model, "mythos"):
-		return modelRates{10, 50, 0.25, 12.50}
+		return modelRates{10, 50, 0.25, 12.50}, true
 	case strings.Contains(model, "opus"):
-		return modelRates{4, 20, 0.20, 5}
+		return modelRates{4, 20, 0.20, 5}, true
 	case strings.Contains(model, "haiku"):
-		return modelRates{1, 5, 0.10, 1.25}
-	default: // sonnet, or a family we don't recognize at all
-		return modelRates{2, 10, 0.20, 2.50}
+		return modelRates{1, 5, 0.10, 1.25}, true
+	case strings.Contains(model, "sonnet"):
+		return modelRates{2, 10, 0.20, 2.50}, true
 	}
+	return modelRates{}, false
 }
 
 // outputRatePerM returns the output token price per 1M tokens for a model.
