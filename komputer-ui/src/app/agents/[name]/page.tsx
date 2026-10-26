@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2 } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2, CalendarDays, CloudOff } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
@@ -39,7 +39,7 @@ import {
 import { ModelSelector } from "@/components/shared/model-selector";
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent, AgentCondition } from "@/lib/types";
-import { fmtDuration } from "@/lib/utils";
+import { cn, fmtDuration } from "@/lib/utils";
 import { humanizeConditionReason } from "@/lib/agent-conditions";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
@@ -59,6 +59,52 @@ function ttlTitle(verb: string, expiresAt?: string): string {
   const t = new Date(expiresAt);
   if (Number.isNaN(t.getTime())) return `${verb} once idle past this TTL`;
   return `${verb} at ${t.toLocaleString()}`;
+}
+
+// A dollar figure for the header: two decimals in the row, four in the tooltip.
+function fmtUSD(cost: string | undefined, digits: number): string {
+  const n = cost ? parseFloat(cost) : NaN;
+  if (Number.isNaN(n)) return "—";
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
+const LIFECYCLE_TIPS: Record<string, string> = {
+  Sleep: "Lifecycle: Sleep — the pod is deleted after each task, the workspace is kept",
+  AutoDelete: "Lifecycle: AutoDelete — the agent is deleted after each task",
+  Archive: "Lifecycle: Archive — pod and workspace are removed after each task, the record is kept",
+};
+
+type TtlSegment = { icon: typeof Moon; label: string; value: string; detail: string; next: boolean };
+
+// The lifecycle timers shown as one segmented strip in the header. The sleep,
+// archive or delete timer that fires soonest is marked `next`.
+function buildTtlSegments(agent: AgentResponse): TtlSegment[] {
+  const segs: TtlSegment[] = [];
+  const timers: [string | undefined, string | undefined, typeof Moon, string, string][] = [
+    [agent.sleepTTL, agent.sleepExpiresAt, Moon, "Sleep TTL", "Sleeps"],
+    [agent.archiveTTL, agent.archiveExpiresAt, Archive, "Archive TTL", "Archives"],
+    [agent.deleteTTL, agent.deleteExpiresAt, Hourglass, "Delete TTL", "Deletes"],
+  ];
+  let soonest = Infinity;
+  for (const [ttl, at] of timers) {
+    const t = ttl && at ? new Date(at).getTime() : NaN;
+    if (!Number.isNaN(t) && t < soonest) soonest = t;
+  }
+  for (const [ttl, at, icon, label, verb] of timers) {
+    if (!ttl) continue;
+    const t = at ? new Date(at).getTime() : NaN;
+    segs.push({ icon, label, value: fmtDuration(ttl), detail: ttlTitle(verb, at), next: t === soonest });
+  }
+  if (agent.taskTimeout) {
+    segs.push({
+      icon: Timer,
+      label: "Task timeout",
+      value: fmtDuration(agent.taskTimeout),
+      detail: agent.taskExpiresAt ? ttlTitle("Cancels", agent.taskExpiresAt) : "Cancels a task that runs longer than this",
+      next: false,
+    });
+  }
+  return segs;
 }
 
 // A lifecycle-timer badge (sleep / delete TTL, task timeout) with an icon and a
@@ -481,7 +527,7 @@ export default function AgentDetailPage() {
       {/* Unified header */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-6 pr-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-h-11 py-1.5">
+          <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2 min-h-11 py-1.5">
             {/* Left: back button on settings view, otherwise status + model */}
             {view === "settings" ? (
               <Button variant="ghost" size="sm" onClick={() => setViewAndUrl("chat")}>
@@ -489,18 +535,23 @@ export default function AgentDetailPage() {
                 Back to chat
               </Button>
             ) : (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
-                <StatusBadge status={agent.status} />
-                {agent.taskStatus && (
-                  <>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">Task</span>
-                    <StatusBadge status={agent.taskStatus} size="sm" />
-                  </>
-                )}
+              <div className="flex min-w-0 flex-wrap items-center gap-2 whitespace-nowrap">
+                <Tooltip
+                  side="bottom"
+                  content={`Agent ${agent.status}${agent.taskStatus ? ` · last task ${agent.taskStatus}` : ""}`}
+                >
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-0.5 cursor-default">
+                    <StatusBadge status={agent.status} />
+                    {agent.taskStatus && (
+                      <>
+                        <span className="h-3 w-px bg-[var(--color-border-hover)]" aria-hidden />
+                        <StatusBadge status={agent.taskStatus} size="sm" />
+                      </>
+                    )}
+                  </span>
+                </Tooltip>
                 {agent.squad && agent.squadName && (
-                  <>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">Squad</span>
+                  <Tooltip side="bottom" content={`Squad: ${agent.squadName}`}>
                     <Link
                       href={`/squads/${agent.squadName}?namespace=${agent.namespace}`}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
@@ -508,20 +559,26 @@ export default function AgentDetailPage() {
                       <Users className="size-3" />
                       <span>{agent.squadName}</span>
                     </Link>
-                  </>
+                  </Tooltip>
                 )}
-                <Badge variant="outline" className="text-xs font-mono">
-                  {agent.model}
-                </Badge>
+                <Tooltip side="bottom" content={`Model: ${agent.model}`}>
+                  <span className="block max-w-[140px] @7xl:max-w-[180px] truncate font-mono text-xs text-[var(--color-text-secondary)] cursor-default">
+                    {agent.model}
+                  </span>
+                </Tooltip>
                 {agent.effort && (
-                  <Badge variant="secondary" className="text-xs">
-                    Effort: {agent.effort}
-                  </Badge>
+                  <Tooltip side="bottom" content={`Reasoning effort: ${agent.effort}`}>
+                    <Badge variant="secondary" className="text-xs cursor-default">
+                      {agent.effort}
+                    </Badge>
+                  </Tooltip>
                 )}
                 {agent.lifecycle && (
-                  <Badge variant="secondary" className="text-xs">
-                    {agent.lifecycle}
-                  </Badge>
+                  <Tooltip side="bottom" content={LIFECYCLE_TIPS[agent.lifecycle] ?? `Lifecycle: ${agent.lifecycle}`}>
+                    <Badge variant="secondary" className="text-xs cursor-default">
+                      {agent.lifecycle}
+                    </Badge>
+                  </Tooltip>
                 )}
                 {agent.storage?.ephemeral && (
                   <Tooltip
@@ -541,42 +598,38 @@ export default function AgentDetailPage() {
                     </Badge>
                   </Tooltip>
                 )}
-                {agent.sleepTTL && (
-                  <TtlBadge
-                    icon={Moon}
-                    label="Sleep TTL"
-                    detail={ttlTitle("Sleeps", agent.sleepExpiresAt)}
-                    value={fmtDuration(agent.sleepTTL)}
-                  />
-                )}
-                {agent.archiveTTL && (
-                  <TtlBadge
-                    icon={Archive}
-                    label="Archive TTL"
-                    detail={ttlTitle("Archives", agent.archiveExpiresAt)}
-                    value={fmtDuration(agent.archiveTTL)}
-                  />
-                )}
-                {agent.deleteTTL && (
-                  <TtlBadge
-                    icon={Hourglass}
-                    label="Delete TTL"
-                    detail={ttlTitle("Deletes", agent.deleteExpiresAt)}
-                    value={fmtDuration(agent.deleteTTL)}
-                  />
-                )}
-                {agent.taskTimeout && (
-                  <TtlBadge
-                    icon={Timer}
-                    label="Task timeout"
-                    detail={
-                      agent.taskExpiresAt
-                        ? ttlTitle("Cancels", agent.taskExpiresAt)
-                        : "Cancels a task that runs longer than this"
-                    }
-                    value={fmtDuration(agent.taskTimeout)}
-                  />
-                )}
+                {(() => {
+                  const segs = buildTtlSegments(agent);
+                  if (segs.length === 0) return null;
+                  return (
+                    <span className="inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]" aria-label="Lifecycle timers">
+                      {segs.map((t, i) => (
+                        <Tooltip
+                          key={t.label}
+                          side="bottom"
+                          content={
+                            <span className="flex flex-col gap-0.5">
+                              <span className="text-[var(--color-text)]">{t.label} · {t.value}{t.next ? " · next" : ""}</span>
+                              <span className="font-normal text-[var(--color-text-secondary)]">{t.detail}</span>
+                            </span>
+                          }
+                        >
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 @7xl:px-2 py-0.5 text-xs tabular-nums cursor-default",
+                              i > 0 && "border-l border-[var(--color-border)]",
+                              t.next ? "text-[var(--color-status-sleeping)]" : "text-[var(--color-text-secondary)]",
+                            )}
+                            aria-label={`${t.label}: ${t.value}. ${t.detail}`}
+                          >
+                            <t.icon className="size-3" aria-hidden />
+                            {t.value}
+                          </span>
+                        </Tooltip>
+                      ))}
+                    </span>
+                  );
+                })()}
                 {agent.budgetUSD && (
                   <TtlBadge
                     icon={Wallet}
@@ -606,69 +659,83 @@ export default function AgentDetailPage() {
               </div>
             )}
 
-            {/* Right: costs + actions */}
-            <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 [&_button]:whitespace-nowrap">
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
-                <span>Last</span>
-                <CostBadge cost={agent.lastTaskCostUSD} />
-                <span>Total</span>
-                <CostBadge cost={agent.totalCostUSD} />
+            {/* Right: usage, age, actions */}
+            <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 whitespace-nowrap [&_button]:whitespace-nowrap">
+              <div className="flex items-baseline gap-2.5 text-xs tabular-nums">
+                <Tooltip side="bottom" content={`Last task cost: ${fmtUSD(agent.lastTaskCostUSD, 4)}`}>
+                  <span className="cursor-default">
+                    <span className="font-mono font-medium text-[var(--color-text)]">{fmtUSD(agent.lastTaskCostUSD, 2)}</span>
+                    <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">last</span>
+                  </span>
+                </Tooltip>
+                <Tooltip side="bottom" content={`Total cost: ${fmtUSD(agent.totalCostUSD, 4)}`}>
+                  <span className="cursor-default">
+                    <span className="font-mono font-medium text-[var(--color-text)]">{fmtUSD(agent.totalCostUSD, 2)}</span>
+                    <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">total</span>
+                  </span>
+                </Tooltip>
                 {agent.totalTokens != null && agent.totalTokens > 0 && (
-                  <>
-                    <span className="text-[var(--color-border)]">·</span>
-                    <span className="font-mono text-xs">
-                      {fmtTokens(agent.totalTokens)} tokens
+                  <Tooltip side="bottom" content={`Tokens used: ${agent.totalTokens.toLocaleString("en-US")}`}>
+                    <span className="cursor-default">
+                      <span className="font-mono font-medium text-[var(--color-text)]">{fmtTokens(agent.totalTokens)}</span>
+                      <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">tok</span>
                     </span>
-                  </>
+                  </Tooltip>
                 )}
               </div>
 
-              <div className="h-4 w-px bg-[var(--color-border)]" />
+              <span className="inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
+                <CalendarDays className="size-3" aria-hidden />
+                <RelativeTime timestamp={agent.createdAt} label="Created at" />
+              </span>
 
-              <RelativeTime timestamp={agent.createdAt} />
-
-              {agent.sessionStore && (
-                <>
-                  <div className="h-4 w-px bg-[var(--color-border)]" />
-                  <span
-                    className={agent.sessionStore.ok ? "text-xs text-[var(--color-text-muted)]" : "text-xs text-[var(--color-status-error)]"}
-                    title={agent.sessionStore.error || undefined}
-                  >
-                    {formatSessionStore(agent.sessionStore)}
+              {agent.sessionStore && !agent.sessionStore.ok && (
+                <Tooltip side="bottom" content={formatSessionStore(agent.sessionStore)}>
+                  <span className="inline-flex text-[var(--color-status-error)]" aria-label={formatSessionStore(agent.sessionStore)}>
+                    <CloudOff className="size-3.5" aria-hidden />
                   </span>
-                </>
+                </Tooltip>
               )}
 
-              <div className="h-4 w-px bg-[var(--color-border)]" />
-
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 {archivedReadOnly(agent.status, s3Enabled) ? null : agentDormant(agent.status, s3Enabled) ? (
-                  <Button variant="secondary" size="sm" onClick={handleWake}>
-                    <Zap className="size-3" data-icon="inline-start" />
-                    Wake
-                  </Button>
+                  <Tooltip side="bottom" content="Wake the agent">
+                    <Button variant="secondary" size="sm" onClick={handleWake} aria-label="Wake">
+                      <Zap className="size-3" data-icon="inline-start" />
+                      <span className="hidden @6xl:inline">Wake</span>
+                    </Button>
+                  </Tooltip>
                 ) : (
                   <>
                     {(agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting") && (
-                      <Button variant="secondary" size="sm" onClick={handleCancel}>
-                        <Ban className="size-3" data-icon="inline-start" />
-                        Cancel
-                      </Button>
+                      <Tooltip side="bottom" content="Cancel the running task">
+                        <Button variant="secondary" size="sm" onClick={handleCancel} aria-label="Cancel task">
+                          <Ban className="size-3" data-icon="inline-start" />
+                          <span className="hidden @6xl:inline">Cancel</span>
+                        </Button>
+                      </Tooltip>
                     )}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleSleep}
-                      disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
-                      title={
+                    <Tooltip
+                      side="bottom"
+                      content={
                         ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
                           ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
-                          : undefined
+                          : "Sleep: delete the pod, keep the workspace"
                       }
                     >
-                      <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
-                      {sleepNote ?? (sleeping ? "Sleeping…" : "Sleep")}
-                    </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSleep}
+                        disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
+                        aria-label="Sleep"
+                      >
+                        <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
+                        <span className={sleepNote || sleeping ? undefined : "hidden @6xl:inline"}>
+                          {sleepNote ?? (sleeping ? "Sleeping…" : "Sleep")}
+                        </span>
+                      </Button>
+                    </Tooltip>
                   </>
                 )}
                 {agentSquad ? (
@@ -682,27 +749,36 @@ export default function AgentDetailPage() {
                     }}
                   />
                 ) : !archivedReadOnly(agent.status, s3Enabled) && (
-                  <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
-                    <Users className="size-3" data-icon="inline-start" />
-                    Team Up
-                  </Button>
+                  <Tooltip side="bottom" content="Team up with other agents in a squad">
+                    <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)} aria-label="Team up">
+                      <Users className="size-3" data-icon="inline-start" />
+                      <span className="hidden @6xl:inline">Team Up</span>
+                    </Button>
+                  </Tooltip>
                 )}
                 {agent.status !== "Archived" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCompact}
-                  disabled={compactBusy || agent.status === "Sleeping"}
-                  title={
+                <Tooltip
+                  side="bottom"
+                  content={
                     agent.status === "Sleeping"
                       ? "Wake the agent before compacting — there is no running pod to receive the request."
-                      : "Compact conversation history. Queues /compact as a follow-up message — runs as soon as the current turn finishes (or immediately if the agent is idle and responsive)."
+                      : "Compact the conversation history to free context. Runs as soon as the current turn finishes."
                   }
-                  className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
                 >
-                  <Layers className="size-3" data-icon="inline-start" />
-                  {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
-                </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleCompact}
+                    disabled={compactBusy || agent.status === "Sleeping"}
+                    aria-label="Compact"
+                    className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
+                  >
+                    <Layers className="size-3" data-icon="inline-start" />
+                    <span className={compactNote || compactBusy ? undefined : "hidden @6xl:inline"}>
+                      {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
+                    </span>
+                  </Button>
+                </Tooltip>
                 )}
                 {s3Enabled && agent.sessionStore?.ok === false && (
                   <ConfirmDialog
@@ -740,10 +816,11 @@ export default function AgentDetailPage() {
                           className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)]"
                         >
                           <Archive className="size-3" data-icon="inline-start" />
-                          {archiveNote ?? "Archive"}
+                          <span className={archiveNote ? undefined : "hidden @6xl:inline"}>{archiveNote ?? "Archive"}</span>
                         </Button>
                       </span>
                     ) : (
+                      <Tooltip side="bottom" content="Archive: keep the record, remove the pod and workspace">
                       <ConfirmDialog
                         title="Archive Agent"
                         description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
@@ -758,10 +835,11 @@ export default function AgentDetailPage() {
                             className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
                           >
                             <Archive className="size-3" data-icon="inline-start" />
-                            {archiveNote ?? "Archive"}
+                            <span className={archiveNote ? undefined : "hidden @6xl:inline"}>{archiveNote ?? "Archive"}</span>
                           </Button>
                         }
                       />
+                      </Tooltip>
                     )
                   ) : (
                     <ConfirmDialog
@@ -769,9 +847,9 @@ export default function AgentDetailPage() {
                       description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone. Its last saved session stays in S3.`}
                       onConfirm={handleDelete}
                       trigger={
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" size="sm" aria-label="Delete" title="Delete">
                           <Trash2 className="size-3" data-icon="inline-start" />
-                          Delete
+                          <span className="hidden @6xl:inline">Delete</span>
                         </Button>
                       }
                     />
@@ -782,9 +860,9 @@ export default function AgentDetailPage() {
                     description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
                     onConfirm={handleDelete}
                     trigger={
-                      <Button variant="destructive" size="sm">
+                      <Button variant="destructive" size="sm" aria-label="Delete" title="Delete">
                         <Trash2 className="size-3" data-icon="inline-start" />
-                        Delete
+                        <span className="hidden @6xl:inline">Delete</span>
                       </Button>
                     }
                   />
@@ -913,6 +991,7 @@ export default function AgentDetailPage() {
                 <InfoRow label="Name" value={agent.name} />
                 <InfoRow label="Namespace" value={agent.namespace} />
                 <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
+                {agent.sessionStore && <InfoRow label="Session" value={formatSessionStore(agent.sessionStore)} />}
                 {agentSquad && (
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">Squad</span>

@@ -41,7 +41,7 @@ export function Tooltip({ content, side = "top", sideOffset = 6, children }: Too
             className={cn(
               "absolute z-50 px-2.5 py-1 text-[11px] font-medium rounded-[var(--radius-sm)]",
               "bg-[var(--color-surface-raised)] text-[var(--color-text)] border border-[var(--color-border)]",
-              "shadow-[0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap pointer-events-none",
+              "shadow-[0_4px_12px_rgba(0,0,0,0.3)] w-max max-w-[360px] whitespace-normal break-words pointer-events-none",
               positionClasses[side]
             )}
             style={offsetStyle}

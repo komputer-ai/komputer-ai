@@ -6,9 +6,11 @@ import { Tooltip } from "@/components/kit/tooltip";
 
 type RelativeTimeProps = {
   timestamp: string;
+  /** Prefix for the tooltip's absolute date, e.g. "Created at". */
+  label?: string;
 };
 
-export function RelativeTime({ timestamp }: RelativeTimeProps) {
+export function RelativeTime({ timestamp, label }: RelativeTimeProps) {
   const [relative, setRelative] = useState(() => formatRelativeTime(timestamp));
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function RelativeTime({ timestamp }: RelativeTimeProps) {
   }, [timestamp]);
 
   return (
-    <Tooltip content={new Date(timestamp).toLocaleString()} side="bottom">
+    <Tooltip content={label ? `${label} ${new Date(timestamp).toLocaleString()}` : new Date(timestamp).toLocaleString()} side="bottom">
       <span className="cursor-default text-xs text-[var(--color-text-secondary)]">
         {relative}
       </span>
