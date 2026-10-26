@@ -6,6 +6,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useCallback,
   type ReactNode,
   type RefObject,
@@ -202,17 +203,26 @@ export function SelectValue({ placeholder }: { placeholder?: string }) {
 
 interface SelectContentProps extends HTMLAttributes<HTMLDivElement> {}
 
+// Puts an open menu above or below its trigger, written straight onto the element
+// in a layout effect so it lands before the first paint (no show-below-then-jump).
+// Opens upward only when it doesn't fit below and there's more room above.
+function placeMenu(el: HTMLElement, trigger: HTMLElement, needed: number) {
+  const rect = trigger.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const up = spaceBelow < needed && rect.top > spaceBelow;
+  el.style.top = up ? "auto" : "100%";
+  el.style.bottom = up ? "100%" : "auto";
+  el.style.marginTop = up ? "0" : "4px";
+  el.style.marginBottom = up ? "4px" : "0";
+}
+
 export function SelectContent({ className, children }: SelectContentProps) {
   const { open, setOpen, triggerRef } = useSelectContext();
   const contentRef = useRef<HTMLDivElement>(null);
-  const [openUpward, setOpenUpward] = useState(false);
 
-  // Determine if dropdown should open upward
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    setOpenUpward(spaceBelow < 260); // 260 = max-h-60 (240px) + margin
+  useLayoutEffect(() => {
+    if (!open || !contentRef.current || !triggerRef.current) return;
+    placeMenu(contentRef.current, triggerRef.current, 260); // 260 = max-h-60 (240px) + margin
   }, [open, triggerRef]);
 
   // Close on click outside
@@ -256,12 +266,11 @@ export function SelectContent({ className, children }: SelectContentProps) {
             "bg-[var(--color-surface-raised)] border border-[var(--color-border)]",
             "shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)]",
             "overflow-y-auto max-h-60",
-            openUpward ? "bottom-full mb-1" : "mt-1",
             className
           )}
-          initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
           transition={{ duration: 0.12, ease: "easeOut" }}
         >
           {children}
