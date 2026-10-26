@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2, CalendarDays, CloudOff } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Archive, Plus, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2, CalendarDays, CloudOff, FileText, Cpu, Clock, Plug, Tag } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
@@ -25,10 +24,9 @@ import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
+import { DetailsSection, RailSection, Field, PromptEditor, SaveBar, fmtIn } from "@/components/agents/agent-details-parts";
 import { LIFECYCLES, EFFORTS } from "@/lib/constants";
-import { Textarea } from "@/components/kit/textarea";
 import { Input } from "@/components/kit/input";
-import { Label } from "@/components/kit/label";
 import {
   Select,
   SelectContent,
@@ -140,29 +138,28 @@ function TtlBadge({
 
 // Read-only list of why the agent is in its state (status.conditions). Hidden when empty.
 function ConditionsSection({ conditions }: { conditions?: AgentCondition[] }) {
-  if (!conditions || conditions.length === 0) return null;
+  if (!conditions || conditions.length === 0) {
+    return <p className="text-[12.5px] text-[var(--color-text-muted)]">No conditions reported yet.</p>;
+  }
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label>Conditions</Label>
-      <ul className="flex flex-col divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
-        {conditions.map((c) => {
-          const active = c.status === "True";
-          return (
-            <li key={c.type} className="px-3 py-2 flex flex-col gap-0.5" title={c.message || undefined}>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                <span className="font-medium text-[var(--color-text)]">{c.type}</span>
-                <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
-                {c.reason && <span className="text-[var(--color-text-secondary)]">{humanizeConditionReason(c.reason)}</span>}
-                {c.lastTransitionTime && (
-                  <span className="ml-auto"><RelativeTime timestamp={c.lastTransitionTime} /></span>
-                )}
-              </div>
-              {c.message && <p className="text-[11px] text-[var(--color-text-muted)]">{c.message}</p>}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <ul className="flex flex-col gap-2.5">
+      {conditions.map((c) => {
+        const active = c.status === "True";
+        return (
+          <li key={c.type} className="flex flex-col gap-0.5" title={c.message || undefined}>
+            <div className="flex items-center gap-2 text-[12.5px]">
+              <span className="font-medium text-[var(--color-text)]">{c.type}</span>
+              <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
+              {c.lastTransitionTime && (
+                <span className="ml-auto"><RelativeTime timestamp={c.lastTransitionTime} /></span>
+              )}
+            </div>
+            {c.reason && <span className="text-[12px] text-[var(--color-text-secondary)]">{humanizeConditionReason(c.reason)}</span>}
+            {c.message && <span className="text-[11px] text-[var(--color-text-muted)]">{c.message}</span>}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -947,68 +944,55 @@ export default function AgentDetailPage() {
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-4xl space-y-6">
-              {/* Status + metrics */}
-              <motion.div
-                className="flex justify-center gap-3"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              >
-                <StatusStrip status={agent.status} taskStatus={agent.taskStatus} />
-                <MetricsRow
-                  totalCostUSD={agent.totalCostUSD}
-                  lastTaskCostUSD={agent.lastTaskCostUSD}
-                  totalTokens={agent.totalTokens}
-                />
-              </motion.div>
+          <div className="@container flex-1 overflow-y-auto">
+            <div className="grid min-h-full grid-cols-[minmax(0,1fr)_340px] @max-5xl:grid-cols-1">
+              {/* Form column: full-bleed section rows */}
+              <div className="flex min-w-0 flex-col">
+                {archivedReadOnly(agent.status, s3Enabled) ? (
+                  <div className="border-b border-[var(--color-border)] px-7 py-4 text-sm text-[var(--color-text-secondary)]">
+                    This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
+                  </div>
+                ) : (
+                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+                )}
+              </div>
 
-              {agent.budgetUSD && (
-                <BudgetMeter
-                  spentUSD={agent.totalCostUSD}
-                  budgetUSD={agent.budgetUSD}
-                  exhausted={agent.budgetExhausted}
-                />
-              )}
-
-              {/* Settings */}
-              {archivedReadOnly(agent.status, s3Enabled) ? (
-                <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-sm text-[var(--color-text-secondary)]">
-                  This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
-                </div>
-              ) : (
-                <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
-              )}
-
-              {/* Topology */}
-              <AgentTopology agentName={agent.name} agentNs={agentNs} />
-
-              {/* Agent info */}
-              <motion.div
-                className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-3 transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
-              >
-                <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Agent Info</h3>
-                <InfoRow label="Name" value={agent.name} />
-                <InfoRow label="Namespace" value={agent.namespace} />
-                <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
-                {agent.sessionStore && <InfoRow label="Session" value={formatSessionStore(agent.sessionStore)} />}
-                {agentSquad && (
+              {/* Rail: overview, conditions, topology — a flush column, no cards */}
+              <aside className="min-w-0 border-l border-[var(--color-border)] bg-[var(--color-bg-subtle)] @max-5xl:border-l-0 @max-5xl:border-t">
+                <RailSection title="Overview">
+                  <InfoRow label="Name" value={agent.name} mono />
+                  <InfoRow label="Namespace" value={agent.namespace} mono />
+                  <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
+                  {agent.sessionStore && (
+                    <InfoRow
+                      label="Session"
+                      value={formatSessionStore(agent.sessionStore)}
+                      color={agent.sessionStore.ok ? "var(--color-status-running)" : "var(--color-status-error)"}
+                    />
+                  )}
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">Squad</span>
-                    <Link
-                      href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
-                    >
-                      <Users className="size-3 shrink-0" />
-                      {agentSquad.name}
-                    </Link>
+                    {agentSquad ? (
+                      <Link
+                        href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                      >
+                        <Users className="size-3 shrink-0" />
+                        {agentSquad.name}
+                      </Link>
+                    ) : (
+                      <span className="text-[13px] text-[var(--color-text-muted)]">—</span>
+                    )}
                   </div>
-                )}
-              </motion.div>
+                  {archivedReadOnly(agent.status, s3Enabled) && agent.budgetUSD && (
+                    <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
+                  )}
+                </RailSection>
+                <RailSection title="Conditions">
+                  <ConditionsSection conditions={agent.conditions} />
+                </RailSection>
+                <AgentTopology agentName={agent.name} agentNs={agentNs} flush />
+              </aside>
             </div>
           </div>
         )}
@@ -1027,72 +1011,7 @@ export default function AgentDetailPage() {
   );
 }
 
-function StatusStrip({ status, taskStatus }: { status: AgentResponse["status"]; taskStatus?: string }) {
-  const accentColor =
-    status === "Running" ? "var(--color-status-running)" :
-    status === "Sleeping" ? "var(--color-status-sleeping)" :
-    status === "Failed" ? "var(--color-status-error)" :
-    status === "Pending" ? "var(--color-status-pending)" :
-    status === "Succeeded" ? "var(--color-status-success)" :
-    status === "Archived" ? "var(--color-status-archived)" :
-    "var(--color-border)";
 
-  const isRunning = status === "Running";
-
-  return (
-    <div
-      className="relative flex items-center gap-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 overflow-hidden"
-      style={{ borderLeftColor: accentColor, borderLeftWidth: "3px" }}
-    >
-      {isRunning && (
-        <div
-          className="absolute left-0 top-0 bottom-0 w-16 pointer-events-none"
-          style={{ background: `linear-gradient(to right, color-mix(in srgb, ${accentColor} 12%, transparent), transparent)` }}
-        />
-      )}
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Phase</span>
-        <span className={`font-semibold text-sm ${isRunning ? "animate-pulse" : ""}`} style={{ color: accentColor }}>
-          {status}
-        </span>
-      </div>
-      <div className="w-px h-4 bg-[var(--color-border)]" />
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Task</span>
-        <span className="font-semibold text-sm text-[var(--color-text)]">{taskStatus || "Idle"}</span>
-      </div>
-    </div>
-  );
-}
-
-function MetricsRow({ totalCostUSD, lastTaskCostUSD, totalTokens }: {
-  totalCostUSD?: string;
-  lastTaskCostUSD?: string;
-  totalTokens?: number;
-}) {
-  const items: { label: string; value: string; highlight?: boolean }[] = [
-    { label: "Total Cost", value: totalCostUSD ? `$${totalCostUSD}` : "—", highlight: true },
-    { label: "Last Task", value: lastTaskCostUSD ? `$${lastTaskCostUSD}` : "—" },
-  ];
-  if (totalTokens != null && totalTokens > 0) {
-    items.push({
-      label: "Total Tokens",
-      value: fmtTokens(totalTokens),
-    });
-  }
-  return (
-    <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 divide-x divide-[var(--color-border)]">
-      {items.map((item) => (
-        <div key={item.label} className="flex flex-col items-center gap-1 px-5 first:pl-0 last:pr-0">
-          <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">{item.label}</span>
-          <span className={`font-mono font-semibold text-base tabular-nums ${item.highlight ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}>
-            {item.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // Spend-vs-budget meter: a small horizontal bar under the metrics row, shown
 // only when a soft lifetime budgetUSD is set. Turns the accent color red once
@@ -1107,34 +1026,17 @@ function BudgetMeter({ spentUSD, budgetUSD, exhausted }: {
   const budget = parseFloat(budgetUSD) || 0;
   const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
   return (
-    <motion.div
-      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 space-y-2"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-    >
-      <div className="flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-          <Wallet className="size-3" aria-hidden />
-          Budget
-        </span>
-        <span className="font-mono tabular-nums text-[var(--color-text)]">
-          ${spent.toFixed(2)} / ${budget.toFixed(2)}
-        </span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-raised)] overflow-hidden">
+    <div className="flex flex-col gap-1">
+      <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-raised)] overflow-hidden" aria-label={`Spent $${spent.toFixed(2)} of $${budget.toFixed(2)}`}>
         <div
           className="h-full rounded-full transition-[width] duration-300"
-          style={{
-            width: `${pct}%`,
-            backgroundColor: exhausted ? "var(--color-status-error)" : "var(--color-brand-blue)",
-          }}
+          style={{ width: `${pct}%`, backgroundColor: exhausted ? "var(--color-status-error)" : "var(--color-brand-blue)" }}
         />
       </div>
-      {exhausted && (
-        <p className="text-[11px] text-[var(--color-status-error)]">Budget exhausted — new tasks are refused until it&apos;s raised.</p>
-      )}
-    </motion.div>
+      <span className={cn("text-[11.5px]", exhausted ? "text-[var(--color-status-error)]" : "text-[var(--color-text-muted)]")}>
+        {exhausted ? "Budget exhausted — new tasks are refused until it's raised." : `$${spent.toFixed(2)} of $${budget.toFixed(2)} spent · new tasks stop at the cap`}
+      </span>
+    </div>
   );
 }
 
@@ -1159,7 +1061,6 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [taskBudgetUSD, setTaskBudgetUSD] = useState(agent.taskBudgetUSD ?? "");
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
-  const [systemPromptOpen, setSystemPromptOpen] = useState(!!agent.systemPrompt);
   const [agentSecretRefs, setAgentSecretRefs] = useState<string[]>(agent.secrets ?? []);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [showAllSecrets, setShowAllSecrets] = useState(false);
@@ -1221,7 +1122,58 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const labelsInvalid = hasLabelErrors(labelErrors);
   const labelDiff = diffLabels(agent.labels, labelRows);
   const labelsChanged = Object.keys(labelDiff.labels).length > 0 || labelDiff.removeLabels.length > 0;
-  const hasChanges = labelsChanged || model !== agent.model || effort !== agentEffort || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || archiveTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
+
+  // Field names for the save bar, in form order.
+  const changedFields = ([
+    [systemPromptChanged, "System prompt"],
+    [model !== agent.model, "Model"],
+    [effort !== agentEffort, "Reasoning effort"],
+    [lifecycle !== agentLifecycle, "Lifecycle"],
+    [sleepTTLChanged, "Sleep TTL"],
+    [archiveTTLChanged, "Archive TTL"],
+    [deleteTTLChanged, "Delete TTL"],
+    [taskTimeoutChanged, "Task timeout"],
+    [budgetUSDChanged, "Budget"],
+    [taskBudgetUSDChanged, "Task budget"],
+    [connectorsChanged, "Connectors"],
+    [skillsChanged, "Skills"],
+    [memoriesChanged, "Memories"],
+    [secretsChanged, "Secrets"],
+    [labelsChanged, "Labels"],
+  ] as [boolean, string][]).filter(([c]) => c).map(([, n]) => n);
+
+  function discard() {
+    setModel(agent.model);
+    setEffort(agentEffort);
+    setLifecycle(agentLifecycle);
+    setSleepTTL(fmtDuration(agent.sleepTTL ?? ""));
+    setArchiveTTL(fmtDuration(agent.archiveTTL ?? ""));
+    setDeleteTTL(fmtDuration(agent.deleteTTL ?? ""));
+    setTaskTimeout(fmtDuration(agent.taskTimeout ?? ""));
+    setBudgetUSD(agent.budgetUSD ?? "");
+    setTaskBudgetUSD(agent.taskBudgetUSD ?? "");
+    setSystemPrompt(agent.systemPrompt ?? "");
+    setAgentSecretRefs(agent.secrets ?? []);
+    setAgentMemories(agent.memories ?? []);
+    setAgentSkills(agent.skills ?? []);
+    setAgentConnectors(agent.connectors ?? []);
+    setLabelRows(splitLabels(agent.labels).user);
+    setError(null);
+  }
+
+  // Live countdowns under the TTL fields; the sleep/archive/delete timer that fires
+  // soonest is highlighted, as in the header strip.
+  const nextTimer = buildTtlSegments(agent).find((t) => t.next)?.label;
+  const ttlHint = (orig: string | undefined, changed: boolean, label: string, at: string | undefined, verb: string, fallback: string) => {
+    if (changed) return { hint: `Was ${orig ? fmtDuration(orig) : "unset"}`, tone: "changed" as const };
+    const when = fmtIn(at);
+    if (orig && when) return { hint: `${verb} ${when}`, tone: nextTimer === label ? ("next" as const) : undefined };
+    return { hint: fallback, tone: undefined };
+  };
+  const sleepH = ttlHint(agent.sleepTTL, sleepTTLChanged, "Sleep TTL", agent.sleepExpiresAt, "sleeps", "Sleep after this long idle");
+  const archiveH = ttlHint(agent.archiveTTL, archiveTTLChanged, "Archive TTL", agent.archiveExpiresAt, "archives", "Archive after this long idle");
+  const deleteH = ttlHint(agent.deleteTTL, deleteTTLChanged, "Delete TTL", agent.deleteExpiresAt, "deletes", "Delete this long after creation");
+  const taskH = ttlHint(agent.taskTimeout, taskTimeoutChanged, "Task timeout", agent.taskExpiresAt, "cancels", agent.taskTimeout ? "No task running" : "Cap on a single task");
 
   async function handleSave() {
     setSaving(true);
@@ -1265,176 +1217,167 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   }
 
   return (
-    <motion.div
-      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-4 transition-colors duration-150 hover:border-[var(--color-border-hover)]"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
-    >
-      <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Settings</h3>
+    <div className="@container flex min-h-full flex-col">
+      <DetailsSection icon={FileText} title="Prompt" dirty={systemPromptChanged}
+        description="What the agent is told. Instructions come with each task; the system prompt is the persona it keeps every task.">
+        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} />
+      </DetailsSection>
 
-      {/* Collapsible system prompt */}
-      <div className="flex flex-col">
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
-          onClick={() => setSystemPromptOpen(!systemPromptOpen)}
-        >
-          <ChevronRight className={`size-3.5 transition-transform duration-150 ${systemPromptOpen ? "rotate-90" : ""}`} />
-          System Prompt <span className="text-[var(--color-text-muted)] font-normal">(Optional)</span>
-        </button>
-        <AnimatePresence initial={false}>
-          {systemPromptOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="pt-2">
-                <Textarea
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Custom instructions that define agent behavior, persona, or constraints..."
-                  style={{ minHeight: 100 }}
-                />
+      <DetailsSection icon={Cpu} title="Model" dirty={model !== agent.model || effort !== agentEffort}
+        description="Applies when the next pod starts.">
+        <div className="grid grid-cols-3 @max-3xl:grid-cols-1 gap-4">
+          <div className="col-span-2 @max-3xl:col-span-1 min-w-0">
+            <ModelSelector value={model} onChange={(v) => setModel(v)} />
+          </div>
+          <Field label="Reasoning effort">
+            <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EFFORTS.map((e) => (
+                  <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </DetailsSection>
+
+      <DetailsSection icon={Clock} title="Lifecycle & limits"
+        dirty={lifecycle !== agentLifecycle || sleepTTLChanged || archiveTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged}
+        description="What happens when it's idle, and how much it may spend.">
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Lifecycle" hint={sleepBlocked ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC)." : LIFECYCLE_TIPS[lifecycle]?.split(" — ")[1] ?? "After each task the pod keeps running."}>
+            <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep")).map((l) => (
+                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Storage" hint="Fixed at creation.">
+            <Input
+              value={agent.storage?.ephemeral ? "Ephemeral (emptyDir, no PVC)" : `${agent.storage?.size || "Template default"} · PVC`}
+              disabled
+              className="opacity-70 cursor-not-allowed"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-4 @max-4xl:grid-cols-2 gap-4">
+          <Field label="Sleep TTL" hint={sleepH.hint} hintTone={sleepH.tone}>
+            <Input value={sleepTTL} onChange={(e) => setSleepTTL(e.target.value)} placeholder="e.g. 30m" />
+          </Field>
+          <Field label="Archive TTL" hint={archiveH.hint} hintTone={archiveH.tone}>
+            <Input value={archiveTTL} onChange={(e) => setArchiveTTL(e.target.value)} placeholder="e.g. 24h" />
+          </Field>
+          <Field label="Delete TTL" hint={deleteH.hint} hintTone={deleteH.tone}>
+            <Input value={deleteTTL} onChange={(e) => setDeleteTTL(e.target.value)} placeholder="e.g. 720h" />
+          </Field>
+          <Field label="Task timeout" hint={taskH.hint} hintTone={taskH.tone}>
+            <Input value={taskTimeout} onChange={(e) => setTaskTimeout(e.target.value)} placeholder="e.g. 30m" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Budget (USD)" hint={budgetUSDChanged ? `Was ${agent.budgetUSD ? `$${agent.budgetUSD}` : "unset"}` : agent.budgetUSD ? undefined : "Soft lifetime cap. Empty for no cap."} hintTone={budgetUSDChanged ? "changed" : undefined}>
+            <Input value={budgetUSD} onChange={(e) => setBudgetUSD(e.target.value)} placeholder="e.g. 10.00" />
+            {agent.budgetUSD && !budgetUSDChanged && (
+              <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
+            )}
+          </Field>
+          <Field label="Task budget (USD)" hint={taskBudgetUSDChanged ? `Was ${agent.taskBudgetUSD ? `$${agent.taskBudgetUSD}` : "unset"}` : "Hard stop for a single task. Empty for no cap."} hintTone={taskBudgetUSDChanged ? "changed" : undefined}>
+            <Input value={taskBudgetUSD} onChange={(e) => setTaskBudgetUSD(e.target.value)} placeholder="e.g. 2.50" />
+          </Field>
+        </div>
+      </DetailsSection>
+
+      <DetailsSection icon={Plug} title="Tools & knowledge" dirty={connectorsChanged || skillsChanged || memoriesChanged || secretsChanged}
+        description="The connectors, skills, memories and secrets it can reach.">
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Connectors">
+            <MultiSelect
+              options={availableConnectors.map<MultiSelectOption>((c) => ({
+                value: c.ref,
+                label: c.name,
+                secondary: c.ref.includes("/") ? c.namespace : null,
+                searchTerms: [c.namespace, c.ref],
+              }))}
+              value={agentConnectors}
+              onChange={setAgentConnectors}
+              placeholder="Select connectors..."
+              noun="connectors"
+              searchPlaceholder="Search connectors..."
+              emptyText="No connectors available"
+            />
+          </Field>
+          <Field label="Tool permissions">
+            {(agent.allowedTools?.length || agent.disallowedTools?.length) ? (
+          <div className="flex flex-col gap-2 rounded border border-[var(--color-border)] p-2.5">
+            {agent.allowedTools?.length ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  <span>Restricted to these tools only — all other built-in and connector tools are unavailable.</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {agent.allowedTools.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-mono">{t}</Badge>
+                  ))}
+                </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Instructions</Label>
-        <Textarea
-          value={instructions}
-          disabled
-          placeholder="No instructions set"
-          style={{ minHeight: 100 }}
-          className="opacity-60 cursor-not-allowed"
-        />
-      </div>
-
-      <ModelSelector value={model} onChange={(v) => setModel(v)} />
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Reasoning Effort</Label>
-        <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {EFFORTS.map((e) => (
-              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Lifecycle</Label>
-        <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep")).map((l) => (
-              <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {sleepBlocked && (
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Sleep is unavailable — this agent&apos;s workspace is ephemeral (no PVC).
-          </p>
-        )}
-      </div>
-
-      {agent.storage?.ephemeral && (
-        <div className="flex flex-col gap-1.5">
-          <Label>Storage</Label>
-          <Input value="Ephemeral (emptyDir, no PVC)" disabled className="opacity-60 cursor-not-allowed" />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Immutable after creation — cannot be changed to persistent storage.
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Sleep TTL</Label>
-          <Input
-            value={sleepTTL}
-            onChange={(e) => setSleepTTL(e.target.value)}
-            placeholder="e.g. 30m"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Sleep after this long idle. Resets on activity. Empty to never sleep.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Archive TTL</Label>
-          <Input
-            value={archiveTTL}
-            onChange={(e) => setArchiveTTL(e.target.value)}
-            placeholder="e.g. 24h"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Archive after this long idle (keeps counting while asleep). Pod and workspace are removed; the agent is kept. Empty to never archive.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Delete TTL</Label>
-          <Input
-            value={deleteTTL}
-            onChange={(e) => setDeleteTTL(e.target.value)}
-            placeholder="e.g. 24h"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Delete this long after creation. Absolute — never resets. Empty to never delete.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Task Timeout</Label>
-          <Input
-            value={taskTimeout}
-            onChange={(e) => setTaskTimeout(e.target.value)}
-            placeholder="e.g. 30m"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Cancel a single task that runs this long. Steering does not extend it. Empty for no limit.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Budget (USD)</Label>
-          <Input
-            value={budgetUSD}
-            onChange={(e) => setBudgetUSD(e.target.value)}
-            placeholder="e.g. 10.00"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Soft lifetime cap — new tasks are refused once total spend reaches it. A running task still finishes. Empty for no cap.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Task Budget (USD)</Label>
-          <Input
-            value={taskBudgetUSD}
-            onChange={(e) => setTaskBudgetUSD(e.target.value)}
-            placeholder="e.g. 10.00"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Hard per-task cap — the task stops the instant it is exceeded. Empty for no cap.
-          </p>
-        </div>
-      </div>
-
-      <ConditionsSection conditions={agent.conditions} />
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Secrets</Label>
+            ) : null}
+            {agent.disallowedTools?.length ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-[var(--color-text-secondary)]">Blocked tools</span>
+                <div className="flex flex-wrap gap-1">
+                  {agent.disallowedTools.map((t) => (
+                    <Badge key={t} variant="outline" className="font-mono line-through">{t}</Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+            ) : (
+              <span className="text-[12.5px] text-[var(--color-text-secondary)]">All default tools · set restrictions when creating the agent</span>
+            )}
+          </Field>
+          <Field label="Skills">
+            <MultiSelect
+              options={availableSkills.map<MultiSelectOption>((s) => ({
+                value: s.ref,
+                label: s.name,
+                secondary: s.ref.includes("/") ? s.namespace : null,
+                searchTerms: [s.namespace, s.ref],
+              }))}
+              value={agentSkills}
+              onChange={setAgentSkills}
+              placeholder="Select skills..."
+              noun="skills"
+              searchPlaceholder="Search skills..."
+              emptyText="No skills available"
+            />
+          </Field>
+          <Field label="Memories">
+            <MultiSelect
+              options={availableMemories.map<MultiSelectOption>((m) => ({
+                value: m.ref,
+                label: m.name,
+                secondary: m.ref.includes("/") ? m.namespace : null,
+                searchTerms: [m.namespace, m.ref],
+              }))}
+              value={agentMemories}
+              onChange={setAgentMemories}
+              placeholder="Select memories..."
+              noun="memories"
+              searchPlaceholder="Search memories..."
+              emptyText="No memories available"
+            />
+          </Field>
+          <Field label="Secrets">
           <MultiSelect
             options={availableSecrets.map<MultiSelectOption>((s) => ({
               value: s.name,
@@ -1481,99 +1424,11 @@ function SettingsCard({ agent, agentNs, onSaved }: {
               }).catch(() => {});
             }}
           />
+          </Field>
         </div>
+      </DetailsSection>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Connectors</Label>
-          <MultiSelect
-            options={availableConnectors.map<MultiSelectOption>((c) => ({
-              value: c.ref,
-              label: c.name,
-              secondary: c.ref.includes("/") ? c.namespace : null,
-              searchTerms: [c.namespace, c.ref],
-            }))}
-            value={agentConnectors}
-            onChange={setAgentConnectors}
-            placeholder="Select connectors..."
-            noun="connectors"
-            searchPlaceholder="Search connectors..."
-            emptyText="No connectors available"
-          />
-        </div>
-      </div>
-
-      {(agent.allowedTools?.length || agent.disallowedTools?.length) ? (
-        <div className="flex flex-col gap-1.5">
-          <Label>Tool permissions</Label>
-          <div className="flex flex-col gap-2 rounded border border-[var(--color-border)] p-2.5">
-            {agent.allowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
-                  <AlertTriangle className="size-3 shrink-0" />
-                  <span>Restricted to these tools only — all other built-in and connector tools are unavailable.</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {agent.allowedTools.map((t) => (
-                    <Badge key={t} variant="secondary" className="font-mono">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {agent.disallowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-[var(--color-text-secondary)]">Blocked tools</span>
-                <div className="flex flex-wrap gap-1">
-                  {agent.disallowedTools.map((t) => (
-                    <Badge key={t} variant="outline" className="font-mono line-through">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Memories</Label>
-          <MultiSelect
-            options={availableMemories.map<MultiSelectOption>((m) => ({
-              value: m.ref,
-              label: m.name,
-              secondary: m.ref.includes("/") ? m.namespace : null,
-              searchTerms: [m.namespace, m.ref],
-            }))}
-            value={agentMemories}
-            onChange={setAgentMemories}
-            placeholder="Select memories..."
-            noun="memories"
-            searchPlaceholder="Search memories..."
-            emptyText="No memories available"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Skills</Label>
-          <MultiSelect
-            options={availableSkills.map<MultiSelectOption>((s) => ({
-              value: s.ref,
-              label: s.name,
-              secondary: s.ref.includes("/") ? s.namespace : null,
-              searchTerms: [s.namespace, s.ref],
-            }))}
-            value={agentSkills}
-            onChange={setAgentSkills}
-            placeholder="Select skills..."
-            noun="skills"
-            searchPlaceholder="Search skills..."
-            emptyText="No skills available"
-          />
-        </div>
-      </div>
-
-      {/* Labels */}
-      <div className="flex flex-col gap-1.5">
-        <Label>Labels</Label>
+      <DetailsSection icon={Tag} title="Labels" dirty={labelsChanged} description="For filtering and selectors.">
         <LabelsEditor
           rows={labelRows}
           errors={labelErrors}
@@ -1581,22 +1436,18 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           original={originalUserLabels}
           onChange={setLabelRows}
         />
-      </div>
+      </DetailsSection>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={handleSave} disabled={!hasChanges || labelsInvalid || saving}>
-          {saved ? (
-            <><Check className="size-3 mr-1" /> Saved</>
-          ) : saving ? (
-            "Saving..."
-          ) : (
-            <><Save className="size-3 mr-1" /> Save Changes</>
-          )}
-        </Button>
-      </div>
-    </motion.div>
+      <SaveBar
+        changed={changedFields}
+        saving={saving}
+        saved={saved}
+        error={error}
+        disabled={labelsInvalid}
+        onDiscard={discard}
+        onSave={handleSave}
+      />
+    </div>
   );
 }
 
