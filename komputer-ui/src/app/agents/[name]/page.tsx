@@ -955,7 +955,7 @@ export default function AgentDetailPage() {
                     This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
                   </div>
                 ) : (
-                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} onOpenChat={() => setViewAndUrl("chat")} />
+                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
                 )}
               </div>
 
@@ -1043,11 +1043,10 @@ function BudgetMeter({ spentUSD, budgetUSD, exhausted }: {
   );
 }
 
-function SettingsCard({ agent, agentNs, onSaved, onOpenChat }: {
+function SettingsCard({ agent, agentNs, onSaved }: {
   agent: AgentResponse;
   agentNs?: string;
   onSaved: (updated?: AgentResponse) => void;
-  onOpenChat?: () => void;
 }) {
   const [model, setModel] = useState(agent.model);
   const [effort, setEffort] = useState<string>(agent.effort || "auto");
@@ -1238,7 +1237,7 @@ function SettingsCard({ agent, agentNs, onSaved, onOpenChat }: {
     <div className="@container flex min-h-full flex-col">
       <DetailsSection index={0} icon={FileText} title="Prompt" dirty={systemPromptChanged}
         description="What the agent is told. Instructions come with each task; the system prompt is the persona it keeps every task.">
-        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} onOpenChat={onOpenChat} />
+        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} />
       </DetailsSection>
 
       <DetailsSection index={1} icon={Cpu} title="Model" dirty={model !== agent.model || effort !== agentEffort}

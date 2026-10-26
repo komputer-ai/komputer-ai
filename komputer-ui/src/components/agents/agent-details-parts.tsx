@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, X, Copy, Check, Loader2, Lock, MessageCircle } from "lucide-react";
+import { Maximize2, X, Copy, Check, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Textarea } from "@/components/kit/textarea";
 import { Tooltip } from "@/components/kit/tooltip";
@@ -134,16 +135,18 @@ type PromptTab = "instructions" | "system";
 // Instructions and the system prompt as two tabs over one full-width editor.
 // Instructions are read-only here (they come from the last task); the system
 // prompt is editable and opens in a focus editor with a Markdown preview.
-export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange, onOpenChat }: {
+const INSTRUCTIONS_READ_ONLY = "Read-only: these are the last task's instructions. Send a new task from the chat to change them.";
+
+export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange }: {
   instructions: string;
   systemPrompt: string;
   onSystemPromptChange: (v: string) => void;
-  /** Switches to the chat, where a new task changes the instructions. */
-  onOpenChat?: () => void;
 }) {
   const [tab, setTab] = useState<PromptTab>("instructions");
   const [focusOpen, setFocusOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Where the read-only tooltip follows the mouse over the instructions pane.
+  const [cursorTip, setCursorTip] = useState<{ x: number; y: number } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const current = tab === "instructions" ? instructions : systemPrompt;
@@ -175,9 +178,8 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange,
     }
   }
 
-  const tabBtn = (id: PromptTab, label: string, value: string, locked?: string) => (
+  const tabBtn = (id: PromptTab, label: string, value: string, locked?: boolean) => (
     <button
-      title={locked}
       type="button"
       role="tab"
       aria-selected={tab === id}
@@ -203,7 +205,7 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange,
   return (
     <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
       <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-1.5" role="tablist" aria-label="Prompt">
-        {tabBtn("instructions", "Instructions", instructions, "Read-only: the last task's instructions. Send a new task from the chat to change them.")}
+        {tabBtn("instructions", "Instructions", instructions, true)}
         {tabBtn("system", "System prompt", systemPrompt)}
         <span className="ml-auto inline-flex gap-0.5">
           <Tooltip side="bottom" content={copied ? "Copied" : "Copy"}>
@@ -232,28 +234,15 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange,
             transition={{ duration: 0.12, ease: "easeOut" }}
           >
             {tab === "instructions" ? (
-              <div className="flex h-full flex-col">
-                <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60 px-3 py-1.5 text-[12px] text-[var(--color-text)]/80">
-                  <Lock className="size-3 shrink-0" aria-hidden />
-                  <span className="min-w-0 truncate">Read-only. These are the last task&apos;s instructions; send a new task from the chat to change them.</span>
-                  {onOpenChat && (
-                    <button
-                      type="button"
-                      onClick={onOpenChat}
-                      className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-[12px] text-[var(--color-brand-blue-light)] transition-colors hover:bg-[var(--color-brand-blue-glow)] cursor-pointer"
-                    >
-                      <MessageCircle className="size-3" aria-hidden />
-                      Open chat
-                    </button>
-                  )}
-                </div>
-                <div
-                  aria-readonly="true"
-                  aria-disabled="true"
-                  className="min-h-0 flex-1 cursor-not-allowed select-text overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]/70"
-                >
-                  {instructions || <span className="text-[var(--color-text)]/60">No instructions yet. Send the agent a task from the chat.</span>}
-                </div>
+              <div
+                aria-readonly="true"
+                aria-disabled="true"
+                aria-label={INSTRUCTIONS_READ_ONLY}
+                onMouseMove={(e) => setCursorTip({ x: e.clientX, y: e.clientY })}
+                onMouseLeave={() => setCursorTip(null)}
+                className="h-full cursor-not-allowed overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]/60"
+              >
+                {instructions || "No instructions yet. Send the agent a task from the chat."}
               </div>
             ) : (
               <Textarea
@@ -268,19 +257,43 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange,
         </AnimatePresence>
       </div>
 
-      {focusOpen && (
-        <FocusEditor
-          value={systemPrompt}
-          onChange={onSystemPromptChange}
-          onClose={() => setFocusOpen(false)}
-        />
-      )}
+      {cursorTip && tab === "instructions" && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[60] w-max max-w-[300px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text)] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+            style={{ left: Math.min(cursorTip.x + 14, window.innerWidth - 316), top: cursorTip.y + 18 }}
+            role="tooltip"
+          >
+            {INSTRUCTIONS_READ_ONLY}
+          </div>,
+          document.body,
+        )}
+
+      <FocusEditor
+        open={focusOpen}
+        value={systemPrompt}
+        onChange={onSystemPromptChange}
+        onClose={() => setFocusOpen(false)}
+      />
     </div>
   );
 }
 
 // Full-screen editor for a long system prompt, with a live Markdown preview.
-function FocusEditor({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
+// Opens and closes like the kit Dialog: a blurred backdrop fades in and the
+// panel scales and slides up, rendered in a portal above the page.
+function FocusEditor({ open, value, onChange, onClose }: { open: boolean; value: string; onChange: (v: string) => void; onClose: () => void }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <AnimatePresence>
+      {open && <FocusEditorPanel key="focus-editor" value={value} onChange={onChange} onClose={onClose} />}
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+function FocusEditorPanel({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
+  // The draft starts from the current prompt each time the editor opens.
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -299,21 +312,34 @@ function FocusEditor({ value, onChange, onClose }: { value: string; onChange: (v
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6" role="dialog" aria-modal="true" aria-label="System prompt editor" onMouseDown={onClose}>
-      <div
-        className="flex h-full max-h-[860px] w-full max-w-[1280px] flex-col rounded-[var(--radius-lg)] border border-[var(--color-border-hover)] bg-[var(--color-surface)] shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
-        onMouseDown={(e) => e.stopPropagation()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label="System prompt editor">
+      <motion.div
+        className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        onMouseDown={onClose}
+      />
+      <motion.div
+        className="relative flex h-full max-h-[860px] w-full max-w-[1280px] flex-col rounded-[var(--radius-lg)] border border-[var(--color-border-hover)] bg-[var(--color-surface)] shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
       >
         <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
           <span className="text-sm font-semibold text-[var(--color-text)]">System prompt</span>
-          <span className="font-mono text-[11.5px] text-[var(--color-text-muted)]">{textMeta(draft)}</span>
-          <button type="button" onClick={onClose} aria-label="Close" className="ml-auto inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] cursor-pointer">
-            <X className="size-4" />
-          </button>
+          <span className="font-mono text-[11.5px] text-[var(--color-text-secondary)]">{textMeta(draft)}</span>
+          <Tooltip side="bottom" align="end" content="Close (Esc)">
+            <button type="button" onClick={onClose} aria-label="Close" className="ml-auto inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer">
+              <X className="size-4" />
+            </button>
+          </Tooltip>
         </div>
         <div className="grid min-h-0 flex-1 grid-cols-2">
           <div className="flex min-h-0 flex-col">
-            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider text-[var(--color-text-muted)]">Edit</span>
+            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Edit</span>
             <textarea
               ref={ref}
               value={draft}
@@ -323,9 +349,9 @@ function FocusEditor({ value, onChange, onClose }: { value: string; onChange: (v
             />
           </div>
           <div className="flex min-h-0 flex-col border-l border-[var(--color-border)]">
-            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider text-[var(--color-text-muted)]">Preview</span>
+            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Preview</span>
             <div className="prose-chat min-h-0 flex-1 overflow-y-auto px-4 py-2 text-sm text-[var(--color-text)]">
-              {draft.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown> : <span className="text-[var(--color-text-muted)]">Nothing to preview yet.</span>}
+              {draft.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown> : <span className="text-[var(--color-text)]/60">Nothing to preview yet.</span>}
             </div>
           </div>
         </div>
@@ -342,7 +368,7 @@ function FocusEditor({ value, onChange, onClose }: { value: string; onChange: (v
             Done
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
