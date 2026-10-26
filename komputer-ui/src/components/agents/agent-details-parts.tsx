@@ -215,19 +215,34 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
         </span>
       </div>
 
-      {tab === "instructions" ? (
-        <div className="min-h-[120px] whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]">
-          {instructions || <span className="text-[var(--color-text-muted)]">No instructions yet. Send the agent a task from the chat.</span>}
-        </div>
-      ) : (
-        <Textarea
-          ref={textareaRef}
-          value={systemPrompt}
-          onChange={(e) => onSystemPromptChange(e.target.value)}
-          placeholder="Persona, rules or output format the agent keeps on every task. Markdown is supported."
-          className="min-h-[160px] max-h-[60vh] rounded-none border-0 bg-transparent shadow-none [field-sizing:content] focus:shadow-none"
-        />
-      )}
+      {/* One editor area for both tabs: a fixed height (drag the bottom edge to
+          resize) so switching tabs never changes its size; the content crossfades. */}
+      <div className="relative h-[240px] min-h-[140px] max-h-[70vh] resize-y overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            className="absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+          >
+            {tab === "instructions" ? (
+              <div className="h-full overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]">
+                {instructions || <span className="text-[var(--color-text)]/60">No instructions yet. Send the agent a task from the chat.</span>}
+              </div>
+            ) : (
+              <Textarea
+                ref={textareaRef}
+                value={systemPrompt}
+                onChange={(e) => onSystemPromptChange(e.target.value)}
+                placeholder="Persona, rules or output format the agent keeps on every task. Markdown is supported."
+                className="h-full min-h-0 resize-none rounded-none border-0 bg-transparent shadow-none focus:shadow-none"
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {focusOpen && (
         <FocusEditor
