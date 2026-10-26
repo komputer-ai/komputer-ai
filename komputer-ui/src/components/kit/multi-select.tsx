@@ -4,6 +4,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useCallback,
   useId,
@@ -12,6 +13,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { placeMenu } from "./place-menu";
 
 export interface MultiSelectOption {
   /** Unique value stored in the selection array */
@@ -70,7 +72,6 @@ export function MultiSelect({
   // Raw highlighted index — clamped via highlightedIndex below so it stays valid
   // when the filtered list shrinks without needing a sync effect.
   const [rawHighlightedIndex, setRawHighlightedIndex] = useState(-1);
-  const [openUpward, setOpenUpward] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -105,17 +106,13 @@ export function MultiSelect({
       setRawHighlightedIndex((i) => (i === -1 ? i : -1));
       return;
     }
-    // Position relative to viewport
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenUpward((cur) => {
-        const next = spaceBelow < 360;
-        return cur === next ? cur : next;
-      });
-    }
     const t = setTimeout(() => searchRef.current?.focus(), 10);
     return () => clearTimeout(t);
+  }, [open]);
+
+  // Place the panel above or below the trigger before it paints (see placeMenu).
+  useLayoutEffect(() => {
+    if (open && contentRef.current && triggerRef.current) placeMenu(contentRef.current, triggerRef.current);
   }, [open]);
 
   // Outside click
@@ -233,12 +230,11 @@ export function MultiSelect({
               "absolute z-50 w-full rounded-[var(--radius-md)]",
               "bg-[var(--color-surface-raised)] border border-[var(--color-border)]",
               "shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)]",
-              "flex flex-col overflow-hidden",
-              openUpward ? "bottom-full mb-1" : "mt-1"
+              "flex flex-col overflow-hidden"
             )}
-            initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.12, ease: "easeOut" }}
           >
             {/* Search */}

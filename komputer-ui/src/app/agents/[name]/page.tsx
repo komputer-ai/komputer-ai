@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Ban, Trash2, Zap, Moon, Archive, Save, Check, Plus, ChevronRight, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet } from "lucide-react";
+import { Ban, Trash2, Zap, Moon, Archive, Plus, Settings as SettingsIcon, MessageCircle, ArrowLeft, Users, Layers, AlertTriangle, Hourglass, Timer, Eraser, Wallet, Loader2, CalendarDays, CloudOff, FileText, Cpu, Clock, Plug, Tag } from "lucide-react";
 import Link from "next/link";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { Button } from "@/components/kit/button";
 import { Badge } from "@/components/kit/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CostBadge } from "@/components/shared/cost-badge";
 import { RelativeTime } from "@/components/shared/relative-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SquadAwareDeleteDialog } from "@/components/shared/squad-aware-delete-dialog";
@@ -25,10 +24,11 @@ import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
-import { LIFECYCLES, EFFORTS } from "@/lib/constants";
+import { parseToolList } from "@/components/agents/agent-fields-form";
 import { Textarea } from "@/components/kit/textarea";
+import { DetailsSection, RailSection, Field, PromptEditor, SaveBar, fmtIn } from "@/components/agents/agent-details-parts";
+import { LIFECYCLES, EFFORTS } from "@/lib/constants";
 import { Input } from "@/components/kit/input";
-import { Label } from "@/components/kit/label";
 import {
   Select,
   SelectContent,
@@ -39,7 +39,7 @@ import {
 import { ModelSelector } from "@/components/shared/model-selector";
 import { MultiSelect, type MultiSelectOption } from "@/components/kit/multi-select";
 import type { AgentResponse, AgentEvent, AgentCondition } from "@/lib/types";
-import { fmtDuration } from "@/lib/utils";
+import { cn, fmtDuration, formatRelativeTime } from "@/lib/utils";
 import { humanizeConditionReason } from "@/lib/agent-conditions";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
@@ -61,8 +61,82 @@ function ttlTitle(verb: string, expiresAt?: string): string {
   return `${verb} at ${t.toLocaleString()}`;
 }
 
+// A dollar figure for the header: two decimals in the row, four in the tooltip.
+function fmtUSD(cost: string | undefined, digits: number): string {
+  const n = cost ? parseFloat(cost) : NaN;
+  if (Number.isNaN(n)) return "—";
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
+const LIFECYCLE_DESCRIPTIONS: Record<string, string> = {
+  Sleep: "The pod is deleted after each task; the workspace is kept.",
+  AutoDelete: "The agent is deleted after each task.",
+  Archive: "Pod and workspace are removed after each task; the record is kept.",
+};
+
+type TtlKey = "sleep" | "archive" | "delete" | "task";
+type TtlSegment = { key: TtlKey; icon: typeof Moon; label: string; value: string; detail: string; at?: string; next: boolean };
+
+// The lifecycle timers shown as one segmented strip in the header, and under the
+// TTL fields in the details form. The sleep, archive or delete timer that fires
+// soonest is marked `next`.
+function buildTtlSegments(agent: AgentResponse): TtlSegment[] {
+  const timers = [
+    { key: "sleep", ttl: agent.sleepTTL, at: agent.sleepExpiresAt, icon: Moon, label: "Sleep TTL", verb: "Sleeps" },
+    { key: "archive", ttl: agent.archiveTTL, at: agent.archiveExpiresAt, icon: Archive, label: "Archive TTL", verb: "Archives" },
+    { key: "delete", ttl: agent.deleteTTL, at: agent.deleteExpiresAt, icon: Hourglass, label: "Delete TTL", verb: "Deletes" },
+  ] as const;
+  const set = timers.flatMap((t) => (t.ttl ? [{ ...t, ttl: t.ttl, ms: t.at ? new Date(t.at).getTime() : NaN }] : []));
+  const soonest = Math.min(...set.map((t) => (Number.isNaN(t.ms) ? Infinity : t.ms)));
+  const segs: TtlSegment[] = set.map((t) => ({
+    key: t.key, icon: t.icon, label: t.label, value: fmtDuration(t.ttl), detail: ttlTitle(t.verb, t.at), at: t.at, next: t.ms === soonest,
+  }));
+  if (agent.taskTimeout) {
+    segs.push({
+      key: "task",
+      icon: Timer,
+      label: "Task timeout",
+      value: fmtDuration(agent.taskTimeout),
+      detail: agent.taskExpiresAt ? ttlTitle("Cancels", agent.taskExpiresAt) : "Cancels a task that runs longer than this",
+      at: agent.taskExpiresAt,
+      next: false,
+    });
+  }
+  return segs;
+}
+
+// One header action: icon plus a label that collapses to the icon when the header
+// is narrow (a transient note such as "Sleeping…" always shows), with a tooltip.
+function ActionButton({ tip, label, note, icon: Icon, iconClassName, variant = "secondary", ...props }: {
+  tip: React.ReactNode;
+  label: string;
+  note?: string | null;
+  icon: typeof Moon;
+  iconClassName?: string;
+} & React.ComponentProps<typeof Button>) {
+  return (
+    <Tooltip side="bottom" content={tip}>
+      <Button variant={variant} size="sm" aria-label={label} {...props}>
+        <Icon className={cn("size-3", iconClassName)} data-icon="inline-start" />
+        <span className={note ? undefined : "hidden @6xl:inline"}>{note ?? label}</span>
+      </Button>
+    </Tooltip>
+  );
+}
+
+// The joined pill holding the header actions: one border, dividers between
+// buttons, the outer buttons rounded.
+const ACTION_GROUP =
+  "inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] " +
+  "[&>*+*]:border-l [&>*+*]:border-[var(--color-border)] [&_button]:!rounded-none [&_button]:!border-0 [&_button]:!bg-transparent " +
+  "[&_button]:!shadow-none [&_button]:!backdrop-blur-none [&_button:hover:not(:disabled)]:!bg-[var(--color-surface-hover)] " +
+  "[&>*:first-child_button]:!rounded-l-full [&>*:last-child_button]:!rounded-r-full";
+
+// A rail row's hover tint.
+const RAIL_ROW = "-mx-2 rounded-[var(--radius-sm)] px-2 transition-colors hover:bg-[var(--color-surface-hover)]/60";
+
+// A metadata badge (budget, task budget) with an icon and a kit tooltip.
 // A lifecycle-timer badge (sleep / delete TTL, task timeout) with an icon and a
-// kit tooltip naming the timer and when it fires.
 function TtlBadge({
   icon: Icon,
   label,
@@ -94,29 +168,28 @@ function TtlBadge({
 
 // Read-only list of why the agent is in its state (status.conditions). Hidden when empty.
 function ConditionsSection({ conditions }: { conditions?: AgentCondition[] }) {
-  if (!conditions || conditions.length === 0) return null;
+  if (!conditions || conditions.length === 0) {
+    return <p className="text-[12.5px] text-[var(--color-text-secondary)]">No conditions reported yet.</p>;
+  }
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label>Conditions</Label>
-      <ul className="flex flex-col divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
-        {conditions.map((c) => {
-          const active = c.status === "True";
-          return (
-            <li key={c.type} className="px-3 py-2 flex flex-col gap-0.5" title={c.message || undefined}>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                <span className="font-medium text-[var(--color-text)]">{c.type}</span>
-                <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
-                {c.reason && <span className="text-[var(--color-text-secondary)]">{humanizeConditionReason(c.reason)}</span>}
-                {c.lastTransitionTime && (
-                  <span className="ml-auto"><RelativeTime timestamp={c.lastTransitionTime} /></span>
-                )}
-              </div>
-              {c.message && <p className="text-[11px] text-[var(--color-text-muted)]">{c.message}</p>}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <ul className="flex flex-col gap-2.5">
+      {conditions.map((c) => {
+        const active = c.status === "True";
+        return (
+          <li key={c.type} className={cn(RAIL_ROW, "flex flex-col gap-0.5 py-1")}>
+            <div className="flex items-center gap-2 text-[12.5px]">
+              <span className="font-medium text-[var(--color-text)]">{c.type}</span>
+              <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
+              {c.lastTransitionTime && (
+                <span className="ml-auto"><RelativeTime timestamp={c.lastTransitionTime} /></span>
+              )}
+            </div>
+            {c.reason && <span className="text-[12px] text-[var(--color-text)]/85">{humanizeConditionReason(c.reason)}</span>}
+            {c.message && <span className="text-[11.5px] text-[var(--color-text-secondary)]">{c.message}</span>}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -437,8 +510,9 @@ export default function AgentDetailPage() {
   if (showLoading) {
     return (
       <div className="flex h-full flex-col">
-        <div className="flex flex-1 items-center justify-center text-sm text-[var(--color-text-secondary)]">
-          Loading agent...
+        <div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--color-text-secondary)]">
+          <Loader2 className="size-4 animate-spin" />
+          Loading agent…
         </div>
       </div>
     );
@@ -479,8 +553,8 @@ export default function AgentDetailPage() {
     >
       {/* Unified header */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-6 pr-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-h-11 py-1.5">
+        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-4 pr-2">
+          <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2 min-h-11 py-1.5">
             {/* Left: back button on settings view, otherwise status + model */}
             {view === "settings" ? (
               <Button variant="ghost" size="sm" onClick={() => setViewAndUrl("chat")}>
@@ -488,18 +562,23 @@ export default function AgentDetailPage() {
                 Back to chat
               </Button>
             ) : (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="text-[11px] text-[var(--color-text-muted)]">Status</span>
-                <StatusBadge status={agent.status} />
-                {agent.taskStatus && (
-                  <>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">Task</span>
-                    <StatusBadge status={agent.taskStatus} size="sm" />
-                  </>
-                )}
+              <div className="flex min-w-0 flex-wrap items-center gap-2 whitespace-nowrap">
+                <Tooltip
+                  side="bottom"
+                  content={`Agent ${agent.status}${agent.taskStatus ? ` · last task ${agent.taskStatus}` : ""}`}
+                >
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-0.5 cursor-default">
+                    <StatusBadge status={agent.status} />
+                    {agent.taskStatus && (
+                      <>
+                        <span className="h-3 w-px bg-[var(--color-border-hover)]" aria-hidden />
+                        <StatusBadge status={agent.taskStatus} size="sm" />
+                      </>
+                    )}
+                  </span>
+                </Tooltip>
                 {agent.squad && agent.squadName && (
-                  <>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">Squad</span>
+                  <Tooltip side="bottom" content={`Squad: ${agent.squadName}`}>
                     <Link
                       href={`/squads/${agent.squadName}?namespace=${agent.namespace}`}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
@@ -507,20 +586,26 @@ export default function AgentDetailPage() {
                       <Users className="size-3" />
                       <span>{agent.squadName}</span>
                     </Link>
-                  </>
+                  </Tooltip>
                 )}
-                <Badge variant="outline" className="text-xs font-mono">
-                  {agent.model}
-                </Badge>
+                <Tooltip side="bottom" content={`Model: ${agent.model}`}>
+                  <span className="block max-w-[140px] @7xl:max-w-[180px] truncate font-mono text-xs text-[var(--color-text-secondary)] cursor-default">
+                    {agent.model}
+                  </span>
+                </Tooltip>
                 {agent.effort && (
-                  <Badge variant="secondary" className="text-xs">
-                    Effort: {agent.effort}
-                  </Badge>
+                  <Tooltip side="bottom" content={`Reasoning effort: ${agent.effort}`}>
+                    <Badge variant="secondary" className="text-xs cursor-default">
+                      {agent.effort}
+                    </Badge>
+                  </Tooltip>
                 )}
                 {agent.lifecycle && (
-                  <Badge variant="secondary" className="text-xs">
-                    {agent.lifecycle}
-                  </Badge>
+                  <Tooltip side="bottom" content={`Lifecycle: ${agent.lifecycle}${LIFECYCLE_DESCRIPTIONS[agent.lifecycle] ? ` — ${LIFECYCLE_DESCRIPTIONS[agent.lifecycle]}` : ""}`}>
+                    <Badge variant="secondary" className="text-xs cursor-default">
+                      {agent.lifecycle}
+                    </Badge>
+                  </Tooltip>
                 )}
                 {agent.storage?.ephemeral && (
                   <Tooltip
@@ -540,42 +625,38 @@ export default function AgentDetailPage() {
                     </Badge>
                   </Tooltip>
                 )}
-                {agent.sleepTTL && (
-                  <TtlBadge
-                    icon={Moon}
-                    label="Sleep TTL"
-                    detail={ttlTitle("Sleeps", agent.sleepExpiresAt)}
-                    value={fmtDuration(agent.sleepTTL)}
-                  />
-                )}
-                {agent.archiveTTL && (
-                  <TtlBadge
-                    icon={Archive}
-                    label="Archive TTL"
-                    detail={ttlTitle("Archives", agent.archiveExpiresAt)}
-                    value={fmtDuration(agent.archiveTTL)}
-                  />
-                )}
-                {agent.deleteTTL && (
-                  <TtlBadge
-                    icon={Hourglass}
-                    label="Delete TTL"
-                    detail={ttlTitle("Deletes", agent.deleteExpiresAt)}
-                    value={fmtDuration(agent.deleteTTL)}
-                  />
-                )}
-                {agent.taskTimeout && (
-                  <TtlBadge
-                    icon={Timer}
-                    label="Task timeout"
-                    detail={
-                      agent.taskExpiresAt
-                        ? ttlTitle("Cancels", agent.taskExpiresAt)
-                        : "Cancels a task that runs longer than this"
-                    }
-                    value={fmtDuration(agent.taskTimeout)}
-                  />
-                )}
+                {(() => {
+                  const segs = buildTtlSegments(agent);
+                  if (segs.length === 0) return null;
+                  return (
+                    <span className="inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]" aria-label="Lifecycle timers">
+                      {segs.map((t, i) => (
+                        <Tooltip
+                          key={t.label}
+                          side="bottom"
+                          content={
+                            <span className="flex flex-col gap-0.5">
+                              <span className="text-[var(--color-text)]">{t.label} · {t.value}{t.next ? " · next" : ""}</span>
+                              <span className="font-normal text-[var(--color-text-secondary)]">{t.detail}</span>
+                            </span>
+                          }
+                        >
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 @7xl:px-2 py-0.5 text-xs tabular-nums cursor-default",
+                              i > 0 && "border-l border-[var(--color-border)]",
+                              t.next ? "text-[var(--color-status-sleeping)]" : "text-[var(--color-text-secondary)]",
+                            )}
+                            aria-label={`${t.label}: ${t.value}. ${t.detail}`}
+                          >
+                            <t.icon className="size-3" aria-hidden />
+                            {t.value}
+                          </span>
+                        </Tooltip>
+                      ))}
+                    </span>
+                  );
+                })()}
                 {agent.budgetUSD && (
                   <TtlBadge
                     icon={Wallet}
@@ -605,69 +686,65 @@ export default function AgentDetailPage() {
               </div>
             )}
 
-            {/* Right: costs + actions */}
-            <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 [&_button]:whitespace-nowrap">
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
-                <span>Last</span>
-                <CostBadge cost={agent.lastTaskCostUSD} />
-                <span>Total</span>
-                <CostBadge cost={agent.totalCostUSD} />
+            {/* Right: usage, age, actions */}
+            <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 whitespace-nowrap [&_button]:whitespace-nowrap">
+              <div className="flex items-baseline gap-2.5 text-xs tabular-nums">
+                <Tooltip side="bottom" content={`Last task cost: ${fmtUSD(agent.lastTaskCostUSD, 4)}`}>
+                  <span className="cursor-default">
+                    <span className="font-mono font-medium text-[var(--color-text)]">{fmtUSD(agent.lastTaskCostUSD, 2)}</span>
+                    <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">last</span>
+                  </span>
+                </Tooltip>
+                <Tooltip side="bottom" content={`Total cost: ${fmtUSD(agent.totalCostUSD, 4)}`}>
+                  <span className="cursor-default">
+                    <span className="font-mono font-medium text-[var(--color-text)]">{fmtUSD(agent.totalCostUSD, 2)}</span>
+                    <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">total</span>
+                  </span>
+                </Tooltip>
                 {agent.totalTokens != null && agent.totalTokens > 0 && (
-                  <>
-                    <span className="text-[var(--color-border)]">·</span>
-                    <span className="font-mono text-xs">
-                      {fmtTokens(agent.totalTokens)} tokens
+                  <Tooltip side="bottom" content={`Tokens used: ${agent.totalTokens.toLocaleString("en-US")}`}>
+                    <span className="cursor-default">
+                      <span className="font-mono font-medium text-[var(--color-text)]">{fmtTokens(agent.totalTokens)}</span>
+                      <span className="ml-1 hidden @6xl:inline text-[var(--color-text-muted)]">tok</span>
                     </span>
-                  </>
+                  </Tooltip>
                 )}
               </div>
 
-              <div className="h-4 w-px bg-[var(--color-border)]" />
+              <span className="inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
+                <CalendarDays className="size-3" aria-hidden />
+                <RelativeTime timestamp={agent.createdAt} label="Created at" />
+              </span>
 
-              <RelativeTime timestamp={agent.createdAt} />
-
-              {agent.sessionStore && (
-                <>
-                  <div className="h-4 w-px bg-[var(--color-border)]" />
-                  <span
-                    className={agent.sessionStore.ok ? "text-xs text-[var(--color-text-muted)]" : "text-xs text-[var(--color-status-error)]"}
-                    title={agent.sessionStore.error || undefined}
-                  >
-                    {formatSessionStore(agent.sessionStore)}
+              {agent.sessionStore && !agent.sessionStore.ok && (
+                <Tooltip side="bottom" content={formatSessionStore(agent.sessionStore)}>
+                  <span className="inline-flex text-[var(--color-status-error)]" aria-label={formatSessionStore(agent.sessionStore)}>
+                    <CloudOff className="size-3.5" aria-hidden />
                   </span>
-                </>
+                </Tooltip>
               )}
 
-              <div className="h-4 w-px bg-[var(--color-border)]" />
-
               <div className="flex items-center gap-1.5">
+                {/* One joined group for the agent's actions; deletes and settings sit outside it. */}
+                <div className={ACTION_GROUP}>
                 {archivedReadOnly(agent.status, s3Enabled) ? null : agentDormant(agent.status, s3Enabled) ? (
-                  <Button variant="secondary" size="sm" onClick={handleWake}>
-                    <Zap className="size-3" data-icon="inline-start" />
-                    Wake
-                  </Button>
+                  <ActionButton tip="Wake the agent" label="Wake" icon={Zap} onClick={handleWake} />
                 ) : (
                   <>
                     {(agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting") && (
-                      <Button variant="secondary" size="sm" onClick={handleCancel}>
-                        <Ban className="size-3" data-icon="inline-start" />
-                        Cancel
-                      </Button>
+                      <ActionButton tip="Cancel the running task" label="Cancel" icon={Ban} onClick={handleCancel} />
                     )}
-                    <Button
-                      variant="secondary"
-                      size="sm"
+                    <ActionButton
+                      tip={ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
+                        ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
+                        : "Sleep: delete the pod, keep the workspace"}
+                      label="Sleep"
+                      note={sleepNote ?? (sleeping ? "Sleeping…" : null)}
+                      icon={Moon}
+                      iconClassName={sleeping ? "animate-spin" : undefined}
                       onClick={handleSleep}
                       disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
-                      title={
-                        ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
-                          ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
-                          : undefined
-                      }
-                    >
-                      <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
-                      {sleepNote ?? (sleeping ? "Sleeping…" : "Sleep")}
-                    </Button>
+                    />
                   </>
                 )}
                 {agentSquad ? (
@@ -681,28 +758,48 @@ export default function AgentDetailPage() {
                     }}
                   />
                 ) : !archivedReadOnly(agent.status, s3Enabled) && (
-                  <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)}>
-                    <Users className="size-3" data-icon="inline-start" />
-                    Team Up
-                  </Button>
+                  <ActionButton tip="Team up with other agents in a squad" label="Team Up" icon={Users} onClick={() => setTeamUpOpen(true)} />
                 )}
                 {agent.status !== "Archived" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCompact}
-                  disabled={compactBusy || agent.status === "Sleeping"}
-                  title={
-                    agent.status === "Sleeping"
+                  <ActionButton
+                    tip={agent.status === "Sleeping"
                       ? "Wake the agent before compacting — there is no running pod to receive the request."
-                      : "Compact conversation history. Queues /compact as a follow-up message — runs as soon as the current turn finishes (or immediately if the agent is idle and responsive)."
-                  }
-                  className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
-                >
-                  <Layers className="size-3" data-icon="inline-start" />
-                  {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
-                </Button>
+                      : "Compact the conversation history to free context. Runs as soon as the current turn finishes."}
+                    label="Compact"
+                    note={compactNote ?? (compactBusy ? "Compacting…" : null)}
+                    icon={Layers}
+                    onClick={handleCompact}
+                    disabled={compactBusy || agent.status === "Sleeping"}
+                    className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
+                  />
                 )}
+                {!agentSquad && s3Enabled && agent.status !== "Archived" && (() => {
+                  // No confirm dialog behind a disabled button (a click would still reach
+                  // the dialog's wrapper), so a busy Archive renders the button alone.
+                  const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving;
+                  const button = (
+                    <ActionButton
+                      tip={busy && !archiving ? "Archive is available once the current task finishes (or cancel it)." : "Archive: keep the record, remove the pod and workspace"}
+                      label="Archive"
+                      note={archiveNote}
+                      icon={Archive}
+                      disabled={busy}
+                      className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
+                    />
+                  );
+                  return busy ? button : (
+                    <ConfirmDialog
+                      title="Archive Agent"
+                      description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
+                      onConfirm={handleArchive}
+                      confirmLabel="Archive"
+                      confirmVariant="primary"
+                      confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
+                      trigger={button}
+                    />
+                  );
+                })()}
+                </div>
                 {s3Enabled && agent.sessionStore?.ok === false && (
                   <ConfirmDialog
                     title="Delete without saving"
@@ -723,69 +820,15 @@ export default function AgentDetailPage() {
                     squad={agentSquad}
                     onConfirm={handleDelete}
                   />
-                ) : s3Enabled ? (
-                  // With the S3 session store, archiving keeps everything and the
-                  // agent can run again, so it's how a live agent is retired;
-                  // Delete is only offered once it's archived.
-                  agent.status !== "Archived" ? (
-                    agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving ? (
-                      // No confirm dialog behind a disabled button (a click would still
-                      // reach the dialog's wrapper); the span carries the tooltip.
-                      <span title={archiving ? undefined : "Archive is available once the current task finishes (or cancel it)."}>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled
-                          className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)]"
-                        >
-                          <Archive className="size-3" data-icon="inline-start" />
-                          {archiveNote ?? "Archive"}
-                        </Button>
-                      </span>
-                    ) : (
-                      <ConfirmDialog
-                        title="Archive Agent"
-                        description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
-                        onConfirm={handleArchive}
-                        confirmLabel="Archive"
-                        confirmVariant="primary"
-                        confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
-                        trigger={
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
-                          >
-                            <Archive className="size-3" data-icon="inline-start" />
-                            {archiveNote ?? "Archive"}
-                          </Button>
-                        }
-                      />
-                    )
-                  ) : (
-                    <ConfirmDialog
-                      title="Delete Agent"
-                      description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone. Its last saved session stays in S3.`}
-                      onConfirm={handleDelete}
-                      trigger={
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="size-3" data-icon="inline-start" />
-                          Delete
-                        </Button>
-                      }
-                    />
-                  )
-                ) : (
+                ) : (!s3Enabled || agent.status === "Archived") && (
+                  // With the S3 session store, archiving keeps everything and the agent
+                  // can run again, so it's how a live agent is retired; Delete is only
+                  // offered once it's archived.
                   <ConfirmDialog
                     title="Delete Agent"
-                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
+                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.${s3Enabled ? " Its last saved session stays in S3." : ""}`}
                     onConfirm={handleDelete}
-                    trigger={
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="size-3" data-icon="inline-start" />
-                        Delete
-                      </Button>
-                    }
+                    trigger={<ActionButton variant="destructive" tip="Delete the agent and its workspace" label="Delete" icon={Trash2} />}
                   />
                 )}
                 <Tooltip
@@ -864,68 +907,60 @@ export default function AgentDetailPage() {
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-4xl space-y-6">
-              {/* Status + metrics */}
-              <motion.div
-                className="flex justify-center gap-3"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              >
-                <StatusStrip status={agent.status} taskStatus={agent.taskStatus} />
-                <MetricsRow
-                  totalCostUSD={agent.totalCostUSD}
-                  lastTaskCostUSD={agent.lastTaskCostUSD}
-                  totalTokens={agent.totalTokens}
-                />
-              </motion.div>
-
-              {agent.budgetUSD && (
-                <BudgetMeter
-                  spentUSD={agent.totalCostUSD}
-                  budgetUSD={agent.budgetUSD}
-                  exhausted={agent.budgetExhausted}
-                />
-              )}
-
-              {/* Settings */}
-              {archivedReadOnly(agent.status, s3Enabled) ? (
-                <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-sm text-[var(--color-text-secondary)]">
-                  This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
-                </div>
-              ) : (
-                <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
-              )}
-
-              {/* Topology */}
-              <AgentTopology agentName={agent.name} agentNs={agentNs} />
-
-              {/* Agent info */}
-              <motion.div
-                className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-3 transition-colors duration-150 hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
-              >
-                <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Agent Info</h3>
-                <InfoRow label="Name" value={agent.name} />
-                <InfoRow label="Namespace" value={agent.namespace} />
-                <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
-                {agentSquad && (
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">Squad</span>
-                    <Link
-                      href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
-                    >
-                      <Users className="size-3 shrink-0" />
-                      {agentSquad.name}
-                    </Link>
+          <div className="@container flex min-h-0 flex-1 flex-col">
+          {/* Wide: the form and the rail scroll on their own, so the rail stays put.
+              Stacked (narrow): one scroll for both. */}
+          <div className="min-h-0 flex-1 overflow-y-auto @5xl:overflow-hidden">
+            <div className="grid min-h-full grid-cols-1 @5xl:h-full @5xl:grid-cols-[minmax(0,1fr)_340px]">
+              {/* Form column: full-bleed section rows */}
+              <div className="flex min-w-0 flex-col @5xl:min-h-0 @5xl:overflow-y-auto">
+                {archivedReadOnly(agent.status, s3Enabled) ? (
+                  <div className="border-b border-[var(--color-border)] px-7 py-4 text-sm text-[var(--color-text-secondary)]">
+                    This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
                   </div>
+                ) : (
+                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
                 )}
-              </motion.div>
+              </div>
+
+              {/* Rail: overview, conditions, topology — a flush column, no cards */}
+              <aside className="min-w-0 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)] @5xl:min-h-0 @5xl:overflow-y-auto @5xl:border-t-0 @5xl:border-l">
+                <RailSection title="Overview">
+                  <InfoRow label="Name" value={agent.name} mono />
+                  <InfoRow label="Namespace" value={agent.namespace} mono />
+                  <InfoRow label="Created" value={new Date(agent.createdAt).toLocaleString()} tip={`Created ${formatRelativeTime(agent.createdAt)}`} />
+                  {agent.sessionStore && (
+                    <InfoRow
+                      label="Session"
+                      tip={agent.sessionStore.ok ? "The latest conversation is saved to the S3 session store" : agent.sessionStore.error || "The last save failed"}
+                      value={formatSessionStore(agent.sessionStore)}
+                      color={agent.sessionStore.ok ? "var(--color-status-running)" : "var(--color-status-error)"}
+                    />
+                  )}
+                  <InfoRow label="Squad">
+                    {agentSquad ? (
+                      <Link
+                        href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] bg-[var(--color-brand-blue)]/10 text-[var(--color-brand-blue)] border border-[var(--color-brand-blue)]/20 hover:bg-[var(--color-brand-blue)]/20 transition-colors"
+                      >
+                        <Users className="size-3 shrink-0" />
+                        {agentSquad.name}
+                      </Link>
+                    ) : (
+                      <span className="text-[13px] text-[var(--color-text-secondary)]">Not in a squad</span>
+                    )}
+                  </InfoRow>
+                  {archivedReadOnly(agent.status, s3Enabled) && agent.budgetUSD && (
+                    <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
+                  )}
+                </RailSection>
+                <RailSection title="Conditions">
+                  <ConditionsSection conditions={agent.conditions} />
+                </RailSection>
+                <AgentTopology agentName={agent.name} agentNs={agentNs} flush />
+              </aside>
             </div>
+          </div>
           </div>
         )}
       </div>
@@ -943,73 +978,6 @@ export default function AgentDetailPage() {
   );
 }
 
-function StatusStrip({ status, taskStatus }: { status: AgentResponse["status"]; taskStatus?: string }) {
-  const accentColor =
-    status === "Running" ? "var(--color-status-running)" :
-    status === "Sleeping" ? "var(--color-status-sleeping)" :
-    status === "Failed" ? "var(--color-status-error)" :
-    status === "Pending" ? "var(--color-status-pending)" :
-    status === "Succeeded" ? "var(--color-status-success)" :
-    status === "Archived" ? "var(--color-status-archived)" :
-    "var(--color-border)";
-
-  const isRunning = status === "Running";
-
-  return (
-    <div
-      className="relative flex items-center gap-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 overflow-hidden"
-      style={{ borderLeftColor: accentColor, borderLeftWidth: "3px" }}
-    >
-      {isRunning && (
-        <div
-          className="absolute left-0 top-0 bottom-0 w-16 pointer-events-none"
-          style={{ background: `linear-gradient(to right, color-mix(in srgb, ${accentColor} 12%, transparent), transparent)` }}
-        />
-      )}
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Phase</span>
-        <span className={`font-semibold text-sm ${isRunning ? "animate-pulse" : ""}`} style={{ color: accentColor }}>
-          {status}
-        </span>
-      </div>
-      <div className="w-px h-4 bg-[var(--color-border)]" />
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">Task</span>
-        <span className="font-semibold text-sm text-[var(--color-text)]">{taskStatus || "Idle"}</span>
-      </div>
-    </div>
-  );
-}
-
-function MetricsRow({ totalCostUSD, lastTaskCostUSD, totalTokens }: {
-  totalCostUSD?: string;
-  lastTaskCostUSD?: string;
-  totalTokens?: number;
-}) {
-  const items: { label: string; value: string; highlight?: boolean }[] = [
-    { label: "Total Cost", value: totalCostUSD ? `$${totalCostUSD}` : "—", highlight: true },
-    { label: "Last Task", value: lastTaskCostUSD ? `$${lastTaskCostUSD}` : "—" },
-  ];
-  if (totalTokens != null && totalTokens > 0) {
-    items.push({
-      label: "Total Tokens",
-      value: fmtTokens(totalTokens),
-    });
-  }
-  return (
-    <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 divide-x divide-[var(--color-border)]">
-      {items.map((item) => (
-        <div key={item.label} className="flex flex-col items-center gap-1 px-5 first:pl-0 last:pr-0">
-          <span className="text-[10px] uppercase tracking-widest font-semibold text-[var(--color-text-muted)]">{item.label}</span>
-          <span className={`font-mono font-semibold text-base tabular-nums ${item.highlight ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}>
-            {item.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Spend-vs-budget meter: a small horizontal bar under the metrics row, shown
 // only when a soft lifetime budgetUSD is set. Turns the accent color red once
 // budgetExhausted (computed by the API) so the "new tasks refused" state is
@@ -1023,34 +991,17 @@ function BudgetMeter({ spentUSD, budgetUSD, exhausted }: {
   const budget = parseFloat(budgetUSD) || 0;
   const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
   return (
-    <motion.div
-      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 space-y-2"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-    >
-      <div className="flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-          <Wallet className="size-3" aria-hidden />
-          Budget
-        </span>
-        <span className="font-mono tabular-nums text-[var(--color-text)]">
-          ${spent.toFixed(2)} / ${budget.toFixed(2)}
-        </span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-raised)] overflow-hidden">
+    <div className="flex flex-col gap-1">
+      <div className="h-1.5 w-full rounded-full bg-[var(--color-surface-raised)] overflow-hidden" aria-label={`Spent $${spent.toFixed(2)} of $${budget.toFixed(2)}`}>
         <div
           className="h-full rounded-full transition-[width] duration-300"
-          style={{
-            width: `${pct}%`,
-            backgroundColor: exhausted ? "var(--color-status-error)" : "var(--color-brand-blue)",
-          }}
+          style={{ width: `${pct}%`, backgroundColor: exhausted ? "var(--color-status-error)" : "var(--color-brand-blue)" }}
         />
       </div>
-      {exhausted && (
-        <p className="text-[11px] text-[var(--color-status-error)]">Budget exhausted — new tasks are refused until it&apos;s raised.</p>
-      )}
-    </motion.div>
+      <span className={cn("text-[11.5px]", exhausted ? "text-[var(--color-status-error)]" : "text-[var(--color-text-muted)]")}>
+        {exhausted ? "Budget exhausted — new tasks are refused until it's raised." : `$${spent.toFixed(2)} of $${budget.toFixed(2)} spent · new tasks stop at the cap`}
+      </span>
+    </div>
   );
 }
 
@@ -1075,7 +1026,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [taskBudgetUSD, setTaskBudgetUSD] = useState(agent.taskBudgetUSD ?? "");
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
-  const [systemPromptOpen, setSystemPromptOpen] = useState(!!agent.systemPrompt);
+  // Tool policy as one pattern per line, like the create form.
+  const [allowedTools, setAllowedTools] = useState((agent.allowedTools ?? []).join("\n"));
+  const [disallowedTools, setDisallowedTools] = useState((agent.disallowedTools ?? []).join("\n"));
   const [agentSecretRefs, setAgentSecretRefs] = useState<string[]>(agent.secrets ?? []);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [showAllSecrets, setShowAllSecrets] = useState(false);
@@ -1125,6 +1078,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const connectorsChanged = JSON.stringify(agentConnectors.sort()) !== JSON.stringify((agent.connectors ?? []).sort());
   const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
   const systemPromptChanged = systemPrompt !== (agent.systemPrompt ?? "");
+  const allowedToolsList = parseToolList(allowedTools) ?? [];
+  const disallowedToolsList = parseToolList(disallowedTools) ?? [];
+  const allowedToolsChanged = JSON.stringify(allowedToolsList) !== JSON.stringify(agent.allowedTools ?? []);
+  const disallowedToolsChanged = JSON.stringify(disallowedToolsList) !== JSON.stringify(agent.disallowedTools ?? []);
   const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
   const archiveTTLChanged = archiveTTL.trim() !== fmtDuration(agent.archiveTTL ?? "");
   const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
@@ -1137,7 +1094,62 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const labelsInvalid = hasLabelErrors(labelErrors);
   const labelDiff = diffLabels(agent.labels, labelRows);
   const labelsChanged = Object.keys(labelDiff.labels).length > 0 || labelDiff.removeLabels.length > 0;
-  const hasChanges = labelsChanged || model !== agent.model || effort !== agentEffort || lifecycle !== agentLifecycle || secretsChanged || memoriesChanged || skillsChanged || connectorsChanged || systemPromptChanged || sleepTTLChanged || archiveTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged;
+
+  // Field names for the save bar, in form order.
+  // Every unsaved change, with the section it belongs to: drives the save bar's
+  // list and each section's unsaved-changes dot.
+  const changes: [boolean, string, string][] = [
+    [systemPromptChanged, "System prompt", "prompt"],
+    [model !== agent.model, "Model", "model"],
+    [effort !== agentEffort, "Reasoning effort", "model"],
+    [lifecycle !== agentLifecycle, "Lifecycle", "limits"],
+    [sleepTTLChanged, "Sleep TTL", "limits"],
+    [archiveTTLChanged, "Archive TTL", "limits"],
+    [deleteTTLChanged, "Delete TTL", "limits"],
+    [taskTimeoutChanged, "Task timeout", "limits"],
+    [budgetUSDChanged, "Budget", "limits"],
+    [taskBudgetUSDChanged, "Task budget", "limits"],
+    [connectorsChanged, "Connectors", "tools"],
+    [skillsChanged, "Skills", "tools"],
+    [memoriesChanged, "Memories", "tools"],
+    [secretsChanged, "Secrets", "tools"],
+    [allowedToolsChanged, "Allowed tools", "tools"],
+    [disallowedToolsChanged, "Blocked tools", "tools"],
+    [labelsChanged, "Labels", "labels"],
+  ];
+  const changedFields = changes.filter(([c]) => c).map(([, n]) => n);
+  const isDirty = (section: string) => changes.some(([c, , sec]) => c && sec === section);
+
+  function discard() {
+    setModel(agent.model);
+    setEffort(agentEffort);
+    setLifecycle(agentLifecycle);
+    setSleepTTL(fmtDuration(agent.sleepTTL ?? ""));
+    setArchiveTTL(fmtDuration(agent.archiveTTL ?? ""));
+    setDeleteTTL(fmtDuration(agent.deleteTTL ?? ""));
+    setTaskTimeout(fmtDuration(agent.taskTimeout ?? ""));
+    setBudgetUSD(agent.budgetUSD ?? "");
+    setTaskBudgetUSD(agent.taskBudgetUSD ?? "");
+    setSystemPrompt(agent.systemPrompt ?? "");
+    setAllowedTools((agent.allowedTools ?? []).join("\n"));
+    setDisallowedTools((agent.disallowedTools ?? []).join("\n"));
+    setAgentSecretRefs(agent.secrets ?? []);
+    setAgentMemories(agent.memories ?? []);
+    setAgentSkills(agent.skills ?? []);
+    setAgentConnectors(agent.connectors ?? []);
+    setLabelRows(splitLabels(agent.labels).user);
+    setError(null);
+  }
+
+  // Live countdowns under the TTL fields, from the same segments as the header strip.
+  const segs = buildTtlSegments(agent);
+  const ttlHint = (key: TtlKey, verb: string, fallback: string) => {
+    const seg = segs.find((t) => t.key === key);
+    const when = fmtIn(seg?.at);
+    return when ? { hint: `${verb} ${when}`, hintTone: seg?.next ? ("next" as const) : undefined } : { hint: fallback };
+  };
+  const was = (orig: string | undefined, changed: boolean, fmt: (v: string) => string = fmtDuration) => ({ changed, from: orig ? fmt(orig) : undefined });
+  const usd = (v: string) => `$${v}`;
 
   async function handleSave() {
     setSaving(true);
@@ -1153,6 +1165,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (skillsChanged) patch.skills = agentSkills;
       if (connectorsChanged) patch.connectors = agentConnectors;
       if (systemPromptChanged) patch.systemPrompt = systemPrompt.trim() || "";
+      // An explicit [] clears the list.
+      if (allowedToolsChanged) patch.allowedTools = allowedToolsList;
+      if (disallowedToolsChanged) patch.disallowedTools = disallowedToolsList;
       // Send "" to clear a TTL — the API treats explicit empty as "remove" and an
       // omitted field as "leave unchanged".
       if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
@@ -1181,176 +1196,98 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   }
 
   return (
-    <motion.div
-      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-4 transition-colors duration-150 hover:border-[var(--color-border-hover)]"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
-    >
-      <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text-muted)]">Settings</h3>
+    <div className="@container flex min-h-full flex-col">
+      <DetailsSection index={0} icon={FileText} title="Prompt" dirty={isDirty("prompt")}
+        description="What the agent is told. Instructions come with each task; the system prompt is the persona it keeps every task.">
+        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} />
+      </DetailsSection>
 
-      {/* Collapsible system prompt */}
-      <div className="flex flex-col">
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
-          onClick={() => setSystemPromptOpen(!systemPromptOpen)}
-        >
-          <ChevronRight className={`size-3.5 transition-transform duration-150 ${systemPromptOpen ? "rotate-90" : ""}`} />
-          System Prompt <span className="text-[var(--color-text-muted)] font-normal">(Optional)</span>
-        </button>
-        <AnimatePresence initial={false}>
-          {systemPromptOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="pt-2">
-                <Textarea
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Custom instructions that define agent behavior, persona, or constraints..."
-                  style={{ minHeight: 100 }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Instructions</Label>
-        <Textarea
-          value={instructions}
-          disabled
-          placeholder="No instructions set"
-          style={{ minHeight: 100 }}
-          className="opacity-60 cursor-not-allowed"
-        />
-      </div>
-
-      <ModelSelector value={model} onChange={(v) => setModel(v)} />
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Reasoning Effort</Label>
-        <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {EFFORTS.map((e) => (
-              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Lifecycle</Label>
-        <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep")).map((l) => (
-              <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {sleepBlocked && (
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Sleep is unavailable — this agent&apos;s workspace is ephemeral (no PVC).
-          </p>
-        )}
-      </div>
-
-      {agent.storage?.ephemeral && (
-        <div className="flex flex-col gap-1.5">
-          <Label>Storage</Label>
-          <Input value="Ephemeral (emptyDir, no PVC)" disabled className="opacity-60 cursor-not-allowed" />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Immutable after creation — cannot be changed to persistent storage.
-          </p>
+      <DetailsSection index={1} icon={Cpu} title="Model" dirty={isDirty("model")}
+        description="Applies when the next pod starts.">
+        <div className="grid grid-cols-3 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Model" className="col-span-2 @max-3xl:col-span-1" tip="The Claude model the agent runs. Applies when the next pod starts."
+            was={{ changed: model !== agent.model, from: agent.model }}>
+            <ModelSelector value={model} onChange={(v) => setModel(v)} label="" />
+          </Field>
+          <Field label="Reasoning effort" tip="How much the model thinks before answering. Auto uses the model's default.">
+            <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EFFORTS.map((e) => (
+                  <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
-      )}
+      </DetailsSection>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Sleep TTL</Label>
-          <Input
-            value={sleepTTL}
-            onChange={(e) => setSleepTTL(e.target.value)}
-            placeholder="e.g. 30m"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Sleep after this long idle. Resets on activity. Empty to never sleep.
-          </p>
+      <DetailsSection index={2} icon={Clock} title="Lifecycle & limits"
+        dirty={isDirty("limits")}
+        description="What happens when it's idle, and how much it may spend.">
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Lifecycle" tip="What happens to the agent after each task: keep running, sleep, delete, or archive." hint={sleepBlocked ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC)." : LIFECYCLE_DESCRIPTIONS[lifecycle] ?? "After each task the pod keeps running."}>
+            <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LIFECYCLES.filter((l) => !(sleepBlocked && l.value === "Sleep")).map((l) => (
+                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Storage" tip="The agent's workspace volume. Set when the agent is created and can't change." hint="Fixed at creation.">
+            <Input
+              value={agent.storage?.ephemeral ? "Ephemeral (emptyDir, no PVC)" : `${agent.storage?.size || "Template default"} · PVC`}
+              disabled
+              className="opacity-70 cursor-not-allowed"
+            />
+          </Field>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Archive TTL</Label>
-          <Input
-            value={archiveTTL}
-            onChange={(e) => setArchiveTTL(e.target.value)}
-            placeholder="e.g. 24h"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Archive after this long idle (keeps counting while asleep). Pod and workspace are removed; the agent is kept. Empty to never archive.
-          </p>
+        <div className="grid grid-cols-4 @max-4xl:grid-cols-2 gap-4">
+          <Field label="Sleep TTL" tip="Sleep after this long idle (pod deleted, workspace kept). Resets on any activity. Empty to never sleep." {...ttlHint("sleep", "sleeps", "Sleep after this long idle")} was={was(agent.sleepTTL, sleepTTLChanged)}>
+            <Input value={sleepTTL} onChange={(e) => setSleepTTL(e.target.value)} placeholder="e.g. 30m" />
+          </Field>
+          <Field label="Archive TTL" tip="Archive after this long idle (pod and workspace removed, record kept). Keeps counting while asleep. Empty to never archive." {...ttlHint("archive", "archives", "Archive after this long idle")} was={was(agent.archiveTTL, archiveTTLChanged)}>
+            <Input value={archiveTTL} onChange={(e) => setArchiveTTL(e.target.value)} placeholder="e.g. 24h" />
+          </Field>
+          <Field label="Delete TTL" tip="Delete the agent this long after it was created. Absolute: never resets. Empty to never delete." {...ttlHint("delete", "deletes", "Delete this long after creation")} was={was(agent.deleteTTL, deleteTTLChanged)}>
+            <Input value={deleteTTL} onChange={(e) => setDeleteTTL(e.target.value)} placeholder="e.g. 720h" />
+          </Field>
+          <Field label="Task timeout" tip="Cancel a single task that runs longer than this. Steering doesn't extend it. Empty for no limit." {...ttlHint("task", "cancels", agent.taskTimeout ? "No task running" : "Cap on a single task")} was={was(agent.taskTimeout, taskTimeoutChanged)}>
+            <Input value={taskTimeout} onChange={(e) => setTaskTimeout(e.target.value)} placeholder="e.g. 30m" />
+          </Field>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Delete TTL</Label>
-          <Input
-            value={deleteTTL}
-            onChange={(e) => setDeleteTTL(e.target.value)}
-            placeholder="e.g. 24h"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Delete this long after creation. Absolute — never resets. Empty to never delete.
-          </p>
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Budget (USD)" tip="Soft lifetime cap: new tasks are refused once total spend reaches it; a running task still finishes." hint={agent.budgetUSD ? undefined : "Soft lifetime cap. Empty for no cap."} was={was(agent.budgetUSD, budgetUSDChanged, usd)}>
+            <Input value={budgetUSD} onChange={(e) => setBudgetUSD(e.target.value)} placeholder="e.g. 10.00" />
+            {agent.budgetUSD && !budgetUSDChanged && (
+              <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
+            )}
+          </Field>
+          <Field label="Task budget (USD)" tip="Hard cap per task: the task stops the moment it spends more than this." hint="Hard stop for a single task. Empty for no cap." was={was(agent.taskBudgetUSD, taskBudgetUSDChanged, usd)}>
+            <Input value={taskBudgetUSD} onChange={(e) => setTaskBudgetUSD(e.target.value)} placeholder="e.g. 2.50" />
+          </Field>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Task Timeout</Label>
-          <Input
-            value={taskTimeout}
-            onChange={(e) => setTaskTimeout(e.target.value)}
-            placeholder="e.g. 30m"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Cancel a single task that runs this long. Steering does not extend it. Empty for no limit.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Budget (USD)</Label>
-          <Input
-            value={budgetUSD}
-            onChange={(e) => setBudgetUSD(e.target.value)}
-            placeholder="e.g. 10.00"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Soft lifetime cap — new tasks are refused once total spend reaches it. A running task still finishes. Empty for no cap.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Task Budget (USD)</Label>
-          <Input
-            value={taskBudgetUSD}
-            onChange={(e) => setTaskBudgetUSD(e.target.value)}
-            placeholder="e.g. 10.00"
-          />
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Hard per-task cap — the task stops the instant it is exceeded. Empty for no cap.
-          </p>
-        </div>
-      </div>
+      </DetailsSection>
 
-      <ConditionsSection conditions={agent.conditions} />
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Secrets</Label>
+      <DetailsSection index={3} icon={Plug} title="Tools & knowledge" dirty={isDirty("tools")}
+        description="The connectors, skills, memories and secrets it can reach.">
+        <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
+          <Field label="Connectors" tip="MCP servers the agent can call as tools.">
+            <RefMultiSelect items={availableConnectors} value={agentConnectors} onChange={setAgentConnectors} noun="connectors" />
+          </Field>
+          <Field label="Skills" tip="Reusable instructions the agent can load when relevant.">
+            <RefMultiSelect items={availableSkills} value={agentSkills} onChange={setAgentSkills} noun="skills" />
+          </Field>
+          <Field label="Memories" tip="Knowledge added to the agent's prompt on every task.">
+            <RefMultiSelect items={availableMemories} value={agentMemories} onChange={setAgentMemories} noun="memories" />
+          </Field>
+          <Field label="Secrets" tip="Kubernetes secrets exposed to the agent as environment variables.">
           <MultiSelect
             options={availableSecrets.map<MultiSelectOption>((s) => ({
               value: s.name,
@@ -1397,99 +1334,39 @@ function SettingsCard({ agent, agentNs, onSaved }: {
               }).catch(() => {});
             }}
           />
+          </Field>
+          <Field
+            label="Allowed tools"
+            tip="Restricts the agent to exactly these tools. Replaces the default tool set, so re-list built-ins it still needs. Supports wildcards like mcp__github__*."
+            hint={allowedToolsChanged ? "Applies on the agent's next start" : allowedToolsList.length ? `Restricted to ${allowedToolsList.length} ${allowedToolsList.length === 1 ? "tool" : "tools"}` : "Empty: all default tools"}
+            hintTone={allowedToolsChanged ? "changed" : undefined}
+          >
+            <Textarea
+              rows={4}
+              value={allowedTools}
+              onChange={(e) => setAllowedTools(e.target.value)}
+              placeholder={"One per line\nRead\nmcp__github__*"}
+              className="text-xs"
+            />
+          </Field>
+          <Field
+            label="Blocked tools"
+            tip="Removed from whatever is otherwise available. Wins over allowed tools. Supports wildcards like mcp__figma__*."
+            hint={disallowedToolsChanged ? "Applies on the agent's next start" : disallowedToolsList.length ? `${disallowedToolsList.length} blocked` : "Empty: nothing blocked"}
+            hintTone={disallowedToolsChanged ? "changed" : undefined}
+          >
+            <Textarea
+              rows={4}
+              value={disallowedTools}
+              onChange={(e) => setDisallowedTools(e.target.value)}
+              placeholder={"One per line\nBash\nmcp__figma__use_figma"}
+              className="text-xs"
+            />
+          </Field>
         </div>
+      </DetailsSection>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Connectors</Label>
-          <MultiSelect
-            options={availableConnectors.map<MultiSelectOption>((c) => ({
-              value: c.ref,
-              label: c.name,
-              secondary: c.ref.includes("/") ? c.namespace : null,
-              searchTerms: [c.namespace, c.ref],
-            }))}
-            value={agentConnectors}
-            onChange={setAgentConnectors}
-            placeholder="Select connectors..."
-            noun="connectors"
-            searchPlaceholder="Search connectors..."
-            emptyText="No connectors available"
-          />
-        </div>
-      </div>
-
-      {(agent.allowedTools?.length || agent.disallowedTools?.length) ? (
-        <div className="flex flex-col gap-1.5">
-          <Label>Tool permissions</Label>
-          <div className="flex flex-col gap-2 rounded border border-[var(--color-border)] p-2.5">
-            {agent.allowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
-                  <AlertTriangle className="size-3 shrink-0" />
-                  <span>Restricted to these tools only — all other built-in and connector tools are unavailable.</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {agent.allowedTools.map((t) => (
-                    <Badge key={t} variant="secondary" className="font-mono">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {agent.disallowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-[var(--color-text-secondary)]">Blocked tools</span>
-                <div className="flex flex-wrap gap-1">
-                  {agent.disallowedTools.map((t) => (
-                    <Badge key={t} variant="outline" className="font-mono line-through">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Memories</Label>
-          <MultiSelect
-            options={availableMemories.map<MultiSelectOption>((m) => ({
-              value: m.ref,
-              label: m.name,
-              secondary: m.ref.includes("/") ? m.namespace : null,
-              searchTerms: [m.namespace, m.ref],
-            }))}
-            value={agentMemories}
-            onChange={setAgentMemories}
-            placeholder="Select memories..."
-            noun="memories"
-            searchPlaceholder="Search memories..."
-            emptyText="No memories available"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Skills</Label>
-          <MultiSelect
-            options={availableSkills.map<MultiSelectOption>((s) => ({
-              value: s.ref,
-              label: s.name,
-              secondary: s.ref.includes("/") ? s.namespace : null,
-              searchTerms: [s.namespace, s.ref],
-            }))}
-            value={agentSkills}
-            onChange={setAgentSkills}
-            placeholder="Select skills..."
-            noun="skills"
-            searchPlaceholder="Search skills..."
-            emptyText="No skills available"
-          />
-        </div>
-      </div>
-
-      {/* Labels */}
-      <div className="flex flex-col gap-1.5">
-        <Label>Labels</Label>
+      <DetailsSection index={4} icon={Tag} title="Labels" dirty={isDirty("labels")} description="For filtering and selectors.">
         <LabelsEditor
           rows={labelRows}
           errors={labelErrors}
@@ -1497,22 +1374,18 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           original={originalUserLabels}
           onChange={setLabelRows}
         />
-      </div>
+      </DetailsSection>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={handleSave} disabled={!hasChanges || labelsInvalid || saving}>
-          {saved ? (
-            <><Check className="size-3 mr-1" /> Saved</>
-          ) : saving ? (
-            "Saving..."
-          ) : (
-            <><Save className="size-3 mr-1" /> Save Changes</>
-          )}
-        </Button>
-      </div>
-    </motion.div>
+      <SaveBar
+        changed={changedFields}
+        saving={saving}
+        saved={saved}
+        error={error}
+        disabled={labelsInvalid}
+        onDiscard={discard}
+        onSave={handleSave}
+      />
+    </div>
   );
 }
 
@@ -1546,24 +1419,59 @@ function SquadAwareDeleteButton({
   );
 }
 
-function InfoRow({ label, value, mono, color, highlight }: {
+// A MultiSelect over named, namespaced resources (connectors, skills, memories).
+function RefMultiSelect({ items, value, onChange, noun }: {
+  items: { name: string; namespace: string; ref: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  noun: string;
+}) {
+  return (
+    <MultiSelect
+      options={items.map<MultiSelectOption>((it) => ({
+        value: it.ref,
+        label: it.name,
+        secondary: it.ref.includes("/") ? it.namespace : null,
+        searchTerms: [it.namespace, it.ref],
+      }))}
+      value={value}
+      onChange={onChange}
+      placeholder={`Select ${noun}...`}
+      noun={noun}
+      searchPlaceholder={`Search ${noun}...`}
+      emptyText={`No ${noun} available`}
+    />
+  );
+}
+
+function InfoRow({ label, value, mono, color, highlight, tip, children }: {
   label: string;
-  value: string;
+  value?: string;
   mono?: boolean;
   color?: string;
   highlight?: boolean;
+  /** Tooltip for the value; defaults to the value itself (it may be truncated). */
+  tip?: string;
+  /** Custom value content (e.g. a link) instead of `value`. */
+  children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] shrink-0">{label}</span>
-      <span
-        className={`text-[13px] truncate text-right ${
-          mono ? "font-[family-name:var(--font-mono)]" : ""
-        } ${highlight ? "font-semibold text-[var(--color-brand-blue)]" : "text-[var(--color-text-secondary)]"}`}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </span>
+    <div className={cn(RAIL_ROW, "flex items-center justify-between gap-4 py-0.5")}>
+      <span className="text-[12.5px] font-medium text-[var(--color-text)] shrink-0">{label}</span>
+      {children ?? (
+        <span className="min-w-0">
+          <Tooltip side="left" content={tip ?? value}>
+            <span
+              className={`block text-[13px] truncate text-right cursor-default ${
+                mono ? "font-[family-name:var(--font-mono)] text-[12.5px]" : ""
+              } ${highlight ? "font-semibold text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+              style={color ? { color } : undefined}
+            >
+              {value}
+            </span>
+          </Tooltip>
+        </span>
+      )}
     </div>
   );
 }

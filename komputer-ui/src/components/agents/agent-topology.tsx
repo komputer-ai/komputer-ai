@@ -259,7 +259,8 @@ function AgentTopologyInner({ nodes: initialNodes, edges: initialEdges, focusNod
   );
 }
 
-export function AgentTopology({ agentName, agentNs }: { agentName: string; agentNs?: string }) {
+// `flush` renders it as a plain block (no card), for the agent details rail.
+export function AgentTopology({ agentName, agentNs, flush }: { agentName: string; agentNs?: string; flush?: boolean }) {
   const [agents, setAgents] = useState<AgentResponse[]>([]);
   const [offices, setOffices] = useState<OfficeResponse[]>([]);
   const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
@@ -304,7 +305,9 @@ export function AgentTopology({ agentName, agentNs }: { agentName: string; agent
 
   return (
     <motion.div
-      className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden transition-colors duration-150 hover:border-[var(--color-border-hover)]"
+      className={flush
+        ? "border-b border-[var(--color-border)] overflow-hidden"
+        : "rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden transition-colors duration-150 hover:border-[var(--color-border-hover)]"}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut", delay: 0.15 }}
@@ -320,7 +323,7 @@ export function AgentTopology({ agentName, agentNs }: { agentName: string; agent
           <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
-      <div className="h-[320px]">
+      <div className={flush ? "h-[260px]" : "h-[320px]"}>
         <ReactFlowProvider>
           <AgentTopologyInner nodes={nodes} edges={edges} focusNodeId={`agent-${agentName}`} />
         </ReactFlowProvider>
