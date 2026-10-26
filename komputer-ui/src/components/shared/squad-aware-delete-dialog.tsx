@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Checkbox } from "@/components/kit/checkbox";
 import Link from "next/link";
 import {
   Dialog,
@@ -133,33 +134,24 @@ export function SquadAwareDeleteDialog({
 
             {showSquadOptions && (
               <div className="space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={deleteSquadChecked}
-                    onChange={(e) => setDeleteSquadChecked(e.target.checked)}
-                    className="mt-0.5 accent-[var(--color-brand-blue)]"
-                  />
-                  <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors leading-snug">
+                <div className="flex items-start gap-3">
+                  <Checkbox id="squad-delete-too" className="mt-0.5" checked={deleteSquadChecked} onCheckedChange={setDeleteSquadChecked} />
+                  <label htmlFor="squad-delete-too" className="text-sm text-[var(--color-text)] cursor-pointer leading-snug">
                     Delete squad too (other members will revert to solo agents)
-                  </span>
-                </label>
-                <label
-                  className={`flex items-start gap-3 group ${
-                    deleteSquadChecked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
+                  </label>
+                </div>
+                <div className={`flex items-start gap-3 ${deleteSquadChecked ? "opacity-50" : ""}`}>
+                  <Checkbox
+                    id="squad-recreate-pod"
+                    className="mt-0.5"
                     checked={recreatePodChecked && !deleteSquadChecked}
-                    onChange={(e) => setRecreatePodChecked(e.target.checked)}
+                    onCheckedChange={setRecreatePodChecked}
                     disabled={deleteSquadChecked}
-                    className="mt-0.5 accent-[var(--color-brand-blue)]"
                   />
-                  <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors leading-snug">
+                  <label htmlFor="squad-recreate-pod" className={`text-sm text-[var(--color-text)] leading-snug ${deleteSquadChecked ? "cursor-not-allowed" : "cursor-pointer"}`}>
                     Recreate squad pod (clears the removed member&apos;s container; brief restart of remaining members)
-                  </span>
-                </label>
+                  </label>
+                </div>
               </div>
             )}
           </div>

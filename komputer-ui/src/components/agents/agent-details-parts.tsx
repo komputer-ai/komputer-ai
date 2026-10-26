@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, X, Copy, Check, Loader2 } from "lucide-react";
+import { Maximize2, X, Copy, Check, Loader2, Lock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Textarea } from "@/components/kit/textarea";
 import { Tooltip } from "@/components/kit/tooltip";
@@ -134,10 +134,12 @@ type PromptTab = "instructions" | "system";
 // Instructions and the system prompt as two tabs over one full-width editor.
 // Instructions are read-only here (they come from the last task); the system
 // prompt is editable and opens in a focus editor with a Markdown preview.
-export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange }: {
+export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange, onOpenChat }: {
   instructions: string;
   systemPrompt: string;
   onSystemPromptChange: (v: string) => void;
+  /** Switches to the chat, where a new task changes the instructions. */
+  onOpenChat?: () => void;
 }) {
   const [tab, setTab] = useState<PromptTab>("instructions");
   const [focusOpen, setFocusOpen] = useState(false);
@@ -173,8 +175,9 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
     }
   }
 
-  const tabBtn = (id: PromptTab, label: string, value: string) => (
+  const tabBtn = (id: PromptTab, label: string, value: string, locked?: string) => (
     <button
+      title={locked}
       type="button"
       role="tab"
       aria-selected={tab === id}
@@ -184,6 +187,7 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
         tab === id ? "font-medium text-[var(--color-text)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
       )}
     >
+      {locked && <Lock className="size-3 text-[var(--color-text-secondary)]" aria-label="Read-only" />}
       {label}
       {value.trim() && <span className="font-mono text-[11px] font-normal text-[var(--color-text-secondary)]">{textMeta(value)}</span>}
       {tab === id && (
@@ -199,7 +203,7 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
   return (
     <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
       <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-1.5" role="tablist" aria-label="Prompt">
-        {tabBtn("instructions", "Instructions", instructions)}
+        {tabBtn("instructions", "Instructions", instructions, "Read-only: the last task's instructions. Send a new task from the chat to change them.")}
         {tabBtn("system", "System prompt", systemPrompt)}
         <span className="ml-auto inline-flex gap-0.5">
           <Tooltip side="bottom" content={copied ? "Copied" : "Copy"}>
@@ -228,8 +232,28 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
             transition={{ duration: 0.12, ease: "easeOut" }}
           >
             {tab === "instructions" ? (
-              <div className="h-full overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]">
-                {instructions || <span className="text-[var(--color-text)]/60">No instructions yet. Send the agent a task from the chat.</span>}
+              <div className="flex h-full flex-col">
+                <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60 px-3 py-1.5 text-[12px] text-[var(--color-text)]/80">
+                  <Lock className="size-3 shrink-0" aria-hidden />
+                  <span className="min-w-0 truncate">Read-only. These are the last task&apos;s instructions; send a new task from the chat to change them.</span>
+                  {onOpenChat && (
+                    <button
+                      type="button"
+                      onClick={onOpenChat}
+                      className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-[12px] text-[var(--color-brand-blue-light)] transition-colors hover:bg-[var(--color-brand-blue-glow)] cursor-pointer"
+                    >
+                      <MessageCircle className="size-3" aria-hidden />
+                      Open chat
+                    </button>
+                  )}
+                </div>
+                <div
+                  aria-readonly="true"
+                  aria-disabled="true"
+                  className="min-h-0 flex-1 cursor-not-allowed select-text overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]/70"
+                >
+                  {instructions || <span className="text-[var(--color-text)]/60">No instructions yet. Send the agent a task from the chat.</span>}
+                </div>
               </div>
             ) : (
               <Textarea

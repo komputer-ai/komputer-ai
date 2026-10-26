@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/kit/input";
 import { Textarea } from "@/components/kit/textarea";
+import { Checkbox } from "@/components/kit/checkbox";
 import { Label } from "@/components/kit/label";
 import {
   Select,
@@ -597,12 +598,12 @@ export function AgentFieldsForm({
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="flex items-start gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-start gap-3 group">
+                      <Checkbox
+                        id={`${idPrefix}-ephemeral`}
                         checked={values.ephemeral}
-                        onChange={(e) => {
-                          const ephemeral = e.target.checked;
+                        className="mt-0.5"
+                        onCheckedChange={(ephemeral) => {
                           onChange({
                             ...values,
                             ephemeral,
@@ -613,13 +614,12 @@ export function AgentFieldsForm({
                             sleepTTL: ephemeralBlocksSleep(ephemeral, s3Enabled) ? "" : values.sleepTTL,
                           });
                         }}
-                        className="mt-0.5 accent-[var(--color-brand-blue)]"
                       />
-                      <span className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text)] transition-colors leading-snug">
+                      <label htmlFor={`${idPrefix}-ephemeral`} className="text-sm text-[var(--color-text)] cursor-pointer leading-snug">
                         Ephemeral workspace (no PVC)
-                      </span>
-                    </label>
-                    <p className="text-xs text-[var(--color-text-secondary)] pl-6">
+                      </label>
+                    </div>
+                    <p className="text-xs text-[var(--color-text)]/65 pl-7">
                       Workspace runs as an emptyDir instead of a persistent volume — all files, installed packages, and the Claude session are lost whenever the pod stops. Cannot be combined with Sleep lifecycle or a Sleep TTL, and can&apos;t be changed after the agent is created.
                     </p>
                   </div>

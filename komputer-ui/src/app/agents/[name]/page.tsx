@@ -24,6 +24,8 @@ import { LeaveSquadButton } from "@/components/squads/leave-squad-button";
 import type { Squad } from "@/lib/types";
 import { SubAgentPanel } from "@/components/agents/sub-agent-panel";
 import { AgentTopology } from "@/components/agents/agent-topology";
+import { parseToolList } from "@/components/agents/agent-fields-form";
+import { Textarea } from "@/components/kit/textarea";
 import { DetailsSection, RailSection, Field, PromptEditor, SaveBar, fmtIn } from "@/components/agents/agent-details-parts";
 import { LIFECYCLES, EFFORTS } from "@/lib/constants";
 import { Input } from "@/components/kit/input";
@@ -953,7 +955,7 @@ export default function AgentDetailPage() {
                     This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
                   </div>
                 ) : (
-                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} />
+                  <SettingsCard agent={agent} agentNs={agentNs} onSaved={(updated) => { if (updated) setAgent(updated); fetchAgent(); }} onOpenChat={() => setViewAndUrl("chat")} />
                 )}
               </div>
 
@@ -1041,10 +1043,11 @@ function BudgetMeter({ spentUSD, budgetUSD, exhausted }: {
   );
 }
 
-function SettingsCard({ agent, agentNs, onSaved }: {
+function SettingsCard({ agent, agentNs, onSaved, onOpenChat }: {
   agent: AgentResponse;
   agentNs?: string;
   onSaved: (updated?: AgentResponse) => void;
+  onOpenChat?: () => void;
 }) {
   const [model, setModel] = useState(agent.model);
   const [effort, setEffort] = useState<string>(agent.effort || "auto");
@@ -1062,6 +1065,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const [taskBudgetUSD, setTaskBudgetUSD] = useState(agent.taskBudgetUSD ?? "");
   const instructions = agent.instructions ?? "";
   const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
+  // Tool policy as one pattern per line, like the create form.
+  const [allowedTools, setAllowedTools] = useState((agent.allowedTools ?? []).join("\n"));
+  const [disallowedTools, setDisallowedTools] = useState((agent.disallowedTools ?? []).join("\n"));
   const [agentSecretRefs, setAgentSecretRefs] = useState<string[]>(agent.secrets ?? []);
   const [availableSecrets, setAvailableSecrets] = useState<{ name: string; namespace: string }[]>([]);
   const [showAllSecrets, setShowAllSecrets] = useState(false);
@@ -1111,6 +1117,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const connectorsChanged = JSON.stringify(agentConnectors.sort()) !== JSON.stringify((agent.connectors ?? []).sort());
   const secretsChanged = JSON.stringify(agentSecretRefs.sort()) !== JSON.stringify((agent.secrets ?? []).sort());
   const systemPromptChanged = systemPrompt !== (agent.systemPrompt ?? "");
+  const allowedToolsList = parseToolList(allowedTools) ?? [];
+  const disallowedToolsList = parseToolList(disallowedTools) ?? [];
+  const allowedToolsChanged = JSON.stringify(allowedToolsList) !== JSON.stringify(agent.allowedTools ?? []);
+  const disallowedToolsChanged = JSON.stringify(disallowedToolsList) !== JSON.stringify(agent.disallowedTools ?? []);
   const sleepTTLChanged = sleepTTL.trim() !== fmtDuration(agent.sleepTTL ?? "");
   const archiveTTLChanged = archiveTTL.trim() !== fmtDuration(agent.archiveTTL ?? "");
   const deleteTTLChanged = deleteTTL.trim() !== fmtDuration(agent.deleteTTL ?? "");
@@ -1140,6 +1150,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     [skillsChanged, "Skills"],
     [memoriesChanged, "Memories"],
     [secretsChanged, "Secrets"],
+    [allowedToolsChanged, "Allowed tools"],
+    [disallowedToolsChanged, "Blocked tools"],
     [labelsChanged, "Labels"],
   ] as [boolean, string][]).filter(([c]) => c).map(([, n]) => n);
 
@@ -1154,6 +1166,8 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     setBudgetUSD(agent.budgetUSD ?? "");
     setTaskBudgetUSD(agent.taskBudgetUSD ?? "");
     setSystemPrompt(agent.systemPrompt ?? "");
+    setAllowedTools((agent.allowedTools ?? []).join("\n"));
+    setDisallowedTools((agent.disallowedTools ?? []).join("\n"));
     setAgentSecretRefs(agent.secrets ?? []);
     setAgentMemories(agent.memories ?? []);
     setAgentSkills(agent.skills ?? []);
@@ -1190,6 +1204,9 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       if (skillsChanged) patch.skills = agentSkills;
       if (connectorsChanged) patch.connectors = agentConnectors;
       if (systemPromptChanged) patch.systemPrompt = systemPrompt.trim() || "";
+      // An explicit [] clears the list.
+      if (allowedToolsChanged) patch.allowedTools = allowedToolsList;
+      if (disallowedToolsChanged) patch.disallowedTools = disallowedToolsList;
       // Send "" to clear a TTL — the API treats explicit empty as "remove" and an
       // omitted field as "leave unchanged".
       if (sleepTTLChanged) patch.sleepTTL = sleepTTL.trim();
@@ -1221,7 +1238,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     <div className="@container flex min-h-full flex-col">
       <DetailsSection index={0} icon={FileText} title="Prompt" dirty={systemPromptChanged}
         description="What the agent is told. Instructions come with each task; the system prompt is the persona it keeps every task.">
-        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} />
+        <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} onOpenChat={onOpenChat} />
       </DetailsSection>
 
       <DetailsSection index={1} icon={Cpu} title="Model" dirty={model !== agent.model || effort !== agentEffort}
@@ -1296,7 +1313,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </div>
       </DetailsSection>
 
-      <DetailsSection index={3} icon={Plug} title="Tools & knowledge" dirty={connectorsChanged || skillsChanged || memoriesChanged || secretsChanged}
+      <DetailsSection index={3} icon={Plug} title="Tools & knowledge" dirty={connectorsChanged || skillsChanged || memoriesChanged || secretsChanged || allowedToolsChanged || disallowedToolsChanged}
         description="The connectors, skills, memories and secrets it can reach.">
         <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
           <Field label="Connectors" tip="MCP servers the agent can call as tools.">
@@ -1314,37 +1331,6 @@ function SettingsCard({ agent, agentNs, onSaved }: {
               searchPlaceholder="Search connectors..."
               emptyText="No connectors available"
             />
-          </Field>
-          <Field label="Tool permissions" tip="Which built-in and connector tools the agent may use.">
-            {(agent.allowedTools?.length || agent.disallowedTools?.length) ? (
-          <div className="flex flex-col gap-2 rounded border border-[var(--color-border)] p-2.5">
-            {agent.allowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
-                  <AlertTriangle className="size-3 shrink-0" />
-                  <span>Restricted to these tools only — all other built-in and connector tools are unavailable.</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {agent.allowedTools.map((t) => (
-                    <Badge key={t} variant="secondary" className="font-mono">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {agent.disallowedTools?.length ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-[var(--color-text-secondary)]">Blocked tools</span>
-                <div className="flex flex-wrap gap-1">
-                  {agent.disallowedTools.map((t) => (
-                    <Badge key={t} variant="outline" className="font-mono line-through">{t}</Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-            ) : (
-              <span className="text-[12.5px] text-[var(--color-text-secondary)]">All default tools · set restrictions when creating the agent</span>
-            )}
           </Field>
           <Field label="Skills" tip="Reusable instructions the agent can load when relevant.">
             <MultiSelect
@@ -1425,6 +1411,34 @@ function SettingsCard({ agent, agentNs, onSaved }: {
               }).catch(() => {});
             }}
           />
+          </Field>
+          <Field
+            label="Allowed tools"
+            tip="Restricts the agent to exactly these tools. Replaces the default tool set, so re-list built-ins it still needs. Supports wildcards like mcp__github__*."
+            hint={allowedToolsChanged ? "Applies on the agent's next start" : allowedToolsList.length ? `Restricted to ${allowedToolsList.length} ${allowedToolsList.length === 1 ? "tool" : "tools"}` : "Empty: all default tools"}
+            hintTone={allowedToolsChanged ? "changed" : undefined}
+          >
+            <Textarea
+              rows={4}
+              value={allowedTools}
+              onChange={(e) => setAllowedTools(e.target.value)}
+              placeholder={"One per line\nRead\nmcp__github__*"}
+              className="text-xs"
+            />
+          </Field>
+          <Field
+            label="Blocked tools"
+            tip="Removed from whatever is otherwise available. Wins over allowed tools. Supports wildcards like mcp__figma__*."
+            hint={disallowedToolsChanged ? "Applies on the agent's next start" : disallowedToolsList.length ? `${disallowedToolsList.length} blocked` : "Empty: nothing blocked"}
+            hintTone={disallowedToolsChanged ? "changed" : undefined}
+          >
+            <Textarea
+              rows={4}
+              value={disallowedTools}
+              onChange={(e) => setDisallowedTools(e.target.value)}
+              placeholder={"One per line\nBash\nmcp__figma__use_figma"}
+              className="text-xs"
+            />
           </Field>
         </div>
       </DetailsSection>
