@@ -68,47 +68,75 @@ function fmtUSD(cost: string | undefined, digits: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
-const LIFECYCLE_TIPS: Record<string, string> = {
-  Sleep: "Lifecycle: Sleep — the pod is deleted after each task, the workspace is kept",
-  AutoDelete: "Lifecycle: AutoDelete — the agent is deleted after each task",
-  Archive: "Lifecycle: Archive — pod and workspace are removed after each task, the record is kept",
+const LIFECYCLE_DESCRIPTIONS: Record<string, string> = {
+  Sleep: "The pod is deleted after each task; the workspace is kept.",
+  AutoDelete: "The agent is deleted after each task.",
+  Archive: "Pod and workspace are removed after each task; the record is kept.",
 };
 
-type TtlSegment = { icon: typeof Moon; label: string; value: string; detail: string; next: boolean };
+type TtlKey = "sleep" | "archive" | "delete" | "task";
+type TtlSegment = { key: TtlKey; icon: typeof Moon; label: string; value: string; detail: string; at?: string; next: boolean };
 
-// The lifecycle timers shown as one segmented strip in the header. The sleep,
-// archive or delete timer that fires soonest is marked `next`.
+// The lifecycle timers shown as one segmented strip in the header, and under the
+// TTL fields in the details form. The sleep, archive or delete timer that fires
+// soonest is marked `next`.
 function buildTtlSegments(agent: AgentResponse): TtlSegment[] {
-  const segs: TtlSegment[] = [];
-  const timers: [string | undefined, string | undefined, typeof Moon, string, string][] = [
-    [agent.sleepTTL, agent.sleepExpiresAt, Moon, "Sleep TTL", "Sleeps"],
-    [agent.archiveTTL, agent.archiveExpiresAt, Archive, "Archive TTL", "Archives"],
-    [agent.deleteTTL, agent.deleteExpiresAt, Hourglass, "Delete TTL", "Deletes"],
-  ];
-  let soonest = Infinity;
-  for (const [ttl, at] of timers) {
-    const t = ttl && at ? new Date(at).getTime() : NaN;
-    if (!Number.isNaN(t) && t < soonest) soonest = t;
-  }
-  for (const [ttl, at, icon, label, verb] of timers) {
-    if (!ttl) continue;
-    const t = at ? new Date(at).getTime() : NaN;
-    segs.push({ icon, label, value: fmtDuration(ttl), detail: ttlTitle(verb, at), next: t === soonest });
-  }
+  const timers = [
+    { key: "sleep", ttl: agent.sleepTTL, at: agent.sleepExpiresAt, icon: Moon, label: "Sleep TTL", verb: "Sleeps" },
+    { key: "archive", ttl: agent.archiveTTL, at: agent.archiveExpiresAt, icon: Archive, label: "Archive TTL", verb: "Archives" },
+    { key: "delete", ttl: agent.deleteTTL, at: agent.deleteExpiresAt, icon: Hourglass, label: "Delete TTL", verb: "Deletes" },
+  ] as const;
+  const set = timers.flatMap((t) => (t.ttl ? [{ ...t, ttl: t.ttl, ms: t.at ? new Date(t.at).getTime() : NaN }] : []));
+  const soonest = Math.min(...set.map((t) => (Number.isNaN(t.ms) ? Infinity : t.ms)));
+  const segs: TtlSegment[] = set.map((t) => ({
+    key: t.key, icon: t.icon, label: t.label, value: fmtDuration(t.ttl), detail: ttlTitle(t.verb, t.at), at: t.at, next: t.ms === soonest,
+  }));
   if (agent.taskTimeout) {
     segs.push({
+      key: "task",
       icon: Timer,
       label: "Task timeout",
       value: fmtDuration(agent.taskTimeout),
       detail: agent.taskExpiresAt ? ttlTitle("Cancels", agent.taskExpiresAt) : "Cancels a task that runs longer than this",
+      at: agent.taskExpiresAt,
       next: false,
     });
   }
   return segs;
 }
 
+// One header action: icon plus a label that collapses to the icon when the header
+// is narrow (a transient note such as "Sleeping…" always shows), with a tooltip.
+function ActionButton({ tip, label, note, icon: Icon, iconClassName, variant = "secondary", ...props }: {
+  tip: React.ReactNode;
+  label: string;
+  note?: string | null;
+  icon: typeof Moon;
+  iconClassName?: string;
+} & React.ComponentProps<typeof Button>) {
+  return (
+    <Tooltip side="bottom" content={tip}>
+      <Button variant={variant} size="sm" aria-label={label} {...props}>
+        <Icon className={cn("size-3", iconClassName)} data-icon="inline-start" />
+        <span className={note ? undefined : "hidden @6xl:inline"}>{note ?? label}</span>
+      </Button>
+    </Tooltip>
+  );
+}
+
+// The joined pill holding the header actions: one border, dividers between
+// buttons, the outer buttons rounded.
+const ACTION_GROUP =
+  "inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] " +
+  "[&>*+*]:border-l [&>*+*]:border-[var(--color-border)] [&_button]:!rounded-none [&_button]:!border-0 [&_button]:!bg-transparent " +
+  "[&_button]:!shadow-none [&_button]:!backdrop-blur-none [&_button:hover:not(:disabled)]:!bg-[var(--color-surface-hover)] " +
+  "[&>*:first-child_button]:!rounded-l-full [&>*:last-child_button]:!rounded-r-full";
+
+// A rail row's hover tint.
+const RAIL_ROW = "-mx-2 rounded-[var(--radius-sm)] px-2 transition-colors hover:bg-[var(--color-surface-hover)]/60";
+
+// A metadata badge (budget, task budget) with an icon and a kit tooltip.
 // A lifecycle-timer badge (sleep / delete TTL, task timeout) with an icon and a
-// kit tooltip naming the timer and when it fires.
 function TtlBadge({
   icon: Icon,
   label,
@@ -148,7 +176,7 @@ function ConditionsSection({ conditions }: { conditions?: AgentCondition[] }) {
       {conditions.map((c) => {
         const active = c.status === "True";
         return (
-          <li key={c.type} className="-mx-2 flex flex-col gap-0.5 rounded-[var(--radius-sm)] px-2 py-1 transition-colors hover:bg-[var(--color-surface-hover)]/60">
+          <li key={c.type} className={cn(RAIL_ROW, "flex flex-col gap-0.5 py-1")}>
             <div className="flex items-center gap-2 text-[12.5px]">
               <span className="font-medium text-[var(--color-text)]">{c.type}</span>
               <Badge variant={active ? "default" : "outline"} className="text-[10px]">{c.status}</Badge>
@@ -573,7 +601,7 @@ export default function AgentDetailPage() {
                   </Tooltip>
                 )}
                 {agent.lifecycle && (
-                  <Tooltip side="bottom" content={LIFECYCLE_TIPS[agent.lifecycle] ?? `Lifecycle: ${agent.lifecycle}`}>
+                  <Tooltip side="bottom" content={`Lifecycle: ${agent.lifecycle}${LIFECYCLE_DESCRIPTIONS[agent.lifecycle] ? ` — ${LIFECYCLE_DESCRIPTIONS[agent.lifecycle]}` : ""}`}>
                     <Badge variant="secondary" className="text-xs cursor-default">
                       {agent.lifecycle}
                     </Badge>
@@ -698,45 +726,25 @@ export default function AgentDetailPage() {
 
               <div className="flex items-center gap-1.5">
                 {/* One joined group for the agent's actions; deletes and settings sit outside it. */}
-                <div className="inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] [&>*+*]:border-l [&>*+*]:border-[var(--color-border)] [&_button]:!rounded-none [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!shadow-none [&_button]:!backdrop-blur-none [&_button:hover:not(:disabled)]:!bg-[var(--color-surface-hover)] [&>*:first-child_button]:!rounded-l-full [&>*:last-child_button]:!rounded-r-full">
+                <div className={ACTION_GROUP}>
                 {archivedReadOnly(agent.status, s3Enabled) ? null : agentDormant(agent.status, s3Enabled) ? (
-                  <Tooltip side="bottom" content="Wake the agent">
-                    <Button variant="secondary" size="sm" onClick={handleWake} aria-label="Wake">
-                      <Zap className="size-3" data-icon="inline-start" />
-                      <span className="hidden @6xl:inline">Wake</span>
-                    </Button>
-                  </Tooltip>
+                  <ActionButton tip="Wake the agent" label="Wake" icon={Zap} onClick={handleWake} />
                 ) : (
                   <>
                     {(agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting") && (
-                      <Tooltip side="bottom" content="Cancel the running task">
-                        <Button variant="secondary" size="sm" onClick={handleCancel} aria-label="Cancel task">
-                          <Ban className="size-3" data-icon="inline-start" />
-                          <span className="hidden @6xl:inline">Cancel</span>
-                        </Button>
-                      </Tooltip>
+                      <ActionButton tip="Cancel the running task" label="Cancel" icon={Ban} onClick={handleCancel} />
                     )}
-                    <Tooltip
-                      side="bottom"
-                      content={
-                        ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
-                          ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
-                          : "Sleep: delete the pod, keep the workspace"
-                      }
-                    >
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleSleep}
-                        disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
-                        aria-label="Sleep"
-                      >
-                        <Moon className={`size-3 ${sleeping ? "animate-spin" : ""}`} data-icon="inline-start" />
-                        <span className={sleepNote || sleeping ? undefined : "hidden @6xl:inline"}>
-                          {sleepNote ?? (sleeping ? "Sleeping…" : "Sleep")}
-                        </span>
-                      </Button>
-                    </Tooltip>
+                    <ActionButton
+                      tip={ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)
+                        ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC). Sleeping deletes the pod, which would wipe it."
+                        : "Sleep: delete the pod, keep the workspace"}
+                      label="Sleep"
+                      note={sleepNote ?? (sleeping ? "Sleeping…" : null)}
+                      icon={Moon}
+                      iconClassName={sleeping ? "animate-spin" : undefined}
+                      onClick={handleSleep}
+                      disabled={sleeping || ephemeralBlocksSleep(agent.storage?.ephemeral, s3Enabled)}
+                    />
                   </>
                 )}
                 {agentSquad ? (
@@ -750,75 +758,47 @@ export default function AgentDetailPage() {
                     }}
                   />
                 ) : !archivedReadOnly(agent.status, s3Enabled) && (
-                  <Tooltip side="bottom" content="Team up with other agents in a squad">
-                    <Button variant="secondary" size="sm" onClick={() => setTeamUpOpen(true)} aria-label="Team up">
-                      <Users className="size-3" data-icon="inline-start" />
-                      <span className="hidden @6xl:inline">Team Up</span>
-                    </Button>
-                  </Tooltip>
+                  <ActionButton tip="Team up with other agents in a squad" label="Team Up" icon={Users} onClick={() => setTeamUpOpen(true)} />
                 )}
                 {agent.status !== "Archived" && (
-                <Tooltip
-                  side="bottom"
-                  content={
-                    agent.status === "Sleeping"
+                  <ActionButton
+                    tip={agent.status === "Sleeping"
                       ? "Wake the agent before compacting — there is no running pod to receive the request."
-                      : "Compact the conversation history to free context. Runs as soon as the current turn finishes."
-                  }
-                >
-                  <Button
-                    variant="secondary"
-                    size="sm"
+                      : "Compact the conversation history to free context. Runs as soon as the current turn finishes."}
+                    label="Compact"
+                    note={compactNote ?? (compactBusy ? "Compacting…" : null)}
+                    icon={Layers}
                     onClick={handleCompact}
                     disabled={compactBusy || agent.status === "Sleeping"}
-                    aria-label="Compact"
                     className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/55 hover:text-amber-200"
-                  >
-                    <Layers className="size-3" data-icon="inline-start" />
-                    <span className={compactNote || compactBusy ? undefined : "hidden @6xl:inline"}>
-                      {compactNote ?? (compactBusy ? "Compacting…" : "Compact")}
-                    </span>
-                  </Button>
-                </Tooltip>
+                  />
                 )}
-                {!agentSquad && s3Enabled && agent.status !== "Archived" && (
-                    agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving ? (
-                      // No confirm dialog behind a disabled button (a click would still
-                      // reach the dialog's wrapper); the span carries the tooltip.
-                      <span title={archiving ? undefined : "Archive is available once the current task finishes (or cancel it)."}>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled
-                          className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)]"
-                        >
-                          <Archive className="size-3" data-icon="inline-start" />
-                          <span className={archiveNote ? undefined : "hidden @6xl:inline"}>{archiveNote ?? "Archive"}</span>
-                        </Button>
-                      </span>
-                    ) : (
-                      <Tooltip side="bottom" content="Archive: keep the record, remove the pod and workspace">
-                      <ConfirmDialog
-                        title="Archive Agent"
-                        description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
-                        onConfirm={handleArchive}
-                        confirmLabel="Archive"
-                        confirmVariant="primary"
-                        confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
-                        trigger={
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
-                          >
-                            <Archive className="size-3" data-icon="inline-start" />
-                            <span className={archiveNote ? undefined : "hidden @6xl:inline"}>{archiveNote ?? "Archive"}</span>
-                          </Button>
-                        }
-                      />
-                      </Tooltip>
-                    )
-                )}
+                {!agentSquad && s3Enabled && agent.status !== "Archived" && (() => {
+                  // No confirm dialog behind a disabled button (a click would still reach
+                  // the dialog's wrapper), so a busy Archive renders the button alone.
+                  const busy = agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving;
+                  const button = (
+                    <ActionButton
+                      tip={busy && !archiving ? "Archive is available once the current task finishes (or cancel it)." : "Archive: keep the record, remove the pod and workspace"}
+                      label="Archive"
+                      note={archiveNote}
+                      icon={Archive}
+                      disabled={busy}
+                      className="border-[var(--color-status-archived)]/40 bg-[var(--color-status-archived)]/10 text-[var(--color-status-archived)] hover:bg-[var(--color-status-archived)]/15 hover:border-[var(--color-status-archived)]/55"
+                    />
+                  );
+                  return busy ? button : (
+                    <ConfirmDialog
+                      title="Archive Agent"
+                      description={`Archive "${agent.name}"? Its pod and workspace files are removed once it's idle. The agent, its settings, cost and conversation are kept, and you can send it a task again later.`}
+                      onConfirm={handleArchive}
+                      confirmLabel="Archive"
+                      confirmVariant="primary"
+                      confirmClassName="bg-[var(--color-status-archived)] text-white hover:bg-[var(--color-status-archived)]/90 border-transparent"
+                      trigger={button}
+                    />
+                  );
+                })()}
                 </div>
                 {s3Enabled && agent.sessionStore?.ok === false && (
                   <ConfirmDialog
@@ -840,34 +820,15 @@ export default function AgentDetailPage() {
                     squad={agentSquad}
                     onConfirm={handleDelete}
                   />
-                ) : s3Enabled ? (
-                  // With the S3 session store, archiving keeps everything and the
-                  // agent can run again, so it's how a live agent is retired;
-                  // Delete is only offered once it's archived.
-                  agent.status === "Archived" && (
-                    <ConfirmDialog
-                      title="Delete Agent"
-                      description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone. Its last saved session stays in S3.`}
-                      onConfirm={handleDelete}
-                      trigger={
-                        <Button variant="destructive" size="sm" aria-label="Delete" title="Delete">
-                          <Trash2 className="size-3" data-icon="inline-start" />
-                          <span className="hidden @6xl:inline">Delete</span>
-                        </Button>
-                      }
-                    />
-                  )
-                ) : (
+                ) : (!s3Enabled || agent.status === "Archived") && (
+                  // With the S3 session store, archiving keeps everything and the agent
+                  // can run again, so it's how a live agent is retired; Delete is only
+                  // offered once it's archived.
                   <ConfirmDialog
                     title="Delete Agent"
-                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`}
+                    description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone.${s3Enabled ? " Its last saved session stays in S3." : ""}`}
                     onConfirm={handleDelete}
-                    trigger={
-                      <Button variant="destructive" size="sm" aria-label="Delete" title="Delete">
-                        <Trash2 className="size-3" data-icon="inline-start" />
-                        <span className="hidden @6xl:inline">Delete</span>
-                      </Button>
-                    }
+                    trigger={<ActionButton variant="destructive" tip="Delete the agent and its workspace" label="Delete" icon={Trash2} />}
                   />
                 )}
                 <Tooltip
@@ -976,8 +937,7 @@ export default function AgentDetailPage() {
                       color={agent.sessionStore.ok ? "var(--color-status-running)" : "var(--color-status-error)"}
                     />
                   )}
-                  <div className="-mx-2 flex items-center justify-between gap-4 rounded-[var(--radius-sm)] px-2 py-0.5 transition-colors hover:bg-[var(--color-surface-hover)]/60">
-                    <span className="text-[12.5px] font-medium text-[var(--color-text)] shrink-0">Squad</span>
+                  <InfoRow label="Squad">
                     {agentSquad ? (
                       <Link
                         href={`/squads/${agentSquad.name}?namespace=${agentSquad.namespace}`}
@@ -989,7 +949,7 @@ export default function AgentDetailPage() {
                     ) : (
                       <span className="text-[13px] text-[var(--color-text-secondary)]">Not in a squad</span>
                     )}
-                  </div>
+                  </InfoRow>
                   {archivedReadOnly(agent.status, s3Enabled) && agent.budgetUSD && (
                     <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
                   )}
@@ -1017,8 +977,6 @@ export default function AgentDetailPage() {
     </motion.div>
   );
 }
-
-
 
 // Spend-vs-budget meter: a small horizontal bar under the metrics row, shown
 // only when a soft lifetime budgetUSD is set. Turns the accent color red once
@@ -1138,25 +1096,29 @@ function SettingsCard({ agent, agentNs, onSaved }: {
   const labelsChanged = Object.keys(labelDiff.labels).length > 0 || labelDiff.removeLabels.length > 0;
 
   // Field names for the save bar, in form order.
-  const changedFields = ([
-    [systemPromptChanged, "System prompt"],
-    [model !== agent.model, "Model"],
-    [effort !== agentEffort, "Reasoning effort"],
-    [lifecycle !== agentLifecycle, "Lifecycle"],
-    [sleepTTLChanged, "Sleep TTL"],
-    [archiveTTLChanged, "Archive TTL"],
-    [deleteTTLChanged, "Delete TTL"],
-    [taskTimeoutChanged, "Task timeout"],
-    [budgetUSDChanged, "Budget"],
-    [taskBudgetUSDChanged, "Task budget"],
-    [connectorsChanged, "Connectors"],
-    [skillsChanged, "Skills"],
-    [memoriesChanged, "Memories"],
-    [secretsChanged, "Secrets"],
-    [allowedToolsChanged, "Allowed tools"],
-    [disallowedToolsChanged, "Blocked tools"],
-    [labelsChanged, "Labels"],
-  ] as [boolean, string][]).filter(([c]) => c).map(([, n]) => n);
+  // Every unsaved change, with the section it belongs to: drives the save bar's
+  // list and each section's unsaved-changes dot.
+  const changes: [boolean, string, string][] = [
+    [systemPromptChanged, "System prompt", "prompt"],
+    [model !== agent.model, "Model", "model"],
+    [effort !== agentEffort, "Reasoning effort", "model"],
+    [lifecycle !== agentLifecycle, "Lifecycle", "limits"],
+    [sleepTTLChanged, "Sleep TTL", "limits"],
+    [archiveTTLChanged, "Archive TTL", "limits"],
+    [deleteTTLChanged, "Delete TTL", "limits"],
+    [taskTimeoutChanged, "Task timeout", "limits"],
+    [budgetUSDChanged, "Budget", "limits"],
+    [taskBudgetUSDChanged, "Task budget", "limits"],
+    [connectorsChanged, "Connectors", "tools"],
+    [skillsChanged, "Skills", "tools"],
+    [memoriesChanged, "Memories", "tools"],
+    [secretsChanged, "Secrets", "tools"],
+    [allowedToolsChanged, "Allowed tools", "tools"],
+    [disallowedToolsChanged, "Blocked tools", "tools"],
+    [labelsChanged, "Labels", "labels"],
+  ];
+  const changedFields = changes.filter(([c]) => c).map(([, n]) => n);
+  const isDirty = (section: string) => changes.some(([c, , sec]) => c && sec === section);
 
   function discard() {
     setModel(agent.model);
@@ -1179,19 +1141,15 @@ function SettingsCard({ agent, agentNs, onSaved }: {
     setError(null);
   }
 
-  // Live countdowns under the TTL fields; the sleep/archive/delete timer that fires
-  // soonest is highlighted, as in the header strip.
-  const nextTimer = buildTtlSegments(agent).find((t) => t.next)?.label;
-  const ttlHint = (orig: string | undefined, changed: boolean, label: string, at: string | undefined, verb: string, fallback: string) => {
-    if (changed) return { hint: `Was ${orig ? fmtDuration(orig) : "unset"}`, tone: "changed" as const };
-    const when = fmtIn(at);
-    if (orig && when) return { hint: `${verb} ${when}`, tone: nextTimer === label ? ("next" as const) : undefined };
-    return { hint: fallback, tone: undefined };
+  // Live countdowns under the TTL fields, from the same segments as the header strip.
+  const segs = buildTtlSegments(agent);
+  const ttlHint = (key: TtlKey, verb: string, fallback: string) => {
+    const seg = segs.find((t) => t.key === key);
+    const when = fmtIn(seg?.at);
+    return when ? { hint: `${verb} ${when}`, hintTone: seg?.next ? ("next" as const) : undefined } : { hint: fallback };
   };
-  const sleepH = ttlHint(agent.sleepTTL, sleepTTLChanged, "Sleep TTL", agent.sleepExpiresAt, "sleeps", "Sleep after this long idle");
-  const archiveH = ttlHint(agent.archiveTTL, archiveTTLChanged, "Archive TTL", agent.archiveExpiresAt, "archives", "Archive after this long idle");
-  const deleteH = ttlHint(agent.deleteTTL, deleteTTLChanged, "Delete TTL", agent.deleteExpiresAt, "deletes", "Delete this long after creation");
-  const taskH = ttlHint(agent.taskTimeout, taskTimeoutChanged, "Task timeout", agent.taskExpiresAt, "cancels", agent.taskTimeout ? "No task running" : "Cap on a single task");
+  const was = (orig: string | undefined, changed: boolean, fmt: (v: string) => string = fmtDuration) => ({ changed, from: orig ? fmt(orig) : undefined });
+  const usd = (v: string) => `$${v}`;
 
   async function handleSave() {
     setSaving(true);
@@ -1239,16 +1197,16 @@ function SettingsCard({ agent, agentNs, onSaved }: {
 
   return (
     <div className="@container flex min-h-full flex-col">
-      <DetailsSection index={0} icon={FileText} title="Prompt" dirty={systemPromptChanged}
+      <DetailsSection index={0} icon={FileText} title="Prompt" dirty={isDirty("prompt")}
         description="What the agent is told. Instructions come with each task; the system prompt is the persona it keeps every task.">
         <PromptEditor instructions={instructions} systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt} />
       </DetailsSection>
 
-      <DetailsSection index={1} icon={Cpu} title="Model" dirty={model !== agent.model || effort !== agentEffort}
+      <DetailsSection index={1} icon={Cpu} title="Model" dirty={isDirty("model")}
         description="Applies when the next pod starts.">
         <div className="grid grid-cols-3 @max-3xl:grid-cols-1 gap-4">
           <Field label="Model" className="col-span-2 @max-3xl:col-span-1" tip="The Claude model the agent runs. Applies when the next pod starts."
-            hint={model !== agent.model ? `Was ${agent.model}` : undefined} hintTone={model !== agent.model ? "changed" : undefined}>
+            was={{ changed: model !== agent.model, from: agent.model }}>
             <ModelSelector value={model} onChange={(v) => setModel(v)} label="" />
           </Field>
           <Field label="Reasoning effort" tip="How much the model thinks before answering. Auto uses the model's default.">
@@ -1267,10 +1225,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       </DetailsSection>
 
       <DetailsSection index={2} icon={Clock} title="Lifecycle & limits"
-        dirty={lifecycle !== agentLifecycle || sleepTTLChanged || archiveTTLChanged || deleteTTLChanged || taskTimeoutChanged || budgetUSDChanged || taskBudgetUSDChanged}
+        dirty={isDirty("limits")}
         description="What happens when it's idle, and how much it may spend.">
         <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
-          <Field label="Lifecycle" tip="What happens to the agent after each task: keep running, sleep, delete, or archive." hint={sleepBlocked ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC)." : LIFECYCLE_TIPS[lifecycle]?.split(" — ")[1] ?? "After each task the pod keeps running."}>
+          <Field label="Lifecycle" tip="What happens to the agent after each task: keep running, sleep, delete, or archive." hint={sleepBlocked ? "Sleep is unavailable — this agent's workspace is ephemeral (no PVC)." : LIFECYCLE_DESCRIPTIONS[lifecycle] ?? "After each task the pod keeps running."}>
             <Select value={lifecycle} onValueChange={(v) => v && setLifecycle(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -1291,82 +1249,43 @@ function SettingsCard({ agent, agentNs, onSaved }: {
           </Field>
         </div>
         <div className="grid grid-cols-4 @max-4xl:grid-cols-2 gap-4">
-          <Field label="Sleep TTL" tip="Sleep after this long idle (pod deleted, workspace kept). Resets on any activity. Empty to never sleep." hint={sleepH.hint} hintTone={sleepH.tone}>
+          <Field label="Sleep TTL" tip="Sleep after this long idle (pod deleted, workspace kept). Resets on any activity. Empty to never sleep." {...ttlHint("sleep", "sleeps", "Sleep after this long idle")} was={was(agent.sleepTTL, sleepTTLChanged)}>
             <Input value={sleepTTL} onChange={(e) => setSleepTTL(e.target.value)} placeholder="e.g. 30m" />
           </Field>
-          <Field label="Archive TTL" tip="Archive after this long idle (pod and workspace removed, record kept). Keeps counting while asleep. Empty to never archive." hint={archiveH.hint} hintTone={archiveH.tone}>
+          <Field label="Archive TTL" tip="Archive after this long idle (pod and workspace removed, record kept). Keeps counting while asleep. Empty to never archive." {...ttlHint("archive", "archives", "Archive after this long idle")} was={was(agent.archiveTTL, archiveTTLChanged)}>
             <Input value={archiveTTL} onChange={(e) => setArchiveTTL(e.target.value)} placeholder="e.g. 24h" />
           </Field>
-          <Field label="Delete TTL" tip="Delete the agent this long after it was created. Absolute: never resets. Empty to never delete." hint={deleteH.hint} hintTone={deleteH.tone}>
+          <Field label="Delete TTL" tip="Delete the agent this long after it was created. Absolute: never resets. Empty to never delete." {...ttlHint("delete", "deletes", "Delete this long after creation")} was={was(agent.deleteTTL, deleteTTLChanged)}>
             <Input value={deleteTTL} onChange={(e) => setDeleteTTL(e.target.value)} placeholder="e.g. 720h" />
           </Field>
-          <Field label="Task timeout" tip="Cancel a single task that runs longer than this. Steering doesn't extend it. Empty for no limit." hint={taskH.hint} hintTone={taskH.tone}>
+          <Field label="Task timeout" tip="Cancel a single task that runs longer than this. Steering doesn't extend it. Empty for no limit." {...ttlHint("task", "cancels", agent.taskTimeout ? "No task running" : "Cap on a single task")} was={was(agent.taskTimeout, taskTimeoutChanged)}>
             <Input value={taskTimeout} onChange={(e) => setTaskTimeout(e.target.value)} placeholder="e.g. 30m" />
           </Field>
         </div>
         <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
-          <Field label="Budget (USD)" tip="Soft lifetime cap: new tasks are refused once total spend reaches it; a running task still finishes." hint={budgetUSDChanged ? `Was ${agent.budgetUSD ? `$${agent.budgetUSD}` : "unset"}` : agent.budgetUSD ? undefined : "Soft lifetime cap. Empty for no cap."} hintTone={budgetUSDChanged ? "changed" : undefined}>
+          <Field label="Budget (USD)" tip="Soft lifetime cap: new tasks are refused once total spend reaches it; a running task still finishes." hint={agent.budgetUSD ? undefined : "Soft lifetime cap. Empty for no cap."} was={was(agent.budgetUSD, budgetUSDChanged, usd)}>
             <Input value={budgetUSD} onChange={(e) => setBudgetUSD(e.target.value)} placeholder="e.g. 10.00" />
             {agent.budgetUSD && !budgetUSDChanged && (
               <BudgetMeter spentUSD={agent.totalCostUSD} budgetUSD={agent.budgetUSD} exhausted={agent.budgetExhausted} />
             )}
           </Field>
-          <Field label="Task budget (USD)" tip="Hard cap per task: the task stops the moment it spends more than this." hint={taskBudgetUSDChanged ? `Was ${agent.taskBudgetUSD ? `$${agent.taskBudgetUSD}` : "unset"}` : "Hard stop for a single task. Empty for no cap."} hintTone={taskBudgetUSDChanged ? "changed" : undefined}>
+          <Field label="Task budget (USD)" tip="Hard cap per task: the task stops the moment it spends more than this." hint="Hard stop for a single task. Empty for no cap." was={was(agent.taskBudgetUSD, taskBudgetUSDChanged, usd)}>
             <Input value={taskBudgetUSD} onChange={(e) => setTaskBudgetUSD(e.target.value)} placeholder="e.g. 2.50" />
           </Field>
         </div>
       </DetailsSection>
 
-      <DetailsSection index={3} icon={Plug} title="Tools & knowledge" dirty={connectorsChanged || skillsChanged || memoriesChanged || secretsChanged || allowedToolsChanged || disallowedToolsChanged}
+      <DetailsSection index={3} icon={Plug} title="Tools & knowledge" dirty={isDirty("tools")}
         description="The connectors, skills, memories and secrets it can reach.">
         <div className="grid grid-cols-2 @max-3xl:grid-cols-1 gap-4">
           <Field label="Connectors" tip="MCP servers the agent can call as tools.">
-            <MultiSelect
-              options={availableConnectors.map<MultiSelectOption>((c) => ({
-                value: c.ref,
-                label: c.name,
-                secondary: c.ref.includes("/") ? c.namespace : null,
-                searchTerms: [c.namespace, c.ref],
-              }))}
-              value={agentConnectors}
-              onChange={setAgentConnectors}
-              placeholder="Select connectors..."
-              noun="connectors"
-              searchPlaceholder="Search connectors..."
-              emptyText="No connectors available"
-            />
+            <RefMultiSelect items={availableConnectors} value={agentConnectors} onChange={setAgentConnectors} noun="connectors" />
           </Field>
           <Field label="Skills" tip="Reusable instructions the agent can load when relevant.">
-            <MultiSelect
-              options={availableSkills.map<MultiSelectOption>((s) => ({
-                value: s.ref,
-                label: s.name,
-                secondary: s.ref.includes("/") ? s.namespace : null,
-                searchTerms: [s.namespace, s.ref],
-              }))}
-              value={agentSkills}
-              onChange={setAgentSkills}
-              placeholder="Select skills..."
-              noun="skills"
-              searchPlaceholder="Search skills..."
-              emptyText="No skills available"
-            />
+            <RefMultiSelect items={availableSkills} value={agentSkills} onChange={setAgentSkills} noun="skills" />
           </Field>
           <Field label="Memories" tip="Knowledge added to the agent's prompt on every task.">
-            <MultiSelect
-              options={availableMemories.map<MultiSelectOption>((m) => ({
-                value: m.ref,
-                label: m.name,
-                secondary: m.ref.includes("/") ? m.namespace : null,
-                searchTerms: [m.namespace, m.ref],
-              }))}
-              value={agentMemories}
-              onChange={setAgentMemories}
-              placeholder="Select memories..."
-              noun="memories"
-              searchPlaceholder="Search memories..."
-              emptyText="No memories available"
-            />
+            <RefMultiSelect items={availableMemories} value={agentMemories} onChange={setAgentMemories} noun="memories" />
           </Field>
           <Field label="Secrets" tip="Kubernetes secrets exposed to the agent as environment variables.">
           <MultiSelect
@@ -1447,7 +1366,7 @@ function SettingsCard({ agent, agentNs, onSaved }: {
         </div>
       </DetailsSection>
 
-      <DetailsSection index={4} icon={Tag} title="Labels" dirty={labelsChanged} description="For filtering and selectors.">
+      <DetailsSection index={4} icon={Tag} title="Labels" dirty={isDirty("labels")} description="For filtering and selectors.">
         <LabelsEditor
           rows={labelRows}
           errors={labelErrors}
@@ -1500,30 +1419,59 @@ function SquadAwareDeleteButton({
   );
 }
 
-function InfoRow({ label, value, mono, color, highlight, tip }: {
+// A MultiSelect over named, namespaced resources (connectors, skills, memories).
+function RefMultiSelect({ items, value, onChange, noun }: {
+  items: { name: string; namespace: string; ref: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  noun: string;
+}) {
+  return (
+    <MultiSelect
+      options={items.map<MultiSelectOption>((it) => ({
+        value: it.ref,
+        label: it.name,
+        secondary: it.ref.includes("/") ? it.namespace : null,
+        searchTerms: [it.namespace, it.ref],
+      }))}
+      value={value}
+      onChange={onChange}
+      placeholder={`Select ${noun}...`}
+      noun={noun}
+      searchPlaceholder={`Search ${noun}...`}
+      emptyText={`No ${noun} available`}
+    />
+  );
+}
+
+function InfoRow({ label, value, mono, color, highlight, tip, children }: {
   label: string;
-  value: string;
+  value?: string;
   mono?: boolean;
   color?: string;
   highlight?: boolean;
   /** Tooltip for the value; defaults to the value itself (it may be truncated). */
   tip?: string;
+  /** Custom value content (e.g. a link) instead of `value`. */
+  children?: React.ReactNode;
 }) {
   return (
-    <div className="-mx-2 flex items-center justify-between gap-4 rounded-[var(--radius-sm)] px-2 py-0.5 transition-colors hover:bg-[var(--color-surface-hover)]/60">
+    <div className={cn(RAIL_ROW, "flex items-center justify-between gap-4 py-0.5")}>
       <span className="text-[12.5px] font-medium text-[var(--color-text)] shrink-0">{label}</span>
-      <span className="min-w-0">
-        <Tooltip side="left" content={tip ?? value}>
-          <span
-            className={`block text-[13px] truncate text-right cursor-default ${
-              mono ? "font-[family-name:var(--font-mono)] text-[12.5px]" : ""
-            } ${highlight ? "font-semibold text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
-            style={color ? { color } : undefined}
-          >
-            {value}
-          </span>
-        </Tooltip>
-      </span>
+      {children ?? (
+        <span className="min-w-0">
+          <Tooltip side="left" content={tip ?? value}>
+            <span
+              className={`block text-[13px] truncate text-right cursor-default ${
+                mono ? "font-[family-name:var(--font-mono)] text-[12.5px]" : ""
+              } ${highlight ? "font-semibold text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
+              style={color ? { color } : undefined}
+            >
+              {value}
+            </span>
+          </Tooltip>
+        </span>
+      )}
     </div>
   );
 }

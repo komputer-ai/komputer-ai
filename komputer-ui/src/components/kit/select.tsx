@@ -16,6 +16,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { placeMenu } from "./place-menu";
 
 /* ------------------------------------------------------------------ */
 /*  Context                                                           */
@@ -203,26 +204,13 @@ export function SelectValue({ placeholder }: { placeholder?: string }) {
 
 interface SelectContentProps extends HTMLAttributes<HTMLDivElement> {}
 
-// Puts an open menu above or below its trigger, written straight onto the element
-// in a layout effect so it lands before the first paint (no show-below-then-jump).
-// Opens upward only when it doesn't fit below and there's more room above.
-function placeMenu(el: HTMLElement, trigger: HTMLElement, needed: number) {
-  const rect = trigger.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const up = spaceBelow < needed && rect.top > spaceBelow;
-  el.style.top = up ? "auto" : "100%";
-  el.style.bottom = up ? "100%" : "auto";
-  el.style.marginTop = up ? "0" : "4px";
-  el.style.marginBottom = up ? "4px" : "0";
-}
-
 export function SelectContent({ className, children }: SelectContentProps) {
   const { open, setOpen, triggerRef } = useSelectContext();
   const contentRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (!open || !contentRef.current || !triggerRef.current) return;
-    placeMenu(contentRef.current, triggerRef.current, 260); // 260 = max-h-60 (240px) + margin
+    placeMenu(contentRef.current, triggerRef.current);
   }, [open, triggerRef]);
 
   // Close on click outside

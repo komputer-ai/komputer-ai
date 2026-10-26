@@ -13,6 +13,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { placeMenu } from "./place-menu";
 
 export interface MultiSelectOption {
   /** Unique value stored in the selection array */
@@ -109,19 +110,9 @@ export function MultiSelect({
     return () => clearTimeout(t);
   }, [open]);
 
-  // Place the panel above or below the trigger before it paints, written straight
-  // onto the element (no state), so it never shows below and then jumps above.
-  // Opens upward only when it doesn't fit below and there's more room above.
+  // Place the panel above or below the trigger before it paints (see placeMenu).
   useLayoutEffect(() => {
-    const el = contentRef.current;
-    if (!open || !el || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const up = spaceBelow < 360 && rect.top > spaceBelow;
-    el.style.top = up ? "auto" : "100%";
-    el.style.bottom = up ? "100%" : "auto";
-    el.style.marginTop = up ? "0" : "4px";
-    el.style.marginBottom = up ? "4px" : "0";
+    if (open && contentRef.current && triggerRef.current) placeMenu(contentRef.current, triggerRef.current);
   }, [open]);
 
   // Outside click

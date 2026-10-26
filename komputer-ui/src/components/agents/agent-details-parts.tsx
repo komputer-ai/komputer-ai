@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,7 +8,9 @@ import { Maximize2, X, Copy, Check, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/kit/button";
 import { Textarea } from "@/components/kit/textarea";
 import { Tooltip } from "@/components/kit/tooltip";
-import { cn } from "@/lib/utils";
+import { Dialog, DialogContent } from "@/components/kit/dialog";
+import { fallbackCopy } from "@/components/shared/copy-button";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 // One full-bleed row of the agent details form: title and description on the
 // left, the fields across the rest. Rows are separated by a divider, not cards.
@@ -75,15 +76,19 @@ export function RailSection({ title, action, children }: { title: string; action
 }
 
 // A field's label plus a one-line hint under its control.
-export function Field({ label, tip, hint, hintTone, className, children }: {
+export function Field({ label, tip, hint, hintTone, was, className, children }: {
   label: string;
   /** What the field does, shown on hovering its label. */
   tip?: string;
   hint?: React.ReactNode;
   hintTone?: "next" | "changed";
+  /** When the field has an unsaved edit, the hint becomes "Was <from>". */
+  was?: { changed: boolean; from?: string };
   className?: string;
   children: React.ReactNode;
 }) {
+  const changed = !!was?.changed;
+  const shownHint = changed ? `Was ${was?.from || "unset"}` : hint;
   const labelEl = (
     <span
       className={cn(
@@ -96,32 +101,26 @@ export function Field({ label, tip, hint, hintTone, className, children }: {
   );
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      {tip ? <span className="self-start"><Tooltip side="top" align="start" content={tip}>{labelEl}</Tooltip></span> : labelEl}
+      {tip ? <span className="self-start"><Tooltip side="top" content={tip}>{labelEl}</Tooltip></span> : labelEl}
       {children}
-      {hint && (
+      {shownHint && (
         <span
           className={cn(
             "text-[11.5px] leading-snug",
-            hintTone === "next" ? "text-[var(--color-status-sleeping)]" : hintTone === "changed" ? "text-[var(--color-brand-blue-light)]" : "text-[var(--color-text)]/65",
+            changed || hintTone === "changed" ? "text-[var(--color-brand-blue-light)]" : hintTone === "next" ? "text-[var(--color-status-sleeping)]" : "text-[var(--color-text)]/65",
           )}
         >
-          {hint}
+          {shownHint}
         </span>
       )}
     </div>
   );
 }
 
-// "in 28m", "in 23h", "in 29d" for a future timestamp; "" when it's not in the future.
+// "in 28m", "in 23h", "in 2d" for a future timestamp; "" when it's missing or past.
 export function fmtIn(at?: string): string {
-  if (!at) return "";
-  const ms = new Date(at).getTime() - Date.now();
-  if (Number.isNaN(ms) || ms <= 0) return "";
-  const m = Math.round(ms / 60_000);
-  if (m < 60) return `in ${Math.max(m, 1)}m`;
-  const h = Math.round(m / 60);
-  if (h < 48) return `in ${h}h`;
-  return `in ${Math.round(h / 24)}d`;
+  const t = at ? new Date(at).getTime() : NaN;
+  return t > Date.now() ? formatRelativeTime(at as string) : "";
 }
 
 function textMeta(s: string): string {
@@ -145,9 +144,6 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
   const [tab, setTab] = useState<PromptTab>("instructions");
   const [focusOpen, setFocusOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Where the read-only tooltip follows the mouse over the instructions pane.
-  const [cursorTip, setCursorTip] = useState<{ x: number; y: number } | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const current = tab === "instructions" ? instructions : systemPrompt;
 
@@ -168,14 +164,14 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
     return () => window.removeEventListener("keydown", onKey);
   }, [openFocus]);
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(current);
+  function copy() {
+    const done = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context); copying is best-effort.
-    }
+    };
+    // The async clipboard API is missing on insecure (http) origins.
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(current).then(done, () => fallbackCopy(current, done));
+    else fallbackCopy(current, done);
   }
 
   const tabBtn = (id: PromptTab, label: string, value: string, locked?: boolean) => (
@@ -234,19 +230,18 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
             transition={{ duration: 0.12, ease: "easeOut" }}
           >
             {tab === "instructions" ? (
-              <div
-                aria-readonly="true"
-                aria-disabled="true"
-                aria-label={INSTRUCTIONS_READ_ONLY}
-                onMouseMove={(e) => setCursorTip({ x: e.clientX, y: e.clientY })}
-                onMouseLeave={() => setCursorTip(null)}
-                className="h-full cursor-not-allowed overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]/60"
-              >
-                {instructions || "No instructions yet. Send the agent a task from the chat."}
-              </div>
+              <Tooltip followCursor content={INSTRUCTIONS_READ_ONLY} className="flex h-full w-full">
+                <div
+                  aria-readonly="true"
+                  aria-disabled="true"
+                  aria-label={INSTRUCTIONS_READ_ONLY}
+                  className="h-full w-full cursor-not-allowed overflow-y-auto whitespace-pre-wrap px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-[var(--color-text)]/60"
+                >
+                  {instructions || "No instructions yet. Send the agent a task from the chat."}
+                </div>
+              </Tooltip>
             ) : (
               <Textarea
-                ref={textareaRef}
                 value={systemPrompt}
                 onChange={(e) => onSystemPromptChange(e.target.value)}
                 placeholder="Persona, rules or output format the agent keeps on every task. Markdown is supported."
@@ -256,18 +251,6 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {cursorTip && tab === "instructions" && typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="pointer-events-none fixed z-[60] w-max max-w-[300px] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text)] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
-            style={{ left: Math.min(cursorTip.x + 14, window.innerWidth - 316), top: cursorTip.y + 18 }}
-            role="tooltip"
-          >
-            {INSTRUCTIONS_READ_ONLY}
-          </div>,
-          document.body,
-        )}
 
       <FocusEditor
         open={focusOpen}
@@ -279,97 +262,66 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
   );
 }
 
-// Full-screen editor for a long system prompt, with a live Markdown preview.
-// Opens and closes like the kit Dialog: a blurred backdrop fades in and the
-// panel scales and slides up, rendered in a portal above the page.
+// Full-screen editor for a long system prompt, with a live Markdown preview. Built
+// on the kit Dialog, so it opens, closes and dismisses like every other modal.
 function FocusEditor({ open, value, onChange, onClose }: { open: boolean; value: string; onChange: (v: string) => void; onClose: () => void }) {
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <AnimatePresence>
-      {open && <FocusEditorPanel key="focus-editor" value={value} onChange={onChange} onClose={onClose} />}
-    </AnimatePresence>,
-    document.body,
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      {open && <FocusEditorBody value={value} onChange={onChange} onClose={onClose} />}
+    </Dialog>
   );
 }
 
-function FocusEditorPanel({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
+function FocusEditorBody({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
   // The draft starts from the current prompt each time the editor opens.
   const [draft, setDraft] = useState(value);
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    ref.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
+  // Parsing Markdown on every keystroke competes with typing; let it lag a frame.
+  const preview = useDeferredValue(draft);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label="System prompt editor">
-      <motion.div
-        className="absolute inset-0 bg-[rgba(10,5,20,0.65)] backdrop-blur-md"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        onMouseDown={onClose}
-      />
-      <motion.div
-        className="relative flex h-full max-h-[860px] w-full max-w-[1280px] flex-col rounded-[var(--radius-lg)] border border-[var(--color-border-hover)] bg-[var(--color-surface)] shadow-[0_24px_64px_rgba(0,0,0,0.45)]"
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.15, ease: "easeOut" }}
-      >
-        <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
-          <span className="text-sm font-semibold text-[var(--color-text)]">System prompt</span>
-          <span className="font-mono text-[11.5px] text-[var(--color-text-secondary)]">{textMeta(draft)}</span>
-          <Tooltip side="bottom" align="end" content="Close (Esc)">
-            <button type="button" onClick={onClose} aria-label="Close" className="ml-auto inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer">
+    <DialogContent className="h-[min(860px,calc(100vh-3rem))] max-w-[1280px] gap-0 p-0" role="dialog" aria-label="System prompt editor">
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
+        <span className="text-sm font-semibold text-[var(--color-text)]">System prompt</span>
+        <span className="font-mono text-[11.5px] text-[var(--color-text-secondary)]">{textMeta(draft)}</span>
+        <span className="ml-auto">
+          <Tooltip side="bottom" content="Close (Esc)">
+            <button type="button" onClick={onClose} aria-label="Close" className="inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer">
               <X className="size-4" />
             </button>
           </Tooltip>
+        </span>
+      </div>
+      <div className="grid min-h-0 flex-1 grid-cols-2">
+        <div className="flex min-h-0 flex-col">
+          <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Edit</span>
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Persona, rules or output format the agent keeps on every task."
+            className="min-h-0 flex-1 resize-none bg-transparent px-4 py-2 font-mono text-[13px] leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
+          />
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-2">
-          <div className="flex min-h-0 flex-col">
-            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Edit</span>
-            <textarea
-              ref={ref}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Persona, rules or output format the agent keeps on every task."
-              className="min-h-0 flex-1 resize-none bg-transparent px-4 py-2 font-mono text-[13px] leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
-            />
+        <div className="flex min-h-0 flex-col border-l border-[var(--color-border)]">
+          <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Preview</span>
+          <div className="prose-chat min-h-0 flex-1 overflow-y-auto px-4 py-2 text-sm text-[var(--color-text)]">
+            {preview.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown> : <span className="text-[var(--color-text)]/60">Nothing to preview yet.</span>}
           </div>
-          <div className="flex min-h-0 flex-col border-l border-[var(--color-border)]">
-            <span className="px-4 pt-3 text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">Preview</span>
-            <div className="prose-chat min-h-0 flex-1 overflow-y-auto px-4 py-2 text-sm text-[var(--color-text)]">
-              {draft.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown> : <span className="text-[var(--color-text)]/60">Nothing to preview yet.</span>}
-            </div>
-          </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-4 py-2.5">
-          <Button size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => {
-              onChange(draft);
-              onClose();
-            }}
-          >
-            Done
-          </Button>
-        </div>
-      </motion.div>
-    </div>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-4 py-2.5">
+        <Button size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            onChange(draft);
+            onClose();
+          }}
+        >
+          Done
+        </Button>
+      </div>
+    </DialogContent>
   );
 }
 
