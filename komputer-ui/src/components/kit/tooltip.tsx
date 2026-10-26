@@ -8,16 +8,19 @@ interface TooltipProps {
   content: React.ReactNode;
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;
+  /** For top/bottom tooltips: center on the trigger (default), or line up with its start or end edge so it stays inside a clipping container. */
+  align?: "center" | "start" | "end";
   children: React.ReactNode;
 }
 
-export function Tooltip({ content, side = "top", sideOffset = 6, children }: TooltipProps) {
+export function Tooltip({ content, side = "top", sideOffset = 6, align = "center", children }: TooltipProps) {
   const [show, setShow] = useState(false);
 
+  const horizontal = align === "start" ? "left-0" : align === "end" ? "right-0" : "left-1/2 -translate-x-1/2";
   const positionClasses: Record<string, string> = {
-    top: "bottom-full left-1/2 -translate-x-1/2",
+    top: `bottom-full ${horizontal}`,
     right: "left-full top-1/2 -translate-y-1/2",
-    bottom: "top-full left-1/2 -translate-x-1/2",
+    bottom: `top-full ${horizontal}`,
     left: "right-full top-1/2 -translate-y-1/2",
   };
 

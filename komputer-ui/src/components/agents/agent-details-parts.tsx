@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Maximize2, X, Copy, Check, Loader2 } from "lucide-react";
@@ -16,26 +17,46 @@ export function DetailsSection({
   title,
   description,
   dirty,
+  index = 0,
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
   dirty?: boolean;
+  /** Position in the form, for a short staggered entrance. */
+  index?: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid grid-cols-[220px_minmax(0,1fr)] @max-3xl:grid-cols-1 gap-x-7 gap-y-3 px-7 py-5 border-b border-[var(--color-border)]">
+    <motion.section
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.04 }}
+      className="group/section grid grid-cols-[220px_minmax(0,1fr)] @max-3xl:grid-cols-1 gap-x-7 gap-y-3 px-7 py-5 border-b border-[var(--color-border)] transition-colors duration-150 hover:bg-[var(--color-surface)]/40"
+    >
       <div>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
-          <Icon className="size-3.5 text-[var(--color-text-muted)]" />
+          <Icon className="size-3.5 text-[var(--color-text-secondary)] transition-colors group-hover/section:text-[var(--color-brand-blue-light)]" />
           {title}
-          {dirty && <span className="size-1.5 rounded-full bg-[var(--color-brand-blue)]" aria-label="Unsaved changes" title="Unsaved changes" />}
+          <AnimatePresence>
+            {dirty && (
+              <Tooltip side="right" content="Unsaved changes in this section">
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  className="block size-1.5 rounded-full bg-[var(--color-brand-blue)]"
+                  aria-label="Unsaved changes"
+                />
+              </Tooltip>
+            )}
+          </AnimatePresence>
         </h2>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">{description}</p>
+        <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-text)]/70">{description}</p>
       </div>
       <div className="grid min-w-0 gap-4">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -44,7 +65,7 @@ export function RailSection({ title, action, children }: { title: string; action
   return (
     <section className="flex flex-col gap-2.5 px-5 py-4 border-b border-[var(--color-border)]">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[11px] uppercase tracking-wider font-medium text-[var(--color-text-muted)]">{title}</h3>
+        <h3 className="text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]">{title}</h3>
         {action}
       </div>
       {children}
@@ -53,22 +74,34 @@ export function RailSection({ title, action, children }: { title: string; action
 }
 
 // A field's label plus a one-line hint under its control.
-export function Field({ label, hint, hintTone, className, children }: {
+export function Field({ label, tip, hint, hintTone, className, children }: {
   label: string;
+  /** What the field does, shown on hovering its label. */
+  tip?: string;
   hint?: React.ReactNode;
   hintTone?: "next" | "changed";
   className?: string;
   children: React.ReactNode;
 }) {
+  const labelEl = (
+    <span
+      className={cn(
+        "text-[11px] uppercase tracking-wider font-semibold text-[var(--color-text)]",
+        tip && "cursor-help underline decoration-dotted decoration-[var(--color-text-muted)] underline-offset-4",
+      )}
+    >
+      {label}
+    </span>
+  );
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <span className="text-[11px] uppercase tracking-wider font-medium text-[var(--color-text-muted)]">{label}</span>
+      {tip ? <span className="self-start"><Tooltip side="top" align="start" content={tip}>{labelEl}</Tooltip></span> : labelEl}
       {children}
       {hint && (
         <span
           className={cn(
             "text-[11.5px] leading-snug",
-            hintTone === "next" ? "text-[var(--color-status-sleeping)]" : hintTone === "changed" ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text-muted)]",
+            hintTone === "next" ? "text-[var(--color-status-sleeping)]" : hintTone === "changed" ? "text-[var(--color-brand-blue-light)]" : "text-[var(--color-text)]/65",
           )}
         >
           {hint}
@@ -147,14 +180,19 @@ export function PromptEditor({ instructions, systemPrompt, onSystemPromptChange 
       aria-selected={tab === id}
       onClick={() => setTab(id)}
       className={cn(
-        "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-[12.5px] transition-colors cursor-pointer",
-        tab === id
-          ? "border-[var(--color-brand-blue)] font-medium text-[var(--color-text)]"
-          : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+        "relative inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-[12.5px] transition-colors cursor-pointer",
+        tab === id ? "font-medium text-[var(--color-text)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
       )}
     >
       {label}
-      {value.trim() && <span className="font-mono text-[11px] font-normal text-[var(--color-text-muted)]">{textMeta(value)}</span>}
+      {value.trim() && <span className="font-mono text-[11px] font-normal text-[var(--color-text-secondary)]">{textMeta(value)}</span>}
+      {tab === id && (
+        <motion.span
+          layoutId="prompt-tab-underline"
+          className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-[var(--color-brand-blue)]"
+          transition={{ type: "spring", stiffness: 500, damping: 38 }}
+        />
+      )}
     </button>
   );
 
@@ -281,9 +319,18 @@ export function SaveBar({ changed, saving, saved, error, disabled, onDiscard, on
   onDiscard: () => void;
   onSave: () => void;
 }) {
-  if (changed.length === 0 && !saving && !saved && !error) return null;
+  const visible = changed.length > 0 || saving || saved || !!error;
   return (
-    <div className="sticky bottom-0 z-10 mt-auto flex items-center gap-3 border-t border-[var(--color-border-hover)] bg-[var(--color-surface)] px-7 py-2.5 text-[13px]" role="status">
+    <AnimatePresence>
+      {visible && (
+    <motion.div
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 24, opacity: 0 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      className="sticky bottom-0 z-10 mt-auto flex items-center gap-3 border-t border-[var(--color-border-hover)] bg-[var(--color-surface)] px-7 py-2.5 text-[13px]"
+      role="status"
+    >
       {error ? (
         <span className="min-w-0 truncate text-[var(--color-status-error)]" title={error}>{error}</span>
       ) : saved && changed.length === 0 ? (
@@ -292,7 +339,7 @@ export function SaveBar({ changed, saving, saved, error, disabled, onDiscard, on
         <>
           <span className="size-2 rounded-full bg-[var(--color-brand-blue)]" aria-hidden />
           <span className="text-[var(--color-text)]">{changed.length} unsaved {changed.length === 1 ? "change" : "changes"}</span>
-          <span className="min-w-0 truncate text-[var(--color-text-secondary)]">{changed.join(", ")}</span>
+          <span className="min-w-0 truncate text-[var(--color-text)]/80">{changed.join(", ")}</span>
         </>
       )}
       <span className="flex-1" />
@@ -304,6 +351,8 @@ export function SaveBar({ changed, saving, saved, error, disabled, onDiscard, on
           </Button>
         </>
       )}
-    </div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
