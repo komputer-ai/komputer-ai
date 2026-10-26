@@ -502,7 +502,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.3, delay: 0.25 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text)]">Recent Agents</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Recent Agents</h3>
             <Link href="/agents" className="text-[10px] text-[var(--color-brand-blue)] hover:underline flex items-center gap-0.5">
               View all <ArrowRight className="size-2.5" />
             </Link>
