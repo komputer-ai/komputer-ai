@@ -526,7 +526,7 @@ export default function AgentDetailPage() {
     >
       {/* Unified header */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-6 pr-2">
+        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-bg)] pl-4 pr-2">
           <div className="@container flex flex-wrap items-center gap-x-3 gap-y-2 min-h-11 py-1.5">
             {/* Left: back button on settings view, otherwise status + model */}
             {view === "settings" ? (
@@ -697,7 +697,9 @@ export default function AgentDetailPage() {
                 </Tooltip>
               )}
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                {/* One joined group for the agent's actions; deletes and settings sit outside it. */}
+                <div className="inline-flex items-stretch rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] [&>*+*]:border-l [&>*+*]:border-[var(--color-border)] [&_button]:!rounded-none [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!shadow-none [&_button]:!backdrop-blur-none [&_button:hover:not(:disabled)]:!bg-[var(--color-surface-hover)] [&>*:first-child_button]:!rounded-l-full [&>*:last-child_button]:!rounded-r-full">
                 {archivedReadOnly(agent.status, s3Enabled) ? null : agentDormant(agent.status, s3Enabled) ? (
                   <Tooltip side="bottom" content="Wake the agent">
                     <Button variant="secondary" size="sm" onClick={handleWake} aria-label="Wake">
@@ -780,31 +782,7 @@ export default function AgentDetailPage() {
                   </Button>
                 </Tooltip>
                 )}
-                {s3Enabled && agent.sessionStore?.ok === false && (
-                  <ConfirmDialog
-                    title="Delete without saving"
-                    description={`The last attempt to save "${agent.name}"'s session to S3 failed (${agent.sessionStore.error ?? "unknown error"}). A normal delete waits until the session is saved; this deletes the agent right away and its latest session is lost.`}
-                    onConfirm={() => handleDelete({ force: true })}
-                    trigger={
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="size-3" data-icon="inline-start" />
-                        Delete without saving
-                      </Button>
-                    }
-                  />
-                )}
-                {agentSquad ? (
-                  <SquadAwareDeleteButton
-                    agentName={agent.name}
-                    agentNamespace={agent.namespace}
-                    squad={agentSquad}
-                    onConfirm={handleDelete}
-                  />
-                ) : s3Enabled ? (
-                  // With the S3 session store, archiving keeps everything and the
-                  // agent can run again, so it's how a live agent is retired;
-                  // Delete is only offered once it's archived.
-                  agent.status !== "Archived" ? (
+                {!agentSquad && s3Enabled && agent.status !== "Archived" && (
                     agent.taskStatus === "InProgress" || agent.taskStatus === "Compacting" || archiving ? (
                       // No confirm dialog behind a disabled button (a click would still
                       // reach the dialog's wrapper); the span carries the tooltip.
@@ -841,7 +819,33 @@ export default function AgentDetailPage() {
                       />
                       </Tooltip>
                     )
-                  ) : (
+                )}
+                </div>
+                {s3Enabled && agent.sessionStore?.ok === false && (
+                  <ConfirmDialog
+                    title="Delete without saving"
+                    description={`The last attempt to save "${agent.name}"'s session to S3 failed (${agent.sessionStore.error ?? "unknown error"}). A normal delete waits until the session is saved; this deletes the agent right away and its latest session is lost.`}
+                    onConfirm={() => handleDelete({ force: true })}
+                    trigger={
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="size-3" data-icon="inline-start" />
+                        Delete without saving
+                      </Button>
+                    }
+                  />
+                )}
+                {agentSquad ? (
+                  <SquadAwareDeleteButton
+                    agentName={agent.name}
+                    agentNamespace={agent.namespace}
+                    squad={agentSquad}
+                    onConfirm={handleDelete}
+                  />
+                ) : s3Enabled ? (
+                  // With the S3 session store, archiving keeps everything and the
+                  // agent can run again, so it's how a live agent is retired;
+                  // Delete is only offered once it's archived.
+                  agent.status === "Archived" && (
                     <ConfirmDialog
                       title="Delete Agent"
                       description={`Are you sure you want to delete "${agent.name}"? This action cannot be undone. Its last saved session stays in S3.`}
