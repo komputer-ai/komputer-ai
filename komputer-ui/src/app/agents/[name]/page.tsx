@@ -1243,9 +1243,10 @@ function SettingsCard({ agent, agentNs, onSaved }: {
       <DetailsSection index={1} icon={Cpu} title="Model" dirty={model !== agent.model || effort !== agentEffort}
         description="Applies when the next pod starts.">
         <div className="grid grid-cols-3 @max-3xl:grid-cols-1 gap-4">
-          <div className="col-span-2 @max-3xl:col-span-1 min-w-0">
-            <ModelSelector value={model} onChange={(v) => setModel(v)} />
-          </div>
+          <Field label="Model" className="col-span-2 @max-3xl:col-span-1" tip="The Claude model the agent runs. Applies when the next pod starts."
+            hint={model !== agent.model ? `Was ${agent.model}` : undefined} hintTone={model !== agent.model ? "changed" : undefined}>
+            <ModelSelector value={model} onChange={(v) => setModel(v)} label="" />
+          </Field>
           <Field label="Reasoning effort" tip="How much the model thinks before answering. Auto uses the model's default.">
             <Select value={effort} onValueChange={(v) => v && setEffort(v)}>
               <SelectTrigger className="w-full">
