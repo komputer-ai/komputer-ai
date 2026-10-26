@@ -186,11 +186,13 @@ function StatsScrollRow({ children }: { children: React.ReactNode }) {
     // the visual gap to the next section stays comfortable while the row
     // still reserves room internally for hover-shadow render below the cards.
     <div className="relative min-w-0 -mb-2">
-      {/* Left fade + chevron */}
+      {/* Left fade + chevron. The fades cover only the cards (top-2/bottom-6 match the
+          row's pt-2/pb-6), not the padding kept for hover shadows, which the next
+          section overlaps. */}
       {showLeft && (
         <>
           <div
-            className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-10"
+            className="pointer-events-none absolute left-0 top-2 bottom-6 w-8 z-10"
             style={{
               background: "linear-gradient(to right, var(--color-bg), transparent)",
             }}
@@ -209,7 +211,7 @@ function StatsScrollRow({ children }: { children: React.ReactNode }) {
       {showRight && (
         <>
           <div
-            className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-10"
+            className="pointer-events-none absolute right-0 top-2 bottom-6 w-8 z-10"
             style={{
               background: "linear-gradient(to left, var(--color-bg), transparent)",
             }}
@@ -500,7 +502,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.3, delay: 0.25 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Recent Agents</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text)]">Recent Agents</h3>
             <Link href="/agents" className="text-[10px] text-[var(--color-brand-blue)] hover:underline flex items-center gap-0.5">
               View all <ArrowRight className="size-2.5" />
             </Link>

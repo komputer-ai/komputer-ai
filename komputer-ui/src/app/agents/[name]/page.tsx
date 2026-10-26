@@ -946,10 +946,13 @@ export default function AgentDetailPage() {
             <SubAgentPanel agentName={agent.name} events={events} namespace={agentNs} />
           </div>
         ) : (
-          <div className="@container flex-1 overflow-y-auto">
-            <div className="grid min-h-full grid-cols-[minmax(0,1fr)_340px] @max-5xl:grid-cols-1">
+          <div className="@container flex min-h-0 flex-1 flex-col">
+          {/* Wide: the form and the rail scroll on their own, so the rail stays put.
+              Stacked (narrow): one scroll for both. */}
+          <div className="min-h-0 flex-1 overflow-y-auto @5xl:overflow-hidden">
+            <div className="grid min-h-full grid-cols-1 @5xl:h-full @5xl:grid-cols-[minmax(0,1fr)_340px]">
               {/* Form column: full-bleed section rows */}
-              <div className="flex min-w-0 flex-col">
+              <div className="flex min-w-0 flex-col @5xl:min-h-0 @5xl:overflow-y-auto">
                 {archivedReadOnly(agent.status, s3Enabled) ? (
                   <div className="border-b border-[var(--color-border)] px-7 py-4 text-sm text-[var(--color-text-secondary)]">
                     This agent is archived. Its pod and workspace were removed; its settings and cost are kept as a record.
@@ -960,7 +963,7 @@ export default function AgentDetailPage() {
               </div>
 
               {/* Rail: overview, conditions, topology — a flush column, no cards */}
-              <aside className="min-w-0 border-l border-[var(--color-border)] bg-[var(--color-bg-subtle)] @max-5xl:border-l-0 @max-5xl:border-t">
+              <aside className="min-w-0 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)] @5xl:min-h-0 @5xl:overflow-y-auto @5xl:border-t-0 @5xl:border-l">
                 <RailSection title="Overview">
                   <InfoRow label="Name" value={agent.name} mono />
                   <InfoRow label="Namespace" value={agent.namespace} mono />
@@ -997,6 +1000,7 @@ export default function AgentDetailPage() {
                 <AgentTopology agentName={agent.name} agentNs={agentNs} flush />
               </aside>
             </div>
+          </div>
           </div>
         )}
       </div>
