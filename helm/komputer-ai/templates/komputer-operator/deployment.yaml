@@ -56,6 +56,7 @@ spec:
         {{- end }}
         - name: KOMPUTER_MAX_CONCURRENT_SESSION_SAVERS
           value: {{ .Values.operator.sessionSaver.maxConcurrent | quote }}
+        {{- include "komputer.apiTokenEnv" . | nindent 8 }}
         {{- include "komputer.s3CredentialsEnv" . | nindent 8 }}
         {{- with .Values.operator.extraEnv }}
         {{- toYaml . | nindent 8 }}

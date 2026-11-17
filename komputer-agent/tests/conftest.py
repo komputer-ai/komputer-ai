@@ -44,6 +44,7 @@ def mock_api(monkeypatch):
             self.responses = {}   # (method, path) -> (status, body_dict)
             self.calls = []       # list of (method, path) actually invoked
             self.last_json = None # JSON body of the most recent request
+            self.last_headers = None # headers of the most recent request
 
         def set(self, method, path, body, status=200):
             self.responses[(method.upper(), path)] = (status, body)
@@ -71,6 +72,7 @@ def mock_api(monkeypatch):
             path = url.replace(base, "", 1)
             fake.calls.append((method.upper(), path))
             fake.last_json = kwargs.get("json")
+            fake.last_headers = kwargs.get("headers")
             key = (method.upper(), path)
             if key not in fake.responses:
                 return FakeResponse(404, {"error": f"no mock for {key}"})

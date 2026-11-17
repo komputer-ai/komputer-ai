@@ -32,6 +32,7 @@ import type {
   CreateSquadRequest,
 } from './types';
 import { getConfig } from './config';
+import { authHeaders, notifyUnauthorized } from './auth';
 
 // Set to true to mock API responses with empty data (for UI development)
 const MOCK_EMPTY = false;
@@ -42,9 +43,10 @@ function getBaseUrl() {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${getBaseUrl()}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(options?.headers as Record<string, string> | undefined) },
   });
+  if (res.status === 401) notifyUnauthorized();
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);

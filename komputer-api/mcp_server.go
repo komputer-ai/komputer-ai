@@ -152,7 +152,9 @@ func (op mcpOperation) buildRequest(ctx context.Context, basePath string, rawArg
 	if raw, ok := args["body"]; ok && op.HasBody && string(raw) != "null" {
 		body = bytes.NewReader(raw)
 	}
-	req, err := http.NewRequestWithContext(ctx, op.Method, basePath+path, body)
+	// The outer /mcp request was already authenticated; mark this one so the
+	// auth middleware lets the in-process dispatch through.
+	req, err := http.NewRequestWithContext(withInProcess(ctx), op.Method, basePath+path, body)
 	if err != nil {
 		return nil, err
 	}

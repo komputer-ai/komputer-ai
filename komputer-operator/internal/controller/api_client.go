@@ -6,12 +6,22 @@ import (
 	"net/http"
 	neturl "net/url"
 	"os"
+	"strings"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
 )
+
+// setAPIAuth adds the API bearer token when KOMPUTER_API_TOKEN is set (the
+// API has auth turned on). Without it the request goes out unauthenticated,
+// which is what an API with auth off expects.
+func setAPIAuth(req *http.Request) {
+	if token := strings.TrimSpace(os.Getenv("KOMPUTER_API_TOKEN")); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+}
 
 // getKomputerAPIURL returns the komputer-api base URL. Checks the KOMPUTER_API_URL env
 // var first (for local dev), then falls back to KomputerConfig (for in-cluster).
@@ -57,6 +67,7 @@ func cancelAgentTaskViaAPI(ctx context.Context, c client.Client, namespace, agen
 	if err != nil {
 		return err
 	}
+	setAPIAuth(req)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err

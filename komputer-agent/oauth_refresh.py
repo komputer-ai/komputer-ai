@@ -10,6 +10,12 @@ API_URL = os.environ.get("KOMPUTER_API_URL", "http://komputer-api:8080")
 NAMESPACE = os.environ.get("KOMPUTER_NAMESPACE", "default")
 
 
+def _auth_headers() -> dict:
+    """Bearer token for komputer-api, when its auth is on (KOMPUTER_API_TOKEN)."""
+    token = os.environ.get("KOMPUTER_API_TOKEN", "").strip()
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 async def refresh_oauth_token(connector_name: str) -> str | None:
     """Call komputer-api to refresh an OAuth token. Returns new access_token or None."""
     try:
@@ -17,6 +23,7 @@ async def refresh_oauth_token(connector_name: str) -> str | None:
             resp = await client.post(
                 f"{API_URL}/api/v1/oauth/refresh",
                 json={"connector_name": connector_name, "namespace": NAMESPACE},
+                headers=_auth_headers(),
             )
             if resp.status_code == 200:
                 data = resp.json()

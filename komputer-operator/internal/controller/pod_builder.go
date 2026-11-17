@@ -140,6 +140,7 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 			corev1.EnvVar{Name: "KOMPUTER_API_URL", Value: config.Spec.APIURL},
 		)
 	}
+	envVars = append(envVars, buildAPITokenEnvVars(agent, config)...)
 
 	envVars = append(envVars, buildToolPolicyEnvVars(&agent.Spec)...)
 
@@ -530,4 +531,23 @@ func podHasS3Env(c corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+// buildAPITokenEnvVars passes the API bearer token to manager agents, the only
+// agents that call komputer-api. The Secret is mirrored into the agent's
+// namespace by reconcileAgentSecrets, so it's read by name from there.
+func buildAPITokenEnvVars(agent *komputerv1alpha1.KomputerAgent, config *komputerv1alpha1.KomputerConfig) []corev1.EnvVar {
+	ref := config.Spec.APITokenSecret
+	if agent.Spec.Role != "manager" || ref == nil || ref.Name == "" {
+		return nil
+	}
+	return []corev1.EnvVar{{
+		Name: "KOMPUTER_API_TOKEN",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: ref.Name},
+				Key:                  ref.Key,
+			},
+		},
+	}}
 }
