@@ -27,6 +27,7 @@ from tool_policy import (
     DEFAULT_TOOLS,
     build_tool_options,
     make_allowlist_deny_hook,
+    make_bash_allowlist_hook,
     parse_tool_list,
 )
 
@@ -267,6 +268,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
     # Finalized after MCP registration below, once server names are known.
     allowed_tools_cfg = parse_tool_list(os.environ.get("KOMPUTER_ALLOWED_TOOLS"))
     disallowed_tools_cfg = parse_tool_list(os.environ.get("KOMPUTER_DISALLOWED_TOOLS"))
+    allowed_bash_cfg = parse_tool_list(os.environ.get("KOMPUTER_ALLOWED_BASH_COMMANDS"))
 
     options = ClaudeAgentOptions(
         tools=list(DEFAULT_TOOLS),
@@ -371,12 +373,17 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                 hooks=[make_allowlist_deny_hook(policy["effective_allowed"])],
             )
         )
+    if allowed_bash_cfg:
+        options.hooks.setdefault("PreToolUse", []).append(
+            HookMatcher(matcher="Bash", hooks=[make_bash_allowlist_hook(allowed_bash_cfg)])
+        )
     logger.info(
         "tool policy applied",
         extra={
             "tools": options.tools,
             "disallowed_tools": options.disallowed_tools,
             "allowlist_enforced": policy["enforce_allowlist"],
+            "bash_allowlist": allowed_bash_cfg,
         },
     )
 

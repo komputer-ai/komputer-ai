@@ -40,6 +40,10 @@ type CreateAgentRequest struct {
 	// DisallowedTools removes these tools; everything else stays available.
 	// Takes precedence over AllowedTools. Supports wildcards.
 	DisallowedTools []string `json:"disallowedTools"`
+	// AllowedCommands restricts what Bash may run: "git status*" is a prefix
+	// match, anything else exact; chaining and redirects are denied. Empty
+	// leaves Bash unrestricted.
+	AllowedCommands []string `json:"allowedCommands"`
 	Lifecycle       string   `json:"lifecycle"` // "", "Sleep", "AutoDelete", or "Archive"
 	// SleepTTL puts the agent to sleep after this long with no activity, as a Go
 	// duration string (e.g. "30m", "2h"). Empty means never auto-sleep.
@@ -132,6 +136,7 @@ type AgentResponse struct {
 	Connectors         []string                      `json:"connectors,omitempty"`      // KomputerConnector names attached to this agent
 	AllowedTools       []string                      `json:"allowedTools,omitempty"`    // Tools this agent is restricted to (empty = defaults)
 	DisallowedTools    []string                      `json:"disallowedTools,omitempty"` // Tools removed from this agent
+	AllowedCommands    []string                      `json:"allowedCommands,omitempty"` // Bash command patterns this agent is restricted to
 	Instructions       string                        `json:"instructions,omitempty"`    // User task (spec.instructions)
 	SystemPrompt       string                        `json:"systemPrompt,omitempty"`    // Custom system prompt (spec.systemPrompt)
 	CreatedAt          string                        `json:"createdAt"`
@@ -451,6 +456,8 @@ type PatchAgentRequest struct {
 	AllowedTools *[]string `json:"allowedTools,omitempty"`
 	// DisallowedTools removes these tools; an explicit [] clears the list.
 	DisallowedTools *[]string `json:"disallowedTools,omitempty"`
+	// AllowedCommands restricts what Bash may run; an explicit [] clears it.
+	AllowedCommands *[]string `json:"allowedCommands,omitempty"`
 	SystemPrompt    *string   `json:"systemPrompt,omitempty"` // custom system prompt
 	// SleepTTL / DeleteTTL are Go duration strings (e.g. "30m"). An explicit ""
 	// clears the TTL; omitting the field leaves it unchanged.
@@ -690,6 +697,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 					Connectors:         existing.Spec.Connectors,
 					AllowedTools:       existing.Spec.AllowedTools,
 					DisallowedTools:    existing.Spec.DisallowedTools,
+					AllowedCommands:    existing.Spec.AllowedCommands,
 					Instructions:       existing.Spec.Instructions,
 					SystemPrompt:       existing.Spec.SystemPrompt,
 					CreatedAt:          existing.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -797,6 +805,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Connectors:         existing.Spec.Connectors,
 				AllowedTools:       existing.Spec.AllowedTools,
 				DisallowedTools:    existing.Spec.DisallowedTools,
+				AllowedCommands:    existing.Spec.AllowedCommands,
 				Instructions:       existing.Spec.Instructions,
 				SystemPrompt:       existing.Spec.SystemPrompt,
 				CreatedAt:          existing.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -855,6 +864,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 				Connectors:      connectors,
 				AllowedTools:    req.AllowedTools,
 				DisallowedTools: req.DisallowedTools,
+				AllowedCommands: req.AllowedCommands,
 				Lifecycle:       komputerv1alpha1.AgentLifecycle(req.Lifecycle),
 				SleepTTL:        sleepTTL,
 				DeleteTTL:       deleteTTL,
@@ -892,6 +902,7 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         agent.Spec.Connectors,
 			AllowedTools:       agent.Spec.AllowedTools,
 			DisallowedTools:    agent.Spec.DisallowedTools,
+			AllowedCommands:    agent.Spec.AllowedCommands,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1142,6 +1153,7 @@ func wakeAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         agent.Spec.Connectors,
 			AllowedTools:       agent.Spec.AllowedTools,
 			DisallowedTools:    agent.Spec.DisallowedTools,
+			AllowedCommands:    agent.Spec.AllowedCommands,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1218,6 +1230,7 @@ func archiveAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         agent.Spec.Connectors,
 			AllowedTools:       agent.Spec.AllowedTools,
 			DisallowedTools:    agent.Spec.DisallowedTools,
+			AllowedCommands:    agent.Spec.AllowedCommands,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1303,6 +1316,7 @@ func sleepAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         agent.Spec.Connectors,
 			AllowedTools:       agent.Spec.AllowedTools,
 			DisallowedTools:    agent.Spec.DisallowedTools,
+			AllowedCommands:    agent.Spec.AllowedCommands,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1364,6 +1378,7 @@ func getAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         agent.Spec.Connectors,
 			AllowedTools:       agent.Spec.AllowedTools,
 			DisallowedTools:    agent.Spec.DisallowedTools,
+			AllowedCommands:    agent.Spec.AllowedCommands,
 			Instructions:       agent.Spec.Instructions,
 			SystemPrompt:       agent.Spec.SystemPrompt,
 			CreatedAt:          agent.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1576,6 +1591,7 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 				Connectors:         a.Spec.Connectors,
 				AllowedTools:       a.Spec.AllowedTools,
 				DisallowedTools:    a.Spec.DisallowedTools,
+				AllowedCommands:    a.Spec.AllowedCommands,
 				Instructions:       a.Spec.Instructions,
 				SystemPrompt:       a.Spec.SystemPrompt,
 				CreatedAt:          a.CreationTimestamp.UTC().Format(time.RFC3339),
@@ -1667,7 +1683,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
-		if req.Model == nil && req.Effort == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.ArchiveTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
+		if req.Model == nil && req.Effort == nil && req.Lifecycle == nil && req.Instructions == nil && req.TemplateRef == nil && req.SecretRefs == nil && req.Memories == nil && req.Skills == nil && req.Connectors == nil && req.AllowedTools == nil && req.DisallowedTools == nil && req.AllowedCommands == nil && req.SystemPrompt == nil && req.Priority == nil && req.PodSpec == nil && req.Storage == nil && req.SleepTTL == nil && req.DeleteTTL == nil && req.ArchiveTTL == nil && req.TaskTimeout == nil && req.BudgetUSD == nil && req.TaskBudgetUSD == nil && len(req.Labels) == 0 && len(req.RemoveLabels) == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
 			return
 		}
@@ -1851,10 +1867,10 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 
 		// 1d. Update skills if provided.
-		if req.AllowedTools != nil || req.DisallowedTools != nil {
+		if req.AllowedTools != nil || req.DisallowedTools != nil || req.AllowedCommands != nil {
 			// Takes effect on the agent's next start — the tool policy is applied
 			// when the SDK session is constructed, not at runtime.
-			if err := k8s.PatchAgentToolPolicy(c.Request.Context(), ns, name, req.AllowedTools, req.DisallowedTools); err != nil {
+			if err := k8s.PatchAgentToolPolicy(c.Request.Context(), ns, name, req.AllowedTools, req.DisallowedTools, req.AllowedCommands); err != nil {
 				Logger.Warnw("failed to patch agent tool policy", "namespace", ns, "agent_name", name, "error", err)
 				nonFatalErrors = append(nonFatalErrors, fmt.Sprintf("failed to update tool policy: %v", err))
 			}
@@ -1969,6 +1985,7 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 			Connectors:         updated.Spec.Connectors,
 			AllowedTools:       updated.Spec.AllowedTools,
 			DisallowedTools:    updated.Spec.DisallowedTools,
+			AllowedCommands:    updated.Spec.AllowedCommands,
 			CreatedAt:          updated.CreationTimestamp.UTC().Format(time.RFC3339),
 			Priority:           updated.Spec.Priority,
 			QueuePosition:      updated.Status.QueuePosition,

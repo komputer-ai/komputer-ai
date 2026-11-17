@@ -130,3 +130,54 @@ def make_allowlist_deny_hook(allowed: list[str]):
         }
 
     return allowlist_hook
+
+
+# Shell syntax that runs or feeds a second command. A prefix pattern can't vouch
+# for whatever follows it, so commands containing any of these are denied when a
+# Bash allowlist is set.
+_SHELL_CONTROL = (";", "&", "|", "`", "$(", ">", "<", "\n", "\r")
+
+
+def bash_command_allowed(command: str, patterns: list[str]) -> bool:
+    """Whether a Bash command passes the allowlist.
+
+    An empty ``patterns`` means "unrestricted". Otherwise the command must not
+    chain or redirect, and must match a pattern: a trailing ``*`` is a prefix
+    match, anything else an exact match (both after trimming whitespace).
+    """
+    if not patterns:
+        return True
+    cmd = command.strip()
+    if not cmd or any(tok in cmd for tok in _SHELL_CONTROL):
+        return False
+    for pattern in patterns:
+        p = pattern.strip()
+        if p.endswith("*"):
+            if cmd.startswith(p[:-1]):
+                return True
+        elif cmd == p:
+            return True
+    return False
+
+
+def make_bash_allowlist_hook(patterns: list[str]):
+    """Build a PreToolUse hook that denies Bash commands outside ``patterns``."""
+
+    async def bash_allowlist_hook(input, session_id, ctx):
+        if input.get("tool_name") != "Bash":
+            return {}
+        command = (input.get("tool_input") or {}).get("command", "")
+        if bash_command_allowed(command, patterns):
+            return {}
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    "this Bash command is not in the agent's allowedCommands "
+                    "(allowed: " + ", ".join(patterns) + "; chaining and redirects are not allowed)"
+                ),
+            }
+        }
+
+    return bash_allowlist_hook

@@ -3193,6 +3193,13 @@
         "main.AgentResponse": {
             "type": "object",
             "properties": {
+                "allowedCommands": {
+                    "description": "Bash command patterns this agent is restricted to",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "allowedTools": {
                     "description": "Tools this agent is restricted to (empty = defaults)",
                     "type": "array",
@@ -3493,6 +3500,13 @@
                 "name"
             ],
             "properties": {
+                "allowedCommands": {
+                    "description": "AllowedCommands restricts what Bash may run: \"git status*\" is a prefix\nmatch, anything else exact; chaining and redirects are denied. Empty\nleaves Bash unrestricted.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "allowedTools": {
                     "description": "AllowedTools restricts the agent to exactly these tools. REPLACES the default\nbuilt-in set rather than extending it, and connector tools are not auto-added.\nSupports wildcards, e.g. \"mcp__figma__*\". Empty keeps default behavior.",
                     "type": "array",
@@ -3907,6 +3921,13 @@
         "main.PatchAgentRequest": {
             "type": "object",
             "properties": {
+                "allowedCommands": {
+                    "description": "AllowedCommands restricts what Bash may run; an explicit [] clears it.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "allowedTools": {
                     "description": "AllowedTools restricts the agent to these tools; an explicit [] clears the\nrestriction and restores the default tool set.",
                     "type": "array",
@@ -8609,6 +8630,13 @@
         "v1alpha1.KomputerAgentSpec": {
             "type": "object",
             "properties": {
+                "allowedCommands": {
+                    "description": "AllowedCommands restricts what the Bash tool may run. When set, a\nBash command is allowed only if it matches one of these patterns: a\ntrailing \"*\" is a prefix match (\"git status*\", \"kubectl get *\"), anything\nelse must match exactly. Commands that chain or redirect (;, \u0026\u0026, ||, |,\nbackticks, $(...), \u003e, \u003c, newlines) are denied, since a prefix can't vouch\nfor what follows. Empty (default) leaves Bash unrestricted.\n\nThis is a guard against an agent wandering, not a sandbox: an allowed\ncommand can still do anything it is able to (e.g. \"python *\").\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "allowedTools": {
                     "description": "AllowedTools restricts the agent to exactly these tools. When empty, the\ndefault built-in tool set is used and all tools from attached connectors\nare permitted.\n\nSetting this REPLACES the default set rather than extending it, so an\nagent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector\ntools are not auto-added either — list them explicitly, e.g.\n\"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\"\nfor a single tool.\n+optional",
                     "type": "array",
@@ -8808,6 +8836,13 @@
         "v1alpha1.ScheduleAgentSpec": {
             "type": "object",
             "properties": {
+                "allowedCommands": {
+                    "description": "AllowedCommands restricts what the Bash tool may run. When set, a\nBash command is allowed only if it matches one of these patterns: a\ntrailing \"*\" is a prefix match (\"git status*\", \"kubectl get *\"), anything\nelse must match exactly. Commands that chain or redirect (;, \u0026\u0026, ||, |,\nbackticks, $(...), \u003e, \u003c, newlines) are denied, since a prefix can't vouch\nfor what follows. Empty (default) leaves Bash unrestricted.\n\nThis is a guard against an agent wandering, not a sandbox: an allowed\ncommand can still do anything it is able to (e.g. \"python *\").\n+optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "allowedTools": {
                     "description": "AllowedTools restricts the agent to exactly these tools. When empty, the\ndefault built-in tool set is used and all tools from attached connectors\nare permitted.\n\nSetting this REPLACES the default set rather than extending it, so an\nagent given only [\"Read\"] loses Bash, Write, Edit and the rest. Connector\ntools are not auto-added either — list them explicitly, e.g.\n\"mcp__figma__*\" for a whole connector or \"mcp__figma__get_design_context\"\nfor a single tool.\n+optional",
                     "type": "array",
