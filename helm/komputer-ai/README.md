@@ -118,6 +118,11 @@ templates/
 | `externalRedis.address` | External Redis address (when `redis.enabled=false`) | `""` |
 | `externalRedis.passwordSecret.name` | Secret containing external Redis password | `""` |
 | `imagePullSecrets` | Image pull secrets for private registries | `[]` |
+| `networkPolicy.api.enabled` | NetworkPolicy limiting who can reach the API | `false` |
+| `networkPolicy.api.allowedNamespaces` | Namespaces allowed to reach the API (ingress controller, Prometheus) | `[]` |
+| `networkPolicy.agents.enabled` | NetworkPolicy for agent pods (ingress from operator/API, limited egress) | `false` |
+| `networkPolicy.agents.namespaces` | Namespaces agents run in. Defaults to `config.defaultAgentNamespace` | `[]` |
+| `networkPolicy.agents.egress.allowInternet` | Let agents reach the internet (private ranges and metadata blocked) | `true` |
 
 See [`values.yaml`](values.yaml) for all options.
 
@@ -204,6 +209,30 @@ helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
 > **Note:** The API uses WebSockets for live event streaming. Make sure your ingress controller is configured with appropriate timeouts (shown above for nginx).
 >
 > **Important:** When using ingress, set `ui.apiUrl` to the API's external URL. This value is injected into the browser — it must be reachable from the user's machine, not from within the cluster.
+
+### Network policies
+
+Off by default. They need a CNI that enforces NetworkPolicy (Calico, Cilium, the AWS VPC CNI with network policy on, ...).
+
+```yaml
+networkPolicy:
+  api:
+    enabled: true
+    # Who else may reach the API: your ingress controller (for the UI and
+    # external clients) and Prometheus (for /api/metrics).
+    allowedNamespaces: [ingress-nginx, monitoring]
+  agents:
+    enabled: true
+    namespaces: [default, team-a]   # namespaces agents run in
+    egress:
+      allowInternet: true           # model API, MCP connectors, git
+```
+
+- **`api`**: only the operator, agents in `agents.namespaces` and `allowedNamespaces` can reach port 8080.
+- **`agents`**: one policy per agent namespace. Agent pods accept traffic only from the operator and the API, and can reach DNS, the API, Redis and the internet. Private ranges and the instance metadata address (`169.254.169.254`) are blocked by default; edit `egress.internetExcept` if agents need an in-VPC service, or add `egress.extraRules` (e.g. the Kubernetes API for agents with `agent.serviceAccount.create`).
+- If you use EKS Pod Identity (`169.254.170.23`) or another node-local credential endpoint, add it to `egress.extraRules`.
+
+**Behind an auth proxy.** If the API is exposed for the UI or external clients, put an authenticating proxy in front of it (for example oauth2-proxy with your IdP, or your ingress controller's external auth). With `networkPolicy.api.enabled`, allow only the proxy's namespace in `allowedNamespaces`, so nothing reaches the API around it.
 
 ### Private Container Registry
 
