@@ -811,6 +811,19 @@ func createOrTriggerAgent(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
+		// The template's allowedSecrets (if any) limits which secrets can be attached.
+		if len(req.SecretRefs) > 0 {
+			allowed, err := k8s.TemplateAllowedSecrets(c.Request.Context(), ns, req.TemplateRef)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read template: " + err.Error()})
+				return
+			}
+			if err := checkSecretsAllowed(req.SecretRefs, allowed, req.TemplateRef); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
 		// A new agent has no existing connectors to compare against — every connector in
 		// the request is a fresh attach, so a disabled one is always rejected here.
 		if err := k8s.ValidateConnectorsAttachable(c.Request.Context(), ns, req.Connectors, nil); err != nil {
@@ -1680,6 +1693,24 @@ func patchAgent(k8s *K8sClient) gin.HandlerFunc {
 		}
 		if req.Effort != nil {
 			if err := validateEffort(*req.Effort); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		// The template's allowedSecrets (if any) limits which secrets can be attached.
+		if req.SecretRefs != nil && len(*req.SecretRefs) > 0 {
+			templateRef := ""
+			if req.TemplateRef != nil {
+				templateRef = *req.TemplateRef
+			} else if target, getErr := k8s.GetAgent(c.Request.Context(), ns, name); getErr == nil {
+				templateRef = target.Spec.TemplateRef
+			}
+			allowed, err := k8s.TemplateAllowedSecrets(c.Request.Context(), ns, templateRef)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read template: " + err.Error()})
+				return
+			}
+			if err := checkSecretsAllowed(*req.SecretRefs, allowed, templateRef); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}

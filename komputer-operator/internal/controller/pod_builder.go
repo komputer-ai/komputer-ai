@@ -147,10 +147,20 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 	// when it has no local copy. Only present when S3 is configured.
 	envVars = append(envVars, buildS3EnvVars(config.Spec.S3, agent)...)
 
+	// The template's allowedSecrets (if any) limits which Secrets the agent gets.
+	allowedSecrets, err := templateAllowedSecrets(ctx, c, agent)
+	if err != nil {
+		return nil, err
+	}
+
 	// Inject env vars from agent secrets as SECRET_<SECRETNAME>_<KEY>.
 	injectedSecrets := make(map[string]bool)
 	for _, secretName := range agent.Spec.Secrets {
 		injectedSecrets[secretName] = true
+		if !komputerv1alpha1.SecretAllowed(secretName, allowedSecrets) {
+			log.Info("Skipping secret not allowed by the agent's template", "secret", secretName)
+			continue
+		}
 		secret := &corev1.Secret{}
 		if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, secret); err != nil {
 			log.Error(err, "Failed to get agent secret", "secret", secretName)
@@ -177,6 +187,10 @@ func buildAgentEnvVars(ctx context.Context, c client.Client, agent *komputerv1al
 		if err := c.Get(ctx, types.NamespacedName{Name: agent.Spec.OfficeManager, Namespace: agent.Namespace}, manager); err == nil {
 			for _, secretName := range manager.Spec.Secrets {
 				if injectedSecrets[secretName] {
+					continue
+				}
+				if !komputerv1alpha1.SecretAllowed(secretName, allowedSecrets) {
+					log.Info("Skipping inherited secret not allowed by the agent's template", "secret", secretName)
 					continue
 				}
 				secret := &corev1.Secret{}
@@ -530,4 +544,22 @@ func podHasS3Env(c corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+// templateAllowedSecrets returns the agent template's allowedSecrets. A missing
+// template means no restriction; any other lookup error is returned, so a
+// transient failure doesn't hand out secrets the template would have blocked.
+func templateAllowedSecrets(ctx context.Context, c client.Client, agent *komputerv1alpha1.KomputerAgent) ([]string, error) {
+	ref := agent.Spec.TemplateRef
+	if ref == "" {
+		ref = "default"
+	}
+	spec, err := readTemplateSpec(ctx, c, ref, agent.Namespace)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read template %q for secret policy: %w", ref, err)
+	}
+	return spec.AllowedSecrets, nil
 }
