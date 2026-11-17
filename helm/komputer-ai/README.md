@@ -114,6 +114,7 @@ templates/
 | `agent.serviceAccount.rules` | RBAC rules granted to the agent service account | `[]` |
 | `clusterTemplate.storageSize` | PVC size for agent workspaces | `5Gi` |
 | `clusterTemplate.resources` | Resource requests/limits for agent pods | See `values.yaml` |
+| `clusterTemplate.allowedSecrets` | Secrets agents on the default template may receive (`github-*` prefix match). Empty allows any | `[]` |
 | `redis.enabled` | Deploy Redis HA subchart | `true` |
 | `externalRedis.address` | External Redis address (when `redis.enabled=false`) | `""` |
 | `externalRedis.passwordSecret.name` | Secret containing external Redis password | `""` |

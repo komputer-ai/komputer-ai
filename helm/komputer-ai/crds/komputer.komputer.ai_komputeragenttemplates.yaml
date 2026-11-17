@@ -42,6 +42,19 @@ spec:
           spec:
             description: KomputerAgentTemplateSpec defines the desired state of KomputerAgentTemplate.
             properties:
+              allowedSecrets:
+                description: |-
+                  AllowedSecrets limits which Secrets agents using this template may
+                  receive, by name. A trailing "*" is a prefix match ("github-*"). This
+                  covers the agent's own spec.secrets and the secrets it inherits from its
+                  office manager, so an agent (or a manager acting for it) can't attach an
+                  arbitrary Secret from its namespace. Secrets outside the list are not
+                  injected, and the API rejects them.
+
+                  Empty (default) means no restriction.
+                items:
+                  type: string
+                type: array
               anthropicKeySecretRef:
                 description: |-
                   AnthropicKeySecretRef is the absolute reference to the Anthropic API

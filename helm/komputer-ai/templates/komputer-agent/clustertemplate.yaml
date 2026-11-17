@@ -61,3 +61,7 @@ spec:
     namespace: {{ .Values.anthropicKeySecret.namespace }}
     {{- end }}
   {{- end }}
+  {{- with .Values.clusterTemplate.allowedSecrets }}
+  allowedSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

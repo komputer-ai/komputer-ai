@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -106,6 +108,34 @@ type KomputerAgentTemplateSpec struct {
 	// Anthropic key secret is configured.
 	// +optional
 	AnthropicKeySecretRef *SecretKeyRef `json:"anthropicKeySecretRef,omitempty"`
+	// AllowedSecrets limits which Secrets agents using this template may
+	// receive, by name. A trailing "*" is a prefix match ("github-*"). This
+	// covers the agent's own spec.secrets and the secrets it inherits from its
+	// office manager, so an agent (or a manager acting for it) can't attach an
+	// arbitrary Secret from its namespace. Secrets outside the list are not
+	// injected, and the API rejects them.
+	//
+	// Empty (default) means no restriction.
+	// +optional
+	AllowedSecrets []string `json:"allowedSecrets,omitempty"`
+}
+
+// SecretAllowed reports whether a Secret name passes an AllowedSecrets list.
+// An empty list allows everything.
+func SecretAllowed(name string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, p := range allowed {
+		if strings.HasSuffix(p, "*") {
+			if strings.HasPrefix(name, strings.TrimSuffix(p, "*")) {
+				return true
+			}
+		} else if name == p {
+			return true
+		}
+	}
+	return false
 }
 
 // KomputerAgentTemplateStatus defines the observed state of KomputerAgentTemplate.

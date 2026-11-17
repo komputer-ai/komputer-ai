@@ -310,6 +310,9 @@ webhooks:
 clusterTemplate:
   # -- PVC storage size for agent workspaces
   storageSize: 5Gi
+  # -- Secrets agents on the default template may receive, by name ("github-*"
+  # is a prefix match). Empty allows any Secret in the agent's namespace.
+  allowedSecrets: []
   resources:
     requests:
       cpu: 500m
