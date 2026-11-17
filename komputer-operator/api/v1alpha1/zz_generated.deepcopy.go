@@ -483,6 +483,11 @@ func (in *KomputerConfigList) DeepCopyObject() runtime.Object {
 func (in *KomputerConfigSpec) DeepCopyInto(out *KomputerConfigSpec) {
 	*out = *in
 	in.Redis.DeepCopyInto(&out.Redis)
+	if in.APITokenSecret != nil {
+		in, out := &in.APITokenSecret, &out.APITokenSecret
+		*out = new(SecretKeyRef)
+		**out = **in
+	}
 	if in.S3 != nil {
 		in, out := &in.S3, &out.S3
 		*out = new(S3Spec)

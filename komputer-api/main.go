@@ -86,17 +86,15 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(accessLogMiddleware())
   
-	// CORS middleware — allow all origins (UI may run on a different host/port)
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	// CORS: any origin unless CORS_ALLOWED_ORIGINS is set (UI may run on a different host/port).
+	r.Use(corsMiddleware(corsOriginsFromEnv()))
+
+	// Bearer-token auth, on when KOMPUTER_API_TOKEN is set.
+	apiToken := apiTokenFromEnv()
+	r.Use(authMiddleware(apiToken))
+	if apiToken == "" {
+		Logger.Warn("KOMPUTER_API_TOKEN is not set: the API accepts unauthenticated requests")
+	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	SetupRoutes(r, k8s, hub, rw)

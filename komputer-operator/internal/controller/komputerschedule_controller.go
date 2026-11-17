@@ -316,7 +316,14 @@ func (r *KomputerScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				})
 				taskURL := fmt.Sprintf("%s/api/v1/agents", apiURL)
 				httpClient := &http.Client{Timeout: 30 * time.Second}
-				resp, err := httpClient.Post(taskURL, "application/json", bytes.NewReader(apiBody))
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, taskURL, bytes.NewReader(apiBody))
+				if err != nil {
+					log.Error(err, "Failed to build API request", "agent", agentName)
+					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+				}
+				req.Header.Set("Content-Type", "application/json")
+				setAPIAuth(req)
+				resp, err := httpClient.Do(req)
 				if err != nil {
 					log.Error(err, "Failed to forward task via API", "agent", agentName)
 					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil

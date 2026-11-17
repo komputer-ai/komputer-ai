@@ -18,6 +18,12 @@ spec:
       {{- end }}
     {{- end }}
   apiURL: {{ include "komputer.apiURL" . }}
+  {{- if .Values.api.auth.enabled }}
+  apiTokenSecret:
+    name: {{ .Values.api.auth.existingSecret | quote }}
+    key: {{ .Values.api.auth.secretKey | quote }}
+    namespace: {{ .Release.Namespace | quote }}
+  {{- end }}
   {{- if .Values.s3.enabled }}
   s3:
     enabled: true

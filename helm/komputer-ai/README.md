@@ -107,6 +107,10 @@ templates/
 | `api.ingress.annotations` | Ingress annotations | `{}` |
 | `api.ingress.hosts` | Ingress host rules | See `values.yaml` |
 | `api.ingress.tls` | Ingress TLS configuration | `[]` |
+| `api.auth.enabled` | Require `Authorization: Bearer <token>` on the API (see [Authentication](../../docs/integration/authentication.md)) | `false` |
+| `api.auth.existingSecret` | Secret holding the token. Required when auth is enabled | `""` |
+| `api.auth.secretKey` | Key in that Secret | `token` |
+| `api.cors.allowedOrigins` | Browser origins allowed to call the API. Empty allows any | `[]` |
 | `agent.image.repository` | Agent image used in the default cluster template | `ghcr.io/komputer-ai/komputer-agent` |
 | `agent.image.tag` | Agent image tag | `latest` |
 | `agent.defaultModel` | Default Claude model for new agents | `claude-opus-5-5` |

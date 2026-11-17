@@ -52,6 +52,11 @@ spec:
         - name: OAUTH_CALLBACK_URL
           value: {{ .Values.api.oauth.callbackUrl | quote }}
         {{- end }}
+        {{- include "komputer.apiTokenEnv" . | nindent 8 }}
+        {{- with .Values.api.cors.allowedOrigins }}
+        - name: CORS_ALLOWED_ORIGINS
+          value: {{ join "," . | quote }}
+        {{- end }}
         {{- include "komputer.s3CredentialsEnv" . | nindent 8 }}
         {{- with .Values.api.extraEnv }}
         {{- toYaml . | nindent 8 }}

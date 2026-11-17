@@ -9,6 +9,12 @@ API_URL = os.environ.get("KOMPUTER_API_URL", "http://komputer-api:8080")
 NAMESPACE = os.environ.get("KOMPUTER_NAMESPACE", "default")
 
 
+def _auth_headers() -> dict:
+    """Bearer token for komputer-api, when its auth is on (KOMPUTER_API_TOKEN)."""
+    token = os.environ.get("KOMPUTER_API_TOKEN", "").strip()
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _sanitize_name(name: str) -> str:
     """Sanitize agent name for K8s resource naming."""
     sanitized = re.sub(r'[^a-z0-9-]', '', name.lower())[:63]
@@ -31,8 +37,9 @@ async def _request(method: str, path: str, timeout: int = 10, **kwargs) -> dict:
         # Always include namespace in query params.
         params = kwargs.pop("params", {})
         params["namespace"] = NAMESPACE
+        headers = {**_auth_headers(), **kwargs.pop("headers", {})}
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.request(method, f"{API_URL}{path}", params=params, **kwargs)
+            resp = await client.request(method, f"{API_URL}{path}", params=params, headers=headers, **kwargs)
             if resp.status_code >= 400:
                 return _err(f"API error {resp.status_code}: {resp.text}")
             return _ok(resp.text)

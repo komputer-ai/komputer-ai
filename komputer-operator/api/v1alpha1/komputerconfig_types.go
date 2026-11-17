@@ -43,6 +43,12 @@ type KomputerConfigSpec struct {
 	// Used by manager agents to create/manage sub-agents.
 	// +kubebuilder:default="http://komputer-api.default.svc.cluster.local:8080"
 	APIURL string `json:"apiURL,omitempty"`
+	// APITokenSecret references the bearer token komputer-api requires when
+	// its auth is on (KOMPUTER_API_TOKEN). The operator mirrors it into each
+	// manager agent's namespace and passes it to the agent, so managers can
+	// keep calling the API. Leave unset when the API's auth is off.
+	// +optional
+	APITokenSecret *SecretKeyRef `json:"apiTokenSecret,omitempty"`
 	// S3 configures the S3 session store, where agent sessions are saved and
 	// restored from. Unset means the session store is off.
 	// +optional

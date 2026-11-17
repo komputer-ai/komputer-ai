@@ -14,6 +14,7 @@ import { CreateSkillModal } from "@/components/skills/create-skill-modal";
 import { CreateSecretModal } from "@/components/secrets/create-secret-modal";
 import { CreateConnectorModal } from "@/components/connectors/create-connector-modal";
 import { createMemory, createSkill } from "@/lib/api";
+import { ApiTokenDialog } from "@/components/shared/api-token-dialog";
 import {
   CreateAgentModalContext,
   type AgentTemplate,
@@ -307,6 +308,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CreateSkillModal open={createSkillOpen} onOpenChange={setCreateSkillOpen} onCreated={() => refreshFn?.()} />
       <CreateSecretModal open={createSecretOpen} onOpenChange={setCreateSecretOpen} onCreated={() => refreshFn?.()} />
       <CreateConnectorModal open={createConnectorOpen} onOpenChange={setCreateConnectorOpen} onCreated={() => refreshFn?.()} />
+      <ApiTokenDialog />
     </CreateAgentModalContext.Provider>
   );
 }

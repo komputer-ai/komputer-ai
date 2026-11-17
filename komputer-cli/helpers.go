@@ -178,6 +178,9 @@ func apiRequest(method, url string, body interface{}) ([]byte, int, error) {
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if t := apiToken(); t != "" {
+		req.Header.Set("Authorization", "Bearer "+t)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

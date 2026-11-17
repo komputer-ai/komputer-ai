@@ -75,6 +75,21 @@ api:
     # OAuth callback URL — must be publicly accessible for provider redirects.
     # Example: https://app.komputer.ai/api/v1/oauth/callback
     callbackUrl: ""
+  auth:
+    # -- Require "Authorization: Bearer <token>" on the API. Off by default.
+    # Health, metrics and the OAuth callback stay open. The operator and manager
+    # agents get the token automatically; the UI asks for it on first use, and
+    # the CLI takes it with `komputer login <endpoint> --token <token>`.
+    enabled: false
+    # -- Existing Secret holding the token. Required when auth is enabled.
+    existingSecret: ""
+    # -- Key in that Secret.
+    secretKey: token
+  cors:
+    # -- Origins allowed to call the API from a browser, e.g. the UI's URL.
+    # Empty allows any origin (the default; the API sends no cookies, so this
+    # is about who can use a token, not about leaking one).
+    allowedOrigins: []
 
 ui:
   enabled: true

@@ -20,6 +20,8 @@ Save your API endpoint so you don't need to pass it every time:
 
 ```bash
 komputer login http://localhost:8080
+# API with auth on (or set KOMPUTER_API_TOKEN):
+komputer login https://komputer.example.com --token <token>
 ```
 
 Config is stored at `~/.komputer-ai/config.json`. You can override it per-command with `--api`:
@@ -221,7 +223,7 @@ komputer rm my-agent
 
 ### Agents
 ```
-komputer login <endpoint>           Save API endpoint
+komputer login <endpoint> [--token] Save API endpoint (and token)
 komputer create <name> <prompt>     Create agent or send task [--model, --template, --lifecycle, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image]
 komputer run <name> <prompt>        Create + stream output    [--model, --lifecycle, --system-prompt, --priority, --cpu, --memory-limit, --storage, --image]
 komputer update <name>              Patch existing agent       [--model, --instructions, --priority, --cpu, --memory-limit, --storage, --image] (pass empty value to clear an override)

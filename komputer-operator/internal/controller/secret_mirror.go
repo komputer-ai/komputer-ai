@@ -188,6 +188,15 @@ func reconcileAgentSecrets(
 		sources = append(sources, sourceRef{Namespace: redisRef.Namespace, Name: redisRef.Name})
 	}
 
+	// Only managers call the API, so only they get its token.
+	if ref := config.Spec.APITokenSecret; ref != nil && ref.Name != "" && agent.Spec.Role == "manager" {
+		ns := ref.Namespace
+		if ns == "" {
+			ns = controlNs
+		}
+		sources = append(sources, sourceRef{Namespace: ns, Name: ref.Name})
+	}
+
 	if s3 := config.Spec.S3; s3.IsEnabled() && s3.CredentialsSecret != nil && s3.CredentialsSecret.Name != "" {
 		ns := s3.CredentialsSecret.Namespace
 		if ns == "" {

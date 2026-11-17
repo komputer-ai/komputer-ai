@@ -83,3 +83,17 @@ settings (e.g. Bedrock). Without them, the AWS default credential chain applies.
       optional: true
 {{- end }}
 {{- end }}
+
+{{/*
+API bearer token env var, from the Secret named in api.auth. Used by the API
+and the operator when api.auth.enabled is true.
+*/}}
+{{- define "komputer.apiTokenEnv" -}}
+{{- if .Values.api.auth.enabled }}
+- name: KOMPUTER_API_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ required "api.auth.existingSecret is required when api.auth.enabled is true" .Values.api.auth.existingSecret }}
+      key: {{ .Values.api.auth.secretKey }}
+{{- end }}
+{{- end }}

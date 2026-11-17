@@ -18,14 +18,15 @@ import (
 
 func registerAgentCommands(root *cobra.Command) {
 	// ── login ────────────────────────────────────────────────────────────
-	root.AddCommand(&cobra.Command{
+	loginCmd := &cobra.Command{
 		Use:   "login <endpoint>",
-		Short: "Save API endpoint to ~/.komputer-ai/config.json",
+		Short: "Save API endpoint (and token) to ~/.komputer-ai/config.json",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			jsonMode, _ := cmd.Flags().GetBool("json")
 			endpoint := strings.TrimRight(args[0], "/")
-			if err := saveConfig(&Config{APIEndpoint: endpoint}); err != nil {
+			token, _ := cmd.Flags().GetString("token")
+			if err := saveConfig(&Config{APIEndpoint: endpoint, Token: strings.TrimSpace(token)}); err != nil {
 				if jsonMode {
 					dieJSON("Failed to save config: "+err.Error(), 500)
 				}
@@ -40,7 +41,9 @@ func registerAgentCommands(root *cobra.Command) {
 			fmt.Printf("  %s %s\n", labelStyle.Render("Endpoint:"), valueStyle.Render(endpoint))
 			fmt.Printf("  %s %s\n", labelStyle.Render("Config:"), dimStyle.Render(configPath()))
 		},
-	})
+	}
+	loginCmd.Flags().String("token", "", "API bearer token, for an API with auth on (or set KOMPUTER_API_TOKEN)")
+	root.AddCommand(loginCmd)
 
 	// ── list ─────────────────────────────────────────────────────────────
 	listCmd := &cobra.Command{
@@ -1047,7 +1050,7 @@ func registerAgentCommands(root *cobra.Command) {
 				}
 			}
 
-			conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+			conn, _, err := websocket.DefaultDialer.Dial(wsURL, authHeader())
 			if err != nil {
 				fmt.Println(errorStyle.Render("WebSocket connect failed: " + err.Error()))
 				os.Exit(1)
@@ -1208,7 +1211,7 @@ func registerAgentCommands(root *cobra.Command) {
 			spinner := NewSpinner("Waiting for agent pod to start...")
 			var conn *websocket.Conn
 			for i := 0; i < 30; i++ {
-				conn, _, err = websocket.DefaultDialer.Dial(wsURL, nil)
+				conn, _, err = websocket.DefaultDialer.Dial(wsURL, authHeader())
 				if err == nil {
 					break
 				}
@@ -1420,7 +1423,7 @@ func registerAgentCommands(root *cobra.Command) {
 				spinner := NewSpinner("Waiting for agent to start...")
 				var wsErr error
 				for i := 0; i < 30; i++ {
-					conn, _, wsErr = websocket.DefaultDialer.Dial(wsURL, nil)
+					conn, _, wsErr = websocket.DefaultDialer.Dial(wsURL, authHeader())
 					if wsErr == nil {
 						break
 					}
