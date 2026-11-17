@@ -66,3 +66,22 @@ func TestToolPolicyEnvVarsIndependent(t *testing.T) {
 		t.Error("disallowed must be present")
 	}
 }
+
+func TestAllowedCommandsEnvVar(t *testing.T) {
+	if _, ok := toolPolicyEnvValue(buildToolPolicyEnvVars(&komputerv1alpha1.KomputerAgentSpec{}), "KOMPUTER_ALLOWED_BASH_COMMANDS"); ok {
+		t.Error("KOMPUTER_ALLOWED_BASH_COMMANDS must be omitted when AllowedCommands is empty")
+	}
+
+	envVars := buildToolPolicyEnvVars(&komputerv1alpha1.KomputerAgentSpec{
+		AgentConfigSpec: komputerv1alpha1.AgentConfigSpec{
+			AllowedCommands: []string{"git status*", "ls"},
+		},
+	})
+	got, ok := toolPolicyEnvValue(envVars, "KOMPUTER_ALLOWED_BASH_COMMANDS")
+	if !ok {
+		t.Fatal("KOMPUTER_ALLOWED_BASH_COMMANDS missing")
+	}
+	if got != `["git status*","ls"]` {
+		t.Errorf("KOMPUTER_ALLOWED_BASH_COMMANDS = %s", got)
+	}
+}

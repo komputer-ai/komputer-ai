@@ -349,6 +349,25 @@ spec:
 >
 > To admit a subset of a connector's tools, use `allowedTools` **on its own** and list exactly the tools you want.
 
+### `allowedCommands` — limit what Bash can run
+
+Keeps Bash but restricts it to commands you list. A trailing `*` is a prefix match; anything else must match exactly.
+
+```yaml
+spec:
+  allowedCommands:
+    - "git status*"
+    - "git diff*"
+    - "kubectl get *"
+    - "ls"
+```
+
+With that list, `git status --short` and `kubectl get pods -A` run; `kubectl delete pod x` and `ls -la` are denied, and the agent is told why. Commands that chain or redirect (`;`, `&&`, `||`, `|`, `&`, backticks, `$(...)`, `>`, `<`, newlines) are always denied while the list is set, since a prefix can't vouch for what follows.
+
+> **This is a guard, not a sandbox.** An allowed command can still do whatever it is able to: `python *` allows any Python. Allow narrow, read-only commands, and combine it with `disallowedTools` / `allowedTools` and pod-level controls (service account, NetworkPolicy) for real isolation.
+
+Leave it unset and Bash is unrestricted. It's set through the API (`allowedCommands` on create, and on `PATCH`, where `[]` clears it) or on the agent spec.
+
 ### Setting tool permissions
 
 **CLI** — at creation, or later with `komputer config`:

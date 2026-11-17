@@ -57,6 +57,11 @@ func buildToolPolicyEnvVars(spec *komputerv1alpha1.KomputerAgentSpec) []corev1.E
 			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_DISALLOWED_TOOLS", Value: string(b)})
 		}
 	}
+	if len(spec.AllowedCommands) > 0 {
+		if b, err := json.Marshal(spec.AllowedCommands); err == nil {
+			envVars = append(envVars, corev1.EnvVar{Name: "KOMPUTER_ALLOWED_BASH_COMMANDS", Value: string(b)})
+		}
+	}
 	return envVars
 }
 

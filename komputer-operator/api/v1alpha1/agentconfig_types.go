@@ -85,6 +85,17 @@ type AgentConfigSpec struct {
 	// Supports wildcards, e.g. "mcp__figma__*".
 	// +optional
 	DisallowedTools []string `json:"disallowedTools,omitempty"`
+	// AllowedCommands restricts what the Bash tool may run. When set, a
+	// Bash command is allowed only if it matches one of these patterns: a
+	// trailing "*" is a prefix match ("git status*", "kubectl get *"), anything
+	// else must match exactly. Commands that chain or redirect (;, &&, ||, |,
+	// backticks, $(...), >, <, newlines) are denied, since a prefix can't vouch
+	// for what follows. Empty (default) leaves Bash unrestricted.
+	//
+	// This is a guard against an agent wandering, not a sandbox: an allowed
+	// command can still do anything it is able to (e.g. "python *").
+	// +optional
+	AllowedCommands []string `json:"allowedCommands,omitempty"`
 	// Lifecycle controls what happens after task completion.
 	// Empty (default) keeps the pod running, "Sleep" deletes the pod but keeps the PVC,
 	// "AutoDelete" deletes the entire agent after task completion, and "Archive" deletes
