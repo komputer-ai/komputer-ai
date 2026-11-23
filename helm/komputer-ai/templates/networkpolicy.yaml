@@ -24,7 +24,7 @@ spec:
         matchLabels:
           app.kubernetes.io/instance: {{ .Release.Name }}
           app.kubernetes.io/component: operator
-    # Agents (manager agents call the API).
+    # Agents, solo and squad (manager agents call the API).
     - namespaceSelector:
         matchExpressions:
         - key: kubernetes.io/metadata.name
@@ -32,7 +32,7 @@ spec:
           values: {{ toJson $agentNamespaces }}
       podSelector:
         matchExpressions:
-        - key: komputer.ai/agent-name
+        - key: komputer.ai/squad
           operator: Exists
     {{- with .Values.networkPolicy.api.allowedNamespaces }}
     - namespaceSelector:
@@ -58,7 +58,7 @@ metadata:
 spec:
   podSelector:
     matchExpressions:
-    - key: komputer.ai/agent-name
+    - key: komputer.ai/squad
       operator: Exists
   policyTypes: [Ingress, Egress]
   ingress:

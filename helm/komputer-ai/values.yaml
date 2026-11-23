@@ -338,14 +338,17 @@ networkPolicy:
     namespaces: []
     egress:
       # -- Allow egress to the internet (model API, MCP connectors, git, package
-      # registries). Private ranges and the instance metadata address stay blocked.
+      # registries).
       allowInternet: true
       # -- CIDRs blocked from internet egress when allowInternet is true.
-      internetExcept:
-        - 10.0.0.0/8
-        - 172.16.0.0/12
-        - 192.168.0.0/16
-        - 169.254.169.254/32
+      # Nothing is blocked by default; pick ranges that match your cluster.
+      # Example:
+      # internetExcept:
+      #   - 10.0.0.0/8          # RFC 1918 private range: VPC, pods, services
+      #   - 172.16.0.0/12       # RFC 1918 private range
+      #   - 192.168.0.0/16      # RFC 1918 private range
+      #   - 169.254.169.254/32  # cloud instance metadata (node credentials)
+      internetExcept: []
       # -- Extra egress rules for agent pods (e.g. the Kubernetes API for agents
       # with agent.serviceAccount.create, or an in-cluster MCP server).
       extraRules: []
