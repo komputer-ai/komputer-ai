@@ -317,3 +317,38 @@ clusterTemplate:
     limits:
       cpu: "2"
       memory: 2Gi
+
+# -- NetworkPolicies. All off by default; they need a CNI that enforces them
+# (Calico, Cilium, the VPC CNI with network policy enabled, ...).
+networkPolicy:
+  api:
+    # -- Limit who can reach komputer-api. The operator, agents in
+    # networkPolicy.agents.namespaces and the namespaces below are allowed.
+    enabled: false
+    # -- Namespaces whose pods may call the API, e.g. your ingress controller's
+    # and Prometheus's.
+    allowedNamespaces: []
+    # -- Extra NetworkPolicyPeer entries allowed to reach the API.
+    extraFrom: []
+  agents:
+    # -- Limit agent pods' traffic: ingress only from the operator and API,
+    # egress to DNS, the API, Redis and (optionally) the internet.
+    enabled: false
+    # -- Namespaces agents run in. Defaults to config.defaultAgentNamespace.
+    namespaces: []
+    egress:
+      # -- Allow egress to the internet (model API, MCP connectors, git, package
+      # registries).
+      allowInternet: true
+      # -- CIDRs blocked from internet egress when allowInternet is true.
+      # Nothing is blocked by default; pick ranges that match your cluster.
+      # Example:
+      # internetExcept:
+      #   - 10.0.0.0/8          # RFC 1918 private range: VPC, pods, services
+      #   - 172.16.0.0/12       # RFC 1918 private range
+      #   - 192.168.0.0/16      # RFC 1918 private range
+      #   - 169.254.169.254/32  # cloud instance metadata (node credentials)
+      internetExcept: []
+      # -- Extra egress rules for agent pods (e.g. the Kubernetes API for agents
+      # with agent.serviceAccount.create, or an in-cluster MCP server).
+      extraRules: []

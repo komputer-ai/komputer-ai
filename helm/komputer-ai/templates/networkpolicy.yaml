@@ -1,0 +1,105 @@
+{{- $agentNamespaces := .Values.networkPolicy.agents.namespaces | default (list .Values.config.defaultAgentNamespace) }}
+{{- if .Values.networkPolicy.api.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "komputer.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: komputer
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+  - ports:
+    - port: 8080
+      protocol: TCP
+    from:
+    # The operator (task cancel, schedule fallback).
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: {{ .Release.Name }}
+          app.kubernetes.io/component: operator
+    # Agents, solo and squad (manager agents call the API).
+    - namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values: {{ toJson $agentNamespaces }}
+      podSelector:
+        matchExpressions:
+        - key: komputer.ai/squad
+          operator: Exists
+    {{- with .Values.networkPolicy.api.allowedNamespaces }}
+    - namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values: {{ toJson . }}
+    {{- end }}
+    {{- with .Values.networkPolicy.api.extraFrom }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- if .Values.networkPolicy.agents.enabled }}
+{{- range $ns := $agentNamespaces }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $.Release.Name }}-agents
+  namespace: {{ $ns }}
+  labels:
+    {{- include "komputer.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+    - key: komputer.ai/squad
+      operator: Exists
+  policyTypes: [Ingress, Egress]
+  ingress:
+  # Tasks reach agents from the operator and the API only.
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ $.Release.Namespace }}
+      podSelector:
+        matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: In
+          values: [api, operator]
+  egress:
+  # DNS.
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+  # komputer-api and Redis in the release namespace.
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ $.Release.Namespace }}
+    ports:
+    - port: 8080
+      protocol: TCP
+    - port: 6379
+      protocol: TCP
+  {{- if $.Values.networkPolicy.agents.egress.allowInternet }}
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        {{- with $.Values.networkPolicy.agents.egress.internetExcept }}
+        except:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+  {{- end }}
+  {{- with $.Values.networkPolicy.agents.egress.extraRules }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
