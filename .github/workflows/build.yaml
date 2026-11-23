@@ -321,6 +321,24 @@ jobs:
         if: needs.changes.outputs.ui == 'true' || needs.changes.outputs.is_tag == 'true'
         run: cd komputer-ui && npm ci && npm test
 
+      - name: Set up Python
+        if: needs.changes.outputs.agent == 'true' || needs.changes.outputs.is_tag == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            komputer-agent/requirements.txt
+            komputer-agent/requirements-dev.txt
+
+      # e2e tests spawn the Claude CLI and need model credentials, so they run locally only.
+      - name: Test Agent
+        if: needs.changes.outputs.agent == 'true' || needs.changes.outputs.is_tag == 'true'
+        run: |
+          cd komputer-agent
+          pip install -r requirements.txt -r requirements-dev.txt
+          pytest -m "not e2e"
+
   sdk:
     name: SDK
     needs: [changes]

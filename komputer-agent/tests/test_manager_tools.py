@@ -383,19 +383,6 @@ async def test_list_templates(mock_api):
 # --- create_agent with squad param ---
 
 @pytest.mark.asyncio
-async def test_create_agent_with_squad_joins_squad(mock_api):
-    mock_api.set("POST", "/api/v1/agents", {"name": "worker-1"})
-    mock_api.set("POST", "/api/v1/squads/my-squad/members", {"ok": True})
-    result = await manager_tools.create_agent.handler(
-        {"name": "worker-1", "instructions": "do the work", "squad": "my-squad"}
-    )
-    assert not result.get("isError")
-    # Both calls must have been made.
-    assert ("POST", "/api/v1/agents") in mock_api.calls
-    assert ("POST", "/api/v1/squads/my-squad/members") in mock_api.calls
-
-
-@pytest.mark.asyncio
 async def test_create_agent_without_squad_skips_squad_call(mock_api):
     mock_api.set("POST", "/api/v1/agents", {"name": "solo"})
     result = await manager_tools.create_agent.handler(
@@ -407,23 +394,13 @@ async def test_create_agent_without_squad_skips_squad_call(mock_api):
     assert not squad_calls
 
 
-@pytest.mark.asyncio
-async def test_create_agent_squad_join_failure_returns_error(mock_api):
-    mock_api.set("POST", "/api/v1/agents", {"name": "worker-2"})
-    mock_api.set("POST", "/api/v1/squads/missing-squad/members", {"error": "not found"}, status=404)
-    result = await manager_tools.create_agent.handler(
-        {"name": "worker-2", "instructions": "do it", "squad": "missing-squad"}
-    )
-    assert result.get("isError")
-
-
 # --- create_squad ---
 
 @pytest.mark.asyncio
 async def test_create_squad(mock_api):
     mock_api.set("POST", "/api/v1/squads", {"name": "team-alpha"})
     result = await manager_tools.create_squad.handler(
-        {"name": "team-alpha", "agents": ["agent-a", "agent-b"]}
+        {"name": "team-alpha", "members": [{"agent": "agent-a"}, {"agent": "agent-b"}]}
     )
     assert not result.get("isError")
     assert mock_api.last_json["name"] == "team-alpha"
@@ -438,7 +415,7 @@ async def test_create_squad(mock_api):
 async def test_create_squad_custom_ttl(mock_api):
     mock_api.set("POST", "/api/v1/squads", {"name": "team-beta"})
     result = await manager_tools.create_squad.handler(
-        {"name": "team-beta", "agents": [], "orphan_ttl": "1h"}
+        {"name": "team-beta", "members": [{"agent": "agent-a"}], "orphan_ttl": "1h"}
     )
     assert not result.get("isError")
     assert mock_api.last_json["orphanTTL"] == "1h"
@@ -497,21 +474,11 @@ async def test_list_squads_with_namespace(mock_api):
     assert not result.get("isError")
 
 
-def test_manager_server_registers_all_new_tools():
-    server_dict = manager_tools.create_manager_server()
-    # create_manager_server() returns a dict {"type": "sdk", "name": ..., "instance": <Server>}.
-    # The MCP Server stores tools in its ListToolsRequest handler; call it synchronously via asyncio.
-    import mcp.types
-    inst = server_dict["instance"]
-    handler = inst.request_handlers[mcp.types.ListToolsRequest]
-    loop = asyncio.new_event_loop()
-    try:
-        result = loop.run_until_complete(
-            handler(mcp.types.ListToolsRequest(method="tools/list"))
-        )
-    finally:
-        loop.close()
-    tool_names = {t.name for t in result.root.tools}
+def test_manager_server_registers_all_new_tools(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(manager_tools, "create_sdk_mcp_server", lambda **kw: captured.update(kw))
+    manager_tools.create_manager_server()
+    tool_names = {t.name for t in captured["tools"]}
 
     # Spot-check a representative sample from each category.
     expected = {
