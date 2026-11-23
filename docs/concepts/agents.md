@@ -349,6 +349,29 @@ spec:
 >
 > To admit a subset of a connector's tools, use `allowedTools` **on its own** and list exactly the tools you want.
 
+### Denying specific Bash commands
+
+`disallowedTools` also takes Claude Code permission rules for Bash. `Bash(<prefix>:*)` denies any command that starts with `<prefix>`, and keeps Bash for everything else:
+
+```yaml
+spec:
+  disallowedTools:
+    - "Bash(kubectl delete:*)"
+    - "Bash(rm:*)"
+    - "Bash(git push:*)"
+```
+
+The agent is told the command was denied. Chained commands are checked part by part, so `ls && rm x` is denied too.
+
+> **This is a guardrail, not isolation.** Matching is on the command's prefix, so anything that doesn't start with it gets through:
+>
+> - flags before the subcommand: `kubectl --context prod delete pod x`, `git -C repo push`
+> - a script file: `sh cleanup.sh`, `python run.py`
+> - another program that does the same thing: `find . -delete`
+> - `sh -c '...'`: the current Claude Code catches a literal command inside it, but don't rely on that
+>
+> Use it to stop accidents, not a determined agent. For a real limit, use the agent's service account RBAC and NetworkPolicies. An allow-list ("only these commands") belongs with the SDK sandbox work ([#175](https://github.com/komputer-ai/komputer-ai/issues/175)), combined with NetworkPolicies.
+
 ### Setting tool permissions
 
 **CLI** — at creation, or later with `komputer config`:
