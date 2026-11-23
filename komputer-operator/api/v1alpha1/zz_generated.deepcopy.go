@@ -59,11 +59,6 @@ func (in *AgentConfigSpec) DeepCopyInto(out *AgentConfigSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.AllowedCommands != nil {
-		in, out := &in.AllowedCommands, &out.AllowedCommands
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.SleepTTL != nil {
 		in, out := &in.SleepTTL, &out.SleepTTL
 		*out = new(v1.Duration)

@@ -33,6 +33,14 @@ def test_disallowed_only_keeps_every_other_default_and_mcp_wildcards():
     assert "Read" in opts["tools"] and "Write" in opts["tools"]
 
 
+def test_bash_command_rules_keep_bash_and_reach_the_sdk():
+    """Bash(...) rules deny commands, not the tool: Bash stays and the SDK gets the rules."""
+    rules = ["Bash(rm:*)", "Bash(kubectl delete:*)"]
+    opts = build_tool_options([], rules, [])
+    assert opts["tools"] == DEFAULT_TOOLS
+    assert opts["disallowed_tools"] == rules
+
+
 def test_disallowed_connector_tool_leaves_builtins_intact():
     opts = build_tool_options([], ["mcp__figma__use_figma"], ["figma"])
     assert opts["tools"] == DEFAULT_TOOLS

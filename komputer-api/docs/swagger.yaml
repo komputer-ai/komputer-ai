@@ -118,11 +118,6 @@ definitions:
     type: object
   main.AgentResponse:
     properties:
-      allowedCommands:
-        description: Bash command patterns this agent is restricted to
-        items:
-          type: string
-        type: array
       allowedTools:
         description: Tools this agent is restricted to (empty = defaults)
         items:
@@ -357,14 +352,6 @@ definitions:
     type: object
   main.CreateAgentRequest:
     properties:
-      allowedCommands:
-        description: |-
-          AllowedCommands restricts what Bash may run: "git status*" is a prefix
-          match, anything else exact; chaining and redirects are denied. Empty
-          leaves Bash unrestricted.
-        items:
-          type: string
-        type: array
       allowedTools:
         description: |-
           AllowedTools restricts the agent to exactly these tools. REPLACES the default
@@ -681,12 +668,6 @@ definitions:
     type: object
   main.PatchAgentRequest:
     properties:
-      allowedCommands:
-        description: AllowedCommands restricts what Bash may run; an explicit [] clears
-          it.
-        items:
-          type: string
-        type: array
       allowedTools:
         description: |-
           AllowedTools restricts the agent to these tools; an explicit [] clears the
@@ -6387,21 +6368,6 @@ definitions:
     - AgentLifecycleArchive
   v1alpha1.KomputerAgentSpec:
     properties:
-      allowedCommands:
-        description: |-
-          AllowedCommands restricts what the Bash tool may run. When set, a
-          Bash command is allowed only if it matches one of these patterns: a
-          trailing "*" is a prefix match ("git status*", "kubectl get *"), anything
-          else must match exactly. Commands that chain or redirect (;, &&, ||, |,
-          backticks, $(...), >, <, newlines) are denied, since a prefix can't vouch
-          for what follows. Empty (default) leaves Bash unrestricted.
-
-          This is a guard against an agent wandering, not a sandbox: an allowed
-          command can still do anything it is able to (e.g. "python *").
-          +optional
-        items:
-          type: string
-        type: array
       allowedTools:
         description: |-
           AllowedTools restricts the agent to exactly these tools. When empty, the
@@ -6669,21 +6635,6 @@ definitions:
     - ScheduleAgentNamingRandom
   v1alpha1.ScheduleAgentSpec:
     properties:
-      allowedCommands:
-        description: |-
-          AllowedCommands restricts what the Bash tool may run. When set, a
-          Bash command is allowed only if it matches one of these patterns: a
-          trailing "*" is a prefix match ("git status*", "kubectl get *"), anything
-          else must match exactly. Commands that chain or redirect (;, &&, ||, |,
-          backticks, $(...), >, <, newlines) are denied, since a prefix can't vouch
-          for what follows. Empty (default) leaves Bash unrestricted.
-
-          This is a guard against an agent wandering, not a sandbox: an allowed
-          command can still do anything it is able to (e.g. "python *").
-          +optional
-        items:
-          type: string
-        type: array
       allowedTools:
         description: |-
           AllowedTools restricts the agent to exactly these tools. When empty, the

@@ -349,24 +349,28 @@ spec:
 >
 > To admit a subset of a connector's tools, use `allowedTools` **on its own** and list exactly the tools you want.
 
-### `allowedCommands` — limit what Bash can run
+### Denying specific Bash commands
 
-Keeps Bash but restricts it to commands you list. A trailing `*` is a prefix match; anything else must match exactly.
+`disallowedTools` also takes Claude Code permission rules for Bash. `Bash(<prefix>:*)` denies any command that starts with `<prefix>`, and keeps Bash for everything else:
 
 ```yaml
 spec:
-  allowedCommands:
-    - "git status*"
-    - "git diff*"
-    - "kubectl get *"
-    - "ls"
+  disallowedTools:
+    - "Bash(kubectl delete:*)"
+    - "Bash(rm:*)"
+    - "Bash(git push:*)"
 ```
 
-With that list, `git status --short` and `kubectl get pods -A` run; `kubectl delete pod x` and `ls -la` are denied, and the agent is told why. Commands that chain or redirect (`;`, `&&`, `||`, `|`, `&`, backticks, `$(...)`, `>`, `<`, newlines) are always denied while the list is set, since a prefix can't vouch for what follows.
+The agent is told the command was denied. Chained commands are checked part by part, so `ls && rm x` is denied too.
 
-> **This is a guard, not a sandbox.** An allowed command can still do whatever it is able to: `python *` allows any Python. Allow narrow, read-only commands, and combine it with `disallowedTools` / `allowedTools` and pod-level controls (service account, NetworkPolicy) for real isolation.
-
-Leave it unset and Bash is unrestricted. It's set through the API (`allowedCommands` on create, and on `PATCH`, where `[]` clears it) or on the agent spec.
+> **This is a guardrail, not isolation.** Matching is on the command's prefix, so anything that doesn't start with it gets through:
+>
+> - flags before the subcommand: `kubectl --context prod delete pod x`, `git -C repo push`
+> - a script file: `sh cleanup.sh`, `python run.py`
+> - another program that does the same thing: `find . -delete`
+> - `sh -c '...'`: the current Claude Code catches a literal command inside it, but don't rely on that
+>
+> Use it to stop accidents, not a determined agent. For a real limit, use the agent's service account RBAC and NetworkPolicies. An allow-list ("only these commands") belongs with the SDK sandbox work ([#175](https://github.com/komputer-ai/komputer-ai/issues/175)), combined with NetworkPolicies.
 
 ### Setting tool permissions
 

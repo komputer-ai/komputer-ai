@@ -132,3 +132,28 @@ def test_disallowing_whole_connector_removes_all_its_tools(probe_server):
     text = _visible_probe_tools([], ["mcp__probe__*"], probe_server)
     assert "ping_alpha" not in text
     assert "ping_beta" not in text
+
+
+def _bash(prompt, disallowed):
+    return _run_with_policy(
+        prompt + " If a command is blocked, reply DENIED and quote the reason verbatim.",
+        [], disallowed, {},
+    )
+
+
+def test_bash_deny_rule_blocks_the_command(tmp_path):
+    """Bash(...) deny rules bite under bypassPermissions; other commands still run."""
+    victim = tmp_path / "victim.txt"
+    victim.write_text("x")
+    _bash(f"Use the Bash tool to run exactly: rm {victim}", ["Bash(rm:*)"])
+    assert victim.exists(), "rm must be denied by Bash(rm:*)"
+
+    text = _bash(f"Use the Bash tool to run exactly: ls {tmp_path} and report its output.", ["Bash(rm:*)"])
+    assert "victim.txt" in text, "commands that don't match the rule must still run"
+
+
+def test_bash_deny_rule_covers_chained_commands(tmp_path):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("x")
+    _bash(f"Use the Bash tool to run exactly: ls {tmp_path} && rm {victim}", ["Bash(rm:*)"])
+    assert victim.exists(), "a chained rm must be denied too"

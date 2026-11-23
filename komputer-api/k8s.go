@@ -1593,11 +1593,10 @@ func (k *K8sClient) PatchAgentSkillsList(ctx context.Context, ns, agentName stri
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
 
-// PatchAgentToolPolicy updates an agent's tool allow/deny lists and Bash
-// command allowlist. A nil pointer means "leave unchanged"; a non-nil empty
-// slice clears that list.
-func (k *K8sClient) PatchAgentToolPolicy(ctx context.Context, ns, agentName string, allowed, disallowed, commands *[]string) error {
-	if allowed == nil && disallowed == nil && commands == nil {
+// PatchAgentToolPolicy updates an agent's tool allow/deny lists. A nil pointer
+// means "leave unchanged"; a non-nil empty slice clears that list.
+func (k *K8sClient) PatchAgentToolPolicy(ctx context.Context, ns, agentName string, allowed, disallowed *[]string) error {
+	if allowed == nil && disallowed == nil {
 		return nil
 	}
 	agent := &komputerv1alpha1.KomputerAgent{}
@@ -1611,9 +1610,6 @@ func (k *K8sClient) PatchAgentToolPolicy(ctx context.Context, ns, agentName stri
 	}
 	if disallowed != nil {
 		agent.Spec.DisallowedTools = *disallowed
-	}
-	if commands != nil {
-		agent.Spec.AllowedCommands = *commands
 	}
 	return k.client.Patch(ctx, agent, client.MergeFrom(original))
 }
