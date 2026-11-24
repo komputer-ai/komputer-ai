@@ -298,16 +298,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: komputer-ui/package-lock.json
 
-      - name: Test API
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
-        run: cd komputer-api && go test -v ./...
-
+      # The API's list-cache tests and the operator's controller tests both run
+      # against an envtest API server.
       - name: Install envtest binaries
-        if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'
         run: |
           cd komputer-operator
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
           echo "KUBEBUILDER_ASSETS=$(setup-envtest use -p path)" >> "$GITHUB_ENV"
+
+      - name: Test API
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.is_tag == 'true'
+        run: cd komputer-api && go test -v ./...
 
       - name: Test Operator
         if: needs.changes.outputs.operator == 'true' || needs.changes.outputs.is_tag == 'true'

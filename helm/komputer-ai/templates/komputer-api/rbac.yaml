@@ -50,6 +50,7 @@ rules:
   - create
   - get
   - list
+  - watch
   - delete
   - patch
 - apiGroups:
@@ -67,6 +68,7 @@ rules:
   - create
   - get
   - list
+  - watch
   - update
   - delete
 - apiGroups:
@@ -82,6 +84,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
   - delete
 - apiGroups:
   - komputer.komputer.ai
@@ -97,6 +100,7 @@ rules:
   - create
   - get
   - list
+  - watch
   - patch
   - delete
 - apiGroups:
@@ -122,6 +126,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - komputer.komputer.ai
   resources:
@@ -131,6 +136,7 @@ rules:
   - create
   - get
   - list
+  - watch
   - patch
   - update
   - delete
@@ -142,6 +148,7 @@ rules:
   - create
   - get
   - list
+  - watch
   - patch
   - update
   - delete
