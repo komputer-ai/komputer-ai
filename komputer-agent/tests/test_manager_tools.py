@@ -93,6 +93,14 @@ async def test_list_agents(mock_api):
     assert not result.get("isError")
     body = json.loads(result["content"][0]["text"])
     assert len(body["agents"]) == 2
+    assert mock_api.last_params["fields"] == "status,taskStatus,lifecycle,model,lastTaskMessage"
+
+
+@pytest.mark.asyncio
+async def test_list_agents_passes_fields(mock_api):
+    mock_api.set("GET", "/api/v1/agents", {"agents": []})
+    await manager_tools.list_agents.handler({"fields": ["totalCostUSD", "labels"]})
+    assert mock_api.last_params["fields"] == "totalCostUSD,labels"
 
 
 # --- get_agent ---

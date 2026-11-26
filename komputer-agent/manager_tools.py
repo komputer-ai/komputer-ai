@@ -633,7 +633,7 @@ async def wake_agent(args):
 
 @tool(
     name="list_agents",
-    description="List all agents in the current namespace, with name, status, lifecycle, model, and last task summary. Filter by labels using label_selectors.",
+    description="List all agents in the current namespace, with name, status, task status, lifecycle, model, and last task summary. Filter by labels using label_selectors. Use get_agent for one agent's full settings.",
     input_schema={
         "type": "object",
         "properties": {
@@ -642,10 +642,18 @@ async def wake_agent(args):
                 "items": {"type": "string"},
                 "description": "List of 'key=value' label filters; results match all (AND). E.g. ['team=core', 'env=prod'].",
             },
+            "fields": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Agent fields to return instead of the default summary, e.g. ['status', 'totalCostUSD', 'labels']. Name and namespace always come back.",
+            },
         },
     },
 )
 async def list_agents(args):
+    # A summary by default: full agents carry instructions and prompts, which
+    # would fill the manager's context on a namespace with many agents.
+    fields = args.get("fields") or LIST_AGENTS_DEFAULT_FIELDS
     params = []
     for ls in args.get("label_selectors") or []:
         params.append(("label", ls))
@@ -653,8 +661,11 @@ async def list_agents(args):
         # Build query string manually since _request merges params as a dict.
         from urllib.parse import urlencode
         qs = urlencode(params)
-        return await _request("GET", f"/api/v1/agents?{qs}")
-    return await _request("GET", "/api/v1/agents")
+        return await _request("GET", f"/api/v1/agents?{qs}", params={"fields": ",".join(fields)})
+    return await _request("GET", "/api/v1/agents", params={"fields": ",".join(fields)})
+
+
+LIST_AGENTS_DEFAULT_FIELDS = ["status", "taskStatus", "lifecycle", "model", "lastTaskMessage"]
 
 
 @tool(
