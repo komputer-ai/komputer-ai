@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
 from komputer_ai.models.agent_list_facets import AgentListFacets
+from komputer_ai.models.agent_list_stats import AgentListStats
 from komputer_ai.models.agent_response import AgentResponse
 from typing import Optional, Set
 from typing_extensions import Self
@@ -32,8 +33,9 @@ class AgentListResponse(BaseModel):
     agents: Optional[List[AgentResponse]] = None
     facets: Optional[AgentListFacets] = Field(default=None, description="Facets lists every distinct namespace and \"key=value\" label pair across agents in the requested namespace scope, computed BEFORE status/label/q filtering — see AgentListFacets doc.")
     next_offset: Optional[StrictInt] = Field(default=None, description="NextOffset is the offset to request for the next page; omitted once there is no more data (or when `limit` was omitted).", alias="nextOffset")
+    stats: Optional[AgentListStats] = Field(default=None, description="Stats counts and sums the agents matching the filters, BEFORE the limit/offset slice — see AgentListStats doc.")
     total: Optional[StrictInt] = Field(default=None, description="Total is the number of agents matching the status/label/q filters, BEFORE the limit/offset slice is applied. Always populated (even when `limit` was omitted, in which case it simply equals len(Agents)).")
-    __properties: ClassVar[List[str]] = ["agents", "facets", "nextOffset", "total"]
+    __properties: ClassVar[List[str]] = ["agents", "facets", "nextOffset", "stats", "total"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -84,6 +86,9 @@ class AgentListResponse(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of facets
         if self.facets:
             _dict['facets'] = self.facets.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of stats
+        if self.stats:
+            _dict['stats'] = self.stats.to_dict()
         return _dict
 
     @classmethod
@@ -99,6 +104,7 @@ class AgentListResponse(BaseModel):
             "agents": [AgentResponse.from_dict(_item) for _item in obj["agents"]] if obj.get("agents") is not None else None,
             "facets": AgentListFacets.from_dict(obj["facets"]) if obj.get("facets") is not None else None,
             "nextOffset": obj.get("nextOffset"),
+            "stats": AgentListStats.from_dict(obj["stats"]) if obj.get("stats") is not None else None,
             "total": obj.get("total")
         })
         return _obj

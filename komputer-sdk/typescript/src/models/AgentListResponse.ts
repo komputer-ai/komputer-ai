@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { AgentListStats } from './AgentListStats';
+import {
+    AgentListStatsFromJSON,
+    AgentListStatsFromJSONTyped,
+    AgentListStatsToJSON,
+    AgentListStatsToJSONTyped,
+} from './AgentListStats';
 import type { AgentListFacets } from './AgentListFacets';
 import {
     AgentListFacetsFromJSON,
@@ -56,6 +63,13 @@ export interface AgentListResponse {
      */
     nextOffset?: number;
     /**
+     * Stats counts and sums the agents matching the filters, BEFORE the
+     * limit/offset slice — see AgentListStats doc.
+     * @type {AgentListStats}
+     * @memberof AgentListResponse
+     */
+    stats?: AgentListStats;
+    /**
      * Total is the number of agents matching the status/label/q filters, BEFORE
      * the limit/offset slice is applied. Always populated (even when `limit`
      * was omitted, in which case it simply equals len(Agents)).
@@ -85,6 +99,7 @@ export function AgentListResponseFromJSONTyped(json: any, ignoreDiscriminator: b
         'agents': json['agents'] == null ? undefined : ((json['agents'] as Array<any>).map(AgentResponseFromJSON)),
         'facets': json['facets'] == null ? undefined : AgentListFacetsFromJSON(json['facets']),
         'nextOffset': json['nextOffset'] == null ? undefined : json['nextOffset'],
+        'stats': json['stats'] == null ? undefined : AgentListStatsFromJSON(json['stats']),
         'total': json['total'] == null ? undefined : json['total'],
     };
 }
@@ -103,6 +118,7 @@ export function AgentListResponseToJSONTyped(value?: AgentListResponse | null, i
         'agents': value['agents'] == null ? undefined : ((value['agents'] as Array<any>).map(AgentResponseToJSON)),
         'facets': AgentListFacetsToJSON(value['facets']),
         'nextOffset': value['nextOffset'],
+        'stats': AgentListStatsToJSON(value['stats']),
         'total': value['total'],
     };
 }

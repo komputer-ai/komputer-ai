@@ -4,6 +4,7 @@ docs/AgentCondition.md
 docs/AgentEvent.md
 docs/AgentListFacets.md
 docs/AgentListResponse.md
+docs/AgentListStats.md
 docs/AgentResponse.md
 docs/AgentsApi.md
 docs/CompactAgentRequest.md
@@ -226,6 +227,7 @@ komputer_ai/models/agent_condition.py
 komputer_ai/models/agent_event.py
 komputer_ai/models/agent_list_facets.py
 komputer_ai/models/agent_list_response.py
+komputer_ai/models/agent_list_stats.py
 komputer_ai/models/agent_response.py
 komputer_ai/models/compact_agent_request.py
 komputer_ai/models/config_response.py

@@ -24,6 +24,8 @@ type AgentListResponse struct {
 	Facets *AgentListFacets `json:"facets,omitempty"`
 	// NextOffset is the offset to request for the next page; omitted once there is no more data (or when `limit` was omitted).
 	NextOffset *int32 `json:"nextOffset,omitempty"`
+	// Stats counts and sums the agents matching the filters, BEFORE the limit/offset slice — see AgentListStats doc.
+	Stats *AgentListStats `json:"stats,omitempty"`
 	// Total is the number of agents matching the status/label/q filters, BEFORE the limit/offset slice is applied. Always populated (even when `limit` was omitted, in which case it simply equals len(Agents)).
 	Total *int32 `json:"total,omitempty"`
 }
@@ -141,6 +143,38 @@ func (o *AgentListResponse) SetNextOffset(v int32) {
 	o.NextOffset = &v
 }
 
+// GetStats returns the Stats field value if set, zero value otherwise.
+func (o *AgentListResponse) GetStats() AgentListStats {
+	if o == nil || IsNil(o.Stats) {
+		var ret AgentListStats
+		return ret
+	}
+	return *o.Stats
+}
+
+// GetStatsOk returns a tuple with the Stats field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AgentListResponse) GetStatsOk() (*AgentListStats, bool) {
+	if o == nil || IsNil(o.Stats) {
+		return nil, false
+	}
+	return o.Stats, true
+}
+
+// HasStats returns a boolean if a field has been set.
+func (o *AgentListResponse) HasStats() bool {
+	if o != nil && !IsNil(o.Stats) {
+		return true
+	}
+
+	return false
+}
+
+// SetStats gets a reference to the given AgentListStats and assigns it to the Stats field.
+func (o *AgentListResponse) SetStats(v AgentListStats) {
+	o.Stats = &v
+}
+
 // GetTotal returns the Total field value if set, zero value otherwise.
 func (o *AgentListResponse) GetTotal() int32 {
 	if o == nil || IsNil(o.Total) {
@@ -191,6 +225,9 @@ func (o AgentListResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.NextOffset) {
 		toSerialize["nextOffset"] = o.NextOffset
+	}
+	if !IsNil(o.Stats) {
+		toSerialize["stats"] = o.Stats
 	}
 	if !IsNil(o.Total) {
 		toSerialize["total"] = o.Total

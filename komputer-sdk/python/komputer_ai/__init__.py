@@ -42,6 +42,7 @@ __all__ = [
     "AgentEvent",
     "AgentListFacets",
     "AgentListResponse",
+    "AgentListStats",
     "AgentResponse",
     "CompactAgentRequest",
     "ConfigResponse",
@@ -263,6 +264,7 @@ from komputer_ai.models.agent_condition import AgentCondition as AgentCondition
 from komputer_ai.models.agent_event import AgentEvent as AgentEvent
 from komputer_ai.models.agent_list_facets import AgentListFacets as AgentListFacets
 from komputer_ai.models.agent_list_response import AgentListResponse as AgentListResponse
+from komputer_ai.models.agent_list_stats import AgentListStats as AgentListStats
 from komputer_ai.models.agent_response import AgentResponse as AgentResponse
 from komputer_ai.models.compact_agent_request import CompactAgentRequest as CompactAgentRequest
 from komputer_ai.models.config_response import ConfigResponse as ConfigResponse

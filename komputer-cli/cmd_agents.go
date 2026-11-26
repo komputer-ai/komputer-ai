@@ -67,6 +67,13 @@ func registerAgentCommands(root *cobra.Command) {
 					listURL += "?status=" + url.QueryEscape(statusFilter)
 				}
 			}
+			if taskStatus, _ := cmd.Flags().GetString("task-status"); taskStatus != "" {
+				if strings.Contains(listURL, "?") {
+					listURL += "&taskStatus=" + url.QueryEscape(taskStatus)
+				} else {
+					listURL += "?taskStatus=" + url.QueryEscape(taskStatus)
+				}
+			}
 			if listLabels, _ := cmd.Flags().GetStringArray("label"); len(listLabels) > 0 {
 				for _, l := range listLabels {
 					if strings.Contains(listURL, "?") {
@@ -179,6 +186,7 @@ func registerAgentCommands(root *cobra.Command) {
 		},
 	}
 	listCmd.Flags().String("status", "", "Filter by status (e.g. queued, running, pending)")
+	listCmd.Flags().String("task-status", "", "Filter by task status, comma-separated (e.g. InProgress,Compacting)")
 	listCmd.Flags().StringArray("label", nil, "Label filter key=value (repeatable, AND'd, e.g. --label team=core)")
 	listCmd.Flags().String("sort", "created", `Sort order: "created" (newest first, default) or "last-active" (most recently active first, never-active last)`)
 	root.AddCommand(listCmd)

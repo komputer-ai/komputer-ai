@@ -53,7 +53,8 @@ export class KomputerClient {
   // backward-compatible default). Set `limit` to page through results via
   // `offset` and the response's `nextOffset`/`total`/`facets`. `fields`
   // ("status,totalCostUSD") returns only those agent fields, plus name and namespace.
-  async listAgents(params?: { namespace?: string; status?: string; label?: string[]; q?: string; sort?: string; limit?: number; offset?: number; fields?: string }) {
+  // `taskStatus` ("InProgress,Compacting") matches any of those task statuses.
+  async listAgents(params?: { namespace?: string; status?: string; taskStatus?: string; label?: string[]; q?: string; sort?: string; limit?: number; offset?: number; fields?: string }) {
     return this._agents.listAgents({ ...params });
   }
 

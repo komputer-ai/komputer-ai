@@ -21,6 +21,9 @@ type AgentListQuery struct {
 	// HideArchived leaves out Archived agents when Status is empty, so lists
 	// show them only when asked for explicitly.
 	HideArchived bool
+	// TaskStatuses filters by task status, case-insensitive; an agent matches
+	// if it has any of them. Empty matches everything.
+	TaskStatuses []string
 	// Labels are "key=value" filters, ANDed together.
 	Labels map[string]string
 	// FilterLabels optionally maps "namespace/name" to the agent CR's metadata
@@ -50,6 +53,15 @@ type AgentListQuery struct {
 type AgentListFacets struct {
 	Namespaces []string `json:"namespaces"`
 	Labels     []string `json:"labels"`
+}
+
+// AgentListStats summarizes every agent matching the filters, before the
+// limit/offset slice, so a page of agents can come with whole-list counts.
+type AgentListStats struct {
+	// ByStatus counts agents per phase. Agents with no phase yet aren't counted.
+	ByStatus map[string]int `json:"byStatus"`
+	// TotalCostUSD is the summed totalCostUSD, formatted like the agent field.
+	TotalCostUSD string `json:"totalCostUSD"`
 }
 
 var validAgentSortKeys = map[string]bool{
@@ -263,8 +275,9 @@ func compareAgents(a, b *agentSortKey, key string, desc bool) int {
 }
 
 // filterSortPaginateAgents is the pure function behind GET /agents: it
-// applies status/label/q filters, sorts by the requested key, and slices the
-// result to [offset, offset+limit). It is deliberately free of any K8s or
+// applies status/taskStatus/label/q filters, sorts by the requested key,
+// summarizes the matches into stats, and slices the result to
+// [offset, offset+limit). It is deliberately free of any K8s or
 // HTTP dependency so it can be exhaustively table-tested.
 //
 // facets are computed from `agents` as given — i.e. over whatever namespace
@@ -274,12 +287,12 @@ func compareAgents(a, b *agentSortKey, key string, desc bool) int {
 // A nil query.Limit returns the full filtered+sorted list (offset is
 // ignored) — this is what preserves exact backward compatibility for
 // existing callers that never pass `limit`.
-func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (page []AgentResponse, total int, nextOffset *int, facets AgentListFacets, err error) {
-	facets = computeAgentFacets(agents)
+func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (AgentListResponse, error) {
+	resp := AgentListResponse{Facets: computeAgentFacets(agents)}
 
 	sortKey, desc, err := parseAgentSort(query.Sort)
 	if err != nil {
-		return nil, 0, nil, facets, err
+		return resp, err
 	}
 
 	q := strings.ToLower(strings.TrimSpace(query.Q))
@@ -292,6 +305,9 @@ func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (pag
 			continue
 		}
 		if query.Status != "" && !strings.EqualFold(query.Status, a.Status) {
+			continue
+		}
+		if len(query.TaskStatuses) > 0 && !slices.ContainsFunc(query.TaskStatuses, func(s string) bool { return strings.EqualFold(s, a.TaskStatus) }) {
 			continue
 		}
 		if !matchesAgentLabels(*a, query.Labels, query.FilterLabels) {
@@ -307,19 +323,30 @@ func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (pag
 		return compareAgents(&x, &y, sortKey, desc)
 	})
 
-	total = len(keys)
+	resp.Stats = AgentListStats{ByStatus: map[string]int{}}
+	var totalCost float64
+	for i := range keys {
+		totalCost += keys[i].cost
+		if s := keys[i].a.Status; s != "" {
+			resp.Stats.ByStatus[s]++
+		}
+	}
+	resp.Stats.TotalCostUSD = fmt.Sprintf("%.4f", totalCost)
+
+	total := len(keys)
+	resp.Total = total
 	offset, end := 0, total
 	if query.Limit != nil {
 		offset = min(max(query.Offset, 0), total)
 		end = min(offset+*query.Limit, total)
 		if end < total {
 			n := end
-			nextOffset = &n
+			resp.NextOffset = &n
 		}
 	}
-	page = make([]AgentResponse, 0, end-offset)
+	resp.Agents = make([]AgentResponse, 0, end-offset)
 	for _, k := range keys[offset:end] {
-		page = append(page, *k.a)
+		resp.Agents = append(resp.Agents, *k.a)
 	}
-	return page, total, nextOffset, facets, nil
+	return resp, nil
 }

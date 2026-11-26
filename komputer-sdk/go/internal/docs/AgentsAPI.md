@@ -680,7 +680,7 @@ No authorization required
 
 ## ListAgents
 
-> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
+> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).HideArchived(hideArchived).TaskStatus(taskStatus).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
 
 List agents
 
@@ -702,6 +702,7 @@ func main() {
 	namespace := "namespace_example" // string | Kubernetes namespace (optional)
 	status := "status_example" // string | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
 	hideArchived := true // bool | Leave out Archived agents unless status asks for them (optional)
+	taskStatus := "taskStatus_example" // string | Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting (optional)
 	label := []string{"Inner_example"} // []string | Label filter key=value; repeat for multiple (AND) (optional)
 	q := "q_example" // string | Case-insensitive substring match against agent name (optional)
 	sort := "sort_example" // string | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to "-created")
@@ -711,7 +712,7 @@ func main() {
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
+	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).HideArchived(hideArchived).TaskStatus(taskStatus).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.ListAgents``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -735,6 +736,7 @@ Name | Type | Description  | Notes
  **namespace** | **string** | Kubernetes namespace | 
  **status** | **string** | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | 
  **hideArchived** | **bool** | Leave out Archived agents unless status asks for them | 
+ **taskStatus** | **string** | Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting | 
  **label** | **[]string** | Label filter key&#x3D;value; repeat for multiple (AND) | 
  **q** | **string** | Case-insensitive substring match against agent name | 
  **sort** | **string** | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [default to &quot;-created&quot;]

@@ -2752,6 +2752,7 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
+        task_status: Annotated[Optional[StrictStr], Field(description="Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2773,7 +2774,7 @@ class AgentsApi:
     ) -> AgentListResponse:
         """List agents
 
-        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2781,6 +2782,8 @@ class AgentsApi:
         :type status: str
         :param hide_archived: Leave out Archived agents unless status asks for them
         :type hide_archived: bool
+        :param task_status: Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting
+        :type task_status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2819,6 +2822,7 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             hide_archived=hide_archived,
+            task_status=task_status,
             label=label,
             q=q,
             sort=sort,
@@ -2853,6 +2857,7 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
+        task_status: Annotated[Optional[StrictStr], Field(description="Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2874,7 +2879,7 @@ class AgentsApi:
     ) -> ApiResponse[AgentListResponse]:
         """List agents
 
-        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2882,6 +2887,8 @@ class AgentsApi:
         :type status: str
         :param hide_archived: Leave out Archived agents unless status asks for them
         :type hide_archived: bool
+        :param task_status: Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting
+        :type task_status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -2920,6 +2927,7 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             hide_archived=hide_archived,
+            task_status=task_status,
             label=label,
             q=q,
             sort=sort,
@@ -2954,6 +2962,7 @@ class AgentsApi:
         namespace: Annotated[Optional[StrictStr], Field(description="Kubernetes namespace")] = None,
         status: Annotated[Optional[StrictStr], Field(description="Filter by agent phase (case-insensitive), e.g. Running, Sleeping")] = None,
         hide_archived: Annotated[Optional[StrictBool], Field(description="Leave out Archived agents unless status asks for them")] = None,
+        task_status: Annotated[Optional[StrictStr], Field(description="Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting")] = None,
         label: Annotated[Optional[List[StrictStr]], Field(description="Label filter key=value; repeat for multiple (AND)")] = None,
         q: Annotated[Optional[StrictStr], Field(description="Case-insensitive substring match against agent name")] = None,
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
@@ -2975,7 +2984,7 @@ class AgentsApi:
     ) -> RESTResponseType:
         """List agents
 
-        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+        Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
 
         :param namespace: Kubernetes namespace
         :type namespace: str
@@ -2983,6 +2992,8 @@ class AgentsApi:
         :type status: str
         :param hide_archived: Leave out Archived agents unless status asks for them
         :type hide_archived: bool
+        :param task_status: Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting
+        :type task_status: str
         :param label: Label filter key=value; repeat for multiple (AND)
         :type label: List[str]
         :param q: Case-insensitive substring match against agent name
@@ -3021,6 +3032,7 @@ class AgentsApi:
             namespace=namespace,
             status=status,
             hide_archived=hide_archived,
+            task_status=task_status,
             label=label,
             q=q,
             sort=sort,
@@ -3050,6 +3062,7 @@ class AgentsApi:
         namespace,
         status,
         hide_archived,
+        task_status,
         label,
         q,
         sort,
@@ -3090,6 +3103,10 @@ class AgentsApi:
         if hide_archived is not None:
             
             _query_params.append(('hideArchived', hide_archived))
+            
+        if task_status is not None:
+            
+            _query_params.append(('taskStatus', task_status))
             
         if label is not None:
             

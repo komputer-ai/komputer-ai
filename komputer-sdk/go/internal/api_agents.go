@@ -1340,6 +1340,7 @@ type ApiListAgentsRequest struct {
 	namespace *string
 	status *string
 	hideArchived *bool
+	taskStatus *string
 	label *[]string
 	q *string
 	sort *string
@@ -1363,6 +1364,12 @@ func (r ApiListAgentsRequest) Status(status string) ApiListAgentsRequest {
 // Leave out Archived agents unless status asks for them
 func (r ApiListAgentsRequest) HideArchived(hideArchived bool) ApiListAgentsRequest {
 	r.hideArchived = &hideArchived
+	return r
+}
+
+// Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting
+func (r ApiListAgentsRequest) TaskStatus(taskStatus string) ApiListAgentsRequest {
+	r.taskStatus = &taskStatus
 	return r
 }
 
@@ -1409,7 +1416,7 @@ func (r ApiListAgentsRequest) Execute() (*AgentListResponse, *http.Response, err
 /*
 ListAgents List agents
 
-Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiListAgentsRequest
@@ -1450,6 +1457,9 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 	}
 	if r.hideArchived != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "hideArchived", r.hideArchived, "form", "")
+	}
+	if r.taskStatus != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "taskStatus", r.taskStatus, "form", "")
 	}
 	if r.label != nil {
 		t := *r.label

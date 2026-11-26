@@ -104,6 +104,15 @@ func TestListCacheAtScale(t *testing.T) {
 		fmt.Printf("cache,      GET /agents (full)        %8s  %8s  (reads the API server)\n", lat, kb(size))
 		lat, size = timeGet(t, r, "?limit=50&sort=-cost"+strings.Replace(dashboard, "?", "&", 1))
 		fmt.Printf("cache,      GET /agents page of 50    %8s  %8s\n", lat, kb(size))
+		// The dashboard's three requests: recent agents with stats, top cost, running tasks.
+		var dashLat time.Duration
+		var dashSize int
+		for _, q := range []string{"?limit=12&sort=-created", "?limit=5&sort=-cost", "?taskStatus=InProgress,Compacting"} {
+			lat, size = timeGet(t, r, q+strings.Replace(dashboard, "?", "&", 1))
+			dashLat += lat
+			dashSize += size
+		}
+		fmt.Printf("cache,      dashboard (3 requests)    %8s  %8s\n", dashLat, kb(dashSize))
 		shipped()
 		k.cache.Store(nil)
 	}

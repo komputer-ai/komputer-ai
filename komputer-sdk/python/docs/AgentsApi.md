@@ -677,11 +677,11 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
+> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, task_status=task_status, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
 
 List agents
 
-Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
 
 ### Example
 
@@ -706,6 +706,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
     namespace = 'namespace_example' # str | Kubernetes namespace (optional)
     status = 'status_example' # str | Filter by agent phase (case-insensitive), e.g. Running, Sleeping (optional)
     hide_archived = True # bool | Leave out Archived agents unless status asks for them (optional)
+    task_status = 'task_status_example' # str | Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting (optional)
     label = ['label_example'] # List[str] | Label filter key=value; repeat for multiple (AND) (optional)
     q = 'q_example' # str | Case-insensitive substring match against agent name (optional)
     sort = '-created' # str | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to '-created')
@@ -715,7 +716,7 @@ with komputer_ai.ApiClient(configuration) as api_client:
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, task_status=task_status, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -732,6 +733,7 @@ Name | Type | Description  | Notes
  **namespace** | **str**| Kubernetes namespace | [optional] 
  **status** | **str**| Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [optional] 
  **hide_archived** | **bool**| Leave out Archived agents unless status asks for them | [optional] 
+ **task_status** | **str**| Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting | [optional] 
  **label** | [**List[str]**](str.md)| Label filter key&#x3D;value; repeat for multiple (AND) | [optional] 
  **q** | **str**| Case-insensitive substring match against agent name | [optional] 
  **sort** | **str**| Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [optional] [default to &#39;-created&#39;]

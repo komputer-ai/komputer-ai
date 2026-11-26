@@ -94,6 +94,7 @@ export interface ListAgentsRequest {
     namespace?: string;
     status?: string;
     hideArchived?: boolean;
+    taskStatus?: string;
     label?: Array<string>;
     q?: string;
     sort?: string;
@@ -632,6 +633,10 @@ export class AgentsApi extends runtime.BaseAPI {
             queryParameters['hideArchived'] = requestParameters['hideArchived'];
         }
 
+        if (requestParameters['taskStatus'] != null) {
+            queryParameters['taskStatus'] = requestParameters['taskStatus'];
+        }
+
         if (requestParameters['label'] != null) {
             queryParameters['label'] = requestParameters['label'];
         }
@@ -670,7 +675,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
      * List agents
      */
     async listAgentsRaw(requestParameters: ListAgentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AgentListResponse>> {
@@ -681,7 +686,7 @@ export class AgentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.
+     * Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.
      * List agents
      */
     async listAgents(requestParameters: ListAgentsRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AgentListResponse> {

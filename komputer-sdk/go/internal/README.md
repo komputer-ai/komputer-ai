@@ -136,6 +136,7 @@ Class | Method | HTTP request | Description
  - [AgentEvent](docs/AgentEvent.md)
  - [AgentListFacets](docs/AgentListFacets.md)
  - [AgentListResponse](docs/AgentListResponse.md)
+ - [AgentListStats](docs/AgentListStats.md)
  - [AgentResponse](docs/AgentResponse.md)
  - [CompactAgentRequest](docs/CompactAgentRequest.md)
  - [ConfigResponse](docs/ConfigResponse.md)
