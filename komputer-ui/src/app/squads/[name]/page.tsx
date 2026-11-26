@@ -14,6 +14,7 @@ import { BreakUpButton } from "@/components/squads/break-up-button";
 import { SkeletonTable } from "@/components/shared/loading-skeleton";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { SquadTopologyGraph } from "@/components/topology/topology-graph";
+import { AGENT_NODE_FIELDS } from "@/components/topology/node-types";
 import {
   getSquad,
   deleteSquad,
@@ -194,7 +195,8 @@ export default function SquadDetailPage() {
     try {
       const [squadData, agentsData] = await Promise.all([
         getSquad(name, namespace),
-        listAgents(),
+        // Member cards and the squad graph read only agent node fields.
+        listAgents(undefined, { fields: AGENT_NODE_FIELDS }),
       ]);
       setSquad(squadData);
       const map = new Map<string, AgentResponse>();

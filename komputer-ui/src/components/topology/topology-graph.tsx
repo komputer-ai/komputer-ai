@@ -30,6 +30,7 @@ import type {
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
 import {
+  AGENT_NODE_FIELDS,
   AgentNode,
   OfficeNode,
   ScheduleNode,
@@ -704,7 +705,7 @@ export function TopologyGraph() {
   const fetchData = useCallback(async () => {
     try {
       const [agentsRes, officesRes, schedulesRes, squadsRes] = await Promise.all([
-        listAgents(),
+        listAgents(undefined, { fields: AGENT_NODE_FIELDS }),
         listOffices(),
         listSchedules(),
         listSquads().catch(() => ({ squads: [] })),

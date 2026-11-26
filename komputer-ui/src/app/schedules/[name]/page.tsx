@@ -109,7 +109,7 @@ export default function ScheduleDetailPage() {
   // Load the agent list lazily — only when the user opens the editor.
   useEffect(() => {
     if (!editingDetails || availableAgents.length > 0) return;
-    listAgents()
+    listAgents(undefined, { fields: ["name"] })
       .then((res) =>
         setAvailableAgents(
           (res.agents ?? []).map((a) => ({ name: a.name, namespace: a.namespace }))

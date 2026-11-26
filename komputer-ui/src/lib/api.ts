@@ -67,6 +67,8 @@ export type ListAgentsOptions = {
   offset?: number;
   /** Leave out Archived agents (ignored when `status` is set). */
   hideArchived?: boolean;
+  /** Match agents with any of these task statuses, e.g. ["InProgress"]. */
+  taskStatus?: string[];
   /** Return only these agent fields (name and namespace always come back). */
   fields?: (keyof AgentResponse)[];
 };
@@ -82,6 +84,7 @@ export const buildListAgentsQuery = (ns?: string, opts?: ListAgentsOptions): str
   if (ns) params.set('namespace', ns);
   if (opts?.status) params.set('status', opts.status);
   else if (opts?.hideArchived) params.set('hideArchived', 'true');
+  if (opts?.taskStatus?.length) params.set('taskStatus', opts.taskStatus.join(','));
   if (opts?.q) params.set('q', opts.q);
   if (opts?.sort) params.set('sort', opts.sort);
   if (opts?.limit != null) params.set('limit', String(opts.limit));

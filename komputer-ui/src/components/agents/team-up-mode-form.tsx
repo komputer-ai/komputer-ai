@@ -48,7 +48,7 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
     onError(null);
     try {
       await sleepAgent(name, namespace);
-      const res = await listAgents();
+      const res = await listAgents(undefined, { fields: ["status"] });
       setAvailableAgents(res.agents ?? []);
     } catch (e: unknown) {
       onError(e instanceof Error ? e.message : `Failed to sleep ${name}`);
@@ -64,7 +64,7 @@ export function TeamUpModeForm({ state, onChange, active, error, onError, onCrea
 
   useEffect(() => {
     if (!active) return;
-    listAgents()
+    listAgents(undefined, { fields: ["status"] })
       .then((res) => setAvailableAgents(res.agents ?? []))
       .catch(() => setAvailableAgents([]));
     listSquads()

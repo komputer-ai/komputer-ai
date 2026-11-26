@@ -33,6 +33,7 @@ import {
 } from "@/lib/api";
 import { formatCost, formatRelativeTime } from "@/lib/utils";
 import type {
+  AgentListStats,
   AgentResponse,
   OfficeResponse,
   ScheduleResponse,
@@ -240,8 +241,23 @@ function StatsScrollRow({ children }: { children: React.ReactNode }) {
 
 // --- Main ---
 
+// Agent fields the dashboard's agent cards read.
+const DASHBOARD_AGENT_FIELDS: (keyof AgentResponse)[] = [
+  "status",
+  "taskStatus",
+  "totalCostUSD",
+  "lastTaskMessage",
+  "createdAt",
+];
+
 export default function DashboardPage() {
-  const [agents, setAgents] = useState<AgentResponse[]>([]);
+  // The dashboard asks the API for counts and the few agents it shows,
+  // instead of loading every agent.
+  const [agentTotal, setAgentTotal] = useState(0);
+  const [agentStats, setAgentStats] = useState<AgentListStats | undefined>();
+  const [recentAgents, setRecentAgents] = useState<AgentResponse[]>([]);
+  const [topCostCandidates, setTopCostCandidates] = useState<AgentResponse[]>([]);
+  const [runningTasks, setRunningTasks] = useState<AgentResponse[]>([]);
   const [offices, setOffices] = useState<OfficeResponse[]>([]);
   const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
   const [skills, setSkills] = useState<SkillResponse[]>([]);
@@ -257,11 +273,12 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [agentsRes, officesRes, schedulesRes, skillsRes, memoriesRes, secretsRes, connectorsRes, squadsRes] =
+      const [recentRes, topCostRes, runningRes, officesRes, schedulesRes, skillsRes, memoriesRes, secretsRes, connectorsRes, squadsRes] =
         await Promise.all([
-          listAgents(undefined, {
-            fields: ["status", "taskStatus", "totalCostUSD", "lastTaskMessage", "createdAt"],
-          }),
+          // Recent agents fill 2 rows at the widest breakpoint (6 cols × 2 = 12).
+          listAgents(undefined, { limit: 12, sort: "-created", fields: DASHBOARD_AGENT_FIELDS }),
+          listAgents(undefined, { limit: 5, sort: "-cost", fields: DASHBOARD_AGENT_FIELDS }),
+          listAgents(undefined, { taskStatus: ["InProgress", "Compacting"], fields: DASHBOARD_AGENT_FIELDS }),
           listOffices(),
           listSchedules(),
           listSkills().catch(() => ({ skills: [] })),
@@ -270,7 +287,11 @@ export default function DashboardPage() {
           listConnectors().catch(() => ({ connectors: [] })),
           listSquads().catch(() => ({ squads: [] })),
         ]);
-      setAgents(agentsRes.agents ?? []);
+      setAgentTotal(recentRes.total ?? recentRes.agents?.length ?? 0);
+      setAgentStats(recentRes.stats);
+      setRecentAgents(recentRes.agents ?? []);
+      setTopCostCandidates(topCostRes.agents ?? []);
+      setRunningTasks(runningRes.agents ?? []);
       setOffices(officesRes.offices ?? []);
       setSchedules(schedulesRes.schedules ?? []);
       setSkills((skillsRes as SkillListResponse).skills ?? []);
@@ -293,17 +314,16 @@ export default function DashboardPage() {
 
   // --- Computed stats ---
 
-  const totalCost = agents
-    .reduce((sum, a) => sum + (parseFloat(a.totalCostUSD ?? "0") || 0), 0)
-    .toFixed(4);
+  const totalCost = (parseFloat(agentStats?.totalCostUSD ?? "0") || 0).toFixed(4);
 
   // Agent status breakdown
+  const byStatus = agentStats?.byStatus ?? {};
   const agentsByStatus = {
-    Running: agents.filter((a) => a.status === "Running").length,
-    Sleeping: agents.filter((a) => a.status === "Sleeping").length,
-    Pending: agents.filter((a) => a.status === "Pending").length,
-    Failed: agents.filter((a) => a.status === "Failed").length,
-    Succeeded: agents.filter((a) => a.status === "Succeeded").length,
+    Running: byStatus.Running ?? 0,
+    Sleeping: byStatus.Sleeping ?? 0,
+    Pending: byStatus.Pending ?? 0,
+    Failed: byStatus.Failed ?? 0,
+    Succeeded: byStatus.Succeeded ?? 0,
   };
 
   // Office status breakdown
@@ -335,19 +355,8 @@ export default function DashboardPage() {
     Failed: squads.filter((s) => s.phase === "Failed").length,
   };
 
-  // Running tasks (agents with InProgress or Compacting task)
-  const runningTasks = agents.filter((a) => a.taskStatus === "InProgress" || a.taskStatus === "Compacting");
-
-  // Recent agents — fill 2 rows at the widest breakpoint (6 cols × 2 = 12)
-  const recentAgents = [...agents]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 12);
-
-  // Top cost agents (sorted by total cost, top 5)
-  const topCostAgents = [...agents]
-    .filter((a) => parseFloat(a.totalCostUSD ?? "0") > 0)
-    .sort((a, b) => parseFloat(b.totalCostUSD ?? "0") - parseFloat(a.totalCostUSD ?? "0"))
-    .slice(0, 5);
+  // Top cost agents (the API sorts by total cost; agents that cost nothing are left out)
+  const topCostAgents = topCostCandidates.filter((a) => parseFloat(a.totalCostUSD ?? "0") > 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -401,7 +410,7 @@ export default function DashboardPage() {
           <StatCard
             icon={<Bot className="size-5" />}
             label="Total Agents"
-            value={agents.length}
+            value={agentTotal}
             delay={0}
             href="/agents"
             breakdown={[
@@ -495,7 +504,7 @@ export default function DashboardPage() {
         </StatsScrollRow>
 
         {/* Suggested Tasks (above when empty) */}
-        {!loading && agents.length === 0 && <SuggestedTasks />}
+        {!loading && agentTotal === 0 && <SuggestedTasks />}
 
         {/* Recent Agents */}
         <motion.div
@@ -678,7 +687,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Suggested Tasks (bottom when agents exist) */}
-        {!loading && agents.length > 0 && <SuggestedTasks />}
+        {!loading && agentTotal > 0 && <SuggestedTasks />}
         </div>
       </motion.div>
     </div>
