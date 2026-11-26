@@ -68,13 +68,23 @@ func TestListCacheServesAgentLists(t *testing.T) {
 	// The watch delivers the new agent to the cache shortly after the write.
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		agents, err := k.ListAgents(ctx, "", nil)
+		agents, err := k.ListAgentSummaries(ctx, "", nil)
 		if err != nil {
-			t.Fatalf("list agents: %v", err)
+			t.Fatalf("list agent summaries: %v", err)
 		}
 		if len(agents) == 1 && agents[0].Name == "cached-agent" {
 			if agents[0].ManagedFields != nil {
 				t.Error("cached agents should have managedFields stripped")
+			}
+			if agents[0].Spec.Instructions != "" {
+				t.Error("cached agents should have instructions stripped")
+			}
+			full, err := k.ListAgents(ctx, "", nil)
+			if err != nil {
+				t.Fatalf("list agents: %v", err)
+			}
+			if len(full) != 1 || full[0].Spec.Instructions != "do the work" {
+				t.Errorf("ListAgents should return full agents from the API server, got %+v", full)
 			}
 			return
 		}

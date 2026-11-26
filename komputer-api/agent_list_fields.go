@@ -70,6 +70,17 @@ func projectAgents(agents []AgentResponse, fields []string) []map[string]any {
 	return out
 }
 
+// needsFullAgents reports whether fields asks for anything the list cache
+// strips (see stripAgentHeavyFields), so the agents must be read in full.
+func needsFullAgents(fields []string) bool {
+	for _, f := range []string{"instructions", "systemPrompt", "podSpec"} {
+		if containsField(fields, f) {
+			return true
+		}
+	}
+	return false
+}
+
 // containsField reports whether fields (as parsed above) asks for f; nil asks
 // for everything.
 func containsField(fields []string, f string) bool {

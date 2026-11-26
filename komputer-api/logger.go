@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Logger is the package-level structured logger. Initialized by InitLogger.
@@ -59,6 +61,8 @@ func InitLogger() {
 	core := zapcore.NewCore(encoder, zapcore.Lock(os.Stdout), level)
 	logger := zap.New(core).With(zap.String("component", "komputer-api"))
 	Logger = logger.Sugar()
+	// The list cache's informers log through controller-runtime (e.g. watch errors).
+	ctrllog.SetLogger(zapr.NewLogger(logger))
 }
 
 // errorCaptureWriter wraps gin's ResponseWriter to capture the response body

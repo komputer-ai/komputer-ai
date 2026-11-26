@@ -279,7 +279,7 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 	defer cancel()
 
 	var agents komputerv1alpha1.KomputerAgentList
-	if err := c.k8s.client.List(ctx, &agents, &client.ListOptions{LabelSelector: labels.Everything()}); err != nil {
+	if err := c.k8s.reader().List(ctx, &agents, &client.ListOptions{LabelSelector: labels.Everything()}); err != nil {
 		Logger.Errorw("crCollector: failed to list KomputerAgents", "error", err)
 		crCollectorErrorsTotal.WithLabelValues("agents").Inc()
 	} else {
@@ -303,7 +303,7 @@ func (c *crCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	var schedules komputerv1alpha1.KomputerScheduleList
-	if err := c.k8s.client.List(ctx, &schedules); err != nil {
+	if err := c.k8s.reader().List(ctx, &schedules); err != nil {
 		Logger.Errorw("crCollector: failed to list KomputerSchedules", "error", err)
 		crCollectorErrorsTotal.WithLabelValues("schedules").Inc()
 	} else {

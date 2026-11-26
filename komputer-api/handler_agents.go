@@ -1545,7 +1545,11 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 
 		// Fetch every agent in the namespace scope — no label filter pushed down
 		// to K8s, since facets must be computed over this same unfiltered set.
-		agents, err := k8s.ListAgents(c.Request.Context(), ns, nil)
+		list := k8s.ListAgentSummaries
+		if needsFullAgents(fields) {
+			list = k8s.ListAgents
+		}
+		agents, err := list(c.Request.Context(), ns, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list agents: " + err.Error()})
 			return

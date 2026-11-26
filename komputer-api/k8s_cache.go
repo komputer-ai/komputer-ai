@@ -36,6 +36,9 @@ func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 	c, err := cache.New(k.restConfig, cache.Options{
 		Scheme:           k.client.Scheme(),
 		DefaultTransform: cache.TransformStripManagedFields(),
+		ByObject: map[client.Object]cache.ByObject{
+			&komputerv1alpha1.KomputerAgent{}: {Transform: stripAgentHeavyFields},
+		},
 		// Reading any type not registered below is a bug, not a reason to
 		// start a cluster-wide informer for it.
 		ReaderFailOnMissingInformer: true,
@@ -68,6 +71,21 @@ func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 	_ = stop
 	k.cache = c
 	Logger.Info("list cache synced")
+}
+
+// stripAgentHeavyFields drops the agent fields that are usually most of an
+// agent's size and that list reads served from the cache don't use: prompts,
+// instructions and pod spec. Reads that need them use ListAgents, which skips
+// the cache.
+func stripAgentHeavyFields(obj any) (any, error) {
+	if a, ok := obj.(*komputerv1alpha1.KomputerAgent); ok {
+		a.ManagedFields = nil
+		a.Spec.Instructions = ""
+		a.Spec.SystemPrompt = ""
+		a.Spec.InternalSystemPrompt = ""
+		a.Spec.PodSpec = nil
+	}
+	return obj, nil
 }
 
 // reader serves list reads from the cache once it has synced, else the direct client.

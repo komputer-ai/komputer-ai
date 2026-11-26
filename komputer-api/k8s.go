@@ -799,7 +799,18 @@ func (k *K8sClient) GetAgent(ctx context.Context, ns, name string) (*komputerv1a
 	return agent, nil
 }
 
+// ListAgents lists full agents from the API server.
 func (k *K8sClient) ListAgents(ctx context.Context, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
+	return k.listAgents(ctx, k.client, ns, labelFilter)
+}
+
+// ListAgentSummaries lists agents from the cache. Instructions, prompts and pod
+// spec may be empty (see stripAgentHeavyFields); use ListAgents when you need them.
+func (k *K8sClient) ListAgentSummaries(ctx context.Context, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
+	return k.listAgents(ctx, k.reader(), ns, labelFilter)
+}
+
+func (k *K8sClient) listAgents(ctx context.Context, r client.Reader, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
 	list := &komputerv1alpha1.KomputerAgentList{}
 	var opts []client.ListOption
 	if ns != "" {
@@ -808,7 +819,7 @@ func (k *K8sClient) ListAgents(ctx context.Context, ns string, labelFilter map[s
 	if len(labelFilter) > 0 {
 		opts = append(opts, client.MatchingLabels(labelFilter))
 	}
-	if err := k.reader().List(ctx, list, opts...); err != nil {
+	if err := r.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
