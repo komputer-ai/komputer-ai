@@ -259,7 +259,9 @@ export default function DashboardPage() {
     try {
       const [agentsRes, officesRes, schedulesRes, skillsRes, memoriesRes, secretsRes, connectorsRes, squadsRes] =
         await Promise.all([
-          listAgents(),
+          listAgents(undefined, {
+            fields: ["status", "taskStatus", "totalCostUSD", "lastTaskMessage", "createdAt"],
+          }),
           listOffices(),
           listSchedules(),
           listSkills().catch(() => ({ skills: [] })),

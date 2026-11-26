@@ -87,6 +87,15 @@ paths:
         schema:
           type: integer
         style: form
+      - description: "Comma-separated agent fields to return, e.g. status,totalCostUSD.\
+          \ name and namespace are always included. Omit for every field"
+        explode: true
+        in: query
+        name: fields
+        required: false
+        schema:
+          type: string
+        style: form
       responses:
         "200":
           content:

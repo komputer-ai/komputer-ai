@@ -1489,6 +1489,7 @@ func getAgentEvents(worker *RedisWorker, k8s *K8sClient) gin.HandlerFunc {
 // @Param sort query string false "Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created" default(-created)
 // @Param limit query int false "Max agents to return (1-200). Omit to return everything (legacy behavior)"
 // @Param offset query int false "Number of matching agents to skip (used with limit). Default 0"
+// @Param fields query string false "Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field"
 // @Success 200 {object} AgentListResponse "List of agents"
 // @Failure 400 {object} map[string]string "Bad request"
 // @Failure 500 {object} map[string]string "Internal error"
@@ -1533,6 +1534,11 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 		}
 		sortParam := c.Query("sort")
 		if _, _, err := parseAgentSort(sortParam); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		fields, err := parseAgentFields(c.Query("fields"))
+		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -1608,8 +1614,18 @@ func listAgents(k8s *K8sClient) gin.HandlerFunc {
 			return
 		}
 
-		enrichAgentPage(c.Request.Context(), k8s, page, byKey)
+		if containsField(fields, "budgetExhausted") {
+			enrichAgentPage(c.Request.Context(), k8s, page, byKey)
+		}
 
+		if fields != nil {
+			resp := gin.H{"agents": projectAgents(page, fields), "total": total, "facets": facets}
+			if nextOffset != nil {
+				resp["nextOffset"] = *nextOffset
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		}
 		c.JSON(http.StatusOK, AgentListResponse{
 			Agents:     page,
 			Total:      total,

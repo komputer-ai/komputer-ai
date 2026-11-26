@@ -1345,6 +1345,7 @@ type ApiListAgentsRequest struct {
 	sort *string
 	limit *int32
 	offset *int32
+	fields *string
 }
 
 // Kubernetes namespace
@@ -1392,6 +1393,12 @@ func (r ApiListAgentsRequest) Limit(limit int32) ApiListAgentsRequest {
 // Number of matching agents to skip (used with limit). Default 0
 func (r ApiListAgentsRequest) Offset(offset int32) ApiListAgentsRequest {
 	r.offset = &offset
+	return r
+}
+
+// Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field
+func (r ApiListAgentsRequest) Fields(fields string) ApiListAgentsRequest {
+	r.fields = &fields
 	return r
 }
 
@@ -1470,6 +1477,9 @@ func (a *AgentsAPIService) ListAgentsExecute(r ApiListAgentsRequest) (*AgentList
 	}
 	if r.offset != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "offset", r.offset, "form", "")
+	}
+	if r.fields != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "fields", r.fields, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

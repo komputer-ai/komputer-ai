@@ -99,6 +99,7 @@ export interface ListAgentsRequest {
     sort?: string;
     limit?: number;
     offset?: number;
+    fields?: string;
 }
 
 export interface PatchAgentOperationRequest {
@@ -649,6 +650,10 @@ export class AgentsApi extends runtime.BaseAPI {
 
         if (requestParameters['offset'] != null) {
             queryParameters['offset'] = requestParameters['offset'];
+        }
+
+        if (requestParameters['fields'] != null) {
+            queryParameters['fields'] = requestParameters['fields'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};

@@ -680,7 +680,7 @@ No authorization required
 
 ## ListAgents
 
-> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
+> AgentListResponse ListAgents(ctx).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
 
 List agents
 
@@ -707,10 +707,11 @@ func main() {
 	sort := "sort_example" // string | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to "-created")
 	limit := int32(56) // int32 | Max agents to return (1-200). Omit to return everything (legacy behavior) (optional)
 	offset := int32(56) // int32 | Number of matching agents to skip (used with limit). Default 0 (optional)
+	fields := "fields_example" // string | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Execute()
+	resp, r, err := apiClient.AgentsAPI.ListAgents(context.Background()).Namespace(namespace).Status(status).HideArchived(hideArchived).Label(label).Q(q).Sort(sort).Limit(limit).Offset(offset).Fields(fields).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `AgentsAPI.ListAgents``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -739,6 +740,7 @@ Name | Type | Description  | Notes
  **sort** | **string** | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [default to &quot;-created&quot;]
  **limit** | **int32** | Max agents to return (1-200). Omit to return everything (legacy behavior) | 
  **offset** | **int32** | Number of matching agents to skip (used with limit). Default 0 | 
+ **fields** | **string** | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field | 
 
 ### Return type
 

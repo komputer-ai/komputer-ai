@@ -73,6 +73,12 @@
                         "description": "Number of matching agents to skip (used with limit). Default 0",
                         "name": "offset",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field",
+                        "name": "fields",
+                        "in": "query"
                     }
                 ],
                 "responses": {

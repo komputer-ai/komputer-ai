@@ -2757,6 +2757,7 @@ class AgentsApi:
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
         offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
+        fields: Annotated[Optional[StrictStr], Field(description="Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2790,6 +2791,8 @@ class AgentsApi:
         :type limit: int
         :param offset: Number of matching agents to skip (used with limit). Default 0
         :type offset: int
+        :param fields: Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field
+        :type fields: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2821,6 +2824,7 @@ class AgentsApi:
             sort=sort,
             limit=limit,
             offset=offset,
+            fields=fields,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2854,6 +2858,7 @@ class AgentsApi:
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
         offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
+        fields: Annotated[Optional[StrictStr], Field(description="Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2887,6 +2892,8 @@ class AgentsApi:
         :type limit: int
         :param offset: Number of matching agents to skip (used with limit). Default 0
         :type offset: int
+        :param fields: Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field
+        :type fields: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2918,6 +2925,7 @@ class AgentsApi:
             sort=sort,
             limit=limit,
             offset=offset,
+            fields=fields,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2951,6 +2959,7 @@ class AgentsApi:
         sort: Annotated[Optional[StrictStr], Field(description="Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created")] = None,
         limit: Annotated[Optional[StrictInt], Field(description="Max agents to return (1-200). Omit to return everything (legacy behavior)")] = None,
         offset: Annotated[Optional[StrictInt], Field(description="Number of matching agents to skip (used with limit). Default 0")] = None,
+        fields: Annotated[Optional[StrictStr], Field(description="Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2984,6 +2993,8 @@ class AgentsApi:
         :type limit: int
         :param offset: Number of matching agents to skip (used with limit). Default 0
         :type offset: int
+        :param fields: Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field
+        :type fields: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3015,6 +3026,7 @@ class AgentsApi:
             sort=sort,
             limit=limit,
             offset=offset,
+            fields=fields,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3043,6 +3055,7 @@ class AgentsApi:
         sort,
         limit,
         offset,
+        fields,
         _request_auth,
         _content_type,
         _headers,
@@ -3097,6 +3110,10 @@ class AgentsApi:
         if offset is not None:
             
             _query_params.append(('offset', offset))
+            
+        if fields is not None:
+            
+            _query_params.append(('fields', fields))
             
         # process the header parameters
         # process the form parameters

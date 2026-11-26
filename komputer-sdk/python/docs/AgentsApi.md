@@ -677,7 +677,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **list_agents**
-> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
+> AgentListResponse list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
 
 List agents
 
@@ -711,10 +711,11 @@ with komputer_ai.ApiClient(configuration) as api_client:
     sort = '-created' # str | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created (optional) (default to '-created')
     limit = 56 # int | Max agents to return (1-200). Omit to return everything (legacy behavior) (optional)
     offset = 56 # int | Number of matching agents to skip (used with limit). Default 0 (optional)
+    fields = 'fields_example' # str | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field (optional)
 
     try:
         # List agents
-        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset)
+        api_response = api_instance.list_agents(namespace=namespace, status=status, hide_archived=hide_archived, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
         print("The response of AgentsApi->list_agents:\n")
         pprint(api_response)
     except Exception as e:
@@ -736,6 +737,7 @@ Name | Type | Description  | Notes
  **sort** | **str**| Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [optional] [default to &#39;-created&#39;]
  **limit** | **int**| Max agents to return (1-200). Omit to return everything (legacy behavior) | [optional] 
  **offset** | **int**| Number of matching agents to skip (used with limit). Default 0 | [optional] 
+ **fields** | **str**| Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field | [optional] 
 
 ### Return type
 

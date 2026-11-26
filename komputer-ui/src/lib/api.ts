@@ -67,6 +67,8 @@ export type ListAgentsOptions = {
   offset?: number;
   /** Leave out Archived agents (ignored when `status` is set). */
   hideArchived?: boolean;
+  /** Return only these agent fields (name and namespace always come back). */
+  fields?: (keyof AgentResponse)[];
 };
 
 export const listAgents = (ns?: string, opts?: ListAgentsOptions) => {
@@ -84,6 +86,7 @@ export const buildListAgentsQuery = (ns?: string, opts?: ListAgentsOptions): str
   if (opts?.sort) params.set('sort', opts.sort);
   if (opts?.limit != null) params.set('limit', String(opts.limit));
   if (opts?.offset != null) params.set('offset', String(opts.offset));
+  if (opts?.fields?.length) params.set('fields', opts.fields.join(','));
   for (const l of opts?.labelSelectors ?? []) {
     params.append('label', l);
   }

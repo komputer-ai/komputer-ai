@@ -45,6 +45,7 @@ type ListAgentsOpts struct {
 	Sort      *string  // created, name, status, model, lastActive, cost; prefix "-" for descending
 	Limit     *int32
 	Offset    *int32
+	Fields    *string // comma-separated agent fields to return, e.g. "status,totalCostUSD"; name and namespace always come back
 }
 
 func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*komputer.AgentListResponse, *http.Response, error) {
@@ -71,6 +72,9 @@ func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*kompu
 		}
 		if o.Offset != nil {
 			req = req.Offset(*o.Offset)
+		}
+		if o.Fields != nil {
+			req = req.Fields(*o.Fields)
 		}
 	}
 	return req.Execute()

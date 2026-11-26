@@ -691,7 +691,7 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace, status, hideArchived, label, q, sort, limit, offset)
+> AgentListResponse listAgents(namespace, status, hideArchived, label, q, sort, limit, offset, fields)
 
 List agents
 
@@ -727,6 +727,8 @@ async function example() {
     limit: 56,
     // number | Number of matching agents to skip (used with limit). Default 0 (optional)
     offset: 56,
+    // string | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field (optional)
+    fields: fields_example,
   } satisfies ListAgentsRequest;
 
   try {
@@ -754,6 +756,7 @@ example().catch(console.error);
 | **sort** | `string` | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [Optional] [Defaults to `&#39;-created&#39;`] |
 | **limit** | `number` | Max agents to return (1-200). Omit to return everything (legacy behavior) | [Optional] [Defaults to `undefined`] |
 | **offset** | `number` | Number of matching agents to skip (used with limit). Default 0 | [Optional] [Defaults to `undefined`] |
+| **fields** | `string` | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

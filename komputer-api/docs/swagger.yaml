@@ -6941,6 +6941,11 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: Comma-separated agent fields to return, e.g. status,totalCostUSD.
+          name and namespace are always included. Omit for every field
+        in: query
+        name: fields
+        type: string
       produces:
       - application/json
       responses:
