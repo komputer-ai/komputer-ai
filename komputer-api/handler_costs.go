@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -77,6 +78,68 @@ func (b *costBreakdownBuilder) record(ev AgentEvent) {
 	if b.includeEvents {
 		b.current.Events = append(b.current.Events, ev)
 	}
+}
+
+// costPayloadEvents are the event types whose payload add reads. Every other
+// event is only counted, so addRaw skips decoding its payload, which is often
+// large tool output.
+var costPayloadEvents = map[string]bool{
+	"task_started":   true,
+	"user_message":   true,
+	"task_completed": true,
+	"task_cancelled": true,
+	"error":          true,
+}
+
+// addRaw decodes one history entry for add, skipping entries that aren't JSON.
+func (b *costBreakdownBuilder) addRaw(raw string) {
+	if !b.includeEvents {
+		typ, ts, ok := eventHead(raw)
+		if !ok {
+			return
+		}
+		if !costPayloadEvents[typ] {
+			b.add(AgentEvent{Type: typ, Timestamp: ts})
+			return
+		}
+	}
+	var ev AgentEvent
+	if err := json.Unmarshal([]byte(raw), &ev); err != nil {
+		return
+	}
+	b.add(ev)
+}
+
+// eventHead reads an event's type and timestamp without decoding its payload.
+// History entries are marshaled AgentEvents, which put both ahead of the
+// payload, so it usually stops before reading the payload at all.
+func eventHead(raw string) (typ, ts string, ok bool) {
+	dec := json.NewDecoder(strings.NewReader(raw))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return "", "", false
+	}
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return "", "", false
+		}
+		switch key {
+		case "type":
+			err = dec.Decode(&typ)
+		case "timestamp":
+			err = dec.Decode(&ts)
+		default:
+			var skip json.RawMessage
+			err = dec.Decode(&skip)
+		}
+		if err != nil {
+			return "", "", false
+		}
+		if typ != "" && ts != "" {
+			break
+		}
+	}
+	return typ, ts, typ != ""
 }
 
 func (b *costBreakdownBuilder) add(ev AgentEvent) {
@@ -217,7 +280,7 @@ func getAgentCostBreakdown(worker *RedisWorker) gin.HandlerFunc {
 		}
 
 		// Stream the history in pages and fold it into per-task totals.
-		if err := ForEachAgentEvent(ctx, worker.Rdb, name, b.add); err != nil {
+		if err := ForEachRawAgentEvent(ctx, worker.Rdb, name, b.addRaw); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch events: " + err.Error()})
 			return
 		}
