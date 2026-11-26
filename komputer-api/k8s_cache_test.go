@@ -95,6 +95,63 @@ func TestListCacheServesAgentLists(t *testing.T) {
 	}
 }
 
+func TestListCacheStripsSquadMemberSpecs(t *testing.T) {
+	cfg := startEnvtest(t)
+	k := newEnvtestK8sClient(t, cfg)
+	ctx := t.Context()
+
+	k.StartCache(ctx, 30*time.Second)
+	if k.cache.Load() == nil {
+		t.Fatal("cache did not sync")
+	}
+
+	member := &komputerv1alpha1.KomputerAgentSpec{}
+	member.Instructions = "do the work"
+	member.SystemPrompt = "be brief"
+	squad := &komputerv1alpha1.KomputerSquad{
+		ObjectMeta: metav1.ObjectMeta{Name: "cached-squad", Namespace: "default"},
+		Spec: komputerv1alpha1.KomputerSquadSpec{Members: []komputerv1alpha1.KomputerSquadMember{
+			{Name: "inline", Spec: member},
+			{Ref: &komputerv1alpha1.KomputerSquadMemberRef{Name: "existing"}},
+		}},
+	}
+	if err := k.client.Create(ctx, squad); err != nil {
+		t.Fatalf("create squad: %v", err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		squads, err := k.ListSquads(ctx, "default")
+		if err != nil {
+			t.Fatalf("list squads: %v", err)
+		}
+		if len(squads) == 1 {
+			m := squads[0].Spec.Members
+			if len(m) != 2 || m[0].Spec == nil || m[1].Ref == nil || m[1].Ref.Name != "existing" {
+				t.Fatalf("cached squad members = %+v, want an inline member and a ref", m)
+			}
+			if m[0].Spec.Instructions != "" || m[0].Spec.SystemPrompt != "" {
+				t.Error("cached squads should have member instructions and prompts stripped")
+			}
+			if squads[0].ManagedFields != nil {
+				t.Error("cached squads should have managedFields stripped")
+			}
+			full, err := k.GetSquad(ctx, "default", "cached-squad")
+			if err != nil {
+				t.Fatalf("get squad: %v", err)
+			}
+			if full.Spec.Members[0].Spec.Instructions != "do the work" {
+				t.Error("GetSquad should return the full squad from the API server")
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("cache never saw the new squad; got %d squads", len(squads))
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func TestListCacheFallsBackWhenWatchIsForbidden(t *testing.T) {
 	cfg := startEnvtest(t)
 	// A user with no RBAC can't list or watch, so the informers never sync.

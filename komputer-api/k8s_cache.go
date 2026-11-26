@@ -42,6 +42,7 @@ func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 		DefaultTransform: cache.TransformStripManagedFields(),
 		ByObject: map[client.Object]cache.ByObject{
 			&komputerv1alpha1.KomputerAgent{}: {Transform: stripAgentHeavyFields},
+			&komputerv1alpha1.KomputerSquad{}: {Transform: stripSquadHeavyFields},
 		},
 		// Reading any type not registered below is a bug, not a reason to
 		// start a cluster-wide informer for it.
@@ -84,12 +85,31 @@ func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 func stripAgentHeavyFields(obj any) (any, error) {
 	if a, ok := obj.(*komputerv1alpha1.KomputerAgent); ok {
 		a.ManagedFields = nil
-		a.Spec.Instructions = ""
-		a.Spec.SystemPrompt = ""
-		a.Spec.InternalSystemPrompt = ""
-		a.Spec.PodSpec = nil
+		stripAgentSpec(&a.Spec)
 	}
 	return obj, nil
+}
+
+// stripSquadHeavyFields does the same for squad members' inline specs. Squad
+// reads that need them (create, patch, add member) use GetSquad, which skips
+// the cache.
+func stripSquadHeavyFields(obj any) (any, error) {
+	if s, ok := obj.(*komputerv1alpha1.KomputerSquad); ok {
+		s.ManagedFields = nil
+		for i := range s.Spec.Members {
+			if s.Spec.Members[i].Spec != nil {
+				stripAgentSpec(s.Spec.Members[i].Spec)
+			}
+		}
+	}
+	return obj, nil
+}
+
+func stripAgentSpec(spec *komputerv1alpha1.KomputerAgentSpec) {
+	spec.Instructions = ""
+	spec.SystemPrompt = ""
+	spec.InternalSystemPrompt = ""
+	spec.PodSpec = nil
 }
 
 // reader serves list reads from the cache once it has synced, else the direct client.
