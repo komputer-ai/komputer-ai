@@ -95,6 +95,7 @@ Each agent also carries `conditions` (omitted when empty): a list of `{type, sta
 | `limit` | Max agents to return (1-200). **Omitting `limit` returns every matching agent, exactly as before** — existing integrations are unaffected. |
 | `offset` | Number of matching agents to skip, for use with `limit`. Default `0`. |
 | `hideArchived` | `true` leaves out `Archived` agents when no `status` is given (the UI's "All" view). Filtering with `status=Archived` always returns them. |
+| `fields` | Comma-separated agent fields to return, e.g. `status,totalCostUSD`; `name` and `namespace` always come back, and an unknown field is a `400`. Omitted = every field. Leaving out `instructions`, `systemPrompt` and `podSpec` makes the list faster: it's then served from the API's in-memory cache. |
 
 When `limit` is set, the response also includes `nextOffset` (the offset to request next; omitted once there's no more data) and `total` (the count of agents matching `status`/`label`/`q`, before slicing). `facets` lists every distinct namespace and `key=value` label pair visible in the requested namespace scope — computed *before* `status`/`label`/`q` filtering, so a UI's filter dropdowns can always offer every option even while only a partial page has been fetched.
 
