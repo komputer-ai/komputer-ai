@@ -159,7 +159,10 @@ export function PersonalAgentPrompt({ onSessionActiveChange }: PersonalAgentProm
 
   // Initial load.
   useEffect(() => {
-    listAgents(undefined, { labelSelectors: [`${PERSONAL_AGENT_LABEL}=true`] })
+    listAgents(undefined, {
+      labelSelectors: [`${PERSONAL_AGENT_LABEL}=true`],
+      fields: ["model", "createdAt", "completionTime"],
+    })
       .then((res) => setAgents(res.agents ?? []))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load personal agents"))
       .finally(() => setAgentsLoaded(true));
