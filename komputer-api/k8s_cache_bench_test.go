@@ -67,7 +67,7 @@ func TestListCacheAtScale(t *testing.T) {
 		fmt.Printf("\n=== %d agents (created in %s)\n", n, time.Since(start).Round(time.Second))
 
 		// Before the cache: every request lists full agents from the API server.
-		k.cache = nil
+		k.cache.Store(nil)
 		lat, size := timeGet(t, r, "")
 		fmt.Printf("no cache,   GET /agents (full)        %8s  %8s\n", lat, kb(size))
 		lat, size = timeGet(t, r, dashboard)
@@ -93,7 +93,7 @@ func TestListCacheAtScale(t *testing.T) {
 		var shipped context.CancelFunc
 		mem, sync = measureCache(t, ctx, k, func(cctx context.Context) {
 			k.StartCache(cctx, 10*time.Minute)
-			if k.cache == nil {
+			if k.cache.Load() == nil {
 				t.Fatal("cache did not sync")
 			}
 		}, &shipped)
@@ -105,7 +105,7 @@ func TestListCacheAtScale(t *testing.T) {
 		lat, size = timeGet(t, r, "?limit=50&sort=-cost"+strings.Replace(dashboard, "?", "&", 1))
 		fmt.Printf("cache,      GET /agents page of 50    %8s  %8s\n", lat, kb(size))
 		shipped()
-		k.cache = nil
+		k.cache.Store(nil)
 	}
 }
 

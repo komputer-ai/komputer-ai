@@ -53,7 +53,7 @@ func TestListCacheServesAgentLists(t *testing.T) {
 	ctx := t.Context()
 
 	k.StartCache(ctx, 30*time.Second)
-	if k.cache == nil {
+	if k.cache.Load() == nil {
 		t.Fatal("cache did not sync")
 	}
 
@@ -103,7 +103,7 @@ func TestListCacheFallsBackWhenWatchIsForbidden(t *testing.T) {
 	k := newEnvtestK8sClient(t, noRBAC)
 
 	k.StartCache(t.Context(), 2*time.Second)
-	if k.cache != nil {
+	if k.cache.Load() != nil {
 		t.Fatal("cache should stay disabled when informers can't sync")
 	}
 	if k.reader() != client.Reader(k.client) {

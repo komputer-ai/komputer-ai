@@ -29,9 +29,13 @@ var cachedTypes = []client.Object{
 	&komputerv1alpha1.KomputerAgentClusterTemplate{},
 }
 
-// StartCache starts informers for cachedTypes and waits for their first sync.
-// If they don't sync within timeout (e.g. the API's RBAC lacks watch), it stops
-// them and list reads stay on the direct client.
+// listCache wraps the synced cache so it can be swapped in atomically.
+type listCache struct{ client.Reader }
+
+// StartCache starts informers for cachedTypes and waits for their first sync,
+// then switches list reads over to them. Until then, and for good if they don't
+// sync within timeout (e.g. the API's RBAC lacks watch), list reads go to the
+// API server. main runs it in the background so startup never waits on it.
 func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 	c, err := cache.New(k.restConfig, cache.Options{
 		Scheme:           k.client.Scheme(),
@@ -69,7 +73,7 @@ func (k *K8sClient) StartCache(ctx context.Context, timeout time.Duration) {
 	}
 	// Synced: the informers run until ctx ends, so stop is only needed above.
 	_ = stop
-	k.cache = c
+	k.cache.Store(&listCache{c})
 	Logger.Info("list cache synced")
 }
 
@@ -90,8 +94,8 @@ func stripAgentHeavyFields(obj any) (any, error) {
 
 // reader serves list reads from the cache once it has synced, else the direct client.
 func (k *K8sClient) reader() client.Reader {
-	if k.cache != nil {
-		return k.cache
+	if c := k.cache.Load(); c != nil {
+		return c.Reader
 	}
 	return k.client
 }

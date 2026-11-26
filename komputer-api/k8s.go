@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
@@ -60,8 +61,9 @@ type K8sClient struct {
 	progress progressCoalescer
 	// s3cfg caches KomputerConfig.spec.s3; see s3_config.go.
 	s3cfg s3ConfigCache
-	// cache serves list reads once synced; see k8s_cache.go.
-	cache client.Reader
+	// cache serves list reads once synced; see k8s_cache.go. It is set from a
+	// background goroutine while requests are already being served.
+	cache atomic.Pointer[listCache]
 }
 
 func NewK8sClient(defaultNamespace string) (*K8sClient, error) {

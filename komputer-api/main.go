@@ -57,7 +57,7 @@ func main() {
 		Logger.Fatalw("failed to create k8s client", "error", err)
 	}
 	Logger.Info("kubernetes client initialized")
-	k8s.StartCache(ctx, 60*time.Second)
+	go k8s.StartCache(ctx, 60*time.Second)
 
 	hostname := os.Getenv("CONSUMER_NAME")
 	if hostname == "" {
