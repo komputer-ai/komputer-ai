@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Building2, Clock } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { namespacedHref } from "@/lib/namespaced-href";
+import type { AgentResponse } from "@/lib/types";
 
 function TooltipRow({ label, value, color }: { label: string; value?: string | number; color?: string }) {
   if (!value && value !== 0) return null;
@@ -67,6 +68,9 @@ const handleHidden = "!opacity-0 !w-0 !h-0";
 /* ------------------------------------------------------------------ */
 /*  AgentNode                                                          */
 /* ------------------------------------------------------------------ */
+
+// Agent fields the agent nodes show, for listAgents' `fields`.
+export const AGENT_NODE_FIELDS: (keyof AgentResponse)[] = ["status", "model", "taskStatus", "lifecycle", "totalCostUSD"];
 
 export type AgentNodeData = {
   label: string;

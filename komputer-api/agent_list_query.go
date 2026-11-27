@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,9 @@ type AgentListQuery struct {
 	// HideArchived leaves out Archived agents when Status is empty, so lists
 	// show them only when asked for explicitly.
 	HideArchived bool
+	// TaskStatuses filters by task status, case-insensitive; an agent matches
+	// if it has any of them. Empty matches everything.
+	TaskStatuses []string
 	// Labels are "key=value" filters, ANDed together.
 	Labels map[string]string
 	// FilterLabels optionally maps "namespace/name" to the agent CR's metadata
@@ -49,6 +53,15 @@ type AgentListQuery struct {
 type AgentListFacets struct {
 	Namespaces []string `json:"namespaces"`
 	Labels     []string `json:"labels"`
+}
+
+// AgentListStats summarizes every agent matching the filters, before the
+// limit/offset slice, so a page of agents can come with whole-list counts.
+type AgentListStats struct {
+	// ByStatus counts agents per phase. Agents with no phase yet aren't counted.
+	ByStatus map[string]int `json:"byStatus"`
+	// TotalCostUSD is the summed totalCostUSD, formatted like the agent field.
+	TotalCostUSD string `json:"totalCostUSD"`
 }
 
 var validAgentSortKeys = map[string]bool{
@@ -207,43 +220,64 @@ func compareByTime(at, bt time.Time, desc bool) int {
 	return 1
 }
 
-// agentLessForSort reports whether a sorts strictly before b for the given
-// key/direction. Every key ties back to Name ascending for stability. The
-// lastActive key is special: agents that have never been active always sort
-// after agents that have, in BOTH directions — only the ordering *within*
-// each of those two groups flips with direction.
-func agentLessForSort(a, b AgentResponse, key string, desc bool) bool {
+// agentSortKey holds an agent's sort values, parsed once before sorting so
+// comparisons don't re-parse costs and timestamps.
+type agentSortKey struct {
+	a        *AgentResponse
+	cost     float64
+	created  time.Time
+	active   time.Time
+	isActive bool
+}
+
+func newAgentSortKey(a *AgentResponse) agentSortKey {
+	return agentSortKey{
+		a:        a,
+		cost:     agentCostValue(*a),
+		created:  parseAgentTime(a.CreatedAt),
+		active:   parseAgentTime(a.LastActivityAt),
+		isActive: a.LastActivityAt != "",
+	}
+}
+
+// compareAgents orders a and b for the given key/direction. Every key ties
+// back to Name ascending. The lastActive key is special: agents that have
+// never been active always sort after agents that have, in BOTH directions —
+// only the ordering *within* each of those two groups flips with direction.
+func compareAgents(a, b *agentSortKey, key string, desc bool) int {
 	var cmp int
 	switch key {
 	case "name":
-		cmp = compareByString(a.Name, b.Name, desc)
+		cmp = compareByString(a.a.Name, b.a.Name, desc)
 	case "status":
-		cmp = compareByString(a.Status, b.Status, desc)
+		cmp = compareByString(a.a.Status, b.a.Status, desc)
 	case "model":
-		cmp = compareByString(a.Model, b.Model, desc)
+		cmp = compareByString(a.a.Model, b.a.Model, desc)
 	case "cost":
-		cmp = compareByFloat(agentCostValue(a), agentCostValue(b), desc)
+		cmp = compareByFloat(a.cost, b.cost, desc)
 	case "lastActive":
-		aActive := a.LastActivityAt != ""
-		bActive := b.LastActivityAt != ""
-		if aActive != bActive {
-			return aActive // active-before-never, regardless of desc
+		if a.isActive != b.isActive {
+			if a.isActive {
+				return -1 // active-before-never, regardless of desc
+			}
+			return 1
 		}
-		if aActive {
-			cmp = compareByTime(parseAgentTime(a.LastActivityAt), parseAgentTime(b.LastActivityAt), desc)
+		if a.isActive {
+			cmp = compareByTime(a.active, b.active, desc)
 		}
 	default: // "created"
-		cmp = compareByTime(parseAgentTime(a.CreatedAt), parseAgentTime(b.CreatedAt), desc)
+		cmp = compareByTime(a.created, b.created, desc)
 	}
 	if cmp != 0 {
-		return cmp < 0
+		return cmp
 	}
-	return a.Name < b.Name
+	return strings.Compare(a.a.Name, b.a.Name)
 }
 
 // filterSortPaginateAgents is the pure function behind GET /agents: it
-// applies status/label/q filters, sorts by the requested key, and slices the
-// result to [offset, offset+limit). It is deliberately free of any K8s or
+// applies status/taskStatus/label/q filters, sorts by the requested key,
+// summarizes the matches into stats, and slices the result to
+// [offset, offset+limit). It is deliberately free of any K8s or
 // HTTP dependency so it can be exhaustively table-tested.
 //
 // facets are computed from `agents` as given — i.e. over whatever namespace
@@ -253,57 +287,66 @@ func agentLessForSort(a, b AgentResponse, key string, desc bool) bool {
 // A nil query.Limit returns the full filtered+sorted list (offset is
 // ignored) — this is what preserves exact backward compatibility for
 // existing callers that never pass `limit`.
-func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (page []AgentResponse, total int, nextOffset *int, facets AgentListFacets, err error) {
-	facets = computeAgentFacets(agents)
+func filterSortPaginateAgents(agents []AgentResponse, query AgentListQuery) (AgentListResponse, error) {
+	resp := AgentListResponse{Facets: computeAgentFacets(agents)}
 
 	sortKey, desc, err := parseAgentSort(query.Sort)
 	if err != nil {
-		return nil, 0, nil, facets, err
+		return resp, err
 	}
 
 	q := strings.ToLower(strings.TrimSpace(query.Q))
-	filtered := make([]AgentResponse, 0, len(agents))
-	for _, a := range agents {
+	// Filter and sort keys pointing into agents, so sorting moves small keys
+	// instead of whole AgentResponses; only the returned agents are copied.
+	keys := make([]agentSortKey, 0, len(agents))
+	for i := range agents {
+		a := &agents[i]
 		if query.Status == "" && query.HideArchived && a.Status == "Archived" {
 			continue
 		}
 		if query.Status != "" && !strings.EqualFold(query.Status, a.Status) {
 			continue
 		}
-		if !matchesAgentLabels(a, query.Labels, query.FilterLabels) {
+		if len(query.TaskStatuses) > 0 && !slices.ContainsFunc(query.TaskStatuses, func(s string) bool { return strings.EqualFold(s, a.TaskStatus) }) {
+			continue
+		}
+		if !matchesAgentLabels(*a, query.Labels, query.FilterLabels) {
 			continue
 		}
 		if q != "" && !strings.Contains(strings.ToLower(a.Name), q) {
 			continue
 		}
-		filtered = append(filtered, a)
+		keys = append(keys, newAgentSortKey(a))
 	}
 
-	sort.SliceStable(filtered, func(i, j int) bool {
-		return agentLessForSort(filtered[i], filtered[j], sortKey, desc)
+	slices.SortStableFunc(keys, func(x, y agentSortKey) int {
+		return compareAgents(&x, &y, sortKey, desc)
 	})
 
-	total = len(filtered)
+	resp.Stats = AgentListStats{ByStatus: map[string]int{}}
+	var totalCost float64
+	for i := range keys {
+		totalCost += keys[i].cost
+		if s := keys[i].a.Status; s != "" {
+			resp.Stats.ByStatus[s]++
+		}
+	}
+	resp.Stats.TotalCostUSD = fmt.Sprintf("%.4f", totalCost)
 
-	if query.Limit == nil {
-		return filtered, total, nil, facets, nil
+	total := len(keys)
+	resp.Total = total
+	offset, end := 0, total
+	if query.Limit != nil {
+		offset = min(max(query.Offset, 0), total)
+		end = min(offset+*query.Limit, total)
+		if end < total {
+			n := end
+			resp.NextOffset = &n
+		}
 	}
-
-	offset := query.Offset
-	if offset < 0 {
-		offset = 0
+	resp.Agents = make([]AgentResponse, 0, end-offset)
+	for _, k := range keys[offset:end] {
+		resp.Agents = append(resp.Agents, *k.a)
 	}
-	if offset > total {
-		offset = total
-	}
-	end := offset + *query.Limit
-	if end > total {
-		end = total
-	}
-	page = filtered[offset:end]
-	if end < total {
-		n := end
-		nextOffset = &n
-	}
-	return page, total, nextOffset, facets, nil
+	return resp, nil
 }

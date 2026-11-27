@@ -18,6 +18,7 @@ from komputer_ai.models.agent_condition import AgentCondition
 from komputer_ai.models.agent_event import AgentEvent
 from komputer_ai.models.agent_list_facets import AgentListFacets
 from komputer_ai.models.agent_list_response import AgentListResponse
+from komputer_ai.models.agent_list_stats import AgentListStats
 from komputer_ai.models.agent_response import AgentResponse
 from komputer_ai.models.compact_agent_request import CompactAgentRequest
 from komputer_ai.models.config_response import ConfigResponse

@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 **Agents** | Pointer to [**[]AgentResponse**](AgentResponse.md) |  | [optional] 
 **Facets** | Pointer to [**AgentListFacets**](AgentListFacets.md) | Facets lists every distinct namespace and \&quot;key&#x3D;value\&quot; label pair across agents in the requested namespace scope, computed BEFORE status/label/q filtering — see AgentListFacets doc. | [optional] 
 **NextOffset** | Pointer to **int32** | NextOffset is the offset to request for the next page; omitted once there is no more data (or when &#x60;limit&#x60; was omitted). | [optional] 
+**Stats** | Pointer to [**AgentListStats**](AgentListStats.md) | Stats counts and sums the agents matching the filters, BEFORE the limit/offset slice — see AgentListStats doc. | [optional] 
 **Total** | Pointer to **int32** | Total is the number of agents matching the status/label/q filters, BEFORE the limit/offset slice is applied. Always populated (even when &#x60;limit&#x60; was omitted, in which case it simply equals len(Agents)). | [optional] 
 
 ## Methods
@@ -102,6 +103,31 @@ SetNextOffset sets NextOffset field to given value.
 `func (o *AgentListResponse) HasNextOffset() bool`
 
 HasNextOffset returns a boolean if a field has been set.
+
+### GetStats
+
+`func (o *AgentListResponse) GetStats() AgentListStats`
+
+GetStats returns the Stats field if non-nil, zero value otherwise.
+
+### GetStatsOk
+
+`func (o *AgentListResponse) GetStatsOk() (*AgentListStats, bool)`
+
+GetStatsOk returns a tuple with the Stats field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetStats
+
+`func (o *AgentListResponse) SetStats(v AgentListStats)`
+
+SetStats sets Stats field to given value.
+
+### HasStats
+
+`func (o *AgentListResponse) HasStats() bool`
+
+HasStats returns a boolean if a field has been set.
 
 ### GetTotal
 

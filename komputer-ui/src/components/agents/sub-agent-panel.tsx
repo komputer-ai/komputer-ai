@@ -312,7 +312,7 @@ export function SubAgentPanel({ agentName, events, namespace }: { agentName: str
         setMemberStatuses((prev) => JSON.stringify(prev) === JSON.stringify(statuses) ? prev : statuses);
       })
       .catch(() => {});
-    listAgents(namespace)
+    listAgents(namespace, { fields: ["status"] })
       .then((res) => {
         const agents = res.agents || [];
         const names = agents.map((a) => a.name).sort();

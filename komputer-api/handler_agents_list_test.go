@@ -168,3 +168,69 @@ func TestListAgents_LabelFilterMatchesMetadataLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestListAgents_FieldsTrimsEachAgent(t *testing.T) {
+	a := newTestAgent("agent-0", "default")
+	a.Spec.Instructions = "long instructions"
+	a.Status.TotalCostUSD = "1.25"
+	k8s := newFakeK8s(t, a)
+
+	w := serveListAgents(t, k8s, "?fields=totalCostUSD,status,lastTaskMessage")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Agents []map[string]any `json:"agents"`
+		Total  int              `json:"total"`
+		Stats  AgentListStats   `json:"stats"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Total != 1 || len(resp.Agents) != 1 {
+		t.Fatalf("total = %d, agents = %d, want 1 and 1", resp.Total, len(resp.Agents))
+	}
+	if resp.Stats.TotalCostUSD != "1.2500" {
+		t.Errorf("stats.totalCostUSD = %q, want 1.2500", resp.Stats.TotalCostUSD)
+	}
+	got := resp.Agents[0]
+	// lastTaskMessage is empty and omitempty, so it's left out as in the full response.
+	want := map[string]any{"name": "agent-0", "namespace": "default", "status": "", "totalCostUSD": "1.25"}
+	if len(got) != len(want) {
+		t.Fatalf("agent = %v, want keys of %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %v, want %v", k, got[k], v)
+		}
+	}
+}
+
+func TestListAgents_FieldsRejectsUnknownField(t *testing.T) {
+	k8s := newFakeK8s(t, newTestAgent("agent-0", "default"))
+
+	w := serveListAgents(t, k8s, "?fields=status,nope")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListAgents_TaskStatusFilter(t *testing.T) {
+	busy := newTestAgent("busy", "default")
+	busy.Status.TaskStatus = "InProgress"
+	k8s := newFakeK8s(t, busy, newTestAgent("idle", "default"))
+
+	w := serveListAgents(t, k8s, "?taskStatus=InProgress,Compacting&fields=taskStatus")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Agents []map[string]any `json:"agents"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(resp.Agents) != 1 || resp.Agents[0]["name"] != "busy" {
+		t.Fatalf("agents = %v, want only busy", resp.Agents)
+	}
+}

@@ -10,7 +10,7 @@ import (
 
 // syntheticHistory serves a fake komputer-history list of tasks×perTask events,
 // generating each entry on demand so the test itself holds no full history.
-func syntheticHistory(t *testing.T, tasks, perTask int, pageSize int64) func(start, stop int64) ([]string, error) {
+func syntheticHistory(t testing.TB, tasks, perTask int, pageSize int64) func(start, stop int64) ([]string, error) {
 	total := int64(tasks * perTask)
 	filler := strings.Repeat("x", 1024) // ~1 KiB of tool output per event
 	return func(start, stop int64) ([]string, error) {
@@ -54,7 +54,7 @@ func TestCostBreakdown_LargeHistoryRetainsOnlyTotals(t *testing.T) {
 
 	before := heapAlloc()
 	b := newCostBreakdownBuilder(0, false)
-	if err := foldHistoryPages(syntheticHistory(t, tasks, perTask, historyPageSize), historyPageSize, b.add); err != nil {
+	if err := foldHistoryPages(syntheticHistory(t, tasks, perTask, historyPageSize), historyPageSize, b.addRaw); err != nil {
 		t.Fatal(err)
 	}
 	resp := b.result()
@@ -82,7 +82,7 @@ func TestCostBreakdown_LargeHistoryRetainsOnlyTotals(t *testing.T) {
 
 func TestCostBreakdown_LimitKeepsTotals(t *testing.T) {
 	b := newCostBreakdownBuilder(10, false)
-	if err := foldHistoryPages(syntheticHistory(t, 100, 5, 7), 7, b.add); err != nil {
+	if err := foldHistoryPages(syntheticHistory(t, 100, 5, 7), 7, b.addRaw); err != nil {
 		t.Fatal(err)
 	}
 	resp := b.result()
@@ -96,7 +96,7 @@ func TestCostBreakdown_LimitKeepsTotals(t *testing.T) {
 
 func TestCostBreakdown_EventsOptInIsCapped(t *testing.T) {
 	b := newCostBreakdownBuilder(0, true)
-	if err := foldHistoryPages(syntheticHistory(t, 120, 4, historyPageSize), historyPageSize, b.add); err != nil {
+	if err := foldHistoryPages(syntheticHistory(t, 120, 4, historyPageSize), historyPageSize, b.addRaw); err != nil {
 		t.Fatal(err)
 	}
 	resp := b.result()

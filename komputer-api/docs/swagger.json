@@ -11,7 +11,7 @@
     "paths": {
         "/agents": {
             "get": {
-                "description": "Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs.",
+                "description": "Returns agents with their current status in the specified namespace. Without `limit`, returns every matching agent (backward compatible). With `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll UIs. `stats` counts and sums every matching agent, so a small page can still show whole-list totals.",
                 "produces": [
                     "application/json"
                 ],
@@ -37,6 +37,12 @@
                         "type": "boolean",
                         "description": "Leave out Archived agents unless status asks for them",
                         "name": "hideArchived",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting",
+                        "name": "taskStatus",
                         "in": "query"
                     },
                     {
@@ -72,6 +78,12 @@
                         "type": "integer",
                         "description": "Number of matching agents to skip (used with limit). Default 0",
                         "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field",
+                        "name": "fields",
                         "in": "query"
                     }
                 ],
@@ -3184,9 +3196,33 @@
                     "description": "NextOffset is the offset to request for the next page; omitted once\nthere is no more data (or when `limit` was omitted).",
                     "type": "integer"
                 },
+                "stats": {
+                    "description": "Stats counts and sums the agents matching the filters, BEFORE the\nlimit/offset slice — see AgentListStats doc.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.AgentListStats"
+                        }
+                    ]
+                },
                 "total": {
                     "description": "Total is the number of agents matching the status/label/q filters, BEFORE\nthe limit/offset slice is applied. Always populated (even when `limit`\nwas omitted, in which case it simply equals len(Agents)).",
                     "type": "integer"
+                }
+            }
+        },
+        "main.AgentListStats": {
+            "type": "object",
+            "properties": {
+                "byStatus": {
+                    "description": "ByStatus counts agents per phase. Agents with no phase yet aren't counted.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "totalCostUSD": {
+                    "description": "TotalCostUSD is the summed totalCostUSD, formatted like the agent field.",
+                    "type": "string"
                 }
             }
         },

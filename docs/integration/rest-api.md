@@ -89,14 +89,18 @@ Each agent also carries `conditions` (omitted when empty): a list of `{type, sta
 |---|---|
 | `namespace` | Kubernetes namespace. Omitted = all namespaces. |
 | `status` | Filter by agent phase, case-insensitive (e.g. `Running`, `Sleeping`). |
+| `taskStatus` | Comma-separated task statuses, case-insensitive; matches agents with any of them (e.g. `InProgress,Compacting` for agents working right now). |
 | `label` | `key=value` label filter; repeat for multiple (ANDed). |
 | `q` | Case-insensitive substring match against the agent name. |
 | `sort` | One of `created`, `name`, `status`, `model`, `lastActive`, `cost`. Prefix with `-` for descending. Default `-created` (newest first). Ties are broken by name; for `lastActive`, agents that have never run a task sort last regardless of direction. |
 | `limit` | Max agents to return (1-200). **Omitting `limit` returns every matching agent, exactly as before** — existing integrations are unaffected. |
 | `offset` | Number of matching agents to skip, for use with `limit`. Default `0`. |
 | `hideArchived` | `true` leaves out `Archived` agents when no `status` is given (the UI's "All" view). Filtering with `status=Archived` always returns them. |
+| `fields` | Comma-separated agent fields to return, e.g. `status,totalCostUSD`; `name` and `namespace` always come back, and an unknown field is a `400`. Omitted = every field. Leaving out `instructions`, `systemPrompt` and `podSpec` makes the list faster: it's then served from the API's in-memory cache. |
 
 When `limit` is set, the response also includes `nextOffset` (the offset to request next; omitted once there's no more data) and `total` (the count of agents matching `status`/`label`/`q`, before slicing). `facets` lists every distinct namespace and `key=value` label pair visible in the requested namespace scope — computed *before* `status`/`label`/`q` filtering, so a UI's filter dropdowns can always offer every option even while only a partial page has been fetched.
+
+Every response also includes `stats`, computed over the same matching agents as `total` (before slicing): `byStatus` counts agents per phase and `totalCostUSD` sums their cost. A dashboard can ask for `limit=1` and still show whole-list counts.
 
 Paging example:
 ```

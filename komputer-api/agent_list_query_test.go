@@ -55,7 +55,8 @@ func TestFilterSortPaginateAgents_SortKeys(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.sort, func(t *testing.T) {
-			got, total, next, _, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: tc.sort})
+			res, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: tc.sort})
+			got, total, next := res.Agents, res.Total, res.NextOffset
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -73,7 +74,7 @@ func TestFilterSortPaginateAgents_SortKeys(t *testing.T) {
 }
 
 func TestFilterSortPaginateAgents_InvalidSortKey(t *testing.T) {
-	_, _, _, _, err := filterSortPaginateAgents(nil, AgentListQuery{Sort: "bogus"})
+	_, err := filterSortPaginateAgents(nil, AgentListQuery{Sort: "bogus"})
 	if err == nil {
 		t.Fatal("expected error for invalid sort key, got nil")
 	}
@@ -85,7 +86,8 @@ func TestFilterSortPaginateAgents_TiesBrokenByName(t *testing.T) {
 		{Name: "apple", Status: "Running", CreatedAt: "2024-01-01T00:00:00Z"},
 		{Name: "mango", Status: "Running", CreatedAt: "2024-01-01T00:00:00Z"},
 	}
-	got, _, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "status"})
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "status"})
+	got := res.Agents
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,7 +106,8 @@ func TestFilterSortPaginateAgents_LastActiveNeverSortsLastBothDirections(t *test
 	}
 
 	t.Run("ascending", func(t *testing.T) {
-		got, _, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "lastActive"})
+		res, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "lastActive"})
+		got := res.Agents
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -115,7 +118,8 @@ func TestFilterSortPaginateAgents_LastActiveNeverSortsLastBothDirections(t *test
 	})
 
 	t.Run("descending", func(t *testing.T) {
-		got, _, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "-lastActive"})
+		res, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "-lastActive"})
+		got := res.Agents
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -133,7 +137,8 @@ func TestFilterSortPaginateAgents_CostNumericEmptyUnparseable(t *testing.T) {
 		{Name: "paid", TotalCostUSD: "2.00"},
 		{Name: "zero", TotalCostUSD: "0"},
 	}
-	got, _, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "cost"})
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{Sort: "cost"})
+	got := res.Agents
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -150,7 +155,8 @@ func TestFilterSortPaginateAgents_QCaseInsensitive(t *testing.T) {
 		{Name: "worker-two"},
 		{Name: "other"},
 	}
-	got, total, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Q: "WORKER", Sort: "name"})
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{Q: "WORKER", Sort: "name"})
+	got, total := res.Agents, res.Total
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,10 +175,11 @@ func TestFilterSortPaginateAgents_LabelAND(t *testing.T) {
 		{Name: "b", Labels: map[string]string{"env": "prod", "team": "beta"}},
 		{Name: "c", Labels: map[string]string{"env": "dev", "team": "alpha"}},
 	}
-	got, total, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{
 		Labels: map[string]string{"env": "prod", "team": "alpha"},
 		Sort:   "name",
 	})
+	got, total := res.Agents, res.Total
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -190,7 +197,8 @@ func TestFilterSortPaginateAgents_StatusFilterCaseInsensitive(t *testing.T) {
 		{Name: "a", Status: "Running"},
 		{Name: "b", Status: "Sleeping"},
 	}
-	got, total, _, _, err := filterSortPaginateAgents(agents, AgentListQuery{Status: "running"})
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{Status: "running"})
+	got, total := res.Agents, res.Total
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -206,12 +214,12 @@ func TestFilterSortPaginateAgents_OffsetLimitSlicing(t *testing.T) {
 	}
 
 	cases := []struct {
-		name       string
-		offset     int
-		limit      int
-		wantNames  []string
-		wantNext   *int
-		wantTotal  int
+		name      string
+		offset    int
+		limit     int
+		wantNames []string
+		wantNext  *int
+		wantTotal int
 	}{
 		{"first page", 0, 3, []string{"a", "b", "c"}, intPtr(3), 10},
 		{"second page", 3, 3, []string{"d", "e", "f"}, intPtr(6), 10},
@@ -223,11 +231,12 @@ func TestFilterSortPaginateAgents_OffsetLimitSlicing(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, total, next, _, err := filterSortPaginateAgents(agents, AgentListQuery{
+			res, err := filterSortPaginateAgents(agents, AgentListQuery{
 				Sort:   "name",
 				Limit:  intPtr(tc.limit),
 				Offset: tc.offset,
 			})
+			got, total, next := res.Agents, res.Total, res.NextOffset
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -249,7 +258,8 @@ func TestFilterSortPaginateAgents_NoLimitReturnsEverything(t *testing.T) {
 	for i := range agents {
 		agents[i] = AgentResponse{Name: string(rune('a' + i%26))}
 	}
-	got, total, next, _, err := filterSortPaginateAgents(agents, AgentListQuery{})
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{})
+	got, total, next := res.Agents, res.Total, res.NextOffset
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -271,11 +281,12 @@ func TestFilterSortPaginateAgents_FacetsIgnoreFilters(t *testing.T) {
 		{Name: "c", Namespace: "ns1", Status: "Failed", Labels: map[string]string{"team": "alpha"}},
 	}
 	// Filter down to almost nothing...
-	_, _, _, facets, err := filterSortPaginateAgents(agents, AgentListQuery{
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{
 		Status: "Running",
 		Labels: map[string]string{"env": "prod"},
 		Q:      "a",
 	})
+	facets := res.Facets
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -358,5 +369,43 @@ func TestParseAgentListOffset(t *testing.T) {
 				t.Errorf("got %d, want %d", got, tc.wantVal)
 			}
 		})
+	}
+}
+
+func TestFilterSortPaginateAgents_TaskStatusFilter(t *testing.T) {
+	agents := []AgentResponse{
+		{Name: "busy", TaskStatus: "InProgress"},
+		{Name: "compacting", TaskStatus: "Compacting"},
+		{Name: "done", TaskStatus: "Complete"},
+		{Name: "fresh"},
+	}
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{TaskStatuses: []string{"inprogress", "Compacting"}, Sort: "name"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := names(res.Agents); !reflect.DeepEqual(got, []string{"busy", "compacting"}) {
+		t.Errorf("got %v, want [busy compacting]", got)
+	}
+}
+
+func TestFilterSortPaginateAgents_StatsCoverEveryMatchBeforePaging(t *testing.T) {
+	agents := []AgentResponse{
+		{Name: "a", Status: "Running", TotalCostUSD: "1.5000"},
+		{Name: "b", Status: "Running", TotalCostUSD: "0.2500"},
+		{Name: "c", Status: "Sleeping", TotalCostUSD: "bogus"},
+		{Name: "d", Status: "Archived", TotalCostUSD: "9.0000"},
+		{Name: "e"},
+	}
+	limit := 1
+	res, err := filterSortPaginateAgents(agents, AgentListQuery{HideArchived: true, Limit: &limit})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Agents) != 1 || res.Total != 4 {
+		t.Fatalf("got %d agents, total %d; want 1 agent, total 4", len(res.Agents), res.Total)
+	}
+	want := AgentListStats{ByStatus: map[string]int{"Running": 2, "Sleeping": 1}, TotalCostUSD: "1.7500"}
+	if !reflect.DeepEqual(res.Stats, want) {
+		t.Errorf("stats = %+v, want %+v", res.Stats, want)
 	}
 }

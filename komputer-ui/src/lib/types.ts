@@ -103,6 +103,13 @@ export interface AgentListFacets {
   labels: string[];
 }
 
+export interface AgentListStats {
+  /** Agents per phase; agents with no phase yet aren't counted. */
+  byStatus: Record<string, number>;
+  /** Summed totalCostUSD, e.g. "12.3400". */
+  totalCostUSD: string;
+}
+
 export interface AgentListResponse {
   agents: AgentResponse[];
   /** Count of agents matching status/label/q filters, before the limit/offset slice. */
@@ -115,6 +122,8 @@ export interface AgentListResponse {
    * filter dropdowns can always offer every option.
    */
   facets?: AgentListFacets;
+  /** Counts and cost over every matching agent, before the limit/offset slice. */
+  stats?: AgentListStats;
 }
 
 export interface OfficeMemberResponse {

@@ -58,14 +58,17 @@ class KomputerClient:
 
     # --- Agents ---
 
-    def list_agents(self, *, namespace: Optional[str] = None, status: Optional[str] = None, label: Optional[List[str]] = None, q: Optional[str] = None, sort: Optional[str] = None, limit: Optional[int] = None, offset: Optional[int] = None):
+    def list_agents(self, *, namespace: Optional[str] = None, status: Optional[str] = None, task_status: Optional[str] = None, label: Optional[List[str]] = None, q: Optional[str] = None, sort: Optional[str] = None, limit: Optional[int] = None, offset: Optional[int] = None, fields: Optional[str] = None):
         """List agents.
 
         Leaving `limit` unset returns every matching agent in one response
         (the backward-compatible default). Set `limit` to page through
         results via `offset` and the response's `next_offset`/`total`/`facets`.
+        `fields` (comma-separated API field names, e.g. "status,totalCostUSD")
+        returns only those agent fields; name and namespace always come back.
+        `task_status` (e.g. "InProgress,Compacting") matches any of those task statuses.
         """
-        return self.agents.list_agents(namespace=namespace, status=status, label=label, q=q, sort=sort, limit=limit, offset=offset)
+        return self.agents.list_agents(namespace=namespace, status=status, task_status=task_status, label=label, q=q, sort=sort, limit=limit, offset=offset, fields=fields)
 
     def create_agent(self, name: str, instructions: str, *, allowed_tools: Optional[List[str]] = None, budget_usd: Optional[str] = None, connectors: Optional[List[str]] = None, delete_ttl: Optional[str] = None, disallowed_tools: Optional[List[str]] = None, effort: Optional[str] = None, lifecycle: Optional[str] = None, sleep_ttl: Optional[str] = None, archive_ttl: Optional[str] = None, task_budget_usd: Optional[str] = None, task_timeout: Optional[str] = None, memories: Optional[List[str]] = None, model: Optional[str] = None, namespace: Optional[str] = None, office_manager: Optional[str] = None, pod_spec: Optional[V1PodSpec] = None, priority: Optional[int] = None, role: Optional[str] = None, secret_refs: Optional[List[str]] = None, skills: Optional[List[str]] = None, storage: Optional[V1alpha1StorageSpec] = None, system_prompt: Optional[str] = None, template_ref: Optional[str] = None):
         try:

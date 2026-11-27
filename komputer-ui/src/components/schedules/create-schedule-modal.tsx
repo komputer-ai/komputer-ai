@@ -70,7 +70,7 @@ export function CreateScheduleModal({ open, onOpenChange, onCreated }: CreateSch
 
   useEffect(() => {
     if (!open) return;
-    listAgents(namespace || undefined)
+    listAgents(namespace || undefined, { fields: ["name"] })
       .then((res) => setAvailableAgents((res.agents ?? []).map((a) => ({ name: a.name, namespace: a.namespace }))))
       .catch(() => setAvailableAgents([]));
   }, [open, namespace]);

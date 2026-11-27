@@ -38,13 +38,15 @@ func New(baseURL string) *Client {
 // backward-compatible default); setting it enables paging via Offset and the
 // response's NextOffset/Total/Facets fields.
 type ListAgentsOpts struct {
-	Namespace *string
-	Status    *string
-	Labels    []string // "key=value" filters, ANDed together
-	Q         *string  // case-insensitive substring match against agent name
-	Sort      *string  // created, name, status, model, lastActive, cost; prefix "-" for descending
-	Limit     *int32
-	Offset    *int32
+	Namespace  *string
+	Status     *string
+	TaskStatus *string  // comma-separated task statuses to match, e.g. "InProgress,Compacting"
+	Labels     []string // "key=value" filters, ANDed together
+	Q          *string  // case-insensitive substring match against agent name
+	Sort       *string  // created, name, status, model, lastActive, cost; prefix "-" for descending
+	Limit      *int32
+	Offset     *int32
+	Fields     *string // comma-separated agent fields to return, e.g. "status,totalCostUSD"; name and namespace always come back
 }
 
 func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*komputer.AgentListResponse, *http.Response, error) {
@@ -56,6 +58,9 @@ func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*kompu
 		}
 		if o.Status != nil {
 			req = req.Status(*o.Status)
+		}
+		if o.TaskStatus != nil {
+			req = req.TaskStatus(*o.TaskStatus)
 		}
 		if len(o.Labels) > 0 {
 			req = req.Label(o.Labels)
@@ -71,6 +76,9 @@ func (c *Client) ListAgents(ctx context.Context, opts ...ListAgentsOpts) (*kompu
 		}
 		if o.Offset != nil {
 			req = req.Offset(*o.Offset)
+		}
+		if o.Fields != nil {
+			req = req.Fields(*o.Fields)
 		}
 	}
 	return req.Execute()

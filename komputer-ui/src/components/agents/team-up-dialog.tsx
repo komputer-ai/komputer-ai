@@ -64,7 +64,7 @@ export function TeamUpDialog({
   // Load all agents when dialog opens
   useEffect(() => {
     if (!open) return;
-    listAgents(agentNamespace)
+    listAgents(agentNamespace, { fields: ["status"] })
       .then((res) => {
         setAgents((res.agents || []).filter((a) => a.name !== agentName));
       })
@@ -112,7 +112,7 @@ export function TeamUpDialog({
     try {
       await sleepAgent(name, namespace);
       // Refresh the agent list so the warning recomputes from fresh status.
-      const res = await listAgents(agentNamespace);
+      const res = await listAgents(agentNamespace, { fields: ["status"] });
       setAgents((res.agents || []).filter((a) => a.name !== agentName));
       // Also bump agentStatus locally if this was the current agent — the parent
       // owns it via prop, but we can hint by removing the entry from the list.

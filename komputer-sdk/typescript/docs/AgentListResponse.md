@@ -9,6 +9,7 @@ Name | Type
 `agents` | [Array&lt;AgentResponse&gt;](AgentResponse.md)
 `facets` | [AgentListFacets](AgentListFacets.md)
 `nextOffset` | number
+`stats` | [AgentListStats](AgentListStats.md)
 `total` | number
 
 ## Example
@@ -21,6 +22,7 @@ const example = {
   "agents": null,
   "facets": null,
   "nextOffset": null,
+  "stats": null,
   "total": null,
 } satisfies AgentListResponse
 

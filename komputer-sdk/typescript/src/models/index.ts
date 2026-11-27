@@ -5,6 +5,7 @@ export * from './AgentCondition';
 export * from './AgentEvent';
 export * from './AgentListFacets';
 export * from './AgentListResponse';
+export * from './AgentListStats';
 export * from './AgentResponse';
 export * from './CompactAgentRequest';
 export * from './ConfigResponse';

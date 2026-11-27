@@ -4,6 +4,7 @@ docs/AgentCondition.md
 docs/AgentEvent.md
 docs/AgentListFacets.md
 docs/AgentListResponse.md
+docs/AgentListStats.md
 docs/AgentResponse.md
 docs/AgentsApi.md
 docs/CompactAgentRequest.md
@@ -220,6 +221,7 @@ src/models/AgentCondition.ts
 src/models/AgentEvent.ts
 src/models/AgentListFacets.ts
 src/models/AgentListResponse.ts
+src/models/AgentListStats.ts
 src/models/AgentResponse.ts
 src/models/CompactAgentRequest.ts
 src/models/ConfigResponse.ts

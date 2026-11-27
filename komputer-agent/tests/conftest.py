@@ -71,6 +71,7 @@ def mock_api(monkeypatch):
             path = url.replace(base, "", 1)
             fake.calls.append((method.upper(), path))
             fake.last_json = kwargs.get("json")
+            fake.last_params = kwargs.get("params")
             key = (method.upper(), path)
             if key not in fake.responses:
                 return FakeResponse(404, {"error": f"no mock for {key}"})

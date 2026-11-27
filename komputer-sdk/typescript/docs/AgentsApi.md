@@ -691,11 +691,11 @@ No authorization required
 
 ## listAgents
 
-> AgentListResponse listAgents(namespace, status, hideArchived, label, q, sort, limit, offset)
+> AgentListResponse listAgents(namespace, status, hideArchived, taskStatus, label, q, sort, limit, offset, fields)
 
 List agents
 
-Returns agents with their current status in the specified namespace. Without &#x60;limit&#x60;, returns every matching agent (backward compatible). With &#x60;limit&#x60;, returns one page plus &#x60;total&#x60;/&#x60;nextOffset&#x60;/&#x60;facets&#x60; for infinite-scroll UIs.
+Returns agents with their current status in the specified namespace. Without &#x60;limit&#x60;, returns every matching agent (backward compatible). With &#x60;limit&#x60;, returns one page plus &#x60;total&#x60;/&#x60;nextOffset&#x60;/&#x60;facets&#x60; for infinite-scroll UIs. &#x60;stats&#x60; counts and sums every matching agent, so a small page can still show whole-list totals.
 
 ### Example
 
@@ -717,6 +717,8 @@ async function example() {
     status: status_example,
     // boolean | Leave out Archived agents unless status asks for them (optional)
     hideArchived: true,
+    // string | Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting (optional)
+    taskStatus: taskStatus_example,
     // Array<string> | Label filter key=value; repeat for multiple (AND) (optional)
     label: ...,
     // string | Case-insensitive substring match against agent name (optional)
@@ -727,6 +729,8 @@ async function example() {
     limit: 56,
     // number | Number of matching agents to skip (used with limit). Default 0 (optional)
     offset: 56,
+    // string | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field (optional)
+    fields: fields_example,
   } satisfies ListAgentsRequest;
 
   try {
@@ -749,11 +753,13 @@ example().catch(console.error);
 | **namespace** | `string` | Kubernetes namespace | [Optional] [Defaults to `undefined`] |
 | **status** | `string` | Filter by agent phase (case-insensitive), e.g. Running, Sleeping | [Optional] [Defaults to `undefined`] |
 | **hideArchived** | `boolean` | Leave out Archived agents unless status asks for them | [Optional] [Defaults to `undefined`] |
+| **taskStatus** | `string` | Comma-separated task statuses to match (case-insensitive), e.g. InProgress,Compacting | [Optional] [Defaults to `undefined`] |
 | **label** | `Array<string>` | Label filter key&#x3D;value; repeat for multiple (AND) | [Optional] |
 | **q** | `string` | Case-insensitive substring match against agent name | [Optional] [Defaults to `undefined`] |
 | **sort** | `string` | Sort key: created, name, status, model, lastActive, cost; prefix with - for descending. Default -created | [Optional] [Defaults to `&#39;-created&#39;`] |
 | **limit** | `number` | Max agents to return (1-200). Omit to return everything (legacy behavior) | [Optional] [Defaults to `undefined`] |
 | **offset** | `number` | Number of matching agents to skip (used with limit). Default 0 | [Optional] [Defaults to `undefined`] |
+| **fields** | `string` | Comma-separated agent fields to return, e.g. status,totalCostUSD. name and namespace are always included. Omit for every field | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	komputerv1alpha1 "github.com/komputer-ai/komputer-operator/api/v1alpha1"
@@ -60,6 +61,9 @@ type K8sClient struct {
 	progress progressCoalescer
 	// s3cfg caches KomputerConfig.spec.s3; see s3_config.go.
 	s3cfg s3ConfigCache
+	// cache serves list reads once synced; see k8s_cache.go. It is set from a
+	// background goroutine while requests are already being served.
+	cache atomic.Pointer[listCache]
 }
 
 func NewK8sClient(defaultNamespace string) (*K8sClient, error) {
@@ -608,11 +612,11 @@ func (k *K8sClient) ResolveEffectiveBudgetUSD(ctx context.Context, ns string, cf
 		templateRef = "default"
 	}
 	tpl := &komputerv1alpha1.KomputerAgentTemplate{}
-	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef, Namespace: ns}, tpl); err == nil {
+	if err := k.reader().Get(ctx, types.NamespacedName{Name: templateRef, Namespace: ns}, tpl); err == nil {
 		return tpl.Spec.BudgetUSD
 	}
 	clusterTpl := &komputerv1alpha1.KomputerAgentClusterTemplate{}
-	if err := k.client.Get(ctx, types.NamespacedName{Name: templateRef}, clusterTpl); err == nil {
+	if err := k.reader().Get(ctx, types.NamespacedName{Name: templateRef}, clusterTpl); err == nil {
 		return clusterTpl.Spec.BudgetUSD
 	}
 	return ""
@@ -797,7 +801,18 @@ func (k *K8sClient) GetAgent(ctx context.Context, ns, name string) (*komputerv1a
 	return agent, nil
 }
 
+// ListAgents lists full agents from the API server.
 func (k *K8sClient) ListAgents(ctx context.Context, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
+	return k.listAgents(ctx, k.client, ns, labelFilter)
+}
+
+// ListAgentSummaries lists agents from the cache. Instructions, prompts and pod
+// spec may be empty (see stripAgentHeavyFields); use ListAgents when you need them.
+func (k *K8sClient) ListAgentSummaries(ctx context.Context, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
+	return k.listAgents(ctx, k.reader(), ns, labelFilter)
+}
+
+func (k *K8sClient) listAgents(ctx context.Context, r client.Reader, ns string, labelFilter map[string]string) ([]komputerv1alpha1.KomputerAgent, error) {
 	list := &komputerv1alpha1.KomputerAgentList{}
 	var opts []client.ListOption
 	if ns != "" {
@@ -806,7 +821,7 @@ func (k *K8sClient) ListAgents(ctx context.Context, ns string, labelFilter map[s
 	if len(labelFilter) > 0 {
 		opts = append(opts, client.MatchingLabels(labelFilter))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := r.List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -823,7 +838,7 @@ func (k *K8sClient) ListTemplates(ctx context.Context, ns string) ([]TemplateInf
 
 	// Cluster-scoped templates
 	clusterList := &komputerv1alpha1.KomputerAgentClusterTemplateList{}
-	if err := k.client.List(ctx, clusterList); err != nil {
+	if err := k.reader().List(ctx, clusterList); err != nil {
 		return nil, fmt.Errorf("failed to list cluster templates: %w", err)
 	}
 	for _, t := range clusterList.Items {
@@ -833,7 +848,7 @@ func (k *K8sClient) ListTemplates(ctx context.Context, ns string) ([]TemplateInf
 	// Namespaced templates (if namespace provided)
 	if ns != "" {
 		nsList := &komputerv1alpha1.KomputerAgentTemplateList{}
-		if err := k.client.List(ctx, nsList, client.InNamespace(ns)); err != nil {
+		if err := k.reader().List(ctx, nsList, client.InNamespace(ns)); err != nil {
 			return nil, fmt.Errorf("failed to list namespace templates: %w", err)
 		}
 		for _, t := range nsList.Items {
@@ -1190,7 +1205,7 @@ func (k *K8sClient) ListOffices(ctx context.Context, ns string) ([]komputerv1alp
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -1223,7 +1238,7 @@ func (k *K8sClient) ListSquads(ctx context.Context, ns string) ([]komputerv1alph
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -1418,7 +1433,7 @@ func (k *K8sClient) ListSchedules(ctx context.Context, ns string) ([]komputerv1a
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -1651,7 +1666,7 @@ func (k *K8sClient) ListMemories(ctx context.Context, ns string) ([]komputerv1al
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -1752,7 +1767,7 @@ func (k *K8sClient) ListSkills(ctx context.Context, ns string) ([]komputerv1alph
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil
@@ -1760,7 +1775,7 @@ func (k *K8sClient) ListSkills(ctx context.Context, ns string) ([]komputerv1alph
 
 func (k *K8sClient) ListDefaultSkillNames(ctx context.Context) ([]string, error) {
 	list := &komputerv1alpha1.KomputerSkillList{}
-	if err := k.client.List(ctx, list, client.MatchingLabels{"komputer.ai/default": "true"}); err != nil {
+	if err := k.reader().List(ctx, list, client.MatchingLabels{"komputer.ai/default": "true"}); err != nil {
 		return nil, err
 	}
 	names := make([]string, 0, len(list.Items))
@@ -1862,7 +1877,7 @@ func (k *K8sClient) ListConnectors(ctx context.Context, ns string) ([]komputerv1
 	if ns != "" {
 		opts = append(opts, client.InNamespace(ns))
 	}
-	if err := k.client.List(ctx, list, opts...); err != nil {
+	if err := k.reader().List(ctx, list, opts...); err != nil {
 		return nil, err
 	}
 	return list.Items, nil

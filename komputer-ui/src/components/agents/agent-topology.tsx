@@ -19,7 +19,7 @@ import { motion } from "framer-motion";
 
 import { listAgents, listOffices, getOffice, listSchedules } from "@/lib/api";
 import type { AgentResponse, OfficeResponse, ScheduleResponse } from "@/lib/types";
-import { AgentNode, OfficeNode, ScheduleNode } from "@/components/topology/node-types";
+import { AGENT_NODE_FIELDS, AgentNode, OfficeNode, ScheduleNode } from "@/components/topology/node-types";
 
 const nodeTypes = { agent: AgentNode, office: OfficeNode, schedule: ScheduleNode } as const;
 
@@ -269,7 +269,7 @@ export function AgentTopology({ agentName, agentNs, flush }: { agentName: string
   const fetchData = useCallback(async () => {
     try {
       const [agentsRes, officesRes, schedulesRes] = await Promise.all([
-        listAgents(),
+        listAgents(undefined, { fields: AGENT_NODE_FIELDS }),
         listOffices(),
         listSchedules(),
       ]);

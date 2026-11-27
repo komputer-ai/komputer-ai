@@ -19,6 +19,9 @@ import type { AgentResponse } from "@/lib/types";
 type SortField = "totalCostUSD" | "lastTaskCostUSD" | "name";
 type SortDir = "asc" | "desc";
 
+// The only agent fields this page and its charts read.
+const COST_FIELDS: (keyof AgentResponse)[] = ["totalCostUSD", "lastTaskCostUSD"];
+
 function parseCost(cost?: string): number {
   if (!cost) return 0;
   const n = parseFloat(cost);
@@ -26,7 +29,7 @@ function parseCost(cost?: string): number {
 }
 
 export default function CostsPage() {
-  const { agents, loading, error, refresh } = useAgents();
+  const { agents, loading, error, refresh } = useAgents(COST_FIELDS);
   const showLoading = useDelayedLoading(loading);
   usePageRefresh(refresh);
   const [sortField, setSortField] = useState<SortField>("totalCostUSD");

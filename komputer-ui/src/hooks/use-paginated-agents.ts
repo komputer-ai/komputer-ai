@@ -12,6 +12,12 @@ const MAX_API_LIMIT = 200;
 
 const EMPTY_FACETS: AgentListFacets = { namespaces: [], labels: [] };
 
+// The agent fields the agents page, its table, cards and row actions read.
+const LIST_FIELDS: (keyof AgentResponse)[] = [
+  "status", "taskStatus", "model", "lifecycle", "totalCostUSD", "createdAt", "lastActivityAt",
+  "queuePosition", "queueReason", "storage", "squad", "squadName",
+];
+
 export interface PaginatedAgentsFilters {
   namespace?: string;
   status?: string;
@@ -61,6 +67,7 @@ export function usePaginatedAgents(filters: PaginatedAgentsFilters) {
         sort: filters.sort,
         limit,
         offset,
+        fields: LIST_FIELDS,
       }),
     // filtersKey captures every field of `filters` by value.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -14,7 +14,8 @@ paths:
       description: "Returns agents with their current status in the specified namespace.\
         \ Without `limit`, returns every matching agent (backward compatible). With\
         \ `limit`, returns one page plus `total`/`nextOffset`/`facets` for infinite-scroll\
-        \ UIs."
+        \ UIs. `stats` counts and sums every matching agent, so a small page can still\
+        \ show whole-list totals."
       operationId: listAgents
       parameters:
       - description: Kubernetes namespace
@@ -40,6 +41,15 @@ paths:
         required: false
         schema:
           type: boolean
+        style: form
+      - description: "Comma-separated task statuses to match (case-insensitive), e.g.\
+          \ InProgress,Compacting"
+        explode: true
+        in: query
+        name: taskStatus
+        required: false
+        schema:
+          type: string
         style: form
       - description: Label filter key=value; repeat for multiple (AND)
         explode: true
@@ -86,6 +96,15 @@ paths:
         required: false
         schema:
           type: integer
+        style: form
+      - description: "Comma-separated agent fields to return, e.g. status,totalCostUSD.\
+          \ name and namespace are always included. Omit for every field"
+        explode: true
+        in: query
+        name: fields
+        required: false
+        schema:
+          type: string
         style: form
       responses:
         "200":
@@ -2813,6 +2832,7 @@ components:
     AgentListResponse:
       example:
         total: 1
+        stats: "{}"
         nextOffset: 1
         agents:
         - instructions: instructions
@@ -4220,12 +4240,32 @@ components:
             NextOffset is the offset to request for the next page; omitted once
             there is no more data (or when `limit` was omitted).
           type: integer
+        stats:
+          allOf:
+          - $ref: "#/components/schemas/AgentListStats"
+          description: |-
+            Stats counts and sums the agents matching the filters, BEFORE the
+            limit/offset slice — see AgentListStats doc.
+          type: object
         total:
           description: |-
             Total is the number of agents matching the status/label/q filters, BEFORE
             the limit/offset slice is applied. Always populated (even when `limit`
             was omitted, in which case it simply equals len(Agents)).
           type: integer
+      type: object
+    AgentListStats:
+      properties:
+        byStatus:
+          additionalProperties:
+            type: integer
+          description: ByStatus counts agents per phase. Agents with no phase yet
+            aren't counted.
+          type: object
+        totalCostUSD:
+          description: "TotalCostUSD is the summed totalCostUSD, formatted like the\
+            \ agent field."
+          type: string
       type: object
     AgentResponse:
       example:

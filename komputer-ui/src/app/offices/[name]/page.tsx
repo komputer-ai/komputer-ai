@@ -53,7 +53,7 @@ export default function OfficeDetailPage() {
       const [officeData, eventsData, agentsData] = await Promise.all([
         getOffice(name, namespace),
         getOfficeEvents(name, 50, namespace),
-        listAgents(),
+        listAgents(undefined, { fields: ["name"] }),
       ]);
       setOffice(officeData);
       // API returns { office, events } not a plain array — deduplicate and sort
