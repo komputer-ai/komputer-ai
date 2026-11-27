@@ -470,6 +470,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    "model_usage": result.model_usage,
                     **store_fields,
                 })
                 state.interrupted = False
@@ -485,6 +486,7 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "cost_usd": cost,
                     "duration_ms": result.duration_ms,
                     "session_id": result.session_id,
+                    "model_usage": result.model_usage,
                     **store_fields,
                 })
             else:
@@ -498,6 +500,9 @@ async def run_agent(instructions: str, model: str, publisher, system_prompt: str
                     "last_usage": last_usage,
                     "context_window": _fetch_context_window(model),
                     "model": model,
+                    # Per-model tokens and cost; the API warns when Claude Code
+                    # couldn't price a model (costBasis "unknown").
+                    "model_usage": result.model_usage,
                     **store_fields,
                 })
 
