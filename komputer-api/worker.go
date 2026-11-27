@@ -145,6 +145,7 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 						model = m
 					}
 					agentLabel := agentNameLabel(event.AgentName)
+					warnUnpricedModels(event)
 
 					switch event.Type {
 					case "task_started":
