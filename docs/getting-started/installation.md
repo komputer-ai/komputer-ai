@@ -75,7 +75,7 @@ The role needs these permissions:
 }
 ```
 
-`bedrock:GetInferenceProfile` matters when agents use application inference profile ARNs: it's how Claude Code finds the model behind the ARN, and so prices each task at that model's rates. Without it, tasks still run, but their cost can be wrong. See [Claude Code on Amazon Bedrock](https://code.claude.com/docs/en/amazon-bedrock#iam-configuration) for the full policy, including the Marketplace permissions for first-time model access.
+`bedrock:GetInferenceProfile` matters when agents use application inference profile ARNs: it's how Claude Code finds the model behind the ARN, and so prices each task at that model's rates. Without it, tasks still run, but Claude Code doesn't know the model and reports the cost at the wrong rates; in one test with Haiku 4.5, it reported about 4x the real cost. See [Claude Code on Amazon Bedrock](https://code.claude.com/docs/en/amazon-bedrock#iam-configuration) for the full policy, including the Marketplace permissions for first-time model access.
 
 ## 3. Install the CLI
 
