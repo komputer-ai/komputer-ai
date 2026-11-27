@@ -204,6 +204,9 @@ anthropicKeySecret:
 
 # -- AWS Bedrock configuration. When enabled, agents use Bedrock instead of the Anthropic API.
 # Auth: use IRSA on EKS (recommended) or provide AWS credentials via a secret.
+# The agents' role needs bedrock:InvokeModel, InvokeModelWithResponseStream, ListInferenceProfiles
+# and GetInferenceProfile (without it, tasks on inference-profile ARNs can be mispriced).
+# See docs/getting-started/installation.md.
 bedrock:
   enabled: false
   region: "us-east-1"

@@ -39,6 +39,44 @@ helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
 
 This deploys the operator, API, Redis, CRDs, and a default agent template — everything you need.
 
+### Using AWS Bedrock instead
+
+```bash
+helm install komputer-ai oci://ghcr.io/komputer-ai/charts/komputer-ai \
+  --set bedrock.enabled=true \
+  --set bedrock.region=us-east-1 \
+  --set agent.serviceAccount.name=komputer-agent \
+  --namespace komputer-ai
+```
+
+Agents call Bedrock with the AWS default credential chain. On EKS, use IRSA: annotate an existing ServiceAccount with `eks.amazonaws.com/role-arn` and name it in `agent.serviceAccount.name`, as above. Agent models must be Bedrock IDs such as `us.anthropic.claude-sonnet-4-6`, or application inference profile ARNs.
+
+The role needs these permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:GetInferenceProfile"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*:*:inference-profile/*",
+        "arn:aws:bedrock:*:*:application-inference-profile/*",
+        "arn:aws:bedrock:*:*:foundation-model/*"
+      ]
+    }
+  ]
+}
+```
+
+`bedrock:GetInferenceProfile` matters when agents use application inference profile ARNs: it's how Claude Code finds the model behind the ARN, and so prices each task at that model's rates. Without it, tasks still run, but their cost can be wrong. See [Claude Code on Amazon Bedrock](https://code.claude.com/docs/en/amazon-bedrock#iam-configuration) for the full policy, including the Marketplace permissions for first-time model access.
+
 ## 3. Install the CLI
 
 Download from [GitHub Releases](https://github.com/komputer-ai/komputer-ai/releases):
