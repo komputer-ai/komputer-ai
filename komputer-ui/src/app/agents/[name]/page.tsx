@@ -924,7 +924,7 @@ export default function AgentDetailPage() {
               </div>
 
               {/* Rail: overview, conditions, topology — a flush column, no cards */}
-              <aside className="min-w-0 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)] @5xl:min-h-0 @5xl:overflow-y-auto @5xl:border-t-0 @5xl:border-l">
+              <aside className="min-w-0 border-t border-[var(--color-border)] bg-[var(--color-bg-subtle)] @5xl:flex @5xl:min-h-0 @5xl:flex-col @5xl:overflow-y-auto @5xl:border-t-0 @5xl:border-l">
                 <RailSection title="Overview">
                   <InfoRow label="Name" value={agent.name} mono />
                   <InfoRow label="Namespace" value={agent.namespace} mono />

@@ -306,7 +306,8 @@ export function AgentTopology({ agentName, agentNs, flush }: { agentName: string
   return (
     <motion.div
       className={flush
-        ? "border-b border-[var(--color-border)] overflow-hidden"
+        // In the wide layout the rail is a fixed-height column: fill what's left of it.
+        ? "border-b border-[var(--color-border)] overflow-hidden @5xl:flex @5xl:min-h-[260px] @5xl:flex-1 @5xl:flex-col @5xl:border-b-0"
         : "rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden transition-colors duration-150 hover:border-[var(--color-border-hover)]"}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -323,7 +324,7 @@ export function AgentTopology({ agentName, agentNs, flush }: { agentName: string
           <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
-      <div className={flush ? "h-[260px]" : "h-[320px]"}>
+      <div className={flush ? "h-[260px] @5xl:h-auto @5xl:flex-1" : "h-[320px]"}>
         <ReactFlowProvider>
           <AgentTopologyInner nodes={nodes} edges={edges} focusNodeId={`agent-${agentName}`} />
         </ReactFlowProvider>
