@@ -45,6 +45,7 @@ import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
 import { archivedReadOnly, agentDormant, ephemeralBlocksSleep, formatSessionStore } from "@/lib/session-store";
+import { ACTIVE_POLL_MS, agentPollInterval } from "@/lib/agent-polling";
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) { const v = n / 1_000_000; return `${Number.isInteger(v) ? v : v.toFixed(1)}m`; }
@@ -375,23 +376,17 @@ export default function AgentDetailPage() {
     return () => window.clearTimeout(timer);
   }, [archiving]);
 
-  // Poll only while status is transient (Pending, Running with an active task, or archiving)
-  const needsPolling = agent != null && (
-    agent.status === "Pending" ||
-    agent.taskStatus === "InProgress" ||
-    agent.taskStatus === "Compacting" ||
-    archiving
-  );
+  const pollMs = agent && (archiving ? ACTIVE_POLL_MS : agentPollInterval(agent));
   useEffect(() => {
-    if (!needsPolling) return;
-    const interval = setInterval(fetchAgent, 5000);
+    if (!pollMs) return;
+    const interval = setInterval(fetchAgent, pollMs);
     return () => clearInterval(interval);
-  }, [needsPolling, fetchAgent]);
+  }, [pollMs, fetchAgent]);
 
-  // Refetch agent when a task completes so costs update
+  // Refetch agent when a task starts or ends so status and costs update
   const lastEventType = events.length > 0 ? events[events.length - 1].type : null;
   useEffect(() => {
-    if (lastEventType === "task_completed" || lastEventType === "task_cancelled") {
+    if (["task_started", "task_completed", "task_cancelled", "error"].includes(lastEventType ?? "")) {
       fetchAgent();
     }
   }, [lastEventType, fetchAgent]);
@@ -524,7 +519,8 @@ export default function AgentDetailPage() {
   }
 
   // Error / not found
-  if (error || !agent) {
+  // Once loaded, a failed poll (or an agent that deleted itself) keeps the chat on screen.
+  if (!agent) {
     return (
       <div className="flex h-full flex-col">
         <div className="flex flex-1 items-center justify-center">
