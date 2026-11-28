@@ -174,28 +174,8 @@ func StartRedisWorker(ctx context.Context, cfg RedisWorkerConfig, k8s *K8sClient
 					case "error":
 						agentTasksTotal.WithLabelValues(event.Namespace, model, "errored", agentLabel).Inc()
 						recordTaskCostMetric(event.Namespace, model, agentLabel, event.Payload)
-					case "tool_call":
-						if toolName, ok := event.Payload["tool"].(string); ok && toolName != "" {
-							if toolUseID, ok := event.Payload["id"].(string); ok && toolUseID != "" {
-								toolCallTracker.markStart(event.AgentName, toolUseID, time.Now())
-							}
-						}
 					case "tool_result":
-						toolName, _ := event.Payload["tool"].(string)
-						toolUseID, _ := event.Payload["id"].(string)
-						isError, _ := event.Payload["is_error"].(bool)
-						outcome := "success"
-						if isError {
-							outcome = "error"
-						}
-						if toolName != "" {
-							agentToolInvocations.WithLabelValues(event.Namespace, toolName, outcome, agentLabel).Inc()
-							if toolUseID != "" {
-								if dur, ok := toolCallTracker.consumeDuration(event.AgentName, toolUseID, time.Now()); ok {
-									agentToolDuration.WithLabelValues(event.Namespace, toolName, agentLabel).Observe(dur.Seconds())
-								}
-							}
-						}
+						recordToolResultMetric(event.Namespace, agentLabel, event.Payload)
 					}
 					// --- end metric emission ---
 
@@ -539,6 +519,24 @@ func truncate(s string, max int) string {
 func recordTaskCostMetric(namespace, model, agentLabel string, payload map[string]interface{}) {
 	if cost, ok := payload["cost_usd"].(float64); ok {
 		agentTaskCostUSD.WithLabelValues(namespace, model, agentLabel).Add(cost)
+	}
+}
+
+// recordToolResultMetric counts a tool invocation and records its duration. The
+// agent times each call itself and sends duration_ms with tool_result, since event
+// timestamps are whole seconds; a result without it still counts as an invocation.
+func recordToolResultMetric(namespace, agentLabel string, payload map[string]interface{}) {
+	toolName, _ := payload["tool"].(string)
+	if toolName == "" {
+		return
+	}
+	outcome := "success"
+	if isError, _ := payload["is_error"].(bool); isError {
+		outcome = "error"
+	}
+	agentToolInvocations.WithLabelValues(namespace, toolName, outcome, agentLabel).Inc()
+	if ms, ok := payload["duration_ms"].(float64); ok {
+		agentToolDuration.WithLabelValues(namespace, toolName, agentLabel).Observe(ms / 1000)
 	}
 }
 
