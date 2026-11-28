@@ -7,6 +7,7 @@ import { Brain, Check, MessageSquare, Wrench, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AgentEvent } from "@/lib/types";
+import { eventKey } from "@/lib/agent-events";
 import { useWebSocket } from "@/hooks/use-websocket";
 
 // Buffer between the bubble bottom and the viewport bottom edge — keeps the
@@ -103,7 +104,7 @@ export function FloatingBubbles({ session, onFirstResponse, onTaskComplete, onCl
     let firstSeen = announcedFirstRef.current;
 
     for (const ev of fresh) {
-      const evId = `${ev.timestamp}:${ev.type}`;
+      const evId = eventKey(ev);
       if (consumedRef.current.has(evId)) continue;
       if (ev.type === "tool_call") {
         const action = eventToAction(ev);
@@ -556,7 +557,7 @@ function BubbleIcon({ kind }: { kind: Bubble["kind"] }) {
 }
 
 function eventToBubble(ev: AgentEvent): Bubble | null {
-  const id = `${ev.timestamp}:${ev.type}`;
+  const id = eventKey(ev);
   if (ev.type === "thinking") {
     const text = textFromPayload(ev.payload);
     if (!text) return null;
@@ -571,7 +572,7 @@ function eventToBubble(ev: AgentEvent): Bubble | null {
 }
 
 function eventToAction(ev: AgentEvent): ToolAction | null {
-  const id = `${ev.timestamp}:${ev.type}`;
+  const id = eventKey(ev);
   const rawTool = (ev.payload?.tool ?? ev.payload?.name) as string | undefined;
   if (!rawTool) return null;
   const tool = prettyToolName(rawTool);

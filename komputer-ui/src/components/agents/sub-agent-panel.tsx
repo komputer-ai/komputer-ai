@@ -11,6 +11,7 @@ import type { AgentEvent } from "@/lib/types";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { getOffice, listAgents, getAgentEvents } from "@/lib/api";
 import type { OfficeMemberResponse } from "@/lib/types";
+import { mergeAgentEvents } from "@/lib/agent-events";
 
 type SubAgentInfo = {
   name: string;
@@ -136,17 +137,8 @@ function SubAgentCard({ info, namespace, exists, agentPhase, memberStatus }: { i
       .catch(() => {});
   }, [info.name, namespace, exists]);
 
-  // Merge history + WS, dedup by timestamp+type
-  const events = useMemo(() => {
-    const all = [...historyEvents, ...wsEvents];
-    const seen = new Set<string>();
-    return all.filter((e) => {
-      const key = `${e.timestamp}:${e.type}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  }, [historyEvents, wsEvents]);
+  // Merge history + WS, sorted by time
+  const events = useMemo(() => mergeAgentEvents(historyEvents, wsEvents), [historyEvents, wsEvents]);
 
   // Derive status: existence → API phase → live events → office member data
   const status = useMemo(() => {
