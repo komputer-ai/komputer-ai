@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
@@ -96,20 +95,42 @@ func TestCRCollectorEmitsExpectedDescriptors(t *testing.T) {
 	}
 }
 
-func TestToolCallTracker(t *testing.T) {
-	toolCallTracker = &toolCallTrackerT{starts: make(map[string]time.Time)}
-	start := time.Now()
-	toolCallTracker.markStart("foo-agent", "tc_01", start)
-	dur, ok := toolCallTracker.consumeDuration("foo-agent", "tc_01", start.Add(2*time.Second))
-	if !ok {
-		t.Fatal("expected to find start time")
+// Tool durations come from the agent's own duration_ms on tool_result (event
+// timestamps are whole seconds). A result without one still counts as an invocation.
+func TestRecordToolResultMetric(t *testing.T) {
+	ns, agent := "metrics-tool-ns", ""
+	reg := prometheus.NewPedanticRegistry()
+	reg.MustRegister(agentToolDuration)
+	histogram := func() (count uint64, sum float64) {
+		mfs, err := reg.Gather()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, mf := range mfs {
+			for _, m := range mf.GetMetric() {
+				for _, l := range m.GetLabel() {
+					if l.GetName() == "namespace" && l.GetValue() == ns {
+						return m.GetHistogram().GetSampleCount(), m.GetHistogram().GetSampleSum()
+					}
+				}
+			}
+		}
+		return 0, 0
 	}
-	if dur != 2*time.Second {
-		t.Errorf("expected 2s, got %v", dur)
+	invocations := func() float64 {
+		return testutil.ToFloat64(agentToolInvocations.WithLabelValues(ns, "Bash", "success", agent))
 	}
-	// Second consume should fail (already consumed).
-	if _, ok := toolCallTracker.consumeDuration("foo-agent", "tc_01", time.Now()); ok {
-		t.Error("expected second consume to fail")
+	before := invocations()
+
+	recordToolResultMetric(ns, agent, map[string]interface{}{"tool": "Bash", "duration_ms": float64(4400)})
+	recordToolResultMetric(ns, agent, map[string]interface{}{"tool": "Bash"})             // older agent: no duration
+	recordToolResultMetric(ns, agent, map[string]interface{}{"duration_ms": float64(10)}) // no tool: ignored
+
+	if got := invocations() - before; got != 2 {
+		t.Errorf("invocations delta = %v, want 2", got)
+	}
+	if count, sum := histogram(); count != 1 || sum != 4.4 {
+		t.Errorf("duration histogram = %d samples summing to %v, want 1 sample of 4.4s", count, sum)
 	}
 }
 

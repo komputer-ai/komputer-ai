@@ -4,7 +4,6 @@ import (
 	"context"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -85,7 +84,7 @@ var (
 	agentToolDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "komputer_agent_tool_duration_seconds",
-			Help:    "Tool execution duration, derived from tool_call/tool_result event pairs.",
+			Help:    "Tool execution duration, as measured by the agent (tool_result duration_ms).",
 			Buckets: prometheus.ExponentialBuckets(0.1, 2, 12), // 100ms, 200ms, ... ~7min
 		},
 		[]string{"namespace", "tool", "agent_name"},
@@ -203,33 +202,6 @@ func agentNameLabel(name string) string {
 		return name
 	}
 	return ""
-}
-
-// toolCallTrackerT correlates tool_call → tool_result events to compute tool execution duration.
-type toolCallTrackerT struct {
-	mu     sync.Mutex
-	starts map[string]time.Time // key = "<agent>:<tool_use_id>"
-}
-
-var toolCallTracker = &toolCallTrackerT{starts: make(map[string]time.Time)}
-
-func (t *toolCallTrackerT) markStart(agent, toolUseID string, at time.Time) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.starts[agent+":"+toolUseID] = at
-}
-
-// consumeDuration returns the time between markStart and now, deleting the entry. Returns false if no start was tracked.
-func (t *toolCallTrackerT) consumeDuration(agent, toolUseID string, endAt time.Time) (time.Duration, bool) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	key := agent + ":" + toolUseID
-	startAt, ok := t.starts[key]
-	if !ok {
-		return 0, false
-	}
-	delete(t.starts, key)
-	return endAt.Sub(startAt), true
 }
 
 // crCollector lists KomputerAgent and KomputerSchedule CRs at scrape time
