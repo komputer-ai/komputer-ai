@@ -44,6 +44,7 @@ import { humanizeConditionReason } from "@/lib/agent-conditions";
 import { LabelsEditor } from "@/components/agents/labels-editor";
 import { splitLabels, validateLabelRows, hasLabelErrors, diffLabels, type LabelRow } from "@/lib/label-edit";
 import { usePlatformConfig } from "@/hooks/use-platform-config";
+import { mergeAgentEvents } from "@/lib/agent-events";
 import { archivedReadOnly, agentDormant, ephemeralBlocksSleep, formatSessionStore } from "@/lib/session-store";
 
 function fmtTokens(n: number): string {
@@ -317,21 +318,9 @@ export default function AgentDetailPage() {
     }
   }, [agentName, agentNs, parseEventsResponse]);
 
-  // Merge history + WS events, dedup by timestamp+type, sorted by time.
-  // History events take precedence (listed first), so WS duplicates are dropped.
-  const events = useMemo(() => {
-    const seen = new Set<string>();
-    return [...historyEvents, ...wsEvents]
-      .filter((e) => {
-        // Normalize user message types so task_started (WS) dedupes against user_message (history).
-        const normType = e.type === "task_started" ? "user_message" : e.type;
-        const key = `${e.timestamp}:${normType}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  }, [historyEvents, wsEvents]);
+  // Merge history + WS events, sorted by time. History events take precedence
+  // (listed first), so WS duplicates are dropped.
+  const events = useMemo(() => mergeAgentEvents(historyEvents, wsEvents), [historyEvents, wsEvents]);
 
   // Fetch agent info with polling
   const fetchAgent = useCallback(async () => {

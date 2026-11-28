@@ -17,6 +17,7 @@ import { OfficeMembersGrid } from "@/components/offices/office-members";
 import { getOffice, getOfficeEvents, deleteOffice, listAgents } from "@/lib/api";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import type { OfficeResponse, AgentEvent } from "@/lib/types";
+import { mergeAgentEvents } from "@/lib/agent-events";
 
 export default function OfficeDetailPage() {
   const params = useParams<{ name: string }>();
@@ -58,15 +59,7 @@ export default function OfficeDetailPage() {
       setOffice(officeData);
       // API returns { office, events } not a plain array — deduplicate and sort
       const eventsRaw = Array.isArray(eventsData) ? eventsData : (eventsData as { events?: AgentEvent[] })?.events ?? [];
-      const seen = new Set<string>();
-      const eventsArr = eventsRaw.filter((e) => {
-        const key = `${e.timestamp}:${e.type}:${e.agentName}:${e.payload?.content ?? e.payload?.text ?? e.payload?.message ?? ""}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      eventsArr.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-      setEvents(eventsArr);
+      setEvents(mergeAgentEvents(eventsRaw));
       setExistingAgents(new Set((agentsData.agents || []).map((a) => a.name)));
       setNotFound(false);
     } catch (e: unknown) {

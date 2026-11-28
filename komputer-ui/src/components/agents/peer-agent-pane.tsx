@@ -6,6 +6,7 @@ import { AgentChat } from "@/components/agents/agent-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { getAgent, getAgentEvents } from "@/lib/api";
 import type { AgentEvent, AgentResponse } from "@/lib/types";
+import { mergeAgentEvents } from "@/lib/agent-events";
 
 export interface PeerAgentPaneProps {
   agentName: string;
@@ -88,19 +89,8 @@ export function PeerAgentPane({ agentName, agentNamespace, onRemove }: PeerAgent
     }
   }, [agentName, agentNamespace, parseEventsResponse]);
 
-  // Merge history + WS events, dedup by timestamp+type, sorted by time
-  const events = useMemo(() => {
-    const seen = new Set<string>();
-    return [...historyEvents, ...wsEvents]
-      .filter((e) => {
-        const normType = e.type === "task_started" ? "user_message" : e.type;
-        const key = `${e.timestamp}:${normType}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  }, [historyEvents, wsEvents]);
+  // Merge history + WS events, sorted by time
+  const events = useMemo(() => mergeAgentEvents(historyEvents, wsEvents), [historyEvents, wsEvents]);
 
   // Fetch agent info
   const fetchAgent = useCallback(async () => {
