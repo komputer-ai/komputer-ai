@@ -23,10 +23,12 @@ import { listAgents, listOffices, getOffice, listSchedules, listSquads } from "@
 import { usePageRefresh } from "@/components/layout/app-shell";
 import type {
   AgentResponse,
+  AgentStatus,
   OfficeResponse,
   ScheduleResponse,
   Squad,
 } from "@/lib/types";
+import { parseHiddenStatuses, serializeHiddenStatuses, TOPOLOGY_AGENT_STATUSES } from "@/lib/topology-filters";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
 import {
@@ -457,11 +459,14 @@ function SquadOverlay({ squads, nodes }: { squads: Squad[]; nodes: Node[] }) {
 /*  Build nodes + edges from API data                                 */
 /* ------------------------------------------------------------------ */
 
-function buildGraph(
+// hiddenAgents are agents that exist but are filtered out (e.g. archived): they get
+// no node, and unlike agents that are gone, no "Deleted" placeholder either.
+export function buildGraph(
   agents: AgentResponse[],
   offices: OfficeResponse[],
   schedules: ScheduleResponse[],
-  squads?: Squad[]
+  squads?: Squad[],
+  hiddenAgents: Set<string> = new Set()
 ) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -507,8 +512,10 @@ function buildGraph(
       },
     });
 
-    // Ensure manager agent node exists (even if deleted)
-    if (office.manager && !addedAgentNodes.has(office.manager)) {
+    // Ensure manager agent node exists (even if deleted). A hidden manager gets no
+    // node, and its workers hang off the office instead.
+    const managerHidden = !!office.manager && hiddenAgents.has(office.manager);
+    if (office.manager && !managerHidden && !addedAgentNodes.has(office.manager)) {
       addedAgentNodes.add(office.manager);
       nodes.push({
         id: `agent-${office.manager}`,
@@ -523,7 +530,7 @@ function buildGraph(
     }
 
     // Edge: office -> manager agent
-    if (office.manager) {
+    if (office.manager && !managerHidden) {
       edges.push({
         id: `e-office-${office.name}-manager-${office.manager}`,
         source: `office-${office.name}`,
@@ -536,6 +543,7 @@ function buildGraph(
     // Worker agents — create nodes for deleted ones, always draw edges
     for (const member of office.members || []) {
       if (member.role === "worker") {
+        if (hiddenAgents.has(member.name)) continue;
         if (!addedAgentNodes.has(member.name)) {
           addedAgentNodes.add(member.name);
           nodes.push({
@@ -551,7 +559,7 @@ function buildGraph(
         }
         edges.push({
           id: `e-manager-${office.manager}-worker-${member.name}`,
-          source: `agent-${office.manager}`,
+          source: managerHidden ? `office-${office.name}` : `agent-${office.manager}`,
           target: `agent-${member.name}`,
           style: { stroke: "#7c6bc4", strokeWidth: 1.5 },
           animated: false,
@@ -660,6 +668,85 @@ function TopologyGraphInner({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Filter dropdown                                                   */
+/* ------------------------------------------------------------------ */
+
+// A multi-select dropdown: an "All" row, then one checkable row per option.
+function FilterMultiSelect({
+  summary,
+  allChecked,
+  onAll,
+  options,
+  isChecked,
+  onToggle,
+  className = "w-56",
+}: {
+  summary: string;
+  allChecked: boolean;
+  onAll: () => void;
+  options: string[];
+  isChecked: (option: string) => boolean;
+  onToggle: (option: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on click outside (capture phase so React Flow doesn't swallow it)
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as globalThis.Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", handleClick, true);
+    return () => document.removeEventListener("pointerdown", handleClick, true);
+  }, [open]);
+
+  const row = (checked: boolean) =>
+    `flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${checked ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        className={`flex items-center justify-between ${className} h-8 px-3 rounded-[var(--radius-sm)] text-[11px] font-[family-name:var(--font-mono)] bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 cursor-pointer hover:border-[var(--color-border-hover)] focus:outline-none focus:border-[var(--color-brand-blue)]/60`}
+        onClick={() => setOpen(!open)}
+      >
+        <span className="truncate">{summary}</span>
+        <ChevronDown className={`h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className={`absolute right-0 z-50 ${className} mt-1 py-1 rounded-[var(--radius-md)] bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] overflow-y-auto max-h-60`}
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+          >
+            <div className={row(allChecked)} onClick={onAll}>
+              <span>All</span>
+              {allChecked && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
+            </div>
+            {options.map((option) => {
+              const checked = isChecked(option);
+              return (
+                <div key={option} className={row(checked)} onClick={() => onToggle(option)}>
+                  <span className="truncate">{option}</span>
+                  {checked && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Exported component                                                */
 /* ------------------------------------------------------------------ */
 
@@ -677,30 +764,19 @@ export function TopologyGraph() {
     const val = searchParams.get("office");
     return val ? val.split(",") : [];
   });
-  const [officeDropdownOpen, setOfficeDropdownOpen] = useState(false);
-  const officeDropdownRef = useRef<HTMLDivElement>(null);
+  const [hiddenStatuses, setHiddenStatuses] = useState<string[]>(() => parseHiddenStatuses(searchParams.get("hide")));
 
   // Sync filters to URL
   useEffect(() => {
     const params = new URLSearchParams();
     if (nsFilter !== "all") params.set("ns", nsFilter);
     if (officeFilter.length > 0) params.set("office", officeFilter.join(","));
+    const hide = serializeHiddenStatuses(hiddenStatuses);
+    if (hide !== null) params.set("hide", hide);
     const qs = params.toString();
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", url);
-  }, [nsFilter, officeFilter]);
-
-  // Close office dropdown on click outside (capture phase so React Flow doesn't swallow it)
-  useEffect(() => {
-    if (!officeDropdownOpen) return;
-    function handleClick(e: PointerEvent) {
-      if (officeDropdownRef.current && !officeDropdownRef.current.contains(e.target as globalThis.Node)) {
-        setOfficeDropdownOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handleClick, true);
-    return () => document.removeEventListener("pointerdown", handleClick, true);
-  }, [officeDropdownOpen]);
+  }, [nsFilter, officeFilter, hiddenStatuses]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -746,6 +822,12 @@ export function TopologyGraph() {
     return allOffices.map((o) => o.name).sort();
   }, [allOffices]);
 
+  // The known phases, plus any other status the API reports, so nothing is unfilterable.
+  const statusOptions = useMemo(() => {
+    const extra = allAgents.map((a) => a.status as string).filter((s) => s && !TOPOLOGY_AGENT_STATUSES.includes(s as AgentStatus));
+    return [...TOPOLOGY_AGENT_STATUSES, ...Array.from(new Set(extra)).sort()];
+  }, [allAgents]);
+
   // Apply filters
   const graphData = useMemo(() => {
     let agents = allAgents;
@@ -775,12 +857,22 @@ export function TopologyGraph() {
       }
     }
 
-    if (agents.length === 0 && offices.length === 0 && schedules.length === 0) {
-      return null;
+    const hiddenAgents = new Set<string>();
+    if (hiddenStatuses.length > 0) {
+      const hidden = new Set(hiddenStatuses);
+      agents = agents.filter((a) => {
+        if (!hidden.has(a.status)) return true;
+        hiddenAgents.add(a.name);
+        return false;
+      });
     }
 
-    return { ...buildGraph(agents, offices, schedules, squads), squads };
-  }, [allAgents, allOffices, allSchedules, allSquads, nsFilter, officeFilter]);
+    if (agents.length === 0 && offices.length === 0 && schedules.length === 0) {
+      return { ...buildGraph([], [], []), squads, hiddenCount: hiddenAgents.size };
+    }
+
+    return { ...buildGraph(agents, offices, schedules, squads, hiddenAgents), squads, hiddenCount: hiddenAgents.size };
+  }, [allAgents, allOffices, allSchedules, allSquads, nsFilter, officeFilter, hiddenStatuses]);
 
   if (loading) {
     return (
@@ -826,61 +918,47 @@ export function TopologyGraph() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-[var(--color-text-secondary)]">Office</span>
-          <div className="relative" ref={officeDropdownRef}>
-            <button
-              type="button"
-              className="flex items-center justify-between w-56 h-8 px-3 rounded-[var(--radius-sm)] text-[11px] font-[family-name:var(--font-mono)] bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 cursor-pointer hover:border-[var(--color-border-hover)] focus:outline-none focus:border-[var(--color-brand-blue)]/60"
-              onClick={() => setOfficeDropdownOpen(!officeDropdownOpen)}
-            >
-              <span className="truncate">
-                {officeFilter.length === 0 ? "All" : officeFilter.length === 1 ? officeFilter[0] : `${officeFilter.length} selected`}
-              </span>
-              <ChevronDown className={`h-4 w-4 text-[var(--color-text-muted)] transition-transform duration-200 ${officeDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
-            <AnimatePresence>
-              {officeDropdownOpen && (
-                <motion.div
-                  className="absolute right-0 z-50 w-56 mt-1 py-1 rounded-[var(--radius-md)] bg-[var(--color-surface-raised)] border border-[var(--color-border)] shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.2)] overflow-y-auto max-h-60"
-                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                  transition={{ duration: 0.12, ease: "easeOut" }}
-                >
-                  <div
-                    className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${officeFilter.length === 0 ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
-                    onClick={() => setOfficeFilter([])}
-                  >
-                    <span>All</span>
-                    {officeFilter.length === 0 && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
-                  </div>
-                  {officeNames.map((name) => {
-                    const selected = officeFilter.includes(name);
-                    return (
-                      <div
-                        key={name}
-                        className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)] ${selected ? "text-[var(--color-brand-blue)]" : "text-[var(--color-text)]"}`}
-                        onClick={() => {
-                          setOfficeFilter((prev) =>
-                            selected ? prev.filter((n) => n !== name) : [...prev, name]
-                          );
-                        }}
-                      >
-                        <span className="truncate">{name}</span>
-                        {selected && <Check className="h-4 w-4 shrink-0 text-[var(--color-brand-blue)]" />}
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <FilterMultiSelect
+            summary={officeFilter.length === 0 ? "All" : officeFilter.length === 1 ? officeFilter[0] : `${officeFilter.length} selected`}
+            allChecked={officeFilter.length === 0}
+            onAll={() => setOfficeFilter([])}
+            options={officeNames}
+            isChecked={(name) => officeFilter.includes(name)}
+            onToggle={(name) =>
+              setOfficeFilter((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]))
+            }
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[var(--color-text-secondary)]">Status</span>
+          <FilterMultiSelect
+            className="w-48"
+            summary={
+              hiddenStatuses.length === 0
+                ? "All"
+                : hiddenStatuses.length === 1
+                  ? `All but ${hiddenStatuses[0]}`
+                  : `${statusOptions.length - hiddenStatuses.length} of ${statusOptions.length}`
+            }
+            allChecked={hiddenStatuses.length === 0}
+            onAll={() => setHiddenStatuses([])}
+            options={statusOptions}
+            isChecked={(status) => !hiddenStatuses.includes(status)}
+            onToggle={(status) =>
+              setHiddenStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]))
+            }
+          />
+          {graphData.hiddenCount > 0 && (
+            <span className="whitespace-nowrap text-[11px] text-[var(--color-text-muted)]">{graphData.hiddenCount} hidden</span>
+          )}
         </div>
       </div>
 
       {/* Graph */}
       <div className="flex-1">
         <AnimatePresence mode="wait">
-          {!graphData || graphData.nodes.length === 0 ? (
+          {graphData.nodes.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
@@ -890,12 +968,14 @@ export function TopologyGraph() {
               className="flex h-full items-center justify-center"
             >
               <p className="text-sm text-[var(--color-text-secondary)]">
-                No agents, offices, or schedules found.
+                {graphData.hiddenCount > 0
+                  ? `No agents, offices, or schedules to show. ${graphData.hiddenCount} hidden by the Status filter.`
+                  : "No agents, offices, or schedules found."}
               </p>
             </motion.div>
           ) : (
             <motion.div
-              key={`${nsFilter}-${officeFilter.join(",")}`}
+              key={`${nsFilter}-${officeFilter.join(",")}-${hiddenStatuses.join(",")}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
